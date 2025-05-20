@@ -9,7 +9,6 @@ import { ProtectedLayout } from "@/components/protected-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
-// Generate metadata without explicitly using the Metadata type
 export function generateMetadata() {
   const websiteName = getWebsiteName()
 
