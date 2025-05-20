@@ -22,10 +22,12 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
+import { getWebsiteName } from "@/lib/site-config"
 
 export function SideNav() {
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const websiteName = getWebsiteName()
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
@@ -37,7 +39,7 @@ export function SideNav() {
         <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Server className="h-6 w-6" />
-            <span>Game Server Admin</span>
+            <span>{websiteName}</span>
           </Link>
         </div>
         <ScrollArea className="flex-1 px-4 py-2 lg:px-6">
