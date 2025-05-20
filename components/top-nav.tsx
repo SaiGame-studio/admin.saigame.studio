@@ -15,8 +15,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
-// Import the ThemeToggle component
-import { ThemeToggle } from "@/components/theme-toggle"
 
 export function TopNav() {
   const { logout } = useAuth()
@@ -41,7 +39,6 @@ export function TopNav() {
         </Link>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="relative">
