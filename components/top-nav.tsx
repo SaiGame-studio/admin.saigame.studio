@@ -16,9 +16,11 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { getWebsiteName } from "@/lib/site-config"
 
 export function TopNav() {
   const { logout } = useAuth()
+  const websiteName = getWebsiteName()
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
@@ -36,7 +38,7 @@ export function TopNav() {
       <div className="flex items-center gap-2 lg:hidden">
         <Server className="h-6 w-6" />
         <Link href="/" className="font-semibold">
-          Game Server Admin
+          {websiteName}
         </Link>
       </div>
       <div className="ml-auto flex items-center gap-2">
