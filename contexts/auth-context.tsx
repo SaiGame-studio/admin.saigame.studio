@@ -28,9 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Redirect logic
     if (!isLoading) {
-      if (!isAuthenticated && pathname !== "/login") {
+      if (!isAuthenticated && pathname !== "/login" && pathname !== "/register") {
         router.push("/login")
-      } else if (isAuthenticated && pathname === "/login") {
+      } else if (isAuthenticated && (pathname === "/login" || pathname === "/register")) {
         router.push("/")
       }
     }

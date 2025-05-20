@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react"
 export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
-  const isLoginPage = pathname === "/login"
+  const isAuthPage = pathname === "/login" || pathname === "/register"
 
   if (isLoading) {
     return (
@@ -21,14 +21,14 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If not authenticated and not on login page, don't render anything
+  // If not authenticated and not on auth page, don't render anything
   // (the auth context will handle the redirect)
-  if (!isAuthenticated && !isLoginPage) {
+  if (!isAuthenticated && !isAuthPage) {
     return null
   }
 
-  // If on login page, just render the login page without layout
-  if (isLoginPage) {
+  // If on auth page, just render the page without layout
+  if (isAuthPage) {
     return <>{children}</>
   }
 
