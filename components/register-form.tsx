@@ -52,10 +52,12 @@ export function RegisterForm() {
         throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
       }
 
+      // Update the fetch call in the handleSubmit function to include the Accept header
       const response = await fetch(`${apiUrl}/api/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           email,
