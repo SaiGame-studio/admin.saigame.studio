@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,17 +13,25 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useRouter } from "next/navigation"
 
+// Import the necessary utilities and hooks
+import { useAuth } from "@/contexts/auth-context"
+import { safeSetItem } from "@/lib/storage-utils"
+
+// Add the REMEMBERED_EMAIL_KEY constant at the top of the file
+const REMEMBERED_EMAIL_KEY = "game_server_admin_remembered_email"
+
+// Update the RegisterForm function to use the auth context
 export function RegisterForm() {
   const router = useRouter()
   const { toast } = useToast()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Update the handleSubmit function to handle the token and auto-login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -69,16 +77,30 @@ export function RegisterForm() {
         throw new Error(data.message || "Registration failed. Please try again.")
       }
 
-      // Success - show toast and redirect to login
-      toast({
-        title: "Registration successful",
-        description: "Your account has been created. You can now log in.",
-      })
+      // Save the email for future logins
+      safeSetItem(REMEMBERED_EMAIL_KEY, email)
 
-      // Redirect to login page after a short delay
-      setTimeout(() => {
-        router.push("/login")
-      }, 1500)
+      // Check if the API returned a token
+      if (data.token) {
+        // Use the auth context to login with the token
+        login(data.token)
+
+        toast({
+          title: "Registration successful",
+          description: "Your account has been created and you are now logged in.",
+        })
+      } else {
+        // If no token is returned, show success message and redirect to login
+        toast({
+          title: "Registration successful",
+          description: "Your account has been created. You can now log in.",
+        })
+
+        // Redirect to login page after a short delay
+        setTimeout(() => {
+          router.push("/login")
+        }, 1500)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
@@ -112,76 +134,30 @@ export function RegisterForm() {
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Hide
-                  </>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Show
-                  </>
-                )}
-              </Button>
-            </div>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                minLength={8}
-              />
-            </div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              minLength={8}
+            />
             <p className="text-xs text-muted-foreground">Password must be at least 8 characters long</p>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password-confirmation">Confirm Password</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-              >
-                {showPasswordConfirmation ? (
-                  <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Hide
-                  </>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Show
-                  </>
-                )}
-              </Button>
-            </div>
-            <div className="relative">
-              <Input
-                id="password-confirmation"
-                type={showPasswordConfirmation ? "text" : "password"}
-                placeholder="••••••••"
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
+            <Label htmlFor="password-confirmation">Confirm Password</Label>
+            <Input
+              id="password-confirmation"
+              type="password"
+              placeholder="••••••••"
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              required
+              disabled={isLoading}
+            />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
