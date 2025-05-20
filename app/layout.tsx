@@ -1,7 +1,6 @@
 import type React from "react"
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
-import type { Metadata } from "next"
 import { getWebsiteName } from "@/lib/site-config"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -10,7 +9,8 @@ import { ProtectedLayout } from "@/components/protected-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export function generateMetadata(): Metadata {
+// Generate metadata without explicitly using the Metadata type
+export function generateMetadata() {
   const websiteName = getWebsiteName()
 
   return {
