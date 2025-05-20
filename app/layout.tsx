@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="dark">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="game-server-admin-theme">
           <AuthProvider>
             <ProtectedLayout>{children}</ProtectedLayout>
           </AuthProvider>
