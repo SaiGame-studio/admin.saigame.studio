@@ -10,6 +10,7 @@ import { ServerStats } from "@/components/server-stats"
 import { RecentActivity } from "@/components/recent-activity"
 import { OnlineUsers } from "@/components/online-users"
 import { DashboardSkeleton } from "@/components/dashboard-skeleton"
+import { ThemeTest } from "@/components/theme-test"
 
 export default function DashboardPage() {
   return (
@@ -182,6 +183,10 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <div className="mt-8">
+          <ThemeTest />
+        </div>
       </main>
     </div>
   )

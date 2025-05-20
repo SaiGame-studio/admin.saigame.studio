@@ -14,14 +14,22 @@ import {
   Terminal,
   User,
   Users,
+  Moon,
+  Sun,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/contexts/auth-context"
+import { useTheme } from "next-themes"
 
 export function SideNav() {
   const { logout } = useAuth()
+  const { theme, setTheme } = useTheme()
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
 
   return (
     <div className="hidden border-r bg-muted/40 lg:block dark:bg-background">
@@ -108,10 +116,25 @@ export function SideNav() {
           </div>
         </ScrollArea>
         <div className="mt-auto border-t p-4 lg:p-6">
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={logout}>
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+          <div className="space-y-2">
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={toggleTheme}>
+              {theme === "dark" ? (
+                <>
+                  <Sun className="h-4 w-4" />
+                  Switch to Light Mode
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4" />
+                  Switch to Dark Mode
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={logout}>
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
     </div>
