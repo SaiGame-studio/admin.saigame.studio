@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, LogOut, Menu, Server } from "lucide-react"
+import { Bell, LogOut, Menu, Server, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -63,6 +63,12 @@ export function TopNav() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/profile">
+            <User className="h-5 w-5" />
+            <span className="sr-only">User Profile</span>
+          </Link>
+        </Button>
         <Button variant="outline" size="icon" onClick={logout}>
           <LogOut className="h-5 w-5" />
           <span className="sr-only">Logout</span>

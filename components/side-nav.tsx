@@ -12,6 +12,7 @@ import {
   Server,
   Shield,
   Terminal,
+  User,
   Users,
 } from "lucide-react"
 
@@ -73,6 +74,12 @@ export function SideNav() {
             </div>
             <div className="space-y-1">
               <h3 className="text-xs font-medium text-muted-foreground">Administration</h3>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2" asChild>
+                <Link href="/profile">
+                  <User className="h-4 w-4" />
+                  My Profile
+                </Link>
+              </Button>
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2" asChild>
                 <Link href="/settings">
                   <Cog className="h-4 w-4" />
