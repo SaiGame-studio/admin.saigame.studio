@@ -4,8 +4,8 @@ import { Inter } from "next/font/google"
 import type { Metadata } from "next"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { SideNav } from "@/components/side-nav"
-import { TopNav } from "@/components/top-nav"
+import { AuthProvider } from "@/contexts/auth-context"
+import { ProtectedLayout } from "@/components/protected-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -24,13 +24,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark">
-          <div className="flex min-h-screen flex-col">
-            <TopNav />
-            <div className="flex flex-1">
-              <SideNav />
-              <div className="flex-1">{children}</div>
-            </div>
-          </div>
+          <AuthProvider>
+            <ProtectedLayout>{children}</ProtectedLayout>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

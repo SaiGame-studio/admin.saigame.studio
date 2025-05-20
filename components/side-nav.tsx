@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import {
   BarChart3,
@@ -15,8 +17,11 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useAuth } from "@/contexts/auth-context"
 
 export function SideNav() {
+  const { logout } = useAuth()
+
   return (
     <div className="hidden border-r bg-muted/40 lg:block dark:bg-background">
       <div className="flex h-full max-h-screen flex-col gap-2">
@@ -96,7 +101,7 @@ export function SideNav() {
           </div>
         </ScrollArea>
         <div className="mt-auto border-t p-4 lg:p-6">
-          <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+          <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={logout}>
             <LogOut className="h-4 w-4" />
             Logout
           </Button>

@@ -1,5 +1,7 @@
+"use client"
+
 import Link from "next/link"
-import { Bell, Menu, Server } from "lucide-react"
+import { Bell, LogOut, Menu, Server } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,8 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SideNav } from "@/components/side-nav"
+import { useAuth } from "@/contexts/auth-context"
 
 export function TopNav() {
+  const { logout } = useAuth()
+
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
       <Sheet>
@@ -58,6 +63,10 @@ export function TopNav() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button variant="outline" size="icon" onClick={logout}>
+          <LogOut className="h-5 w-5" />
+          <span className="sr-only">Logout</span>
+        </Button>
       </div>
     </header>
   )
