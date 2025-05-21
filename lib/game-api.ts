@@ -105,7 +105,7 @@ export async function updateGame(
 }
 
 // Get all games (across all studios)
-export async function getAllGames(token: string): Promise<Game[]> {
+export async function getAllGames(): Promise<Game[]> {
   const token = localStorage.getItem("token")
 
   try {
