@@ -1,4 +1,6 @@
 import type {ApiResponse, Game} from "@/types/game"
+import Interceptors from "undici-types/interceptors";
+import dump = Interceptors.dump;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -12,7 +14,7 @@ export async function getStudioGames(studioId: string): Promise<Game[]> {
 
     try {
 
-        const response = await fetch(`${API_URL}/studios/${studioId}/games`, {
+        const response = await fetch(`${API_URL}/api/studios/${studioId}/games`, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 Accept: "application/json",
@@ -39,8 +41,10 @@ export async function getGame(gameId: string): Promise<Game> {
         throw new Error("Authentication required")
     }
 
+    console.log(token)
+
     try {
-        const response = await fetch(`${API_URL}/games/${gameId}`, {
+        const response = await fetch(`${API_URL}/api/games/${gameId}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 Accept: "application/json",

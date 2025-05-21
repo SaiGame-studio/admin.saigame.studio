@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
 import {useAuth} from "@/contexts/auth-context"
 import {getGame} from "@/lib/game-api"
@@ -17,7 +17,8 @@ export default function GameDetailsPage({params}: { params: { id: string } }) {
     const [game, setGame] = useState<Game | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const gameId = params.id
+    // @ts-ignore
+    const gameId = React.use(params).id
 
     useEffect(() => {
         async function loadGame() {

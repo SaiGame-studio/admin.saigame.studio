@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getGame, updateGame } from "@/lib/game-api"
@@ -25,7 +23,7 @@ export default function EditGamePage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const gameId = params.id
+  const gameId = React.use(params).id
 
   useEffect(() => {
     async function loadGame() {
