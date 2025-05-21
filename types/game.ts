@@ -1,13 +1,12 @@
 export interface Game {
   id: string
   name: string
-  status: GameStatus
-  shop_count: number
+  status: string
   updated_at: number
   created_at: number
+  shop_count: number
+  studio_id?: string
 }
-
-export type GameStatus = "released" | "beta" | "alpha" | "development" | "archived"
 
 export interface ApiResponse<T> {
   status: string

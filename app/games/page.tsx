@@ -8,7 +8,7 @@ import type { Game } from "@/types/game"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Gamepad2, ArrowRight } from "lucide-react"
+import { Gamepad2, ArrowRight, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 
@@ -39,8 +39,22 @@ export default function GamesPage() {
     }
   }, [token])
 
+  const refreshGames = async () => {
+    try {
+      setLoading(true)
+      const gamesData = await getAllGames(token)
+      setGames(gamesData)
+      setError(null)
+    } catch (err) {
+      setError("Failed to refresh games. Please try again.")
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function getStatusColor(status: string) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "released":
         return "bg-green-500"
       case "beta":
@@ -63,6 +77,10 @@ export default function GamesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Games</h1>
           <p className="text-muted-foreground">Manage all games across your studios</p>
         </div>
+        <Button onClick={refreshGames} variant="outline" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {loading ? (
@@ -88,7 +106,7 @@ export default function GamesPage() {
             <p>{error}</p>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" onClick={() => router.refresh()}>
+            <Button variant="outline" onClick={refreshGames}>
               Try Again
             </Button>
           </CardFooter>
