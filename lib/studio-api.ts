@@ -145,6 +145,33 @@ export async function createGame(studioId: string, gameData: { name: string; sta
 }
 
 /**
+ * Fetches all games for a specific studio
+ */
+export async function fetchStudioGames(studioId: string): Promise<Game[]> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+
+    const response = await fetch(`${API_URL}/api/studios/${studioId}/games`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+    })
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.message || `Failed to fetch studio games: ${response.status}`)
+    }
+
+    const data: ApiResponse<Game[]> = await response.json()
+    return data.data || []
+}
+
+/**
  * Formats a timestamp to a readable date
  */
 export function formatTimestamp(timestamp: number): string {
