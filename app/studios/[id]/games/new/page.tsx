@@ -4,8 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { createGame } from "@/lib/game-api"
+import { createGame } from "@/lib/studio-api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,7 +14,6 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function NewGamePage({ params }: { params: { id: string } }) {
-  const { token } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [name, setName] = useState("")
@@ -36,7 +34,7 @@ export default function NewGamePage({ params }: { params: { id: string } }) {
       setLoading(true)
       setError(null)
 
-      await createGame(studioId, { name, status }, token)
+      await createGame(studioId, { name, status })
 
       toast({
         title: "Game created",

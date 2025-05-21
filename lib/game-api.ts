@@ -3,8 +3,15 @@ import type { ApiResponse, Game } from "@/types/game"
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // Get all games for a specific studio
-export async function getStudioGames(studioId: string, token: string): Promise<Game[]> {
+export async function getStudioGames(studioId: string): Promise<Game[]> {
+  const token = localStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   try {
+
     const response = await fetch(`${API_URL}/studios/${studioId}/games`, {
       headers: {
         Authorization: `Bearer ${token}`,

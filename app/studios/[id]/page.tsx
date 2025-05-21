@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft, Edit } from "lucide-react"
+import { AlertCircle, ArrowLeft, Edit, Plus } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
@@ -67,9 +67,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               <h1 className="text-3xl font-bold">{studio.name}</h1>
               <Badge className="mt-2">{studio.tier}</Badge>
             </div>
-            <Button onClick={() => router.push(`/studios/${studio.id}/edit`)}>
-              <Edit className="mr-2 h-4 w-4" /> Edit Studio
-            </Button>
+            <div className="space-x-2">
+              <Button onClick={() => router.push(`/studios/${studio.id}/edit`)}>
+                <Edit className="mr-2 h-4 w-4" /> Edit Studio
+              </Button>
+              <Button onClick={() => router.push(`/studios/${studio.id}/games/new`)}>
+                <Plus className="mr-2 h-4 w-4" /> Create Game
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
