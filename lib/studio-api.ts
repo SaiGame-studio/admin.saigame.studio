@@ -171,9 +171,3 @@ export async function fetchStudioGames(studioId: string): Promise<Game[]> {
     return data.data || []
 }
 
-/**
- * Formats a timestamp to a readable date
- */
-export function formatTimestamp(timestamp: number): string {
-    return new Date(timestamp).toLocaleString()
-}

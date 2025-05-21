@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { fetchStudio, fetchStudioGames, formatTimestamp } from "@/lib/studio-api"
+import { fetchStudio, fetchStudioGames } from "@/lib/studio-api"
+import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Studio } from "@/types/studio"
 import type { Game } from "@/types/game"
 import { Button } from "@/components/ui/button"
@@ -48,8 +49,8 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       }
     }
 
-    loadStudio()
-    loadGames()
+    loadStudio().then();
+    loadGames().then();
   }, [params.id])
 
   return (
