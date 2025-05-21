@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import {useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
 import {fetchStudio, updateStudio} from "@/lib/studio-api"
 import type {Studio} from "@/types/studio"
@@ -23,6 +22,7 @@ export default function EditStudioPage({params}: { params: { id: string } }) {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
     const {toast} = useToast()
+    const studioId = React.use(params).id
 
     useEffect(() => {
         async function loadStudio() {

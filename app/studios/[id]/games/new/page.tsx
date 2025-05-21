@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import {useState} from "react"
+import React, {useState} from "react"
 import {useRouter} from "next/navigation"
 import {createGame} from "@/lib/studio-api"
 import {Button} from "@/components/ui/button"
@@ -17,7 +16,7 @@ export default function NewGamePage({params}: { params: { id: string } }) {
     const [name, setName] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const studioId = params.id
+    const studioId = React.use(params).id
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()

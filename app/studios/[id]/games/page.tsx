@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useRouter} from "next/navigation"
 import {useAuth} from "@/contexts/auth-context"
 import {getStudioGames} from "@/lib/game-api"
@@ -17,7 +17,7 @@ export default function StudioGamesPage({params}: { params: { id: string } }) {
     const [games, setGames] = useState<Game[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const studioId = params.id
+    const studioId = React.use(params).id
 
     useEffect(() => {
         async function loadGames() {
