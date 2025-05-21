@@ -34,9 +34,7 @@ export default function GamesPage() {
       }
     }
 
-    if (token) {
-      loadGames()
-    }
+    loadGames();
   }, [token])
 
   const refreshGames = async () => {
