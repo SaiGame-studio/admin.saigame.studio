@@ -1,6 +1,8 @@
+import { Tier } from "./studio"
+
 export interface UserProfile {
   id: string
-  tier: string
+  tier: Tier
   type: string
   owner_id: number
   updated_at: number
