@@ -6,6 +6,7 @@ import type { Metadata } from "next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { ProtectedLayout } from "@/components/protected-layout"
+import { Footer } from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,6 +27,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="sais-admin-theme">
           <AuthProvider>
             <ProtectedLayout>{children}</ProtectedLayout>
+            <Footer />
           </AuthProvider>
         </ThemeProvider>
       </body>
