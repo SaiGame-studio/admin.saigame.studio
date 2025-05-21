@@ -16,6 +16,7 @@ import {
   Users,
   Moon,
   Sun,
+  Brush,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -50,9 +51,9 @@ export function SideNav() {
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2" asChild>
-                <Link href="/servers">
-                  <Server className="h-4 w-4" />
-                  Servers
+                <Link href="/studios">
+                  <Brush className="h-4 w-4" />
+                  Studios
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2" asChild>
