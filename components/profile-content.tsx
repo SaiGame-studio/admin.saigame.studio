@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { UserProfiles } from "@/components/user-profiles"
 
 interface UserData {
   id: number
@@ -96,132 +97,183 @@ export function ProfileContent() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card className="md:col-span-2">
-        <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-1">
-            <CardTitle className="text-2xl">{userData.name || "Unnamed User"}</CardTitle>
-            <CardDescription className="flex items-center">
-              <Mail className="mr-1 h-4 w-4" />
-              {userData.email}
-              {userData.email_verified_at ? (
-                <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
-                  <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="ml-2 bg-yellow-50 text-yellow-700 border-yellow-200">
-                  Not Verified
-                </Badge>
-              )}
-            </CardDescription>
-          </div>
-        </CardHeader>
-      </Card>
+    <div className="space-y-8">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="md:col-span-2">
+          <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
+            </Avatar>
+            <div className="space-y-1">
+              <CardTitle className="text-2xl">{userData.name || "Unnamed User"}</CardTitle>
+              <CardDescription className="flex items-center">
+                <Mail className="mr-1 h-4 w-4" />
+                {userData.email}
+                {userData.email_verified_at ? (
+                  <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="ml-2 bg-yellow-50 text-yellow-700 border-yellow-200">
+                    Not Verified
+                  </Badge>
+                )}
+              </CardDescription>
+            </div>
+          </CardHeader>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-          <CardDescription>Your account details and information</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground flex items-center">
-              <UserIcon className="mr-2 h-4 w-4" /> User ID
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>Your account details and information</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground flex items-center">
+                <UserIcon className="mr-2 h-4 w-4" /> User ID
+              </div>
+              <div className="font-medium">{userData.id}</div>
             </div>
-            <div className="font-medium">{userData.id}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground flex items-center">
-              <Calendar className="mr-2 h-4 w-4" /> Member Since
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground flex items-center">
+                <Calendar className="mr-2 h-4 w-4" /> Member Since
+              </div>
+              <div className="font-medium">{formatDate(userData.created_at)}</div>
             </div>
-            <div className="font-medium">{formatDate(userData.created_at)}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground flex items-center">
-              <Clock className="mr-2 h-4 w-4" /> Last Updated
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground flex items-center">
+                <Clock className="mr-2 h-4 w-4" /> Last Updated
+              </div>
+              <div className="font-medium">{formatDate(userData.updated_at)}</div>
             </div>
-            <div className="font-medium">{formatDate(userData.updated_at)}</div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Actions</CardTitle>
-          <CardDescription>Manage your account settings</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">Update your profile information and preferences</div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col items-start gap-2">
-          <Button className="w-full">Edit Profile</Button>
-          <Button variant="outline" className="w-full">
-            Change Password
-          </Button>
-          {!userData.email_verified_at && (
-            <Button variant="secondary" className="w-full">
-              Verify Email
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Actions</CardTitle>
+            <CardDescription>Manage your account settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Update your profile information and preferences</div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col items-start gap-2">
+            <Button className="w-full">Edit Profile</Button>
+            <Button variant="outline" className="w-full">
+              Change Password
             </Button>
-          )}
-        </CardFooter>
-      </Card>
+            {!userData.email_verified_at && (
+              <Button variant="secondary" className="w-full">
+                Verify Email
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* User Profiles Section */}
+      <UserProfiles />
     </div>
   )
 }
 
 function ProfileSkeleton() {
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card className="md:col-span-2">
-        <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-          <Skeleton className="h-16 w-16 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-40" />
+    <div className="space-y-8">
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="md:col-span-2">
+          <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-60" />
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
             <Skeleton className="h-4 w-60" />
-          </div>
-        </CardHeader>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40 mb-2" />
-          <Skeleton className="h-4 w-60" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-5 w-40" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-5 w-40" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-5 w-40" />
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-4 w-full" />
+          </CardContent>
+          <CardFooter className="flex flex-col items-start gap-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardFooter>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40 mb-2" />
-          <Skeleton className="h-4 w-60" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-4 w-full" />
-        </CardContent>
-        <CardFooter className="flex flex-col items-start gap-2">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </CardFooter>
-      </Card>
+      {/* Skeleton for User Profiles */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
