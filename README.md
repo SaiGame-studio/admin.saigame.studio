@@ -28,3 +28,32 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## Running Locally with Custom Domain
+
+To run the application under the domain `local-admin.saigame.studio`:
+
+1. **Update your hosts file**:
+   - On Windows: Edit `C:\Windows\System32\drivers\etc\hosts` as administrator
+   - On macOS/Linux: Edit `/etc/hosts` with sudo
+   - Add this line: `127.0.0.1 local-admin.saigame.studio`
+
+2. **Start the development server**:
+   ```bash
+   yarn dev
+   # or
+   npm run dev
+   # or
+   pnpm dev
+   ```
+
+3. **Create a .env.local file**:
+   - Create a file named `.env.local` in the root directory with the following content:
+   ```
+   NEXT_PUBLIC_API_URL=http://local-admin.saigame.studio:3000
+   ```
+
+4. **Access the application**:
+   - Open your browser and navigate to `http://local-admin.saigame.studio:3000`
+
+Note: If you encounter certificate warnings in your browser, you can safely proceed as this is expected for local development with custom domains.
