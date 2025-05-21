@@ -109,7 +109,7 @@ export async function getAllGames(token: string): Promise<Game[]> {
   try {
     // This is a mock implementation since there's no direct API for this
     // In a real app, you might have an endpoint like /api/games or need to fetch from each studio
-    const response = await fetch(`${API_URL}/games`, {
+    const response = await fetch(`${API_URL}/api/games`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
