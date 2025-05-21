@@ -18,6 +18,7 @@ import {
   Moon,
   Sun,
   Brush,
+  Gamepad2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -107,6 +108,12 @@ export function SideNav() {
                 <Link href="/studios">
                   <Brush className="h-4 w-4 flex-shrink-0" />
                   <span className="whitespace-nowrap">Studios</span>
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/games">
+                  <Gamepad2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Games</span>
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
