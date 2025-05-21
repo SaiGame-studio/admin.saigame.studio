@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import {
   BarChart3,
@@ -23,19 +24,71 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
+import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
+
+const MIN_SIDEBAR_WIDTH = 200
+const MAX_SIDEBAR_WIDTH = 400
+const DEFAULT_SIDEBAR_WIDTH = 240
+const SIDEBAR_WIDTH_KEY = "sai-admin-sidebar-width"
 
 export function SideNav() {
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+
+  // Load saved width on mount
+  useEffect(() => {
+    const savedWidth = safeGetItem(SIDEBAR_WIDTH_KEY)
+    if (savedWidth) {
+      const width = Number.parseInt(savedWidth, 10)
+      if (!isNaN(width) && width >= MIN_SIDEBAR_WIDTH && width <= MAX_SIDEBAR_WIDTH) {
+        setSidebarWidth(width)
+      }
+    }
+  }, [])
+
+  // Handle mouse events for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+
+      const newWidth = e.clientX
+      if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
+        setSidebarWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false)
+        // Save the width to localStorage
+        safeSetItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString())
+      }
+    }
+
+    document.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseup", handleMouseUp)
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseup", handleMouseUp)
+    }
+  }, [isResizing, sidebarWidth])
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
 
   return (
-    <div className="hidden border-r bg-muted/40 lg:block dark:bg-background w-auto">
+    <div
+      ref={sidebarRef}
+      className="hidden border-r bg-muted/40 lg:block dark:bg-background relative"
+      style={{ width: `${sidebarWidth}px` }}
+    >
       <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-4">
+        <div className="flex h-14 items-center border-b px-4 lg:h-[60px]">
           <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
             <Server className="h-5 w-5 flex-shrink-0" />
             <span>Sai's Admin</span>
@@ -138,6 +191,13 @@ export function SideNav() {
           </div>
         </div>
       </div>
+
+      {/* Resize handle */}
+      <div
+        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize bg-transparent hover:bg-primary/10 active:bg-primary/20 transition-colors"
+        onMouseDown={() => setIsResizing(true)}
+        aria-hidden="true"
+      />
     </div>
   )
 }
