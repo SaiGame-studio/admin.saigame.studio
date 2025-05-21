@@ -106,6 +106,12 @@ export async function updateGame(
 
 // Get all games (across all studios)
 export async function getAllGames(token: string): Promise<Game[]> {
+  const token = localStorage.getItem("token")
+
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+
   try {
     // This is a mock implementation since there's no direct API for this
     // In a real app, you might have an endpoint like /api/games or need to fetch from each studio
