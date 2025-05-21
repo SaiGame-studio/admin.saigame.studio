@@ -10,8 +10,8 @@ import { ProtectedLayout } from "@/components/protected-layout"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Game Server Admin",
-  description: "Admin dashboard for managing game servers",
+  title: "Sai's Admin",
+  description: "Admin dashboard for managing servers",
     generator: 'v0.dev'
 }
 
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="game-server-admin-theme">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="sais-admin-theme">
           <AuthProvider>
             <ProtectedLayout>{children}</ProtectedLayout>
           </AuthProvider>

@@ -9,7 +9,7 @@ export default function LoginPage() {
       <header className="flex h-16 items-center justify-between px-6 border-b">
         <div className="flex items-center gap-2">
           <Server className="h-6 w-6" />
-          <span className="font-semibold">Game Server Admin</span>
+          <span className="font-semibold">Sai's Admin</span>
         </div>
         <ThemeToggle />
       </header>
@@ -29,7 +29,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="py-6 text-center text-sm text-muted-foreground bg-gray-50 dark:bg-gray-900">
-        <p>© {new Date().getFullYear()} Game Server Admin. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Sai's Admin. All rights reserved.</p>
       </footer>
     </div>
   )

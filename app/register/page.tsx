@@ -10,7 +10,7 @@ export default function RegisterPage() {
       <header className="flex h-16 items-center justify-between px-6 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Server className="h-6 w-6" />
-          <span className="font-semibold">Game Server Admin</span>
+          <span className="font-semibold">Sai's Admin</span>
         </Link>
         <ThemeToggle />
       </header>
@@ -21,7 +21,7 @@ export default function RegisterPage() {
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">Create a new account</h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Register to access the game server admin dashboard
+              Register to access the Sai's Admin dashboard
             </p>
           </div>
           <RegisterForm />
@@ -30,7 +30,7 @@ export default function RegisterPage() {
 
       {/* Footer */}
       <footer className="py-6 text-center text-sm text-muted-foreground bg-gray-50 dark:bg-gray-900">
-        <p>© {new Date().getFullYear()} Game Server Admin. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Sai's Admin. All rights reserved.</p>
       </footer>
     </div>
   )
