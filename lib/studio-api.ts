@@ -1,4 +1,5 @@
 import type {ApiResponse, Studio} from "@/types/studio"
+import type {Game} from "@/types/game"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -115,8 +116,58 @@ export async function updateStudio(id: string, studioData: { name?: string }): P
 }
 
 /**
- * Formats a timestamp to a readable date
+ * Creates a new game for a studio
  */
-export function formatTimestamp(timestamp: number): string {
-    return new Date(timestamp).toLocaleString()
+export async function createGame(studioId: string, gameData: { name: string; status?: string }): Promise<Game> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+
+    const response = await fetch(`${API_URL}/api/studios/${studioId}/games`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+        body: JSON.stringify(gameData),
+    })
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.message || `Failed to create game: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.data
 }
+
+/**
+ * Fetches all games for a specific studio
+ */
+export async function fetchStudioGames(studioId: string): Promise<Game[]> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+
+    const response = await fetch(`${API_URL}/api/studios/${studioId}/games`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+    })
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.message || `Failed to fetch studio games: ${response.status}`)
+    }
+
+    const data: ApiResponse<Game[]> = await response.json()
+    return data.data || []
+}
+
