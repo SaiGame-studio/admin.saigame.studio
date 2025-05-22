@@ -41,8 +41,6 @@ export async function getGame(gameId: string): Promise<Game> {
         throw new Error("Authentication required")
     }
 
-    console.log(token)
-
     try {
         const response = await fetch(`${API_URL}/api/games/${gameId}`, {
             headers: {
@@ -95,9 +93,14 @@ export async function createGame(
 // Update an existing game
 export async function updateGame(
     gameId: string,
-    gameData: { name: string; status: string },
-    token: string,
+    gameData: { name: string; status: string }
 ): Promise<Game> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+    
     try {
         const response = await fetch(`${API_URL}/games/${gameId}`, {
             method: "PUT",

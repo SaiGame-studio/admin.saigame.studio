@@ -14,7 +14,6 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EditGamePage({ params }: { params: { id: string } }) {
-  const { token } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [game, setGame] = useState<Game | null>(null)
@@ -23,13 +22,13 @@ export default function EditGamePage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const gameId = React.use(params).id
+  const gameId = params.id
 
   useEffect(() => {
     async function loadGame() {
       try {
         setLoading(true)
-        const gameData = await getGame(gameId, token)
+        const gameData = await getGame(gameId)
         setGame(gameData)
         setName(gameData.name)
         setStatus(gameData.status)
@@ -42,10 +41,8 @@ export default function EditGamePage({ params }: { params: { id: string } }) {
       }
     }
 
-    if (token) {
-      loadGame()
-    }
-  }, [gameId, token])
+    loadGame();
+  }, [gameId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,7 +56,7 @@ export default function EditGamePage({ params }: { params: { id: string } }) {
       setSaving(true)
       setError(null)
 
-      await updateGame(gameId, { name, status }, token)
+      await updateGame(gameId, { name, status })
 
       toast({
         title: "Game updated",
