@@ -1,10 +1,11 @@
-import type { UserProfilesResponse } from "@/types/user-profile"
+import type { UserProfilesResponse, UserProfile } from "@/types/user-profile"
 
 /**
- * Fetches user profiles from the API
- * @returns Promise with user profiles data
+ * Fetches player profiles (all players across user's studios)
+ * @param perPage Number of profiles per page (default 50)
+ * @returns Promise with array of UserProfile
  */
-export async function fetchUserProfiles(): Promise<UserProfilesResponse> {
+export async function fetchPlayerProfiles(perPage: number = 50): Promise<UserProfile[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
   if (!apiUrl) {
@@ -17,7 +18,7 @@ export async function fetchUserProfiles(): Promise<UserProfilesResponse> {
     throw new Error("Authentication token not found. Please log in again.")
   }
 
-  const response = await fetch(`${apiUrl}/api/user/profiles`, {
+  const response = await fetch(`${apiUrl}/api/studios/users/profiles?per_page=${perPage}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -27,8 +28,10 @@ export async function fetchUserProfiles(): Promise<UserProfilesResponse> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.message || `Failed to fetch user profiles: ${response.status}`)
+    throw new Error(errorData.message || `Failed to fetch player profiles: ${response.status}`)
   }
 
-  return response.json()
+  const data = await response.json()
+  // Drill down to the actual profiles array
+  return data.data.data || []
 }
