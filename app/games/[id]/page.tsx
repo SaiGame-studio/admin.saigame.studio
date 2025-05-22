@@ -10,7 +10,7 @@ import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} f
 import {Badge} from "@/components/ui/badge"
 import {ArrowLeft, Edit, Trash2, Gamepad2} from "lucide-react"
 import Link from "next/link"
-import {format} from "date-fns"
+import { formatTimestamp } from "@/lib/utils/date-utils"
 
 export default function GameDetailsPage({params}: { params: { id: string } }) {
     const router = useRouter()
@@ -145,6 +145,12 @@ export default function GameDetailsPage({params}: { params: { id: string } }) {
                                 <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
                                 <Badge className={`mt-1 ${getStatusColor(game.status)}`}>{game.status}</Badge>
                             </div>
+                            {game.tier && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground">Tier</h3>
+                                    <p className="text-lg">{game.tier}</p>
+                                </div>
+                            )}
                             <div>
                                 <h3 className="text-sm font-medium text-muted-foreground">Shop Count</h3>
                                 <p className="text-lg">{game.shop_count}</p>
@@ -152,11 +158,11 @@ export default function GameDetailsPage({params}: { params: { id: string } }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
-                                    <p className="text-lg">{format(new Date(game.created_at), "PPP p")}</p>
+                                    <p className="text-lg">{formatTimestamp(game.created_at)}</p>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
-                                    <p className="text-lg">{format(new Date(game.updated_at), "PPP p")}</p>
+                                    <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
                                 </div>
                             </div>
                         </div>

@@ -6,6 +6,7 @@ export interface Game {
   created_at: number
   shop_count: number
   studio_id?: string
+  tier?: string
 }
 
 export interface ApiResponse<T> {

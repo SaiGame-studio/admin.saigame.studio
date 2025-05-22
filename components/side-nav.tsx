@@ -122,24 +122,6 @@ export function SideNav() {
                   <span className="whitespace-nowrap">Users</span>
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/logs">
-                  <Terminal className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Logs</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/backups">
-                  <Database className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Backups</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/stats">
-                  <BarChart3 className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Statistics</span>
-                </Link>
-              </Button>
             </div>
             <div className="space-y-1">
               <h3 className="text-xs font-medium text-muted-foreground px-2">Administration</h3>
@@ -153,18 +135,6 @@ export function SideNav() {
                 <Link href="/settings">
                   <Cog className="h-4 w-4 flex-shrink-0" />
                   <span className="whitespace-nowrap">Settings</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/security">
-                  <Shield className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Security</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/schedules">
-                  <Clock className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Schedules</span>
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
