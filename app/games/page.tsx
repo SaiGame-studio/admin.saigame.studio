@@ -13,7 +13,6 @@ import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 
 export default function GamesPage() {
-  const { token } = useAuth()
   const router = useRouter()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +22,7 @@ export default function GamesPage() {
     async function loadGames() {
       try {
         setLoading(true)
-        const gamesData = await getAllGames(token)
+        const gamesData = await getAllGames()
         setGames(gamesData)
         setError(null)
       } catch (err) {
@@ -35,12 +34,12 @@ export default function GamesPage() {
     }
 
     loadGames();
-  }, [token])
+  }, [])
 
   const refreshGames = async () => {
     try {
       setLoading(true)
-      const gamesData = await getAllGames(token)
+      const gamesData = await getAllGames()
       setGames(gamesData)
       setError(null)
     } catch (err) {
@@ -129,7 +128,12 @@ export default function GamesPage() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl">{game.name}</CardTitle>
-                  <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
+                    {game.tier && (
+                      <span className="text-xs text-muted-foreground mt-1">{game.tier}</span>
+                    )}
+                  </div>
                 </div>
                 <CardDescription>
                   Updated {formatDistanceToNow(new Date(game.updated_at), { addSuffix: true })}

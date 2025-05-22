@@ -6,6 +6,7 @@ export interface Game {
   created_at: number
   shop_count: number
   studio_id?: string
+  tier?: string
 }
 
 export interface ApiResponse<T> {
@@ -13,4 +14,12 @@ export interface ApiResponse<T> {
   message: string
   message_code: string
   data: T
+}
+
+export enum GameStatus {
+  Development = "development",
+  Alpha = "alpha",
+  Beta = "beta",
+  Released = "released",
+  Archived = "archived"
 }
