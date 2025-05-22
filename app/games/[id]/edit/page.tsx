@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getGame, updateGame } from "@/lib/game-api"
 import type { Game } from "@/types/game"
+import { GameStatus } from "@/types/game"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -159,11 +160,11 @@ export default function EditGamePage({ params }: { params: { id: string } }) {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="development">Development</SelectItem>
-                  <SelectItem value="alpha">Alpha</SelectItem>
-                  <SelectItem value="beta">Beta</SelectItem>
-                  <SelectItem value="released">Released</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value={GameStatus.Development}>Development</SelectItem>
+                  <SelectItem value={GameStatus.Alpha}>Alpha</SelectItem>
+                  <SelectItem value={GameStatus.Beta}>Beta</SelectItem>
+                  <SelectItem value={GameStatus.Released}>Released</SelectItem>
+                  <SelectItem value={GameStatus.Archived}>Archived</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -15,3 +15,11 @@ export interface ApiResponse<T> {
   message_code: string
   data: T
 }
+
+export enum GameStatus {
+  Development = "development",
+  Alpha = "alpha",
+  Beta = "beta",
+  Released = "released",
+  Archived = "archived"
+}
