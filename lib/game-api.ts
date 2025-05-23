@@ -79,7 +79,15 @@ export async function createGame(
         })
 
         if (!response.ok) {
-            throw new Error(`Error creating game: ${response.status}`)
+            // Lấy message chi tiết từ API nếu có
+            let errorMessage = `Error creating game: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (e) {}
+            throw new Error(errorMessage);
         }
 
         const data: ApiResponse<Game> = await response.json()
