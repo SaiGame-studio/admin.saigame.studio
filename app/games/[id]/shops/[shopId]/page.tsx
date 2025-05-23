@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Save } from "lucide-react"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { ChevronDown } from "lucide-react"
 import { fetchShop } from "@/lib/shop-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 
@@ -91,14 +93,30 @@ export default function ShopDetailPage() {
           {shop.items_in_shop?.map((item: any) => (
             <Card key={item.id}>
               <CardHeader>
-                <CardTitle>{item.item_profile?.name}</CardTitle>
+                <CardTitle>
+                  <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
+                    {item.item_profile?.name}
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                </CardTitle>
                 <CardDescription>Type: {item.item_profile?.type}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div>Current Price: {item.price_current}</div>
                 <div>Old Price: {item.price_old}</div>
-                <div>HP Max: {item.item_profile?.custom_data?.hp_max}</div>
-                <div>HP Current: {item.item_profile?.custom_data?.hp_current}</div>
+                {item.item_profile?.custom_data && (
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
+                      Custom Data
+                      <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="ml-4 mt-2">
+                      {Object.entries(item.item_profile.custom_data).map(([key, value]) => (
+                        <div key={key} className="text-sm">{key}: {String(value)}</div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
                 {/* Add more item details as needed */}
               </CardContent>
             </Card>
