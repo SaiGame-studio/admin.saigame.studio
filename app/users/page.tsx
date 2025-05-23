@@ -6,6 +6,7 @@ import { formatTimestamp } from "@/lib/utils/date-utils"
 import { fetchPlayerProfiles } from "@/lib/user-profile-api"
 import type { UserProfile } from "@/types/user-profile"
 import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
 
 export default function UsersPage() {
   const [profiles, setProfiles] = useState<any[]>([])
@@ -31,15 +32,17 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">Player Profiles</h1>
-        <Button variant="outline" onClick={loadProfiles} disabled={loading}>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold">Player Profiles</h1>
+          <p className="text-muted-foreground text-base">List of all player profiles across your studios</p>
+        </div>
+        <Button onClick={loadProfiles} variant="outline" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
-      {loading ? (
-        <div>Loading...</div>
-      ) : error ? (
+      {error ? (
         <Card className="border-destructive mb-4">
           <CardHeader>
             <CardTitle>Error</CardTitle>
@@ -58,10 +61,6 @@ export default function UsersPage() {
         </Card>
       ) : (
         <Card>
-          <CardHeader>
-            <CardTitle>All Player Profiles</CardTitle>
-            <CardDescription>List of all player profiles across your studios</CardDescription>
-          </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle, ArrowLeft, Edit, Plus } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import Link from "next/link"
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -94,8 +95,10 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               <h1 className="text-3xl font-bold">{studio.name}</h1>
               <Badge className="mt-2">{studio.tier}</Badge>
             </div>
-            <Button onClick={() => router.push(`/studios/${studio.id}/edit`)}>
-              <Edit className="mr-2 h-4 w-4" /> Edit Studio
+            <Button variant="outline" asChild>
+              <Link href={`/studios/${studio.id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" /> Edit Studio
+              </Link>
             </Button>
           </div>
 
