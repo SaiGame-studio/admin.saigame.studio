@@ -20,6 +20,7 @@ import {
   CommandEmpty,
   CommandItem
 } from "@/components/ui/command"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
@@ -33,6 +34,7 @@ export default function ShopDetailPage() {
   const [currencyLoading, setCurrencyLoading] = useState(false)
   const [currencyError, setCurrencyError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCurrencyOnly, setShowCurrencyOnly] = useState(true)
 
   useEffect(() => {
     async function loadShop() {
@@ -101,7 +103,8 @@ export default function ShopDetailPage() {
   }
 
   const filteredOptions = currencyOptions.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (!showCurrencyOnly || item.type === "currencies")
   );
 
   if (loading) return <div className="container mx-auto py-6">Loading...</div>
@@ -139,24 +142,31 @@ export default function ShopDetailPage() {
             shopId={params.shopId}
             onCodeNameUpdate={newCodeName => setShop((prev: any) => ({ ...prev, code_name: newCodeName }))}
           />
+          <ShopDescriptionEditable
+            shop={shop}
+            shopId={params.shopId}
+            onDescriptionUpdate={newDescription => setShop((prev: any) => ({ ...prev, description: newDescription }))}
+          />
         </CardHeader>
         <CardContent>
           <div className="mb-2">Game: <span className="font-semibold">{shop.game?.name}</span></div>
           <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
           <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
-          {shop.currency && (
-            <div className="mb-2 flex items-center gap-2">Currency: <span className="font-semibold">
-              <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
-                {shop.currency.name}
-                <ExternalLink className="w-4 h-4 text-muted-foreground" />
-              </Link>
+          <div className="mb-2 flex items-center gap-2">
+            Currency: <span className="font-semibold">
+              {shop.currency ? (
+                <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
+                  {shop.currency.name}
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">No currency set</span>
+              )}
             </span>
-              <Button size="icon" variant="ghost" onClick={openCurrencyModal}>
-                <Pencil className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-          <div className="mb-2">Description: {shop.description || "No description"}</div>
+            <Button size="icon" variant="ghost" onClick={openCurrencyModal}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
       <h2 className="text-xl font-bold mb-4">Items in Shop</h2>
@@ -222,25 +232,34 @@ export default function ShopDetailPage() {
               <CommandInput placeholder="Search item..." disabled={currencyLoading} />
               <CommandList>
                 <CommandEmpty>No items match your search.</CommandEmpty>
-                {currencyOptions.map((item) => (
+                {filteredOptions.map((item) => (
                   <CommandItem
                     key={item.id}
                     value={item.name}
                     onSelect={() => setSelectedCurrency(item.id)}
                     className={selectedCurrency === item.id ? "bg-accent text-accent-foreground" : ""}
                   >
-                    {item.name}
+                    <div className="flex w-full justify-between items-center">
+                      <span>{item.name}</span>
+                      <span className="text-xs text-muted-foreground">{item.type}</span>
+                    </div>
                   </CommandItem>
                 ))}
               </CommandList>
             </Command>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>Cancel</Button>
-            <Button onClick={handleCurrencySave} disabled={!selectedCurrency || selectedCurrency === "no-items" || currencyLoading}>
-              {currencyLoading ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
+          <div className="flex items-center justify-between mt-4 gap-2">
+            <div className="flex items-center gap-2">
+              <Checkbox id="show-currency-only" checked={showCurrencyOnly} onCheckedChange={checked => setShowCurrencyOnly(checked === true)} />
+              <label htmlFor="show-currency-only" className="text-sm select-none cursor-pointer">Show currency only</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>Cancel</Button>
+              <Button onClick={handleCurrencySave} disabled={!selectedCurrency || selectedCurrency === "no-items" || currencyLoading}>
+                {currencyLoading ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -437,6 +456,61 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
       ) : (
         <>
           <span>Code: {shop.code_name}</span>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+    </div>
+  )
+}
+
+function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: any, shopId: string, onDescriptionUpdate: (newDescription: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [description, setDescription] = useState(shop.description || "")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDescription(shop.description || "")
+  }, [shop.description])
+
+  const handleSave = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await updateShop(shopId, { description } as any)
+      onDescriptionUpdate(description)
+      setEditing(false)
+    } catch (e: any) {
+      setError(e.message || "Failed to update description")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            className="w-96 h-8 px-2 text-base"
+            disabled={loading}
+            placeholder="No description"
+          />
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(shop.description || "") }} disabled={loading}>
+            <X className="w-4 h-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span>Description: {shop.description || "No description"}</span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
             <Pencil className="w-4 h-4" />
           </Button>
