@@ -17,7 +17,7 @@ export default function StudioGamesPage({params}: { params: { id: string } }) {
     const [games, setGames] = useState<Game[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const studioId = React.use(params).id
+    const studioId = params.id
 
     useEffect(() => {
         async function loadGames() {
@@ -123,7 +123,7 @@ export default function StudioGamesPage({params}: { params: { id: string } }) {
                                     <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
                                 </div>
                                 <CardDescription>
-                                    Created {formatDistanceToNow(new Date(game.created_at), {addSuffix: true})}
+                                    Created {formatDistanceToNow(new Date(game.created_at * 1000), {addSuffix: true})}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="pb-2">

@@ -74,10 +74,15 @@ export default function GamesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Games</h1>
           <p className="text-muted-foreground">Manage all games across your studios</p>
         </div>
-        <Button onClick={refreshGames} variant="outline" disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="default">
+            <Link href="/games/new">Create Game</Link>
+          </Button>
+          <Button onClick={refreshGames} variant="outline" disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -136,22 +141,24 @@ export default function GamesPage() {
                   </div>
                 </div>
                 <CardDescription>
-                  Updated {formatDistanceToNow(new Date(game.updated_at), { addSuffix: true })}
+                  Updated {formatDistanceToNow(new Date(game.updated_at*1000), { addSuffix: true })}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <span>Shop Count: {game.shop_count}</span>
+                <div className="flex flex-row justify-between items-center text-sm text-muted-foreground gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span>Studio: {game.studio?.name || "-"}</span>
+                    <span>Total Players: {game.total_player ?? 0}</span>
+                    <span>Shop Count: {game.shop_count ?? 0}</span>
+                  </div>
+                  <Button variant="default" size="sm" asChild className="whitespace-nowrap">
+                    <Link href={`/games/${game.id}`}>
+                      View Details
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
-              <CardFooter className="border-t bg-muted/20 pt-3">
-                <Button variant="ghost" size="sm" className="ml-auto" asChild>
-                  <Link href={`/games/${game.id}`}>
-                    View Details
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
             </Card>
           ))}
         </div>

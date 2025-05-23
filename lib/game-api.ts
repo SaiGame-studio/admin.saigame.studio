@@ -68,7 +68,7 @@ export async function createGame(
     token: string,
 ): Promise<Game> {
     try {
-        const response = await fetch(`${API_URL}/studios/${studioId}/games`, {
+        const response = await fetch(`${API_URL}/api/studios/${studioId}/games`, {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${token}`,

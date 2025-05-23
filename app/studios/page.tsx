@@ -98,7 +98,7 @@ export default function StudiosPage() {
                   <span className="font-medium">Games:</span> {studio.games_count}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Created: {new Date(studio.created_at).toLocaleDateString()}
+                  Created: {new Date(studio.created_at * 1000).toLocaleDateString()}
                 </p>
               </CardContent>
               <CardFooter>

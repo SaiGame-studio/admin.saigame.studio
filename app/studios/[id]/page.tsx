@@ -144,8 +144,10 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 <CardTitle>Games</CardTitle>
                 <CardDescription>Games belonging to this studio</CardDescription>
               </div>
-              <Button onClick={() => router.push(`/studios/${studio.id}/games/new`)}>
-                <Plus className="mr-2 h-4 w-4" /> Create Game
+              <Button asChild>
+                <a href={`/games/new?studio=${studio.id}`}>
+                  <Plus className="mr-2 h-4 w-4" /> Create Game
+                </a>
               </Button>
             </CardHeader>
             <CardContent>
@@ -198,8 +200,10 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               ) : (
                 <div className="text-center py-6">
                   <p className="text-muted-foreground">No games found for this studio.</p>
-                  <Button className="mt-4" onClick={() => router.push(`/studios/${studio.id}/games/new`)}>
-                    <Plus className="mr-2 h-4 w-4" /> Create Your First Game
+                  <Button asChild className="mt-4">
+                    <a href={`/games/new?studio=${studio.id}`}>
+                      <Plus className="mr-2 h-4 w-4" /> Create Your First Game
+                    </a>
                   </Button>
                 </div>
               )}

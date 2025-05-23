@@ -7,13 +7,14 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { ProtectedLayout } from "@/components/protected-layout"
 import { Footer } from "@/components/footer"
+import { SITE_NAME } from "@/lib/utils/site-config"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Sai's Admin",
-  description: "Admin dashboard for managing servers",
-    generator: 'v0.dev'
+  title: SITE_NAME,
+  description: `${SITE_NAME} dashboard for managing Game Server`,
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

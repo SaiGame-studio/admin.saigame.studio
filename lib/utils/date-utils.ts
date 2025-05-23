@@ -2,7 +2,7 @@
  * Formats a timestamp to a readable date using the local timezone
  */
 export function formatTimestamp(timestamp: number): string {
-    const date = new Date(timestamp*1000);
+    const date = new Date(timestamp * 1000);
     const day = date.getDate();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
