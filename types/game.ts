@@ -34,3 +34,13 @@ export enum GameStatus {
   Released = "released",
   Archived = "archived"
 }
+
+export enum ItemType {
+  CharProfile = "char_profile",
+  Equipments = "equipments",
+  QuestItems = "quest_items",
+  Inventories = "inventories",
+  Currencies = "currencies",
+  Misc = "misc",
+  LootBox = "loot_box"
+}

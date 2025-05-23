@@ -70,7 +70,7 @@ export async function fetchShop(shopId: string) {
   return data.data
 }
 
-export async function updateShop(shopId: string, updateData: { name?: string; currency_id?: string }) {
+export async function updateShop(shopId: string, updateData: { name?: string; currency_id?: string; code_name?: string }) {
   const token = localStorage.getItem("token")
   if (!token) {
     throw new Error("Authentication required")
@@ -91,4 +91,31 @@ export async function updateShop(shopId: string, updateData: { name?: string; cu
   }
   const data = await res.json()
   return data.data
+}
+
+export async function updateShopItemPrice(
+  shopId: string,
+  itemProfileId: string,
+  data: { price_current: number; price_old?: number }
+) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to update item price: ${res.status}`)
+  }
+  const responseData = await res.json()
+  return responseData.data
 } 
