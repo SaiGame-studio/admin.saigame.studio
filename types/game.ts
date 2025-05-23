@@ -17,6 +17,7 @@ export interface Game {
     created_at: number
   }
   total_player?: number
+  item_profile_count?: number
 }
 
 export interface ApiResponse<T> {

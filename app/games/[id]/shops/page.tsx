@@ -1,0 +1,117 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { formatTimestamp } from "@/lib/utils/date-utils"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { fetchGameShops, Shop } from "@/lib/shop-api"
+import { ArrowLeft } from "lucide-react"
+import { getGame } from "@/lib/game-api"
+import { ExternalLink } from "lucide-react"
+
+export default function GameShopsPage() {
+  const params = useParams() as { id: string }
+  const [shops, setShops] = useState<Shop[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const [gameName, setGameName] = useState<string>("")
+
+  useEffect(() => {
+    async function loadShopsAndGame() {
+      try {
+        setLoading(true)
+        const [shops, game] = await Promise.all([
+          fetchGameShops(params.id),
+          getGame(params.id),
+        ])
+        setShops(shops)
+        setGameName(game.name)
+        setError(null)
+      } catch (err: any) {
+        setError(err.message || "Unknown error")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadShopsAndGame()
+  }, [params.id])
+
+  if (loading) {
+    return <div className="container mx-auto py-6">Loading...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card className="border-destructive mb-4">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+            <CardDescription>There was a problem loading shops</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <Button variant="outline" size="sm" onClick={() => router.push(`/games/${params.id}`)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Game
+        </Button>
+      </div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Game Shops</h1>
+          <p className="text-muted-foreground text-base">List of all shops for the game: {gameName && <span className="text-lg font-normal text-muted-foreground">{gameName}</span>}</p>
+        </div>
+        <Button asChild>
+          <Link href={`/games/${params.id}/shops/new`}>
+            + Create Shop
+          </Link>
+        </Button>
+      </div>
+      {shops.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>No Shops Found</CardTitle>
+            <CardDescription>There are no shops for this game.</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {shops.map((shop) => (
+            <Card key={shop.id} className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xl font-mono">
+                  <Link href={`/games/${params.id}/shops/${shop.id}`} className="inline-flex items-center gap-1">
+                    {shop.name}
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                </CardTitle>
+                <CardDescription>Code: {shop.code_name}</CardDescription>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                  <span>Shop ID: <code className="font-mono">{shop.id}</code></span>
+                  <span>Created At: {formatTimestamp(shop.created_at)}</span>
+                  <span>Updated At: {formatTimestamp(shop.updated_at)}</span>
+                </div>
+                <Button asChild variant="outline" className="mt-4 w-full">
+                  <Link href={`/games/${params.id}/shops/${shop.id}`}>View Details</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+} 
