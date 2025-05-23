@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft, Edit, Plus } from "lucide-react"
+import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
+import StudioNameEditable from "@/components/StudioNameEditable"
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -92,14 +93,13 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
         <>
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold">{studio.name}</h1>
+              <StudioNameEditable
+                studio={studio}
+                studioId={studio.id}
+                onNameUpdate={newName => setStudio(prev => prev ? { ...prev, name: newName } : prev)}
+              />
               <Badge className="mt-2">{studio.tier}</Badge>
             </div>
-            <Button variant="outline" asChild>
-              <Link href={`/studios/${studio.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" /> Edit Studio
-              </Link>
-            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -141,7 +141,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
             </Card>
           </div>
 
-          <Card>
+          <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Games</CardTitle>
@@ -161,13 +161,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <Skeleton className="h-12 w-full" />
                 </div>
               ) : games.length > 0 ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {games.map((game) => (
                     <div key={game.id} className="p-4 border rounded-md">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <p className="font-medium text-lg">{game.name}</p>
-                          <Badge className="mt-1">{game.status}</Badge>
+                          <p className="font-medium text-lg">
+                            <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
+                              {game.name}
+                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                            </Link>
+                          </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => router.push(`/games/${game.id}`)}>
                           View Details
@@ -179,8 +183,24 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm text-muted-foreground">{game.id}</p>
                         </div>
                         <div>
+                          <p className="text-sm font-medium">Status</p>
+                          <p className="text-sm text-muted-foreground">{game.status}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Tier</p>
+                          <p className="text-sm text-muted-foreground">{game.tier ?? '-'}</p>
+                        </div>
+                        <div>
                           <p className="text-sm font-medium">Shop Count</p>
-                          <p className="text-sm text-muted-foreground">{game.shop_count}</p>
+                          <p className="text-sm text-muted-foreground">{game.shop_count ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Total Player</p>
+                          <p className="text-sm text-muted-foreground">{game.total_player ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Item Profile Count</p>
+                          <p className="text-sm text-muted-foreground">{game.item_profile_count ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">Created At</p>
@@ -190,10 +210,10 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm font-medium">Updated At</p>
                           <p className="text-sm text-muted-foreground">{formatTimestamp(game.updated_at)}</p>
                         </div>
-                        {game.studio_id && (
-                          <div>
-                            <p className="text-sm font-medium">Studio ID</p>
-                            <p className="text-sm text-muted-foreground">{game.studio_id}</p>
+                        {game.studio && (
+                          <div className="col-span-2">
+                            <p className="text-sm font-medium">Studio (object)</p>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">{JSON.stringify(game.studio, null, 2)}</pre>
                           </div>
                         )}
                       </div>

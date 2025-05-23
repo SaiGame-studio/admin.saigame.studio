@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Edit, Gamepad2, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
+import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEditable"
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -109,16 +110,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{game.name}</h1>
+                    <GameNameEditable
+                      game={game}
+                      gameId={game.id}
+                      onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
+                    />
                     <p className="text-muted-foreground">Game details and management</p>
-                </div>
-                <div className="flex mt-4 md:mt-0 space-x-2">
-                    <Button variant="outline" asChild>
-                        <Link href={`/games/${game.id}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Game
-                        </Link>
-                    </Button>
                 </div>
             </div>
 
@@ -141,11 +138,19 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Game Name</h3>
-                                    <p className="text-lg">{game.name}</p>
+                                    <GameNameEditable
+                                      game={game}
+                                      gameId={game.id}
+                                      onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
+                                    />
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                                    <Badge className={`mt-1 ${getStatusColor(game.status)}`}>{game.status}</Badge>
+                                    <GameStatusEditable
+                                      game={game}
+                                      gameId={game.id}
+                                      onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}
+                                    />
                                 </div>
                                 {game.tier && (
                                     <div>
@@ -156,7 +161,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {game.studio?.name && (
                                     <div>
                                         <h3 className="text-sm font-medium text-muted-foreground">Studio Name</h3>
-                                        <p className="text-lg">{game.studio.name}</p>
+                                        <p className="text-lg">
+                                            <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
+                                                {game.studio.name}
+                                                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                                            </Link>
+                                        </p>
                                     </div>
                                 )}
 
@@ -165,7 +175,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Shop Count</h3>
                                     <p className="text-lg">
-                                        <Link href={`/games/${game.id}/shops`} className="text-primary underline hover:text-primary/80 flex items-center gap-1">
+                                        <Link href={`/games/${game.id}/shops`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.shop_count ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
@@ -173,7 +183,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Total Players</h3>
-                                    <p className="text-lg">{game.total_player ?? 0}</p>
+                                    <p className="text-lg">
+                                        <Link href={`/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
+                                            {game.total_player ?? 0}
+                                            <ExternalLink className="inline-block h-4 w-4 ml-1" />
+                                        </Link>
+                                    </p>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Item Profile Count</h3>

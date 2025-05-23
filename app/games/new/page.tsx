@@ -63,8 +63,8 @@ export default function NewGamePage() {
       } else {
         router.push("/games")
       }
-    } catch (err) {
-      setError("Failed to create game. Please try again.")
+    } catch (err: any) {
+      setError(err.message || "Failed to create game. Please try again.")
     } finally {
       setSubmitting(false)
     }

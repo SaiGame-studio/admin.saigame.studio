@@ -149,13 +149,22 @@ export default function ShopDetailPage() {
           />
         </CardHeader>
         <CardContent>
-          <div className="mb-2">Game: <span className="font-semibold">{shop.game?.name}</span></div>
+          <div className="mb-2">
+            Game: {shop.game?.id && shop.game?.name ? (
+              <Link href={`/games/${shop.game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
+                {shop.game.name}
+                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+              </Link>
+            ) : (
+              <span className="font-semibold">{shop.game?.name}</span>
+            )}
+          </div>
           <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
           <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
           <div className="mb-2 flex items-center gap-2">
             Currency: <span className="font-semibold">
               {shop.currency ? (
-                <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
+                <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                   {shop.currency.name}
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
                 </Link>
@@ -183,7 +192,7 @@ export default function ShopDetailPage() {
             <Card key={item.id}>
               <CardHeader>
                 <CardTitle>
-                  <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
+                  <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                     {item.item_profile?.name}
                     <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   </Link>
