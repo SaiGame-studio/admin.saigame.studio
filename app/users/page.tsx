@@ -6,6 +6,8 @@ import { formatTimestamp } from "@/lib/utils/date-utils"
 import { fetchPlayerProfiles } from "@/lib/user-profile-api"
 import type { UserProfile } from "@/types/user-profile"
 import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 export default function UsersPage() {
   const [profiles, setProfiles] = useState<any[]>([])
@@ -31,15 +33,17 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">Player Profiles</h1>
-        <Button variant="outline" onClick={loadProfiles} disabled={loading}>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold">Player Profiles</h1>
+          <p className="text-muted-foreground text-base">List of all player profiles across your studios</p>
+        </div>
+        <Button onClick={loadProfiles} variant="outline" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
-      {loading ? (
-        <div>Loading...</div>
-      ) : error ? (
+      {error ? (
         <Card className="border-destructive mb-4">
           <CardHeader>
             <CardTitle>Error</CardTitle>
@@ -57,42 +61,32 @@ export default function UsersPage() {
           </CardHeader>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>All Player Profiles</CardTitle>
-            <CardDescription>List of all player profiles across your studios</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-4 py-2 text-left">User ID</th>
-                    <th className="px-4 py-2 text-left">Tier</th>
-                    <th className="px-4 py-2 text-left">Type</th>
-                    <th className="px-4 py-2 text-left">Created At</th>
-                    <th className="px-4 py-2 text-left">Updated At</th>
-                    <th className="px-4 py-2 text-left">Game Name</th>
-                    <th className="px-4 py-2 text-left">Studio Name</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {profiles.map((item, idx) => (
-                    <tr key={item.user_profile?.id || idx} className="border-b hover:bg-muted/30">
-                      <td className="px-4 py-2 font-mono">{item.user_profile?.id || '-'}</td>
-                      <td className="px-4 py-2">{item.user_profile?.tier || '-'}</td>
-                      <td className="px-4 py-2">{item.user_profile?.type || '-'}</td>
-                      <td className="px-4 py-2">{formatTimestamp(item.user_profile?.created_at ?? 0)}</td>
-                      <td className="px-4 py-2">{formatTimestamp(item.user_profile?.updated_at ?? 0)}</td>
-                      <td className="px-4 py-2">{item.game?.name || '-'}</td>
-                      <td className="px-4 py-2">{item.studio?.name || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {profiles.map((item, idx) => (
+            <Card key={item.user_profile?.id || idx} className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-xl font-mono">{item.user_profile?.id || '-'}</CardTitle>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs text-muted-foreground"></span>
+                  </div>
+                </div>
+                <CardDescription>
+                  <div>Type: {item.user_profile?.type || '-'}</div>
+                  <div>Tier: {item.user_profile?.tier || '-'}</div>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                  <span>Created At: {formatTimestamp(item.user_profile?.created_at ?? 0)}</span>
+                  <span>Updated At: {formatTimestamp(item.user_profile?.updated_at ?? 0)}</span>
+                  <span>Game: {item.game?.name || '-'}</span>
+                  <span>Studio: {item.studio?.name || '-'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   )
