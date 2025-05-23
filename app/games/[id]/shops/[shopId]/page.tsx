@@ -5,11 +5,21 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Pencil, Save } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Save, X } from "lucide-react"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronDown } from "lucide-react"
-import { fetchShop } from "@/lib/shop-api"
+import { fetchShop, updateShopItemPrice, updateShop } from "@/lib/shop-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandItem
+} from "@/components/ui/command"
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
@@ -17,6 +27,12 @@ export default function ShopDetailPage() {
   const [shop, setShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false)
+  const [currencyOptions, setCurrencyOptions] = useState<any[]>([])
+  const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>(undefined)
+  const [currencyLoading, setCurrencyLoading] = useState(false)
+  const [currencyError, setCurrencyError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     async function loadShop() {
@@ -33,6 +49,60 @@ export default function ShopDetailPage() {
     }
     loadShop()
   }, [params.shopId])
+
+  // Fetch currency options when modal opens
+  const fetchCurrencyOptions = async () => {
+    setCurrencyLoading(true)
+    setCurrencyError(null)
+    try {
+      const token = localStorage.getItem("token")
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      const res = await fetch(`${API_URL}/api/games/${params.id}/item-profiles`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch currencies")
+      const data = await res.json()
+      setCurrencyOptions(data.data || [])
+    } catch (e: any) {
+      setCurrencyError(e.message || "Failed to fetch currencies")
+    } finally {
+      setCurrencyLoading(false)
+    }
+  }
+
+  const openCurrencyModal = () => {
+    if (currencyOptions.length === 0) {
+      setSelectedCurrency("no-items")
+    } else {
+      setSelectedCurrency(shop.currency?.id)
+    }
+    setCurrencyModalOpen(true)
+    fetchCurrencyOptions()
+  }
+
+  const handleCurrencySave = async () => {
+    if (!selectedCurrency || selectedCurrency === "no-items") return
+    setCurrencyLoading(true)
+    setCurrencyError(null)
+    try {
+      await updateShop(params.shopId, { currency_id: selectedCurrency })
+      // Refresh shop data
+      const shopData = await fetchShop(params.shopId)
+      setShop(shopData)
+      setCurrencyModalOpen(false)
+    } catch (e: any) {
+      setCurrencyError(e.message || "Failed to update currency")
+    } finally {
+      setCurrencyLoading(false)
+    }
+  }
+
+  const filteredOptions = currencyOptions.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return <div className="container mx-auto py-6">Loading...</div>
   if (error) return (
@@ -56,26 +126,35 @@ export default function ShopDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Shops
         </Button>
-        <Button variant="default" size="sm" onClick={() => router.push(`/games/${params.id}/shops/${params.shopId}/edit`)}>
-          Edit Shop
-        </Button>
       </div>
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-2xl">{shop.name}</CardTitle>
-          <CardDescription>Code: {shop.code_name}</CardDescription>
+          <ShopNameEditable
+            shop={shop}
+            shopId={params.shopId}
+            onNameUpdate={newName => setShop((prev: any) => ({ ...prev, name: newName }))}
+          />
+          <ShopCodeNameEditable
+            shop={shop}
+            shopId={params.shopId}
+            onCodeNameUpdate={newCodeName => setShop((prev: any) => ({ ...prev, code_name: newCodeName }))}
+          />
         </CardHeader>
         <CardContent>
           <div className="mb-2">Game: <span className="font-semibold">{shop.game?.name}</span></div>
           <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
           <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
           {shop.currency && (
-            <div className="mb-2">Currency: <span className="font-semibold">
+            <div className="mb-2 flex items-center gap-2">Currency: <span className="font-semibold">
               <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 underline hover:text-primary">
                 {shop.currency.name}
                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
               </Link>
-            </span></div>
+            </span>
+              <Button size="icon" variant="ghost" onClick={openCurrencyModal}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+            </div>
           )}
           <div className="mb-2">Description: {shop.description || "No description"}</div>
         </CardContent>
@@ -102,8 +181,18 @@ export default function ShopDetailPage() {
                 <CardDescription>Type: {item.item_profile?.type}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div>Current Price: {item.price_current}</div>
-                <div>Old Price: {item.price_old}</div>
+                <EditablePrice
+                  item={item}
+                  shopId={params.shopId}
+                  onPriceUpdate={(newCurrent, newOld) => {
+                    setShop((prev: any) => ({
+                      ...prev,
+                      items_in_shop: prev.items_in_shop.map((it: any) =>
+                        it.id === item.id ? { ...it, price_current: newCurrent, price_old: newOld } : it
+                      ),
+                    }))
+                  }}
+                />
                 {item.item_profile?.custom_data && (
                   <Collapsible defaultOpen>
                     <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
@@ -117,12 +206,243 @@ export default function ShopDetailPage() {
                     </CollapsibleContent>
                   </Collapsible>
                 )}
-                {/* Add more item details as needed */}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+      <Dialog open={currencyModalOpen} onOpenChange={setCurrencyModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Shop Currency</DialogTitle>
+          </DialogHeader>
+          {currencyError && <div className="text-red-500 text-xs mb-2">{currencyError}</div>}
+          <div className="mb-2">
+            <Command>
+              <CommandInput placeholder="Search item..." disabled={currencyLoading} />
+              <CommandList>
+                <CommandEmpty>No items match your search.</CommandEmpty>
+                {currencyOptions.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={item.name}
+                    onSelect={() => setSelectedCurrency(item.id)}
+                    className={selectedCurrency === item.id ? "bg-accent text-accent-foreground" : ""}
+                  >
+                    {item.name}
+                  </CommandItem>
+                ))}
+              </CommandList>
+            </Command>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>Cancel</Button>
+            <Button onClick={handleCurrencySave} disabled={!selectedCurrency || selectedCurrency === "no-items" || currencyLoading}>
+              {currencyLoading ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: string, onPriceUpdate: (newCurrent: number, newOld: number) => void }) {
+  const [editing, setEditing] = useState<"current" | "old" | null>(null)
+  const [current, setCurrent] = useState(item.price_current)
+  const [old, setOld] = useState(item.price_old)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (editing === "current") setCurrent(item.price_current)
+    if (editing === "old") setOld(item.price_old)
+    // eslint-disable-next-line
+  }, [editing])
+
+  const handleSave = async (type: "current" | "old") => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = {
+        price_current: type === "current" ? Number(current) : Number(item.price_current),
+        price_old: type === "old" ? Number(old) : Number(item.price_old),
+      }
+      await updateShopItemPrice(shopId, item.item_profile.id, data)
+      onPriceUpdate(data.price_current, data.price_old)
+      setEditing(null)
+    } catch (e: any) {
+      setError(e.message || "Failed to update price")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1 mb-2">
+      <div className="flex items-center gap-2">
+        <span>Current Price:</span>
+        {editing === "current" ? (
+          <>
+            <Input
+              type="number"
+              value={current}
+              onChange={e => setCurrent(e.target.value)}
+              className="w-24 h-8 px-2 text-sm"
+              disabled={loading}
+            />
+            <Button size="icon" variant="ghost" onClick={() => handleSave("current") } disabled={loading}>
+              <Save className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(null)} disabled={loading}>
+              <X className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <span>{item.price_current}</span>
+            <Button size="icon" variant="ghost" onClick={() => setEditing("current") }>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <span>Old Price:</span>
+        {editing === "old" ? (
+          <>
+            <Input
+              type="number"
+              value={old}
+              onChange={e => setOld(e.target.value)}
+              className="w-24 h-8 px-2 text-sm"
+              disabled={loading}
+            />
+            <Button size="icon" variant="ghost" onClick={() => handleSave("old") } disabled={loading}>
+              <Save className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(null)} disabled={loading}>
+              <X className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <span>{item.price_old}</span>
+            <Button size="icon" variant="ghost" onClick={() => setEditing("old") }>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+      </div>
+      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+    </div>
+  )
+}
+
+function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: string, onNameUpdate: (newName: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(shop.name)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setName(shop.name)
+  }, [shop.name])
+
+  const handleSave = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await updateShop(shopId, { name })
+      onNameUpdate(name)
+      setEditing(false)
+    } catch (e: any) {
+      setError(e.message || "Failed to update shop name")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="w-48 h-8 px-2 text-lg font-bold"
+            disabled={loading}
+          />
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setName(shop.name) }} disabled={loading}>
+            <X className="w-4 h-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="text-2xl font-bold">{shop.name}</span>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+    </div>
+  )
+}
+
+function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, shopId: string, onCodeNameUpdate: (newCodeName: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [codeName, setCodeName] = useState(shop.code_name)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCodeName(shop.code_name)
+  }, [shop.code_name])
+
+  const handleSave = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await updateShop(shopId, { code_name: codeName })
+      onCodeNameUpdate(codeName)
+      setEditing(false)
+    } catch (e: any) {
+      setError(e.message || "Failed to update code name")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            value={codeName}
+            onChange={e => setCodeName(e.target.value)}
+            className="w-48 h-8 px-2 text-base"
+            disabled={loading}
+          />
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setCodeName(shop.code_name) }} disabled={loading}>
+            <X className="w-4 h-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span>Code: {shop.code_name}</span>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
     </div>
   )
 } 
