@@ -8,7 +8,7 @@ import type {Game} from "@/types/game"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
-import {ArrowLeft, Edit, Trash2, Gamepad2} from "lucide-react"
+import {ArrowLeft, Edit, Gamepad2} from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 
@@ -119,10 +119,6 @@ export default function GameDetailsPage({params}: { params: { id: string } }) {
                             <Edit className="mr-2 h-4 w-4"/>
                             Edit Game
                         </Link>
-                    </Button>
-                    <Button variant="destructive">
-                        <Trash2 className="mr-2 h-4 w-4"/>
-                        Delete Game
                     </Button>
                 </div>
             </div>
