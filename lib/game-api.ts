@@ -102,7 +102,7 @@ export async function updateGame(
     }
     
     try {
-        const response = await fetch(`${API_URL}/games/${gameId}`, {
+        const response = await fetch(`${API_URL}/api/games/${gameId}`, {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${token}`,

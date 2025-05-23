@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
+import { SITE_NAME } from "@/lib/utils/site-config"
 
 const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 400
@@ -92,7 +93,7 @@ export function SideNav() {
         <div className="flex h-14 items-center border-b px-4 lg:h-[60px]">
           <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
             <Server className="h-5 w-5 flex-shrink-0" />
-            <span>Sai's Admin</span>
+            <span>{SITE_NAME}</span>
           </Link>
         </div>
         <ScrollArea className="flex-1 px-3 py-2">
