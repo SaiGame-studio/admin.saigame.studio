@@ -5,7 +5,7 @@ import type { UserProfilesResponse, UserProfile } from "@/types/user-profile"
  * @param perPage Number of profiles per page (default 50)
  * @returns Promise with array of UserProfile
  */
-export async function fetchPlayerProfiles(perPage: number = 50): Promise<UserProfile[]> {
+export async function fetchPlayerProfiles(perPage: number = 50): Promise<any[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
   if (!apiUrl) {
@@ -32,6 +32,6 @@ export async function fetchPlayerProfiles(perPage: number = 50): Promise<UserPro
   }
 
   const data = await response.json()
-  // Drill down to the actual profiles array
+  // Drill down to the actual profiles array (now each item has user_profile, game, studio)
   return data.data.data || []
 }

@@ -109,13 +109,13 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
           <div className="text-sm text-muted-foreground flex items-center">
             <Calendar className="mr-2 h-4 w-4" /> Created
           </div>
-          <div className="font-medium">{formatDate(profile.created_at)}</div>
+          <div className="font-medium">{formatDate(profile.created_at * 1000)}</div>
         </div>
         <div className="space-y-1">
           <div className="text-sm text-muted-foreground flex items-center">
             <Clock className="mr-2 h-4 w-4" /> Last Updated
           </div>
-          <div className="font-medium">{formatDate(profile.updated_at)}</div>
+          <div className="font-medium">{formatDate(profile.updated_at * 1000)}</div>
         </div>
       </CardContent>
     </Card>

@@ -7,6 +7,16 @@ export interface Game {
   shop_count: number
   studio_id?: string
   tier?: string
+  studio?: {
+    id: string
+    name: string
+    tier: string
+    games_count: number
+    user_profile_id: string
+    updated_at: number
+    created_at: number
+  }
+  total_player?: number
 }
 
 export interface ApiResponse<T> {

@@ -8,7 +8,7 @@ import type { UserProfile } from "@/types/user-profile"
 import { Button } from "@/components/ui/button"
 
 export default function UsersPage() {
-  const [profiles, setProfiles] = useState<UserProfile[]>([])
+  const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -67,21 +67,25 @@ export default function UsersPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="px-4 py-2 text-left">ID</th>
+                    <th className="px-4 py-2 text-left">User ID</th>
                     <th className="px-4 py-2 text-left">Tier</th>
                     <th className="px-4 py-2 text-left">Type</th>
                     <th className="px-4 py-2 text-left">Created At</th>
                     <th className="px-4 py-2 text-left">Updated At</th>
+                    <th className="px-4 py-2 text-left">Game Name</th>
+                    <th className="px-4 py-2 text-left">Studio Name</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {profiles.map((profile) => (
-                    <tr key={profile.id} className="border-b hover:bg-muted/30">
-                      <td className="px-4 py-2 font-mono">{profile.id}</td>
-                      <td className="px-4 py-2">{profile.tier}</td>
-                      <td className="px-4 py-2">{profile.type}</td>
-                      <td className="px-4 py-2">{formatTimestamp(profile.created_at)}</td>
-                      <td className="px-4 py-2">{formatTimestamp(profile.updated_at)}</td>
+                  {profiles.map((item, idx) => (
+                    <tr key={item.user_profile?.id || idx} className="border-b hover:bg-muted/30">
+                      <td className="px-4 py-2 font-mono">{item.user_profile?.id || '-'}</td>
+                      <td className="px-4 py-2">{item.user_profile?.tier || '-'}</td>
+                      <td className="px-4 py-2">{item.user_profile?.type || '-'}</td>
+                      <td className="px-4 py-2">{formatTimestamp(item.user_profile?.created_at ?? 0)}</td>
+                      <td className="px-4 py-2">{formatTimestamp(item.user_profile?.updated_at ?? 0)}</td>
+                      <td className="px-4 py-2">{item.game?.name || '-'}</td>
+                      <td className="px-4 py-2">{item.studio?.name || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
