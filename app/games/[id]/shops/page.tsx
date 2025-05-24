@@ -10,6 +10,8 @@ import { fetchGameShops, Shop, fetchShop, createShop } from "@/lib/shop-api"
 import { ArrowLeft } from "lucide-react"
 import { getGame } from "@/lib/game-api"
 import { ExternalLink } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, X } from "lucide-react"
 
 export default function GameShopsPage() {
   const params = useParams() as { id: string }
@@ -21,6 +23,7 @@ export default function GameShopsPage() {
   const [shopItemCounts, setShopItemCounts] = useState<Record<string, number>>({})
   const [quickShopName, setQuickShopName] = useState("")
   const [quickShopLoading, setQuickShopLoading] = useState(false)
+  const [createShopError, setCreateShopError] = useState<{ message: string; hints: string[] } | null>(null)
   const quickInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function GameShopsPage() {
   async function handleQuickCreateShop() {
     if (!quickShopName.trim()) return;
     setQuickShopLoading(true)
+    setCreateShopError(null)
     try {
       await createShop(params.id, { name: quickShopName })
       setQuickShopName("")
@@ -70,7 +74,6 @@ export default function GameShopsPage() {
       ])
       setShops(shops)
       setGameName(game.name)
-      // reload item counts
       const countsMap: Record<string, number> = {}
       await Promise.all(
         shops.map(async (shop) => {
@@ -83,8 +86,12 @@ export default function GameShopsPage() {
         })
       )
       setShopItemCounts(countsMap)
-    } catch (e) {
-      // handle error nếu cần
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setCreateShopError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] });
+      } else {
+        setCreateShopError({ message: e?.message || 'Failed to create shop', hints: [] });
+      }
     } finally {
       setQuickShopLoading(false)
     }
@@ -145,6 +152,29 @@ export default function GameShopsPage() {
           </Button>
         </div>
       </div>
+      {createShopError && (
+        <Alert variant="destructive" className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <div>
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                {typeof createShopError === 'string' ? createShopError : createShopError.message}
+                {Array.isArray(createShopError?.hints) && createShopError.hints.length > 0 && (
+                  <ul className="mt-2 list-disc list-inside text-base text-destructive">
+                    {createShopError.hints.map((hint, idx) => (
+                      <li key={idx}>{hint}</li>
+                    ))}
+                  </ul>
+                )}
+              </AlertDescription>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setCreateShopError(null)}>
+            <X className="w-4 h-4" />
+          </Button>
+        </Alert>
+      )}
       {shops.length === 0 ? (
         <Card>
           <CardHeader>

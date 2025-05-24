@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Pencil, Save, X } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2 } from "lucide-react"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronDown } from "lucide-react"
 import { fetchShop, updateShopItemPrice, updateShop } from "@/lib/shop-api"
@@ -35,6 +35,12 @@ export default function ShopDetailPage() {
   const [currencyError, setCurrencyError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("");
   const [showCurrencyOnly, setShowCurrencyOnly] = useState(true)
+  const [editingCurrencyItemId, setEditingCurrencyItemId] = useState<string | null>(null);
+  const [itemCurrencyLoading, setItemCurrencyLoading] = useState(false);
+  const [itemCurrencyError, setItemCurrencyError] = useState<string | null>(null);
+  const [selectedItemCurrency, setSelectedItemCurrency] = useState<string | undefined>(undefined);
+  const [itemSearchTerm, setItemSearchTerm] = useState("");
+  const [itemShowCurrencyOnly, setItemShowCurrencyOnly] = useState(true);
 
   useEffect(() => {
     async function loadShop() {
@@ -107,6 +113,14 @@ export default function ShopDetailPage() {
     (!showCurrencyOnly || item.type === "currencies")
   );
 
+  // Fetch currency options when modal opens (cho từng item)
+  useEffect(() => {
+    if (editingCurrencyItemId) {
+      fetchCurrencyOptions();
+    }
+    // eslint-disable-next-line
+  }, [editingCurrencyItemId]);
+
   if (loading) return <div className="container mx-auto py-6">Loading...</div>
   if (error) return (
     <div className="container mx-auto py-6">
@@ -159,8 +173,6 @@ export default function ShopDetailPage() {
               <span className="font-semibold">{shop.game?.name}</span>
             )}
           </div>
-          <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
-          <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
           <div className="mb-2 flex items-center gap-2">
             Currency: <span className="font-semibold">
               {shop.currency ? (
@@ -176,6 +188,10 @@ export default function ShopDetailPage() {
               <Pencil className="w-4 h-4" />
             </Button>
           </div>
+
+          <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
+          <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
+
         </CardContent>
       </Card>
       <h2 className="text-xl font-bold mb-4">Items in Shop</h2>
@@ -200,6 +216,43 @@ export default function ShopDetailPage() {
                 <CardDescription>Type: {item.item_profile?.type}</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-2 flex items-center gap-2">
+                  <span>Currency:</span>
+                  {item.currency && item.currency.name ? (
+                    <span className="font-semibold">{item.currency.name}</span>
+                  ) : (
+                    <span className="text-muted-foreground">No currency set</span>
+                  )}
+                  <Button size="icon" variant="ghost" onClick={() => {
+                    setEditingCurrencyItemId(item.id);
+                    setSelectedItemCurrency(item.currency_id || shop.currency_id || '');
+                  }}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={async () => {
+                    setItemCurrencyLoading(true);
+                    setItemCurrencyError(null);
+                    try {
+                      await updateShopItemPrice(params.shopId, item.item_profile.id, {
+                        price_current: item.price_current,
+                        price_old: item.price_old,
+                        currency_id: null,
+                      });
+                      setShop((prev: any) => ({
+                        ...prev,
+                        items_in_shop: prev.items_in_shop.map((it: any) =>
+                          it.id === item.id ? { ...it, currency_id: null, currency: null } : it
+                        ),
+                      }));
+                    } catch (e: any) {
+                      setItemCurrencyError(e.message || 'Failed to remove item currency');
+                    } finally {
+                      setItemCurrencyLoading(false);
+                    }
+                  }} disabled={itemCurrencyLoading || !item.currency_id}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
                 <EditablePrice
                   item={item}
                   shopId={params.shopId}
@@ -225,6 +278,85 @@ export default function ShopDetailPage() {
                     </CollapsibleContent>
                   </Collapsible>
                 )}
+                <Dialog open={editingCurrencyItemId === item.id} onOpenChange={(open) => {
+                  if (!open) setEditingCurrencyItemId(null);
+                }}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Select Item Currency</DialogTitle>
+                    </DialogHeader>
+                    {itemCurrencyError && <div className="text-red-500 text-xs mb-2">{itemCurrencyError}</div>}
+                    <div className="mb-2">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search item..."
+                          value={itemSearchTerm}
+                          onValueChange={setItemSearchTerm}
+                          disabled={itemCurrencyLoading}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No items match your search.</CommandEmpty>
+                          {currencyOptions
+                            .filter(cur =>
+                              cur.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) &&
+                              (!itemShowCurrencyOnly || cur.type === "currencies")
+                            )
+                            .map((cur) => (
+                              <CommandItem
+                                key={cur.id}
+                                value={cur.name}
+                                onSelect={() => setSelectedItemCurrency(cur.id)}
+                                className={selectedItemCurrency === cur.id ? "bg-accent text-accent-foreground" : ""}
+                              >
+                                <div className="flex w-full justify-between items-center">
+                                  <span>{cur.name}</span>
+                                  <span className="text-xs text-muted-foreground">{cur.type}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandList>
+                      </Command>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 gap-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="show-currency-only-item" checked={itemShowCurrencyOnly} onCheckedChange={checked => setItemShowCurrencyOnly(checked === true)} />
+                        <label htmlFor="show-currency-only-item" className="text-sm select-none cursor-pointer">Show currency only</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => setEditingCurrencyItemId(null)} disabled={itemCurrencyLoading}>Cancel</Button>
+                        <Button
+                          onClick={async () => {
+                            if (!selectedItemCurrency) return;
+                            setItemCurrencyLoading(true);
+                            setItemCurrencyError(null);
+                            try {
+                              await updateShopItemPrice(params.shopId, item.item_profile.id, {
+                                price_current: item.price_current,
+                                price_old: item.price_old,
+                                currency_id: selectedItemCurrency,
+                              });
+                              const newCurrencyObj = currencyOptions.find((cur) => cur.id === selectedItemCurrency) || { id: selectedItemCurrency, name: selectedItemCurrency };
+                              setShop((prev: any) => ({
+                                ...prev,
+                                items_in_shop: prev.items_in_shop.map((it: any) =>
+                                  it.id === item.id ? { ...it, currency_id: selectedItemCurrency, currency: newCurrencyObj } : it
+                                ),
+                              }));
+                              setEditingCurrencyItemId(null);
+                            } catch (e: any) {
+                              setItemCurrencyError(e.message || 'Failed to update item currency');
+                            } finally {
+                              setItemCurrencyLoading(false);
+                            }
+                          }}
+                          disabled={itemCurrencyLoading || !selectedItemCurrency}
+                        >
+                          {itemCurrencyLoading ? 'Saving...' : 'Save'}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           ))}
