@@ -47,7 +47,7 @@ export async function createShop(gameId: string, shopData: { name: string }, tok
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.message || `Failed to create shop: ${res.status}`);
+    throw { message: error.message || `Failed to create shop: ${res.status}`, hints: error.hints || [] };
   }
   const data = await res.json();
   return data.data;
@@ -96,7 +96,7 @@ export async function updateShop(shopId: string, updateData: { name?: string; cu
 export async function updateShopItemPrice(
   shopId: string,
   itemProfileId: string,
-  data: { price_current: number; price_old?: number }
+  data: { price_current: number; price_old?: number; currency_id?: string | null }
 ) {
   const token = localStorage.getItem("token")
   if (!token) {
