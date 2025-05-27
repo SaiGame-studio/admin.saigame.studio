@@ -12,6 +12,7 @@ import { getGame } from "@/lib/game-api"
 import { ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, X } from "lucide-react"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 
 export default function GameShopsPage() {
   const params = useParams() as { id: string }
@@ -20,6 +21,7 @@ export default function GameShopsPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const [gameName, setGameName] = useState<string>("")
+  const [game, setGame] = useState<any>(null)
   const [shopItemCounts, setShopItemCounts] = useState<Record<string, number>>({})
   const [quickShopName, setQuickShopName] = useState("")
   const [quickShopLoading, setQuickShopLoading] = useState(false)
@@ -30,12 +32,13 @@ export default function GameShopsPage() {
     async function loadShopsAndGame() {
       try {
         setLoading(true)
-        const [shops, game] = await Promise.all([
+        const [shops, gameData] = await Promise.all([
           fetchGameShops(params.id),
           getGame(params.id),
         ])
         setShops(shops)
-        setGameName(game.name)
+        setGameName(gameData.name)
+        setGame(gameData)
         setError(null)
         // Fetch item count for each shop
         const countsMap: Record<string, number> = {}
@@ -119,11 +122,22 @@ export default function GameShopsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <Button variant="outline" size="sm" onClick={() => router.push(`/games/${params.id}`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Game
-        </Button>
+      <div className="mb-2">
+        <Breadcrumb>
+          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/studios/${game?.studio?.id}`}>{game?.studio?.name || 'Studio'}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/games/${params.id}`}>{gameName || 'Game'}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <span className="text-muted-foreground">Shops</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -212,4 +226,4 @@ export default function GameShopsPage() {
       )}
     </div>
   )
-} 
+}

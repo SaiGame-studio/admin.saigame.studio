@@ -12,6 +12,7 @@ import { ArrowLeft, Edit, Gamepad2, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEditable"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -101,20 +102,25 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
 
     return (
         <div className="container mx-auto py-6">
-            <div className="mb-6">
-                <Button variant="outline" size="sm" onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                </Button>
-            </div>
+            {game.studio?.id && (
+                <div className="mb-2">
+                    <Breadcrumb>
+                        <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+                            <BreadcrumbItem>
+                                <BreadcrumbLink href={`/studios/${game.studio.id}`}>{game.studio.name || 'Studio'}</BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                            <BreadcrumbItem>
+                                <span className="text-muted-foreground">{game.name}</span>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                </div>
+            )}
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
-                    <GameNameEditable
-                      game={game}
-                      gameId={game.id}
-                      onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
-                    />
+                    <h1 className="text-3xl font-bold">{game.name}</h1>
                     <p className="text-muted-foreground">Game details and management</p>
                 </div>
             </div>
@@ -184,7 +190,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Total Players</h3>
                                     <p className="text-lg">
-                                        <Link href={`/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
+                                        <Link href={`/games/${game.id}/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.total_player ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>

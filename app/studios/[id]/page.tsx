@@ -14,6 +14,7 @@ import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import StudioNameEditable from "@/components/StudioNameEditable"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -57,9 +58,19 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
 
   return (
     <div className="container mx-auto py-6">
-      <Button variant="ghost" className="mb-6" onClick={() => router.push("/studios")}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Studios
-      </Button>
+      <div className="mb-2">
+        <Breadcrumb>
+          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <span className="text-muted-foreground">{studio?.name || 'Studio Details'}</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       {error && (
         <Alert variant="destructive" className="mb-6">
