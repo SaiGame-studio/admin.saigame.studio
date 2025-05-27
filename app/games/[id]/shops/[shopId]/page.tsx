@@ -21,6 +21,7 @@ import {
   CommandItem
 } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
@@ -138,11 +139,26 @@ export default function ShopDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-6 flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => router.push(`/games/${params.id}/shops`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Shops
-        </Button>
+      <div className="mb-2">
+        <Breadcrumb>
+          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/studios/${shop?.game?.studio?.id}`}>{shop?.game?.studio?.name || 'Studio'}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/games/${params.id}`}>{shop?.game?.name || 'Game'}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/games/${params.id}/shops`}>Shops</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <span className="text-muted-foreground">{shop?.name || 'Shop Details'}</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
       <Card className="mb-6">
         <CardHeader>
