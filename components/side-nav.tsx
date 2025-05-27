@@ -19,6 +19,8 @@ import {
   Sun,
   Brush,
   Gamepad2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,23 +29,34 @@ import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
 import { SITE_NAME } from "@/lib/utils/site-config"
+import { LanguageSwitcher } from "@/components/ui/language-switcher"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 const MIN_SIDEBAR_WIDTH = 200
 const MAX_SIDEBAR_WIDTH = 400
 const DEFAULT_SIDEBAR_WIDTH = 240
+const COLLAPSED_WIDTH = 80
 const SIDEBAR_WIDTH_KEY = "sai-admin-sidebar-width"
+const SIDEBAR_COLLAPSED_KEY = "sai-admin-sidebar-collapsed"
 
 export function SideNav() {
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { t, locale } = useTranslation()
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [isResizing, setIsResizing] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
-  // Load saved width on mount
+  // Load saved width and collapsed state on mount
   useEffect(() => {
     const savedWidth = safeGetItem(SIDEBAR_WIDTH_KEY)
-    if (savedWidth) {
+    const savedCollapsed = safeGetItem(SIDEBAR_COLLAPSED_KEY)
+    
+    if (savedCollapsed === 'true') {
+      setIsCollapsed(true)
+      setSidebarWidth(COLLAPSED_WIDTH)
+    } else if (savedWidth) {
       const width = Number.parseInt(savedWidth, 10)
       if (!isNaN(width) && width >= MIN_SIDEBAR_WIDTH && width <= MAX_SIDEBAR_WIDTH) {
         setSidebarWidth(width)
@@ -54,7 +67,7 @@ export function SideNav() {
   // Handle mouse events for resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return
+      if (!isResizing || isCollapsed) return
 
       const newWidth = e.clientX
       if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
@@ -77,105 +90,158 @@ export function SideNav() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [isResizing, sidebarWidth])
+  }, [isResizing, sidebarWidth, isCollapsed])
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
 
+  const toggleCollapse = () => {
+    const newCollapsed = !isCollapsed
+    setIsCollapsed(newCollapsed)
+    if (newCollapsed) {
+      setSidebarWidth(COLLAPSED_WIDTH)
+    } else {
+      setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+    }
+    safeSetItem(SIDEBAR_COLLAPSED_KEY, newCollapsed.toString())
+  }
+
   return (
-    <div
-      ref={sidebarRef}
-      className="hidden border-r bg-muted/40 lg:block dark:bg-background relative"
-      style={{ width: `${sidebarWidth}px` }}
-    >
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px]">
-          <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
-            <Server className="h-5 w-5 flex-shrink-0" />
-            <span>{SITE_NAME}</span>
-          </Link>
-        </div>
-        <ScrollArea className="flex-1 px-3 py-2">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/">
-                  <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Dashboard</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/studios">
-                  <Brush className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Studios</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/games">
-                  <Gamepad2 className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Games</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/users">
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Users</span>
-                </Link>
-              </Button>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-xs font-medium text-muted-foreground px-2">Administration</h3>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/profile">
-                  <User className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">My Profile</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/settings">
-                  <Cog className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Settings</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/documentation">
-                  <FileText className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Documentation</span>
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </ScrollArea>
-        <div className="mt-auto border-t p-3">
-          <div className="space-y-2">
-            <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
-              {theme === "dark" ? (
-                <>
-                  <Sun className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Light Mode</span>
-                </>
+    <>
+      <style jsx global>{`
+        :root {
+          --sidebar-width: ${sidebarWidth}px;
+        }
+        main {
+          margin-left: var(--sidebar-width);
+          transition: margin-left 0.2s ease-in-out;
+        }
+      `}</style>
+      <div
+        ref={sidebarRef}
+        className="hidden border-r bg-muted/40 lg:block dark:bg-background h-screen"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
+            {!isCollapsed && (
+              <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
+                <Server className="h-5 w-5 flex-shrink-0" />
+                <span>{SITE_NAME}</span>
+              </Link>
+            )}
+            {isCollapsed && (
+              <div className="flex justify-center w-full">
+                <Server className="h-5 w-5 flex-shrink-0" />
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleCollapse}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
               ) : (
-                <>
-                  <Moon className="h-4 w-4 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Dark Mode</span>
-                </>
+                <ChevronLeft className="h-4 w-4" />
               )}
             </Button>
-            <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
-              <LogOut className="h-4 w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Logout</span>
-            </Button>
+          </div>
+          <ScrollArea className="flex-1 px-3 py-2">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/">
+                    <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/studios">
+                    <Brush className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/games">
+                    <Gamepad2 className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/users">
+                    <Users className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.users')}</span>}
+                  </Link>
+                </Button>
+              </div>
+              {!isCollapsed && (
+                <div className="space-y-1">
+                  <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                    <Link href="/profile">
+                      <User className="h-4 w-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{t('common.profile')}</span>
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                    <Link href="/settings">
+                      <Cog className="h-4 w-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{t('common.settings')}</span>
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                    <Link href="/documentation">
+                      <FileText className="h-4 w-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{t('common.documentation')}</span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="mt-auto border-t p-3">
+            <div className="space-y-2">
+              {!isCollapsed && (
+                <div className="flex items-center gap-2 px-2">
+                  <LanguageSwitcher />
+                  <span className="text-sm text-muted-foreground">
+                    {locale === 'en' ? 'English' : 'Tiếng Việt'}
+                  </span>
+                </div>
+              )}
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
+                {theme === "dark" ? (
+                  <>
+                    <Sun className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">Light Mode</span>}
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">Dark Mode</span>}
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
+                <LogOut className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Resize handle */}
-      <div
-        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize bg-transparent hover:bg-primary/10 active:bg-primary/20 transition-colors"
-        onMouseDown={() => setIsResizing(true)}
-        aria-hidden="true"
-      />
-    </div>
+        {/* Resize handle */}
+        {!isCollapsed && (
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize bg-transparent hover:bg-primary/10 active:bg-primary/20 transition-colors"
+            onMouseDown={() => setIsResizing(true)}
+            aria-hidden="true"
+          />
+        )}
+      </div>
+    </>
   )
 }

@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import StudioNameEditable from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
+import { useTranslation } from '@/lib/i18n/use-translation'
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -24,6 +25,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
   const [error, setError] = useState<string | null>(null)
   const [gamesError, setGamesError] = useState<string | null>(null)
   const router = useRouter()
+  const { t } = useTranslation();
 
   useEffect(() => {
     async function loadStudio() {
@@ -62,11 +64,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+              <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">{studio?.name || 'Studio Details'}</span>
+              <span className="text-muted-foreground">{studio?.name || t('studio.details')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -116,7 +118,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
-                <CardTitle>Studio Details</CardTitle>
+                <CardTitle>{t('studio.details')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -124,11 +126,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <p className="text-sm text-muted-foreground">{studio.id}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Games Count</p>
+                  <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
                   <p className="text-sm">{studio.games_count}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">User Profile ID</p>
+                  <p className="text-sm font-medium">{t('studio.userProfileId')}</p>
                   <p className="text-sm text-muted-foreground">{studio.user_profile_id}</p>
                 </div>
               </CardContent>
@@ -136,16 +138,16 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
 
             <Card>
               <CardHeader>
-                <CardTitle>Timestamps</CardTitle>
-                <CardDescription>When this studio was created and last updated</CardDescription>
+                <CardTitle>{t('studio.timestamps')}</CardTitle>
+                <CardDescription>{t('studio.timestampsDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm font-medium">Created At</p>
+                  <p className="text-sm font-medium">{t('studio.createdAt')}</p>
                   <p className="text-sm text-muted-foreground">{formatTimestamp(studio.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Updated At</p>
+                  <p className="text-sm font-medium">{t('studio.updatedAt')}</p>
                   <p className="text-sm text-muted-foreground">{formatTimestamp(studio.updated_at)}</p>
                 </div>
               </CardContent>
@@ -155,12 +157,12 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
           <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Games</CardTitle>
-                <CardDescription>Games belonging to this studio</CardDescription>
+                <CardTitle>{t('common.games')}</CardTitle>
+                <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
               </div>
               <Button asChild>
                 <a href={`/games/new?studio=${studio.id}`}>
-                  <Plus className="mr-2 h-4 w-4" /> Create Game
+                  <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
                 </a>
               </Button>
             </CardHeader>
@@ -185,7 +187,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => router.push(`/games/${game.id}`)}>
-                          View Details
+                          {t('studio.viewDetails')}
                         </Button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -194,31 +196,31 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm text-muted-foreground">{game.id}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Status</p>
+                          <p className="text-sm font-medium">{t('studio.status')}</p>
                           <p className="text-sm text-muted-foreground">{game.status}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Tier</p>
+                          <p className="text-sm font-medium">{t('studio.tier')}</p>
                           <p className="text-sm text-muted-foreground">{game.tier ?? '-'}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Shop Count</p>
+                          <p className="text-sm font-medium">{t('studio.shopCount')}</p>
                           <p className="text-sm text-muted-foreground">{game.shop_count ?? 0}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Total Player</p>
+                          <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
                           <p className="text-sm text-muted-foreground">{game.total_player ?? 0}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Item Profile Count</p>
+                          <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
                           <p className="text-sm text-muted-foreground">{game.item_profile_count ?? 0}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Created At</p>
+                          <p className="text-sm font-medium">{t('studio.createdAt')}</p>
                           <p className="text-sm text-muted-foreground">{formatTimestamp(game.created_at)}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Updated At</p>
+                          <p className="text-sm font-medium">{t('studio.updatedAt')}</p>
                           <p className="text-sm text-muted-foreground">{formatTimestamp(game.updated_at)}</p>
                         </div>
                         {game.studio && (

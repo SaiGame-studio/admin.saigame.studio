@@ -10,14 +10,14 @@ import { RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 export default function UsersPage() {
-  const [profiles, setProfiles] = useState<any[]>([])
+  const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const loadProfiles = async () => {
     try {
       setLoading(true)
-      const profiles = await fetchPlayerProfiles(50)
+      const profiles = await fetchPlayerProfiles()
       setProfiles(profiles)
       setError(null)
     } catch (err: any) {
@@ -62,26 +62,27 @@ export default function UsersPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {profiles.map((item, idx) => (
-            <Card key={item.user_profile?.id || idx} className="overflow-hidden">
+          {profiles.map((profile: UserProfile, idx) => (
+            <Card key={profile.id || idx} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl font-mono">{item.user_profile?.id || '-'}</CardTitle>
+                  <CardTitle className="text-xl font-mono">{profile.id || '-'}</CardTitle>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-xs text-muted-foreground"></span>
                   </div>
                 </div>
                 <CardDescription>
-                  <div>Type: {item.user_profile?.type || '-'}</div>
-                  <div>Tier: {item.user_profile?.tier || '-'}</div>
+                  <div>Type: {profile.type || '-'}</div>
+                  <div>Tier: {profile.tier || '-'}</div>
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>Created At: {formatTimestamp(item.user_profile?.created_at ?? 0)}</span>
-                  <span>Updated At: {formatTimestamp(item.user_profile?.updated_at ?? 0)}</span>
-                  <span>Game: {item.game?.name || '-'}</span>
-                  <span>Studio: {item.studio?.name || '-'}</span>
+                  <span>Created At: {formatTimestamp(profile.created_at)}</span>
+                  <span>Updated At: {formatTimestamp(profile.updated_at)}</span>
+                  {profile.studios_count !== undefined && (
+                    <span>Studios Count: {profile.studios_count}</span>
+                  )}
                 </div>
               </CardContent>
             </Card>

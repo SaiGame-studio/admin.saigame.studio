@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { ProtectedLayout } from "@/components/protected-layout"
 import { Footer } from "@/components/footer"
 import { SITE_NAME } from "@/lib/utils/site-config"
+import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,8 +28,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="sais-admin-theme">
           <AuthProvider>
-            <ProtectedLayout>{children}</ProtectedLayout>
-            <Footer />
+            <LanguageProvider>
+              <ProtectedLayout>{children}</ProtectedLayout>
+              <Footer />
+            </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

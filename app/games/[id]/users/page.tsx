@@ -10,9 +10,13 @@ import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export default function GameUserProfilesPage({ params }: { params: { id: string } }) {
   const gameId = params.id;
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,8 +43,8 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
     fetchData();
   }, [gameId]);
 
-  if (loading) return <div className="container mx-auto py-6">Loading...</div>;
-  if (error) return <div className="container mx-auto py-6">{error}</div>;
+  if (loading) return <div className="container mx-auto py-6">{t('common.loading')}</div>;
+  if (error) return <div className="container mx-auto py-6">{t('common.error')}</div>;
 
   return (
     <div className="container mx-auto py-6">
@@ -49,7 +53,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           <Breadcrumb>
             <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
               <BreadcrumbItem>
-                <BreadcrumbLink href={`/studios/${game.studio?.id}`}>{game.studio?.name || 'Studio'}</BreadcrumbLink>
+                <BreadcrumbLink href={`/studios/${game.studio?.id}`}>{game.studio?.name || t('common.studio')}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
@@ -57,7 +61,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <span className="text-muted-foreground">User Profiles</span>
+                <span className="text-muted-foreground">{t('userProfiles.title')}</span>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -66,20 +70,20 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
       <Card  className="border border-muted-foreground/0">
         <CardHeader>
           <CardTitle>
-            User Profiles - {game?.name} {game?.studio?.name ? `| ${game.studio.name}` : ""}
+            {t('userProfiles.title')} - {game?.name} {game?.studio?.name ? `| ${game.studio.name}` : ""}
           </CardTitle>
-          <p className="mt-2 text-sm text-muted-foreground">Note: You can only create a new User Profile for a game from the Game Client.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('userProfiles.note')}</p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {profiles.map((item: any) => (
               <Card key={item.user_profile.id}>
                 <CardHeader>
-                  <CardTitle className="text-base">{item.user_profile.tier} - {item.user_profile.type}</CardTitle>
+                  <CardTitle className="text-base">{t('userProfiles.player')} - {item.user_profile.type}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xs mb-2"><b>ID:</b> {item.user_profile.id}</div>
-                  <div className="mb-1"><b>Created At:</b> {formatTimestamp(item.user_profile.created_at)}</div>
+                  <div className="text-xs mb-2"><b>{t('userProfiles.id')}:</b> {item.user_profile.id}</div>
+                  <div className="mb-1"><b>{t('userProfiles.createdAt')}:</b> {formatTimestamp(item.user_profile.created_at)}</div>
                 </CardContent>
               </Card>
             ))}

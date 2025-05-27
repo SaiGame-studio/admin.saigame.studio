@@ -13,9 +13,13 @@ import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
+    const { locale } = useLanguage()
+    const { t } = useTranslation(locale)
     const [game, setGame] = useState<Game | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -107,7 +111,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                     <Breadcrumb>
                         <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
                             <BreadcrumbItem>
-                                <BreadcrumbLink href={`/studios/${game.studio.id}`}>{game.studio.name || 'Studio'}</BreadcrumbLink>
+                                <BreadcrumbLink href={`/studios/${game.studio.id}`}>{game.studio.name || t('common.studio')}</BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator>/</BreadcrumbSeparator>
                             <BreadcrumbItem>
@@ -121,7 +125,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">{game.name}</h1>
-                    <p className="text-muted-foreground">Game details and management</p>
+                    <p className="text-muted-foreground">{t('game.detailsDesc')}</p>
                 </div>
             </div>
 
@@ -130,20 +134,20 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Gamepad2 className="mr-2 h-5 w-5" />
-                            Game Information
+                            {t('game.information')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Game ID</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.gameId')}</h3>
                                     <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
                                         {game.id}
                                     </code>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Game Name</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.name')}</h3>
                                     <GameNameEditable
                                       game={game}
                                       gameId={game.id}
@@ -151,7 +155,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.status')}</h3>
                                     <GameStatusEditable
                                       game={game}
                                       gameId={game.id}
@@ -160,13 +164,13 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                                 {game.tier && (
                                     <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Tier</h3>
+                                        <h3 className="text-sm font-medium text-muted-foreground">{t('game.tier')}</h3>
                                         <p className="text-lg">{game.tier}</p>
                                     </div>
                                 )}
                                 {game.studio?.name && (
                                     <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Studio Name</h3>
+                                        <h3 className="text-sm font-medium text-muted-foreground">{t('game.studioName')}</h3>
                                         <p className="text-lg">
                                             <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                                                 {game.studio.name}
@@ -179,7 +183,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Shop Count</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.shopCount')}</h3>
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/shops`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.shop_count ?? 0}
@@ -188,7 +192,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     </p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Total Players</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.totalPlayer')}</h3>
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.total_player ?? 0}
@@ -197,15 +201,15 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     </p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Item Profile Count</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.itemProfileCount')}</h3>
                                     <p className="text-lg">{game.item_profile_count ?? 0}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.createdAt')}</h3>
                                     <p className="text-lg">{formatTimestamp(game.created_at)}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">{t('game.updatedAt')}</h3>
                                     <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
                                 </div>
                             </div>

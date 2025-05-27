@@ -22,10 +22,14 @@ import {
 } from "@/components/ui/command"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
   const router = useRouter()
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
   const [shop, setShop] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -122,13 +126,13 @@ export default function ShopDetailPage() {
     // eslint-disable-next-line
   }, [editingCurrencyItemId]);
 
-  if (loading) return <div className="container mx-auto py-6">Loading...</div>
+  if (loading) return <div className="container mx-auto py-6">{t('common.loading')}</div>
   if (error) return (
     <div className="container mx-auto py-6">
       <Card className="border-destructive mb-4">
         <CardHeader>
-          <CardTitle>Error</CardTitle>
-          <CardDescription>There was a problem loading the shop</CardDescription>
+          <CardTitle>{t('common.error')}</CardTitle>
+          <CardDescription>{t('shop.loadError')}</CardDescription>
         </CardHeader>
         <CardContent>
           <p>{error}</p>
@@ -143,19 +147,19 @@ export default function ShopDetailPage() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/studios/${shop?.game?.studio?.id}`}>{shop?.game?.studio?.name || 'Studio'}</BreadcrumbLink>
+              <BreadcrumbLink href={`/studios/${shop?.game?.studio?.id}`}>{shop?.game?.studio?.name || t('common.studio')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${params.id}`}>{shop?.game?.name || 'Game'}</BreadcrumbLink>
+              <BreadcrumbLink href={`/games/${params.id}`}>{shop?.game?.name || t('common.game')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${params.id}/shops`}>Shops</BreadcrumbLink>
+              <BreadcrumbLink href={`/games/${params.id}/shops`}>{t('breadcrumb.shops')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">{shop?.name || 'Shop Details'}</span>
+              <span className="text-muted-foreground">{shop?.name || t('shop.title')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -180,7 +184,7 @@ export default function ShopDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-2">
-            Game: {shop.game?.id && shop.game?.name ? (
+            {t('shop.game')}: {shop.game?.id && shop.game?.name ? (
               <Link href={`/games/${shop.game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
                 {shop.game.name}
                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -190,14 +194,14 @@ export default function ShopDetailPage() {
             )}
           </div>
           <div className="mb-2 flex items-center gap-2">
-            Currency: <span className="font-semibold">
+            {t('shop.currency')}: <span className="font-semibold">
               {shop.currency ? (
                 <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                   {shop.currency.name}
                   <ExternalLink className="w-4 h-4 text-muted-foreground" />
                 </Link>
               ) : (
-                <span className="text-muted-foreground">No currency set</span>
+                <span className="text-muted-foreground">{t('shop.noCurrencySet')}</span>
               )}
             </span>
             <Button size="icon" variant="ghost" onClick={openCurrencyModal}>
@@ -205,17 +209,17 @@ export default function ShopDetailPage() {
             </Button>
           </div>
 
-          <div className="mb-2">Created At: {formatTimestamp(shop.created_at)}</div>
-          <div className="mb-2">Updated At: {formatTimestamp(shop.updated_at)}</div>
+          <div className="mb-2">{t('shop.createdAt')}: {formatTimestamp(shop.created_at)}</div>
+          <div className="mb-2">{t('shop.updatedAt')}: {formatTimestamp(shop.updated_at)}</div>
 
         </CardContent>
       </Card>
-      <h2 className="text-xl font-bold mb-4">Items in Shop</h2>
+      <h2 className="text-xl font-bold mb-4">{t('shop.itemsInShop')}</h2>
       {shop.items_in_shop?.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No Items Found</CardTitle>
-            <CardDescription>This shop has no items.</CardDescription>
+            <CardTitle>{t('common.noItemsFound')}</CardTitle>
+            <CardDescription>{t('shop.noShopsDesc')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
@@ -229,15 +233,15 @@ export default function ShopDetailPage() {
                     <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   </Link>
                 </CardTitle>
-                <CardDescription>Type: {item.item_profile?.type}</CardDescription>
+                <CardDescription>{t('shop.type')}: {item.item_profile?.type}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-2 flex items-center gap-2">
-                  <span>Currency:</span>
+                  <span>{t('shop.currency')}:</span>
                   {item.currency && item.currency.name ? (
                     <span className="font-semibold">{item.currency.name}</span>
                   ) : (
-                    <span className="text-muted-foreground">No currency set</span>
+                    <span className="text-muted-foreground">{t('shop.noCurrencySet')}</span>
                   )}
                   <Button size="icon" variant="ghost" onClick={() => {
                     setEditingCurrencyItemId(item.id);
@@ -261,7 +265,7 @@ export default function ShopDetailPage() {
                         ),
                       }));
                     } catch (e: any) {
-                      setItemCurrencyError(e.message || 'Failed to remove item currency');
+                      setItemCurrencyError(e.message || t('shop.loadError'));
                     } finally {
                       setItemCurrencyLoading(false);
                     }
@@ -284,7 +288,7 @@ export default function ShopDetailPage() {
                 {item.item_profile?.custom_data && (
                   <Collapsible defaultOpen>
                     <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
-                      Custom Data
+                      {t('shop.customData')}
                       <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="ml-4 mt-2">
@@ -299,19 +303,19 @@ export default function ShopDetailPage() {
                 }}>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Select Item Currency</DialogTitle>
+                      <DialogTitle>{t('shop.selectItemCurrency')}</DialogTitle>
                     </DialogHeader>
                     {itemCurrencyError && <div className="text-red-500 text-xs mb-2">{itemCurrencyError}</div>}
                     <div className="mb-2">
                       <Command>
                         <CommandInput
-                          placeholder="Search item..."
+                          placeholder={t('common.search')}
                           value={itemSearchTerm}
                           onValueChange={setItemSearchTerm}
                           disabled={itemCurrencyLoading}
                         />
                         <CommandList>
-                          <CommandEmpty>No items match your search.</CommandEmpty>
+                          <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
                           {currencyOptions
                             .filter(cur =>
                               cur.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) &&
@@ -336,10 +340,10 @@ export default function ShopDetailPage() {
                     <div className="flex items-center justify-between mt-4 gap-2">
                       <div className="flex items-center gap-2">
                         <Checkbox id="show-currency-only-item" checked={itemShowCurrencyOnly} onCheckedChange={checked => setItemShowCurrencyOnly(checked === true)} />
-                        <label htmlFor="show-currency-only-item" className="text-sm select-none cursor-pointer">Show currency only</label>
+                        <label htmlFor="show-currency-only-item" className="text-sm select-none cursor-pointer">{t('shop.showCurrencyOnly')}</label>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setEditingCurrencyItemId(null)} disabled={itemCurrencyLoading}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setEditingCurrencyItemId(null)} disabled={itemCurrencyLoading}>{t('common.cancel')}</Button>
                         <Button
                           onClick={async () => {
                             if (!selectedItemCurrency) return;
@@ -360,14 +364,14 @@ export default function ShopDetailPage() {
                               }));
                               setEditingCurrencyItemId(null);
                             } catch (e: any) {
-                              setItemCurrencyError(e.message || 'Failed to update item currency');
+                              setItemCurrencyError(e.message || t('shop.loadError'));
                             } finally {
                               setItemCurrencyLoading(false);
                             }
                           }}
                           disabled={itemCurrencyLoading || !selectedItemCurrency}
                         >
-                          {itemCurrencyLoading ? 'Saving...' : 'Save'}
+                          {itemCurrencyLoading ? t('shop.saving') : t('common.save')}
                         </Button>
                       </div>
                     </div>
@@ -381,14 +385,14 @@ export default function ShopDetailPage() {
       <Dialog open={currencyModalOpen} onOpenChange={setCurrencyModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Select Shop Currency</DialogTitle>
+            <DialogTitle>{t('shop.selectShopCurrency')}</DialogTitle>
           </DialogHeader>
           {currencyError && <div className="text-red-500 text-xs mb-2">{currencyError}</div>}
           <div className="mb-2">
             <Command>
-              <CommandInput placeholder="Search item..." disabled={currencyLoading} />
+              <CommandInput placeholder={t('common.search')} disabled={currencyLoading} />
               <CommandList>
-                <CommandEmpty>No items match your search.</CommandEmpty>
+                <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
                 {filteredOptions.map((item) => (
                   <CommandItem
                     key={item.id}
@@ -408,12 +412,12 @@ export default function ShopDetailPage() {
           <div className="flex items-center justify-between mt-4 gap-2">
             <div className="flex items-center gap-2">
               <Checkbox id="show-currency-only" checked={showCurrencyOnly} onCheckedChange={checked => setShowCurrencyOnly(checked === true)} />
-              <label htmlFor="show-currency-only" className="text-sm select-none cursor-pointer">Show currency only</label>
+              <label htmlFor="show-currency-only" className="text-sm select-none cursor-pointer">{t('shop.showCurrencyOnly')}</label>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>{t('common.cancel')}</Button>
               <Button onClick={handleCurrencySave} disabled={!selectedCurrency || selectedCurrency === "no-items" || currencyLoading}>
-                {currencyLoading ? "Saving..." : "Save"}
+                {currencyLoading ? t('shop.saving') : t('common.save')}
               </Button>
             </div>
           </div>
@@ -429,6 +433,8 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
   const [old, setOld] = useState(item.price_old)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
 
   useEffect(() => {
     if (editing === "current") setCurrent(item.price_current)
@@ -448,7 +454,7 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
       onPriceUpdate(data.price_current, data.price_old)
       setEditing(null)
     } catch (e: any) {
-      setError(e.message || "Failed to update price")
+      setError(e.message || t('shop.loadError'))
     } finally {
       setLoading(false)
     }
@@ -457,7 +463,7 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
   return (
     <div className="flex flex-col gap-1 mb-2">
       <div className="flex items-center gap-2">
-        <span>Current Price:</span>
+        <span>{t('shop.currentPrice')}:</span>
         {editing === "current" ? (
           <>
             <Input
@@ -484,7 +490,7 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
         )}
       </div>
       <div className="flex items-center gap-2">
-        <span>Old Price:</span>
+        <span>{t('shop.oldPrice')}:</span>
         {editing === "old" ? (
           <>
             <Input
@@ -520,6 +526,8 @@ function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: s
   const [name, setName] = useState(shop.name)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
 
   useEffect(() => {
     setName(shop.name)
@@ -533,7 +541,7 @@ function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: s
       onNameUpdate(name)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || "Failed to update shop name")
+      setError(e.message || t('shop.loadError'))
     } finally {
       setLoading(false)
     }
@@ -574,6 +582,8 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
   const [codeName, setCodeName] = useState(shop.code_name)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
 
   useEffect(() => {
     setCodeName(shop.code_name)
@@ -587,7 +597,7 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
       onCodeNameUpdate(codeName)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || "Failed to update code name")
+      setError(e.message || t('shop.loadError'))
     } finally {
       setLoading(false)
     }
@@ -612,7 +622,7 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
         </>
       ) : (
         <>
-          <span>Code: {shop.code_name}</span>
+          <span>{t('shop.code')}: {shop.code_name}</span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
             <Pencil className="w-4 h-4" />
           </Button>
@@ -628,6 +638,8 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
   const [description, setDescription] = useState(shop.description || "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
 
   useEffect(() => {
     setDescription(shop.description || "")
@@ -641,7 +653,7 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
       onDescriptionUpdate(description)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || "Failed to update description")
+      setError(e.message || t('shop.loadError'))
     } finally {
       setLoading(false)
     }
@@ -656,7 +668,7 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
             onChange={e => setDescription(e.target.value)}
             className="w-96 h-8 px-2 text-base"
             disabled={loading}
-            placeholder="No description"
+            placeholder={t('shop.description')}
           />
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
             <Save className="w-4 h-4" />
@@ -667,7 +679,7 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
         </>
       ) : (
         <>
-          <span>Description: {shop.description || "No description"}</span>
+          <span>{t('shop.description')}: {shop.description || t('shop.noDescription')}</span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
             <Pencil className="w-4 h-4" />
           </Button>

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Loader2 } from "lucide-react"
+import { useTranslation } from '@/lib/i18n/use-translation'
 
 export default function NewGamePage() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function NewGamePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const { t } = useTranslation();
 
   useEffect(() => {
     async function loadStudios() {
@@ -75,28 +77,28 @@ export default function NewGamePage() {
       <div className="mb-6">
         <Button variant="outline" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          {t('common.back')}
         </Button>
       </div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New Game</h1>
-          <p className="text-muted-foreground">Add a new game to your studio</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('game.createNew')}</h1>
+          <p className="text-muted-foreground">{t('game.addToStudio')}</p>
         </div>
       </div>
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>Game Details</CardTitle>
-          <CardDescription>Enter the information for your new game</CardDescription>
+          <CardTitle>{t('game.details')}</CardTitle>
+          <CardDescription>{t('game.detailsDesc')}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{error}</div>}
             <div className="space-y-2">
-              <Label htmlFor="studio">Studio</Label>
+              <Label htmlFor="studio">{t('common.studio')}</Label>
               <Select value={studioId} onValueChange={setStudioId} disabled={loading || studios.length === 0}>
                 <SelectTrigger id="studio">
-                  <SelectValue placeholder="Select a studio" />
+                  <SelectValue placeholder={t('game.selectStudio')} />
                 </SelectTrigger>
                 <SelectContent>
                   {studios.map((studio) => (
@@ -106,10 +108,10 @@ export default function NewGamePage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Game Name</Label>
+              <Label htmlFor="name">{t('game.name')}</Label>
               <Input
                 id="name"
-                placeholder="Enter game name"
+                placeholder={t('game.enterName')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -118,11 +120,11 @@ export default function NewGamePage() {
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="outline" type="button" onClick={() => router.back()}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={submitting || loading || studios.length === 0}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Game
+              {t('game.create')}
             </Button>
           </CardFooter>
         </form>

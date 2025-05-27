@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle, Plus, X } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
+import { useTranslation } from '@/lib/i18n/use-translation'
 
 export default function StudiosPage() {
   const [studios, setStudios] = useState<Studio[]>([])
@@ -20,6 +21,7 @@ export default function StudiosPage() {
   const [newStudioName, setNewStudioName] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const { t } = useTranslation();
 
   useEffect(() => {
     async function loadStudios() {
@@ -57,14 +59,14 @@ export default function StudiosPage() {
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Studios</h1>
-          <p className="text-muted-foreground">Manage your game development studios</p>
+          <h1 className="text-3xl font-bold">{t('common.studios')}</h1>
+          <p className="text-muted-foreground">{t('studio.manageTitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Input
             value={newStudioName}
             onChange={e => setNewStudioName(e.target.value)}
-            placeholder="New studio name"
+            placeholder={t('studio.newName')}
             className="w-48"
             disabled={creating}
             onKeyDown={e => {
@@ -78,7 +80,7 @@ export default function StudiosPage() {
             disabled={!newStudioName.trim() || creating}
             variant="default"
           >
-            {creating ? 'Creating...' : 'Create Studio'}
+            {creating ? t('common.loading') : t('studio.create')}
           </Button>
         </div>
       </div>
@@ -127,7 +129,7 @@ export default function StudiosPage() {
       ) : studios.length === 0 ? (
         <Card className="bg-muted/50">
           <CardContent className="flex flex-col items-center justify-center py-10">
-            <p className="text-muted-foreground mb-4">You don&apos;t have any studios yet</p>
+            <p className="text-muted-foreground mb-4">{t('studio.noStudios')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -144,15 +146,15 @@ export default function StudiosPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm">
-                  <span className="font-medium">Games:</span> {studio.games_count}
+                  <span className="font-medium">{t('common.games')}:</span> {studio.games_count}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Created: {new Date(studio.created_at * 1000).toLocaleDateString()}
+                  {t('studio.created')}: {new Date(studio.created_at * 1000).toLocaleDateString()}
                 </p>
               </CardContent>
               <CardFooter>
                 <Button variant="outline" className="w-full" onClick={() => router.push(`/studios/${studio.id}`)}>
-                  View Details
+                  {t('studio.viewDetails')}
                 </Button>
               </CardFooter>
             </Card>
