@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Code, Gamepad2, Clock, Calendar, Brush } from "lucide-react"
-import { fetchUserProfiles } from "@/lib/user-profile-api"
+import { fetchPlayerProfiles } from "@/lib/user-profile-api"
 import { formatDate } from "@/lib/api"
 import type { UserProfile } from "@/types/user-profile"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,13 +22,9 @@ export function UserProfiles() {
         setIsLoading(true)
         setError(null)
 
-        const response = await fetchUserProfiles()
+        const profiles = await fetchPlayerProfiles()
 
-        if (response.status === "success" && response.data) {
-          setProfiles(response.data)
-        } else {
-          throw new Error("Invalid response format")
-        }
+        setProfiles(profiles)
       } catch (err) {
         console.error("Failed to load user profiles:", err)
         setError(err instanceof Error ? err.message : "An unexpected error occurred")
@@ -94,28 +90,32 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
           <Badge variant="outline">{profile.tier}</Badge>
         </div>
         <CardTitle>{isDeveloper ? "Developer Profile" : "Player Profile"}</CardTitle>
-        <CardDescription>Profile ID: {profile.id}</CardDescription>
+        <CardDescription className="text-xs text-muted-foreground">Profile ID: {profile.id}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {isDeveloper && (
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground flex items-center">
-              <Brush className="mr-2 h-4 w-4" /> Studios
+      <CardContent className="pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Calendar className="mr-2 h-4 w-4" /> Created
+              </div>
+              <div className="font-medium text-lg text-left">{formatDate(profile.created_at * 1000)}</div>
             </div>
-            <div className="font-medium">{profile.studios_count || 0}</div>
+            <div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Clock className="mr-2 h-4 w-4" /> Last Updated
+              </div>
+              <div className="font-medium text-lg text-left">{formatDate(profile.updated_at * 1000)}</div>
+            </div>
           </div>
-        )}
-        <div className="space-y-1">
-          <div className="text-sm text-muted-foreground flex items-center">
-            <Calendar className="mr-2 h-4 w-4" /> Created
-          </div>
-          <div className="font-medium">{formatDate(profile.created_at * 1000)}</div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm text-muted-foreground flex items-center">
-            <Clock className="mr-2 h-4 w-4" /> Last Updated
-          </div>
-          <div className="font-medium">{formatDate(profile.updated_at * 1000)}</div>
+          {isDeveloper && (
+            <div className="flex flex-col items-end justify-start h-full">
+              <div className="flex items-center text-sm text-muted-foreground w-full justify-end">
+                <Brush className="mr-2 h-4 w-4" /> Studios
+              </div>
+              <div className="font-bold text-2xl text-right w-full">{profile.studios_count || 0}</div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

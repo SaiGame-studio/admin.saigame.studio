@@ -13,9 +13,13 @@ import { ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, X } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export default function GameShopsPage() {
   const params = useParams() as { id: string }
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -101,7 +105,7 @@ export default function GameShopsPage() {
   }
 
   if (loading) {
-    return <div className="container mx-auto py-6">Loading...</div>
+    return <div className="container mx-auto py-6">{t('common.loading')}</div>
   }
 
   if (error) {
@@ -109,8 +113,8 @@ export default function GameShopsPage() {
       <div className="container mx-auto py-6">
         <Card className="border-destructive mb-4">
           <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>There was a problem loading shops</CardDescription>
+            <CardTitle>{t('common.error')}</CardTitle>
+            <CardDescription>{t('shop.loadError')}</CardDescription>
           </CardHeader>
           <CardContent>
             <p>{error}</p>
@@ -126,23 +130,23 @@ export default function GameShopsPage() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/studios/${game?.studio?.id}`}>{game?.studio?.name || 'Studio'}</BreadcrumbLink>
+              <BreadcrumbLink href={`/studios/${game?.studio?.id}`}>{game?.studio?.name || t('common.studio')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${params.id}`}>{gameName || 'Game'}</BreadcrumbLink>
+              <BreadcrumbLink href={`/games/${params.id}`}>{gameName || t('common.game')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">Shops</span>
+              <span className="text-muted-foreground">{t('shop.title')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Game Shops</h1>
-          <p className="text-muted-foreground text-base">List of all shops for the game: {gameName && (
+          <h1 className="text-3xl font-bold">{t('shop.title')}</h1>
+          <p className="text-muted-foreground text-base">{t('shop.listDesc')} {gameName && (
             <Link href={`/games/${params.id}`} className="text-lg font-normal text-muted-foreground inline-flex items-center gap-1 hover:text-primary">
               {gameName}
               <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -154,7 +158,7 @@ export default function GameShopsPage() {
             ref={quickInputRef}
             type="text"
             className="border rounded px-2 py-1 bg-background text-foreground"
-            placeholder="Quick shop name..."
+            placeholder={t('shop.quickNamePlaceholder')}
             value={quickShopName}
             onChange={e => setQuickShopName(e.target.value)}
             disabled={quickShopLoading}
@@ -162,7 +166,7 @@ export default function GameShopsPage() {
             style={{ minWidth: 160 }}
           />
           <Button onClick={handleQuickCreateShop} disabled={quickShopLoading || !quickShopName.trim()}>
-            {quickShopLoading ? 'Creating...' : 'Create'}
+            {quickShopLoading ? t('shop.creating') : t('shop.create')}
           </Button>
         </div>
       </div>
@@ -171,7 +175,7 @@ export default function GameShopsPage() {
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
             <div>
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{t('common.error')}</AlertTitle>
               <AlertDescription>
                 {typeof createShopError === 'string' ? createShopError : createShopError.message}
                 {Array.isArray(createShopError?.hints) && createShopError.hints.length > 0 && (
@@ -192,8 +196,8 @@ export default function GameShopsPage() {
       {shops.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No Shops Found</CardTitle>
-            <CardDescription>There are no shops for this game.</CardDescription>
+            <CardTitle>{t('shop.noShops')}</CardTitle>
+            <CardDescription>{t('shop.noShopsDesc')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
@@ -207,17 +211,17 @@ export default function GameShopsPage() {
                     <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   </Link>
                 </CardTitle>
-                <CardDescription>Code: {shop.code_name}</CardDescription>
+                <CardDescription>{t('shop.code')}: {shop.code_name}</CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>Shop ID: <code className="font-mono">{shop.id}</code></span>
-                  <span>Items in Shop: <span className="font-semibold">{shopItemCounts[shop.id] ?? '-'}</span></span>
-                  <span>Created At: {formatTimestamp(shop.created_at)}</span>
-                  <span>Updated At: {formatTimestamp(shop.updated_at)}</span>
+                  <span>{t('shop.shopId')}: <code className="font-mono">{shop.id}</code></span>
+                  <span>{t('shop.itemsInShop')}: <span className="font-semibold">{shopItemCounts[shop.id] ?? '-'}</span></span>
+                  <span>{t('shop.createdAt')}: {formatTimestamp(shop.created_at)}</span>
+                  <span>{t('shop.updatedAt')}: {formatTimestamp(shop.updated_at)}</span>
                 </div>
                 <Button asChild variant="outline" className="mt-4 w-full">
-                  <Link href={`/games/${params.id}/shops/${shop.id}`}>View Details</Link>
+                  <Link href={`/games/${params.id}/shops/${shop.id}`}>{t('shop.viewDetails')}</Link>
                 </Button>
               </CardContent>
             </Card>

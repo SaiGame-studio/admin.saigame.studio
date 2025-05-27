@@ -38,7 +38,7 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
       <TopNav />
       <div className="flex flex-1">
         <SideNav />
-        <div className="flex-1">{children}</div>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
   )
