@@ -114,7 +114,7 @@ export default function StudioGamesPage({params}: { params: { id: string } }) {
                     </CardFooter>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
                     {games.map((game) => (
                         <Card key={game.id} className="overflow-hidden">
                             <CardHeader className="pb-3">

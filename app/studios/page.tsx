@@ -109,7 +109,7 @@ export default function StudiosPage() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="overflow-hidden">
               <CardHeader className="pb-2">
@@ -133,7 +133,7 @@ export default function StudiosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {studios.map((studio) => (
             <Card key={studio.id} className="overflow-hidden">
               <CardHeader className="pb-2">

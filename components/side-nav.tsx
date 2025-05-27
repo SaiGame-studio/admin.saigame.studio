@@ -110,9 +110,6 @@ export function SideNav() {
   return (
     <>
       <style jsx global>{`
-        :root {
-          --sidebar-width: ${sidebarWidth}px;
-        }
         main {
           margin-left: var(--sidebar-width);
           transition: margin-left 0.2s ease-in-out;

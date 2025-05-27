@@ -223,7 +223,7 @@ export default function ShopDetailPage() {
           </CardHeader>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {shop.items_in_shop?.map((item: any) => (
             <Card key={item.id}>
               <CardHeader>

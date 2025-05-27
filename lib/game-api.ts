@@ -157,3 +157,26 @@ export async function getAllGames(): Promise<Game[]> {
         throw error
     }
 }
+
+// Lấy tất cả item profiles của 1 game
+export async function fetchGameItemProfiles(gameId: string, params?: Record<string, string>): Promise<any[]> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+        throw new Error("Authentication required");
+    }
+    let query = '';
+    if (params) {
+        query = '?' + new URLSearchParams(params).toString();
+    }
+    const response = await fetch(`${API_URL}/api/games/${gameId}/item-profiles${query}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`Error fetching item profiles: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.data || [];
+}

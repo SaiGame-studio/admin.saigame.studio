@@ -202,7 +202,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">{t('game.itemProfileCount')}</h3>
-                                    <p className="text-lg">{game.item_profile_count ?? 0}</p>
+                                    <p className="text-lg">
+                                        <Link href={`/games/${game.id}/item-profiles`} className="text-primary hover:text-primary/80 flex items-center gap-1">
+                                            {game.item_profile_count ?? 0}
+                                            <ExternalLink className="inline-block h-4 w-4 ml-1" />
+                                        </Link>
+                                    </p>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">{t('game.createdAt')}</h3>
