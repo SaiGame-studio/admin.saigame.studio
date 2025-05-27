@@ -86,7 +86,7 @@ export default function GamesPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {[...Array(6)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="h-24 bg-muted/50 rounded-t-lg" />
@@ -127,7 +127,7 @@ export default function GamesPage() {
           </CardFooter>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {games.map((game) => (
             <Card key={game.id} className="overflow-hidden">
               <CardHeader className="pb-3">

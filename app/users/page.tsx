@@ -61,7 +61,7 @@ export default function UsersPage() {
           </CardHeader>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {profiles.map((profile: UserProfile, idx) => (
             <Card key={profile.id || idx} className="overflow-hidden">
               <CardHeader className="pb-3">
