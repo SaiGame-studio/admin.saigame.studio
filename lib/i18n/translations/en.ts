@@ -78,6 +78,9 @@ export const en = {
     itemProfileCount: "Item Profile Count"
   },
   game: {
+    shops: "Shops",
+    itemProfiles: "Item Profiles",
+    users: "Users",
     createNew: "Create New Game",
     addToStudio: "Add a new game to your studio",
     details: "Game Details",
@@ -130,5 +133,26 @@ export const en = {
     deleteSuccess: "Profile deleted successfully",
     createSuccess: "Profile created successfully",
     updateSuccess: "Profile updated successfully"
+  },
+  settings: {
+    title: "Settings",
+    general: "General",
+    account: "Account",
+    notifications: "Notifications",
+    languageSettings: "Language Settings",
+    languageSettingsDesc: "Choose your preferred language for the interface",
+    interfaceLanguage: "Interface Language",
+    current: "Current",
+    appearance: "Appearance",
+    appearanceDesc: "Customize the look and feel of your interface",
+    darkMode: "Dark Mode",
+    darkModeDesc: "Switch between light and dark themes",
+    autoTheme: "Auto Theme",
+    autoThemeDesc: "Follow system theme preferences",
+    accountInfo: "Account Information",
+    accountInfoDesc: "View and manage your account details",
+    notificationPrefs: "Notification Preferences",
+    notificationPrefsDesc: "Control how and when you receive notifications",
+    comingSoon: "This feature will be available in a future update."
   }
 }; 

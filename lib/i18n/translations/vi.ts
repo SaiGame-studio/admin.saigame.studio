@@ -78,6 +78,9 @@ export const vi = {
     itemProfileCount: "Số hồ sơ vật phẩm"
   },
   game: {
+    shops: "Cửa hàng",
+    itemProfiles: "Hồ sơ vật phẩm",
+    users: "Người dùng",
     createNew: "Tạo Game mới",
     addToStudio: "Thêm game mới vào Studio của bạn",
     details: "Chi tiết Game",
@@ -130,5 +133,26 @@ export const vi = {
     deleteSuccess: "Đã xóa hồ sơ thành công",
     createSuccess: "Đã tạo hồ sơ thành công",
     updateSuccess: "Đã cập nhật hồ sơ thành công"
+  },
+  settings: {
+    title: "Cài đặt",
+    general: "Tổng quát",
+    account: "Tài khoản",
+    notifications: "Thông báo",
+    languageSettings: "Cài đặt ngôn ngữ",
+    languageSettingsDesc: "Chọn ngôn ngữ ưa thích cho giao diện",
+    interfaceLanguage: "Ngôn ngữ giao diện",
+    current: "Hiện tại",
+    appearance: "Giao diện",
+    appearanceDesc: "Tùy chỉnh diện mạo của giao diện",
+    darkMode: "Chế độ tối",
+    darkModeDesc: "Chuyển đổi giữa giao diện sáng và tối",
+    autoTheme: "Tự động theo hệ thống",
+    autoThemeDesc: "Theo cài đặt giao diện của hệ thống",
+    accountInfo: "Thông tin tài khoản",
+    accountInfoDesc: "Xem và quản lý thông tin tài khoản của bạn",
+    notificationPrefs: "Tùy chọn thông báo",
+    notificationPrefsDesc: "Kiểm soát cách thức và thời điểm nhận thông báo",
+    comingSoon: "Tính năng này sẽ có trong bản cập nhật tương lai."
   }
 }; 
