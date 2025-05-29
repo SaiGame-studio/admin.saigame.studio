@@ -11,6 +11,12 @@ export interface ItemProfile {
   level_start: number
   level_max: number
   stack_limit: number
+  stackable?: boolean
+  create_on_registry?: boolean
+  amount_on_registry?: number
+  description?: string
+  game_id?: string
+  inventory_profile_id?: string
   custom_data: Record<string, any>
   updated_at: number
   created_at: number
@@ -75,7 +81,20 @@ export async function fetchItemProfile(profileId: string): Promise<ItemProfile> 
   return data.data
 }
 
-export async function updateItemProfile(profileId: string, updateData: { name?: string; code_name?: string; type?: string; level_start?: number; level_max?: number; stack_limit?: number; custom_data?: Record<string, any> }) {
+export async function updateItemProfile(profileId: string, updateData: { 
+  name?: string; 
+  code_name?: string; 
+  type?: string; 
+  status?: string;
+  level_start?: number; 
+  level_max?: number; 
+  stack_limit?: number; 
+  stackable?: boolean | number;
+  create_on_registry?: boolean | number;
+  amount_on_registry?: number;
+  description?: string;
+  custom_data?: Record<string, any> 
+}) {
   const token = localStorage.getItem("token")
   if (!token) {
     throw new Error("Authentication required")
