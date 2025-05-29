@@ -10,16 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "next-themes"
-import { LanguageSwitcher } from "@/components/ui/language-switcher"
+import { LanguageSelector } from "@/components/ui/language-selector"
+import { ThemeSelector } from "@/components/ui/theme-selector"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   const { t, locale } = useTranslation()
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -70,7 +67,7 @@ export default function SettingsPage() {
                       {t('settings.current')}: {locale === 'en' ? 'English' : 'Tiếng Việt'}
                     </div>
                   </div>
-                  <LanguageSwitcher />
+                  <LanguageSelector />
                 </div>
               </CardContent>
             </Card>
@@ -89,29 +86,12 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-base">{t('settings.darkMode')}</Label>
+                    <Label className="text-base">{t('settings.themeMode')}</Label>
                     <div className="text-sm text-muted-foreground">
-                      {t('settings.darkModeDesc')}
+                      {t('settings.themeModeDesc')}
                     </div>
                   </div>
-                  <Switch
-                    checked={theme === "dark"}
-                    onCheckedChange={toggleTheme}
-                    aria-label="Toggle dark mode"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">{t('settings.autoTheme')}</Label>
-                    <div className="text-sm text-muted-foreground">
-                      {t('settings.autoThemeDesc')}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={theme === "system"}
-                    onCheckedChange={() => setTheme("system")}
-                    aria-label="Use system theme"
-                  />
+                  <ThemeSelector />
                 </div>
               </CardContent>
             </Card>

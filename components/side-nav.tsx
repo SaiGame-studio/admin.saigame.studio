@@ -93,7 +93,7 @@ export function SideNav() {
   }, [isResizing, sidebarWidth, isCollapsed])
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
+    setTheme(theme === "dark" ? "light-warm" : "dark")
   }
 
   const toggleCollapse = () => {
@@ -209,7 +209,7 @@ export function SideNav() {
                     {theme === "dark" ? (
                       <>
                         <Sun className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span className="whitespace-nowrap">Light Mode</span>}
+                        {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
                       </>
                     ) : (
                       <>
