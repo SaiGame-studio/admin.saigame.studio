@@ -15,6 +15,8 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import { fetchGameItemProfiles, createItemProfile, ItemProfile } from "@/lib/item-profile-api";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 export default function GameItemProfilesPage() {
   const params = useParams() as { id: string };
@@ -197,12 +199,17 @@ export default function GameItemProfilesPage() {
                   <span>{t('itemProfile.createdAt')}: {formatTimestamp(profile.created_at)}</span>
                   <span>{t('itemProfile.updatedAt')}: {formatTimestamp(profile.updated_at)}</span>
                   {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
-                    <div className="mt-2">
-                      <span className="font-medium">{t('itemProfile.customData')}:</span>
-                      <pre className="bg-muted p-2 rounded text-xs mt-1 overflow-x-auto">
-                        {JSON.stringify(profile.custom_data, null, 2)}
-                      </pre>
-                    </div>
+                    <Collapsible defaultOpen>
+                      <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
+                        {t('itemProfile.customData')}
+                        <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="ml-4 mt-2">
+                        {Object.entries(profile.custom_data).map(([key, value]) => (
+                          <div key={key} className="text-sm">{key}: {String(value)}</div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
                 </div>
                 <Button asChild variant="outline" className="mt-4 w-full">

@@ -8,7 +8,7 @@ import type { Game } from "@/types/game"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEditable"
@@ -126,6 +126,26 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                 <div>
                     <h1 className="text-3xl font-bold">{game.name}</h1>
                     <p className="text-muted-foreground">{t('game.detailsDesc')}</p>
+                </div>
+                <div className="flex gap-2 mt-4 md:mt-0">
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/shops`}>
+                            <Store className="h-4 w-4" />
+                            {t('game.shops')}
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/item-profiles`}>
+                            <Package className="h-4 w-4" />
+                            {t('game.itemProfiles')}
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/users`}>
+                            <Users className="h-4 w-4" />
+                            {t('game.users')}
+                        </Link>
+                    </Button>
                 </div>
             </div>
 

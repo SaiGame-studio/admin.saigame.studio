@@ -44,3 +44,9 @@ export enum ItemType {
   Misc = "misc",
   LootBox = "loot_box"
 }
+
+export enum ItemProfileStatus {
+  ReadyToUse = "ready_to_use",
+  InProgress = "in_progress",
+  ErrorUnStackAmountTooBig = "un_stackable_amount_too_big"
+}

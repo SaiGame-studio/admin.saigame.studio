@@ -26,7 +26,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} storageKey="sais-admin-theme">
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="system" 
+          enableSystem={true} 
+          storageKey="sais-admin-theme"
+          themes={['light', 'light-soft', 'light-warm', 'dark', 'dark-blue', 'dark-purple', 'dark-green', 'midnight', 'system']}
+        >
           <AuthProvider>
             <LanguageProvider>
               <ProtectedLayout>{children}</ProtectedLayout>

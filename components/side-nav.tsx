@@ -93,7 +93,7 @@ export function SideNav() {
   }, [isResizing, sidebarWidth, isCollapsed])
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
+    setTheme(theme === "dark" ? "light-warm" : "dark")
   }
 
   const toggleCollapse = () => {
@@ -195,39 +195,37 @@ export function SideNav() {
                       <span className="whitespace-nowrap">{t('common.documentation')}</span>
                     </Link>
                   </Button>
+                  {/* Separator line */}
+                  <div className="border-t border-border/50 my-2"></div>
+                  {!isCollapsed && (
+                    <div className="flex items-center gap-2 px-2">
+                      <LanguageSwitcher />
+                      <span className="text-sm text-muted-foreground">
+                        {locale === 'en' ? 'English' : 'Tiếng Việt'}
+                      </span>
+                    </div>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
+                    {theme === "dark" ? (
+                      <>
+                        <Sun className="h-4 w-4 flex-shrink-0" />
+                        {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
+                      </>
+                    ) : (
+                      <>
+                        <Moon className="h-4 w-4 flex-shrink-0" />
+                        {!isCollapsed && <span className="whitespace-nowrap">Dark Mode</span>}
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
+                    <LogOut className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
+                  </Button>
                 </div>
               )}
             </div>
           </ScrollArea>
-          <div className="mt-auto border-t p-3">
-            <div className="space-y-2">
-              {!isCollapsed && (
-                <div className="flex items-center gap-2 px-2">
-                  <LanguageSwitcher />
-                  <span className="text-sm text-muted-foreground">
-                    {locale === 'en' ? 'English' : 'Tiếng Việt'}
-                  </span>
-                </div>
-              )}
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
-                {theme === "dark" ? (
-                  <>
-                    <Sun className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">Light Mode</span>}
-                  </>
-                ) : (
-                  <>
-                    <Moon className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">Dark Mode</span>}
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
-                <LogOut className="h-4 w-4 flex-shrink-0" />
-                {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Resize handle */}
