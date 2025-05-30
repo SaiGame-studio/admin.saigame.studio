@@ -5,10 +5,11 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2, Plus } from "lucide-react"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronDown } from "lucide-react"
-import { fetchShop, updateShopItemPrice, updateShop } from "@/lib/shop-api"
+import { fetchShop, updateShopItemPrice, updateShop, addItemToShop, removeItemFromShop } from "@/lib/shop-api"
+import { fetchGameItemProfiles } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -46,6 +47,22 @@ export default function ShopDetailPage() {
   const [selectedItemCurrency, setSelectedItemCurrency] = useState<string | undefined>(undefined);
   const [itemSearchTerm, setItemSearchTerm] = useState("");
   const [itemShowCurrencyOnly, setItemShowCurrencyOnly] = useState(true);
+  
+  // Add item modal states
+  const [addItemModalOpen, setAddItemModalOpen] = useState(false);
+  const [availableItemProfiles, setAvailableItemProfiles] = useState<any[]>([]);
+  const [selectedItemProfile, setSelectedItemProfile] = useState<string>("");
+  const [addItemSearchTerm, setAddItemSearchTerm] = useState("");
+  const [currentPrice, setCurrentPrice] = useState<string>("");
+  const [oldPrice, setOldPrice] = useState<string>("");
+  const [addItemLoading, setAddItemLoading] = useState(false);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
+
+  // Remove item modal states
+  const [removeItemModalOpen, setRemoveItemModalOpen] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState<any>(null);
+  const [removeItemLoading, setRemoveItemLoading] = useState(false);
+  const [removeItemError, setRemoveItemError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadShop() {
@@ -125,6 +142,88 @@ export default function ShopDetailPage() {
     }
     // eslint-disable-next-line
   }, [editingCurrencyItemId]);
+
+  // Fetch available item profiles for adding to shop
+  const fetchAvailableItemProfiles = async () => {
+    setAddItemLoading(true);
+    setAddItemError(null);
+    try {
+      const profiles = await fetchGameItemProfiles(params.id);
+      // Filter out items that are already in the shop
+      const currentItemIds = shop.items_in_shop?.map((item: any) => item.item_profile?.id) || [];
+      const availableProfiles = profiles.filter(profile => !currentItemIds.includes(profile.id));
+      setAvailableItemProfiles(availableProfiles);
+    } catch (e: any) {
+      setAddItemError(e.message || "Failed to fetch item profiles");
+    } finally {
+      setAddItemLoading(false);
+    }
+  };
+
+  const openAddItemModal = () => {
+    setAddItemModalOpen(true);
+    setSelectedItemProfile("");
+    setCurrentPrice("");
+    setOldPrice("");
+    setAddItemSearchTerm("");
+    setAddItemError(null);
+    fetchAvailableItemProfiles();
+  };
+
+  const handleAddItem = async () => {
+    if (!selectedItemProfile || !currentPrice) return;
+    
+    setAddItemLoading(true);
+    setAddItemError(null);
+    try {
+      await addItemToShop(params.shopId, selectedItemProfile, {
+        price_current: Number(currentPrice),
+        price_old: oldPrice ? Number(oldPrice) : undefined,
+        currency_id: null
+      });
+      
+      // Refresh shop data
+      const shopData = await fetchShop(params.shopId);
+      setShop(shopData);
+      setAddItemModalOpen(false);
+      
+      // Reset form
+      setSelectedItemProfile("");
+      setCurrentPrice("");
+      setOldPrice("");
+      setAddItemSearchTerm("");
+    } catch (e: any) {
+      setAddItemError(e.message || "Failed to add item to shop");
+    } finally {
+      setAddItemLoading(false);
+    }
+  };
+
+  const openRemoveItemModal = (item: any) => {
+    setItemToRemove(item);
+    setRemoveItemModalOpen(true);
+    setRemoveItemError(null);
+  };
+
+  const handleRemoveItem = async () => {
+    if (!itemToRemove) return;
+    
+    setRemoveItemLoading(true);
+    setRemoveItemError(null);
+    try {
+      await removeItemFromShop(params.shopId, itemToRemove.item_profile.id);
+      
+      // Refresh shop data
+      const shopData = await fetchShop(params.shopId);
+      setShop(shopData);
+      setRemoveItemModalOpen(false);
+      setItemToRemove(null);
+    } catch (e: any) {
+      setRemoveItemError(e.message || "Failed to remove item from shop");
+    } finally {
+      setRemoveItemLoading(false);
+    }
+  };
 
   if (loading) return <div className="container mx-auto py-6">{t('common.loading')}</div>
   if (error) return (
@@ -214,7 +313,13 @@ export default function ShopDetailPage() {
 
         </CardContent>
       </Card>
-      <h2 className="text-xl font-bold mb-4">{t('shop.itemsInShop')}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">{t('shop.itemsInShop')}</h2>
+        <Button onClick={openAddItemModal} className="flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          {t('shop.addItem')}
+        </Button>
+      </div>
       {shop.items_in_shop?.length === 0 ? (
         <Card>
           <CardHeader>
@@ -223,17 +328,29 @@ export default function ShopDetailPage() {
           </CardHeader>
         </Card>
       ) : (
-        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {shop.items_in_shop?.map((item: any) => (
             <Card key={item.id}>
               <CardHeader>
-                <CardTitle>
-                  <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                    {item.item_profile?.name}
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                </CardTitle>
-                <CardDescription>{t('shop.type')}: {item.item_profile?.type}</CardDescription>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle>
+                      <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 hover:text-primary">
+                        {item.item_profile?.name}
+                        <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                      </Link>
+                    </CardTitle>
+                    <CardDescription>{t('shop.type')}: {item.item_profile?.type}</CardDescription>
+                  </div>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => openRemoveItemModal(item)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="mb-2 flex items-center gap-2">
@@ -286,7 +403,7 @@ export default function ShopDetailPage() {
                   }}
                 />
                 {item.item_profile?.custom_data && (
-                  <Collapsible defaultOpen>
+                  <Collapsible>
                     <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
                       {t('shop.customData')}
                       <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
@@ -421,6 +538,132 @@ export default function ShopDetailPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Item Modal */}
+      <Dialog open={addItemModalOpen} onOpenChange={setAddItemModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('shop.addItemToShop')}</DialogTitle>
+          </DialogHeader>
+          
+          {addItemError && <div className="text-red-500 text-sm mb-2">{addItemError}</div>}
+          
+          <div className="space-y-4">
+            {/* Item Profile Selection */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t('shop.selectItemProfile')}</label>
+              <Command>
+                <CommandInput
+                  placeholder={t('shop.searchItemProfiles')}
+                  value={addItemSearchTerm}
+                  onValueChange={setAddItemSearchTerm}
+                  disabled={addItemLoading}
+                />
+                <CommandList>
+                  <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
+                  {availableItemProfiles
+                    .filter(profile =>
+                      profile.name.toLowerCase().includes(addItemSearchTerm.toLowerCase()) ||
+                      profile.code_name.toLowerCase().includes(addItemSearchTerm.toLowerCase())
+                    )
+                    .map((profile) => (
+                      <CommandItem
+                        key={profile.id}
+                        value={profile.name}
+                        onSelect={() => setSelectedItemProfile(profile.id)}
+                        className={selectedItemProfile === profile.id ? "bg-accent text-accent-foreground" : ""}
+                      >
+                        <div className="flex w-full justify-between items-center">
+                          <span>{profile.name}</span>
+                          <span className="text-xs text-muted-foreground">{profile.type}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                </CommandList>
+              </Command>
+            </div>
+            
+            {/* Price Settings */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium">{t('shop.priceSettings')}</h4>
+              <div>
+                <label className="text-sm text-muted-foreground">{t('shop.currentPrice')} *</label>
+                <Input
+                  type="number"
+                  value={currentPrice}
+                  onChange={(e) => setCurrentPrice(e.target.value)}
+                  placeholder={t('shop.enterCurrentPrice')}
+                  disabled={addItemLoading}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">{t('shop.oldPrice')}</label>
+                <Input
+                  type="number"
+                  value={oldPrice}
+                  onChange={(e) => setOldPrice(e.target.value)}
+                  placeholder={t('shop.enterOldPrice')}
+                  disabled={addItemLoading}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setAddItemModalOpen(false)} disabled={addItemLoading}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleAddItem}
+              disabled={addItemLoading || !selectedItemProfile || !currentPrice}
+            >
+              {addItemLoading ? t('shop.addingItem') : t('shop.addItem')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Remove Item Confirmation Modal */}
+      <Dialog open={removeItemModalOpen} onOpenChange={setRemoveItemModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('shop.removeItemConfirm')}</DialogTitle>
+          </DialogHeader>
+          
+          {removeItemError && <div className="text-red-500 text-sm mb-2">{removeItemError}</div>}
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t('shop.removeItemConfirmText')}
+            </p>
+            
+            {itemToRemove && (
+              <div className="p-3 border rounded-lg bg-muted/50">
+                <p className="font-medium">{itemToRemove.item_profile?.name}</p>
+                <p className="text-sm text-muted-foreground">{t('shop.type')}: {itemToRemove.item_profile?.type}</p>
+                <p className="text-sm text-muted-foreground">{t('shop.currentPrice')}: {itemToRemove.price_current}</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setRemoveItemModalOpen(false)} 
+              disabled={removeItemLoading}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveItem}
+              disabled={removeItemLoading}
+            >
+              {removeItemLoading ? t('shop.removingItem') : t('shop.removeItem')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

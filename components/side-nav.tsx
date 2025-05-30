@@ -93,7 +93,7 @@ export function SideNav() {
   }, [isResizing, sidebarWidth, isCollapsed])
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light-warm" : "dark")
+    setTheme(theme === "dark-green" ? "light-warm" : "dark-green")
   }
 
   const toggleCollapse = () => {
@@ -206,7 +206,7 @@ export function SideNav() {
                     </div>
                   )}
                   <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
-                    {theme === "dark" ? (
+                    {theme === "dark-green" ? (
                       <>
                         <Sun className="h-4 w-4 flex-shrink-0" />
                         {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
@@ -214,7 +214,7 @@ export function SideNav() {
                     ) : (
                       <>
                         <Moon className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span className="whitespace-nowrap">Dark Mode</span>}
+                        {!isCollapsed && <span className="whitespace-nowrap">Dark Green</span>}
                       </>
                     )}
                   </Button>
