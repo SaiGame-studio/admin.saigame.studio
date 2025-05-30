@@ -210,7 +210,20 @@ export const vi = {
     updateSuccess: "Đã cập nhật hồ sơ thành công",
     statusReadyToUse: "Sẵn sàng sử dụng",
     statusInProgress: "Đang xử lý",
-    statusErrorUnStackAmountTooBig: "Lỗi: Số lượng không thể xếp chồng quá lớn"
+    statusErrorUnStackAmountTooBig: "Lỗi: Số lượng không thể xếp chồng quá lớn",
+    filterByStatus: "Lọc theo trạng thái",
+    selectStatus: "Chọn trạng thái",
+    selected: "Đã chọn",
+    showing: "Hiển thị",
+    activeFilters: "Bộ lọc đang hoạt động",
+    clearAll: "Xóa tất cả",
+    clearFilter: "Xóa bộ lọc",
+    noFilteredProfiles: "Không có hồ sơ nào khớp với bộ lọc",
+    noFilteredProfilesDesc: "Không có hồ sơ vật phẩm nào khớp với bộ lọc trạng thái đã chọn. Hãy thay đổi bộ lọc hoặc xóa tất cả bộ lọc.",
+    searchByName: "Tìm kiếm theo tên",
+    searchPlaceholder: "Tìm kiếm hồ sơ...",
+    clearSearch: "Xóa tìm kiếm",
+    filters: "Bộ lọc"
   },
   settings: {
     title: "Cài đặt",

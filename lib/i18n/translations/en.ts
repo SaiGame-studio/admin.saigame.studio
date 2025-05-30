@@ -210,7 +210,20 @@ export const en = {
     updateSuccess: "Profile updated successfully",
     statusReadyToUse: "Ready to Use",
     statusInProgress: "In Progress",
-    statusErrorUnStackAmountTooBig: "Error: Unstackable Amount Too Big"
+    statusErrorUnStackAmountTooBig: "Error: Unstackable Amount Too Big",
+    filterByStatus: "Filter by Status",
+    selectStatus: "Select Status",
+    selected: "Selected",
+    showing: "Showing",
+    activeFilters: "Active Filters",
+    clearAll: "Clear All",
+    clearFilter: "Clear Filter",
+    noFilteredProfiles: "No Profiles Match Filter",
+    noFilteredProfilesDesc: "No item profiles match the selected status filter. Try changing the filter or clear all filters.",
+    searchByName: "Search by name",
+    searchPlaceholder: "Search profiles...",
+    clearSearch: "Clear search",
+    filters: "Filters"
   },
   settings: {
     title: "Settings",
