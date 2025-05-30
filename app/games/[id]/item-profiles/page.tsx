@@ -180,26 +180,28 @@ export default function GameItemProfilesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {itemProfiles.map((profile) => (
             <Card key={profile.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xl font-mono">
-                  <Link href={`/games/${params.id}/item-profiles/${profile.id}`} className="inline-flex items-center gap-1">
-                    {profile.name}
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                </CardTitle>
-                <CardDescription>{t('itemProfile.code')}: {profile.code_name}</CardDescription>
+              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
+                <div className="flex flex-col">
+                  <CardTitle className="text-xl font-mono">
+                    <Link href={`/games/${params.id}/item-profiles/${profile.id}`} className="inline-flex items-center gap-1">
+                      {profile.name}
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </Link>
+                  </CardTitle>
+                  <CardDescription>{t('itemProfile.code')}: {profile.code_name}</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/games/${params.id}/item-profiles/${profile.id}`}>{t('itemProfile.viewDetails')}</Link>
+                </Button>
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>{t('itemProfile.profileId')}: <code className="font-mono">{profile.id}</code></span>
                   <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
                   <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
                   <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
                   <span>{t('itemProfile.status')}: {profile.status}</span>
-                  <span>{t('itemProfile.createdAt')}: {formatTimestamp(profile.created_at)}</span>
-                  <span>{t('itemProfile.updatedAt')}: {formatTimestamp(profile.updated_at)}</span>
                   {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
-                    <Collapsible defaultOpen>
+                    <Collapsible>
                       <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
                         {t('itemProfile.customData')}
                         <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
@@ -212,9 +214,6 @@ export default function GameItemProfilesPage() {
                     </Collapsible>
                   )}
                 </div>
-                <Button asChild variant="outline" className="mt-4 w-full">
-                  <Link href={`/games/${params.id}/item-profiles/${profile.id}`}>{t('itemProfile.viewDetails')}</Link>
-                </Button>
               </CardContent>
             </Card>
           ))}
