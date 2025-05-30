@@ -118,4 +118,54 @@ export async function updateShopItemPrice(
   }
   const responseData = await res.json()
   return responseData.data
+}
+
+export async function addItemToShop(
+  shopId: string,
+  itemProfileId: string,
+  data: { price_current: number; price_old?: number; currency_id?: string | null }
+) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to add item to shop: ${res.status}`)
+  }
+  const responseData = await res.json()
+  return responseData.data
+}
+
+export async function removeItemFromShop(
+  shopId: string,
+  itemProfileId: string
+) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/shops/${shopId}/item-profiles/${itemProfileId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to remove item from shop: ${res.status}`)
+  }
+  return true
 } 
