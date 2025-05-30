@@ -117,6 +117,29 @@ export async function updateItemProfile(profileId: string, updateData: {
   return data.data
 }
 
+export async function updateItemProfileCustomData(profileId: string, customData: Record<string, any>) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/item-profiles/${profileId}/custom-data`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(customData),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to update custom data: ${res.status}`, hints: error.hints || [] }
+  }
+  const data = await res.json()
+  return data.data
+}
+
 export async function deleteItemProfile(profileId: string) {
   const token = localStorage.getItem("token")
   if (!token) {

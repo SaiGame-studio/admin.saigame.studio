@@ -11,7 +11,7 @@ import Link from "next/link"
 import { ArrowLeft, ExternalLink, Pencil, Save, X, AlertCircle, CheckCircle, Clock } from "lucide-react"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronDown } from "lucide-react"
-import { fetchItemProfile, updateItemProfile, ItemProfile } from "@/lib/item-profile-api"
+import { fetchItemProfile, updateItemProfile, updateItemProfileCustomData, ItemProfile } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -28,6 +28,7 @@ export default function ItemProfileDetailPage() {
   const [game, setGame] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showNewCustomData, setShowNewCustomData] = useState(false)
 
   // Single function to update the entire item profile with fresh data from API
   const updateItemProfileData = (updatedData: ItemProfile) => {
@@ -102,112 +103,134 @@ export default function ItemProfileDetailPage() {
             itemProfileId={params.itemProfileId}
             onItemProfileUpdate={updateItemProfileData}
           />
-          <div className="mb-2">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code></div>
-
-          <ItemProfileCodeNameEditable
-            itemProfile={itemProfile}
-            itemProfileId={params.itemProfileId}
-            onItemProfileUpdate={updateItemProfileData}
-          />
-
-          <ItemProfileTypeEditable
-            itemProfile={itemProfile}
-            itemProfileId={params.itemProfileId}
-            onItemProfileUpdate={updateItemProfileData}
-          />
-          <ItemProfileStatusEditable
-            itemProfile={itemProfile}
-            itemProfileId={params.itemProfileId}
-            onItemProfileUpdate={updateItemProfileData}
-          />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <ItemProfileLevelEditable
-                itemProfile={itemProfile}
-                itemProfileId={params.itemProfileId}
-                onItemProfileUpdate={updateItemProfileData}
-              />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Normal Properties */}
+            <div className="space-y-4">
+              <div className="mb-2">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code></div>
+
+              <div>
+                <ItemProfileCodeNameEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileTypeEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+              
+              <div>
+                <ItemProfileStatusEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileLevelEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileStackableEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileStackLimitEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileCreateOnRegistryEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>
+                <ItemProfileAmountOnRegistryEditable
+                  itemProfile={itemProfile}
+                  itemProfileId={params.itemProfileId}
+                  onItemProfileUpdate={updateItemProfileData}
+                />
+              </div>
+
+              <div>{t('common.game')}: {game?.id && game?.name ? (
+                <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
+                  {game.name}
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </Link>
+              ) : (
+                <span className="font-semibold">{game?.name}</span>
+              )}</div>
+
+              <div>{t('itemProfile.createdAt')}: {formatTimestamp(itemProfile.created_at)}</div>
+              <div>{t('itemProfile.updatedAt')}: {formatTimestamp(itemProfile.updated_at)}</div>
             </div>
-            <div>
-              <ItemProfileStackLimitEditable
-                itemProfile={itemProfile}
-                itemProfileId={params.itemProfileId}
-                onItemProfileUpdate={updateItemProfileData}
-              />
+
+            {/* Right Column - Custom Data */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">{t('itemProfile.customData')}</h3>
+              </div>
+              
+              <div className="space-y-2">
+                {itemProfile.custom_data && Object.keys(itemProfile.custom_data).length > 0 ? (
+                  Object.entries(itemProfile.custom_data).map(([key, value]) => (
+                    <ItemProfileCustomDataEditable
+                      key={key}
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                      customKey={key}
+                      customValue={value}
+                    />
+                  ))
+                ) : !showNewCustomData ? (
+                  <p className="text-muted-foreground text-sm">No custom data has been set for this item profile.</p>
+                ) : null}
+                
+                {!showNewCustomData && (
+                  <button 
+                    className="text-sm text-primary hover:text-primary/80 transition-colors font-medium disabled:text-muted-foreground disabled:cursor-not-allowed"
+                    onClick={() => setShowNewCustomData(true)}
+                  >
+                    + New Custom Data
+                  </button>
+                )}
+                
+                {showNewCustomData && (
+                  <ItemProfileNewCustomDataEditable
+                    itemProfile={itemProfile}
+                    itemProfileId={params.itemProfileId}
+                    onItemProfileUpdate={updateItemProfileData}
+                    onCancel={() => setShowNewCustomData(false)}
+                  />
+                )}
+              </div>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="mb-2">
-              <ItemProfileStackableEditable
-                itemProfile={itemProfile}
-                itemProfileId={params.itemProfileId}
-                onItemProfileUpdate={updateItemProfileData}
-              />
-            </div>
-            <div className="mb-2">
-              <ItemProfileCreateOnRegistryEditable
-                itemProfile={itemProfile}
-                itemProfileId={params.itemProfileId}
-                onItemProfileUpdate={updateItemProfileData}
-              />
-            </div>
-          </div>
-
-          <div className="mb-2">
-            <ItemProfileAmountOnRegistryEditable
-              itemProfile={itemProfile}
-              itemProfileId={params.itemProfileId}
-              onItemProfileUpdate={updateItemProfileData}
-            />
-          </div>
-
-          <div className="mb-2">{t('common.game')}: {game?.id && game?.name ? (
-            <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
-              {game.name}
-              <ExternalLink className="w-4 h-4 text-muted-foreground" />
-            </Link>
-          ) : (
-            <span className="font-semibold">{game?.name}</span>
-          )}</div>
-
-          <div className="mb-2">{t('itemProfile.createdAt')}: {formatTimestamp(itemProfile.created_at)}</div>
-          <div className="mb-2">{t('itemProfile.updatedAt')}: {formatTimestamp(itemProfile.updated_at)}</div>
         </CardContent>
       </Card>
-
-      <h2 className="text-xl font-bold mb-4">{t('itemProfile.customData')}</h2>
-      {itemProfile.custom_data && Object.keys(itemProfile.custom_data).length > 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <Collapsible defaultOpen>
-              <CollapsibleTrigger className="flex items-center gap-2 font-semibold hover:underline">
-                {t('itemProfile.customData')} ({Object.keys(itemProfile.custom_data).length} {Object.keys(itemProfile.custom_data).length === 1 ? 'item' : 'items'})
-                <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(itemProfile.custom_data).map(([key, value]) => (
-                    <div key={key} className="p-3 border rounded-lg">
-                      <div className="font-semibold text-sm text-muted-foreground mb-1">{key}</div>
-                      <div className="text-sm font-mono bg-muted px-2 py-1 rounded">{String(value)}</div>
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('common.noData')}</CardTitle>
-            <CardDescription>No custom data has been set for this item profile.</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
     </div>
   )
 }
@@ -820,6 +843,243 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
         )}
       </div>
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+    </div>
+  )
+}
+
+function ItemProfileCustomDataEditable({ itemProfile, itemProfileId, onItemProfileUpdate, customKey, customValue }: { itemProfile: ItemProfile, itemProfileId: string, onItemProfileUpdate: (updatedData: ItemProfile) => void, customKey: string, customValue: any }) {
+  const [editing, setEditing] = useState(false)
+  const [key, setKey] = useState(customKey)
+  const [value, setValue] = useState(String(customValue))
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
+
+  useEffect(() => {
+    setKey(customKey)
+    setValue(String(customValue))
+  }, [customKey, customValue])
+
+  const handleSave = async () => {
+    if (!key.trim()) {
+      setError({ message: "Key name cannot be empty", hints: [] })
+      return
+    }
+
+    // Check if new key already exists (and it's different from current key)
+    if (key !== customKey && itemProfile.custom_data && itemProfile.custom_data[key] !== undefined) {
+      setError({ message: `Key "${key}" already exists`, hints: [] })
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      // Create new custom_data object
+      const updatedCustomData = { ...itemProfile.custom_data }
+      
+      // If key changed, remove old key
+      if (key !== customKey) {
+        delete updatedCustomData[customKey]
+      }
+      
+      // Convert value to number if possible, otherwise keep as string
+      let processedValue: any = value.trim()
+      
+      // Check if the value is a valid number
+      if (processedValue !== '' && !isNaN(Number(processedValue))) {
+        const numValue = Number(processedValue)
+        // Use number if it's a finite number (not Infinity or -Infinity)
+        if (isFinite(numValue)) {
+          processedValue = numValue
+        }
+      }
+      
+      // Set new/updated key with processed value
+      updatedCustomData[key] = processedValue
+
+      const updatedData = await updateItemProfileCustomData(itemProfileId, updatedCustomData)
+      onItemProfileUpdate(updatedData)
+      setEditing(false)
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setEditing(false)
+    setKey(customKey)
+    setValue(String(customValue))
+    setError(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        {editing ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Input
+                value={key}
+                onChange={e => setKey(e.target.value)}
+                className="w-32 h-8 px-2 text-sm font-medium"
+                disabled={loading}
+                placeholder="Property name"
+              />
+              <span>:</span>
+              <Input
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                className="w-48 h-8 px-2 text-sm"
+                disabled={loading}
+                placeholder="Property value"
+              />
+            </div>
+            <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || !key.trim()}>
+              <Save className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading}>
+              <X className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <span>{customKey}: <span className="font-semibold">{String(customValue)}</span></span>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+      </div>
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ItemProfileNewCustomDataEditable({ itemProfile, itemProfileId, onItemProfileUpdate, onCancel }: { itemProfile: ItemProfile, itemProfileId: string, onItemProfileUpdate: (updatedData: ItemProfile) => void, onCancel: () => void }) {
+  const [key, setKey] = useState('')
+  const [value, setValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
+  const { locale } = useLanguage();
+  const { t } = useTranslation(locale);
+
+  const handleSave = async () => {
+    if (!key.trim()) {
+      setError({ message: "Key name cannot be empty", hints: [] })
+      return
+    }
+
+    // Check if key already exists
+    if (itemProfile.custom_data && itemProfile.custom_data[key] !== undefined) {
+      setError({ message: `Key "${key}" already exists`, hints: [] })
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      // Create new custom_data object
+      const updatedCustomData = { ...itemProfile.custom_data }
+      
+      // Convert value to number if possible, otherwise keep as string
+      let processedValue: any = value.trim()
+      
+      // Check if the value is a valid number
+      if (processedValue !== '' && !isNaN(Number(processedValue))) {
+        const numValue = Number(processedValue)
+        // Use number if it's a finite number (not Infinity or -Infinity)
+        if (isFinite(numValue)) {
+          processedValue = numValue
+        }
+      }
+      
+      // Set new key with processed value
+      updatedCustomData[key] = processedValue
+
+      const updatedData = await updateItemProfileCustomData(itemProfileId, updatedCustomData)
+      onItemProfileUpdate(updatedData)
+      // Reset form for next entry instead of closing
+      setKey('')
+      setValue('')
+      setError(null)
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setKey('')
+    setValue('')
+    setError(null)
+    onCancel()
+  }
+
+  return (
+    <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/50">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Input
+            value={key}
+            onChange={e => setKey(e.target.value)}
+            className="w-32 h-8 px-2 text-sm font-medium"
+            disabled={loading}
+            placeholder="Property name"
+          />
+          <span>:</span>
+          <Input
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            className="w-48 h-8 px-2 text-sm"
+            disabled={loading}
+            placeholder="Property value"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || !key.trim()}>
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancel} disabled={loading}>
+            Done
+          </Button>
+        </div>
+      </div>
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 } 
