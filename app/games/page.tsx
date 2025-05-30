@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Gamepad2, ArrowRight, RefreshCw, ExternalLink } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Gamepad2, ArrowRight, RefreshCw, ExternalLink, ChevronDown, X } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -22,12 +24,35 @@ export default function GamesPage() {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+
+  // Available status options
+  const statusOptions = [
+    { value: "released", label: t('games.statusReleased') },
+    { value: "beta", label: t('games.statusBeta') },
+    { value: "alpha", label: t('games.statusAlpha') },
+    { value: "development", label: t('games.statusDevelopment') },
+    { value: "archived", label: t('games.statusArchived') }
+  ]
 
   // Filter games based on status
-  const filteredGames = statusFilter === "all" 
+  const filteredGames = statusFilter.length === 0 
     ? games 
-    : games.filter(game => game.status.toLowerCase() === statusFilter.toLowerCase())
+    : games.filter(game => statusFilter.includes(game.status.toLowerCase()))
+
+  // Toggle status filter
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilter(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    )
+  }
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setStatusFilter([])
+  }
 
   useEffect(() => {
     async function loadGames() {
@@ -99,25 +124,61 @@ export default function GamesPage() {
       {/* Status Filter */}
       <div className="mb-6 flex items-center gap-4">
         <span className="text-sm font-medium">{t('games.filterByStatus')}:</span>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder={t('games.selectStatus')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('games.allStatuses')}</SelectItem>
-            <SelectItem value="released">{t('games.statusReleased')}</SelectItem>
-            <SelectItem value="beta">{t('games.statusBeta')}</SelectItem>
-            <SelectItem value="alpha">{t('games.statusAlpha')}</SelectItem>
-            <SelectItem value="development">{t('games.statusDevelopment')}</SelectItem>
-            <SelectItem value="archived">{t('games.statusArchived')}</SelectItem>
-          </SelectContent>
-        </Select>
-        {statusFilter !== "all" && (
+        <Popover>
+          <PopoverTrigger>
+            <Button variant="outline" size="sm">
+              {statusFilter.length > 0 ? t('games.selectedStatuses') : t('games.selectStatus')}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px]">
+            <div className="flex flex-col gap-2">
+              {statusOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={option.value}
+                    checked={statusFilter.includes(option.value)}
+                    onCheckedChange={(checked) => toggleStatusFilter(option.value)}
+                  />
+                  <label
+                    htmlFor={option.value}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        {statusFilter.length > 0 && (
           <span className="text-sm text-muted-foreground">
             {t('games.showingGames')}: {filteredGames.length} / {games.length}
           </span>
         )}
       </div>
+
+      {/* Active Filters */}
+      {statusFilter.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{t('games.activeFilters')}:</span>
+          {statusFilter.map((status) => {
+            const statusOption = statusOptions.find(opt => opt.value === status)
+            return (
+              <Badge key={status} variant="secondary" className="flex items-center gap-1">
+                {statusOption?.label}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
+                  onClick={() => toggleStatusFilter(status)}
+                />
+              </Badge>
+            )
+          })}
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs">
+            {t('games.clearAll')}
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -168,7 +229,7 @@ export default function GamesPage() {
             <CardDescription>{t('games.noFilteredGamesDesc')}</CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
-            <Button variant="outline" onClick={() => setStatusFilter("all")}>
+            <Button variant="outline" onClick={clearAllFilters}>
               {t('games.clearFilter')}
             </Button>
           </CardFooter>

@@ -1,23 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { fetchUserStudios, createStudio } from "@/lib/studio-api"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Plus, X } from "lucide-react"
+import { AlertCircle, Plus, X, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from '@/lib/i18n/use-translation'
+import Link from "next/link"
 
 export default function StudiosPage() {
   const [studios, setStudios] = useState<Studio[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
   const [newStudioName, setNewStudioName] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -136,27 +135,32 @@ export default function StudiosPage() {
         <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
           {studios.map((studio) => (
             <Card key={studio.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle>{studio.name}</CardTitle>
-                <CardDescription>
-                  <Badge variant="outline" className="mt-1">
-                    {studio.tier}
-                  </Badge>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">
-                  <span className="font-medium">{t('common.games')}:</span> {studio.games_count}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('studio.created')}: {new Date(studio.created_at * 1000).toLocaleDateString()}
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" onClick={() => router.push(`/studios/${studio.id}`)}>
-                  {t('studio.viewDetails')}
+              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
+                <div className="flex flex-col space-y-2">
+                  <CardTitle className="text-xl">
+                    <Link href={`/studios/${studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
+                      {studio.name}
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </Link>
+                  </CardTitle>
+                  <div className="flex flex-col gap-1">
+                    {studio.tier && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{t('studio.tier')}:</span>
+                        <span className="text-sm text-muted-foreground">{studio.tier}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/studios/${studio.id}`}>{t('studio.viewDetails')}</Link>
                 </Button>
-              </CardFooter>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                  <span>{t('common.games')}: {studio.games_count}</span>
+                </div>
+              </CardContent>
             </Card>
           ))}
         </div>
