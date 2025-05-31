@@ -138,7 +138,7 @@ export default function GameShopsPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">{t('shop.title')}</span>
+              <span className="">{t('shop.title')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -146,10 +146,10 @@ export default function GameShopsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t('shop.title')}</h1>
-          <p className="text-muted-foreground text-base">{t('shop.listDesc')} {gameName && (
-            <Link href={`/games/${params.id}`} className="text-lg font-normal text-muted-foreground inline-flex items-center gap-1 hover:text-primary">
+          <p className=" text-base">{t('shop.listDesc')} {gameName && (
+            <Link href={`/games/${params.id}`} className="text-lg font-normal  inline-flex items-center gap-1 hover:text-primary">
               {gameName}
-              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+              <ExternalLink className="w-4 h-4 " />
             </Link>
           )}</p>
         </div>
@@ -205,24 +205,25 @@ export default function GameShopsPage() {
           {shops.map((shop) => (
             <Card key={shop.id} className="overflow-hidden">
               <CardHeader className="pb-3">
-                <CardTitle className="text-xl font-mono">
-                  <Link href={`/games/${params.id}/shops/${shop.id}`} className="inline-flex items-center gap-1">
-                    {shop.name}
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                </CardTitle>
-                <CardDescription>{t('shop.code')}: {shop.code_name}</CardDescription>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl font-mono">
+                      <Link href={`/games/${params.id}/shops/${shop.id}`} className="inline-flex items-center gap-1">
+                        {shop.name}
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                    </CardTitle>
+                    <CardDescription>{t('shop.code')}: {shop.code_name}</CardDescription>
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/games/${params.id}/shops/${shop.id}`}>{t('shop.viewDetails')}</Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                  <span>{t('shop.shopId')}: <code className="font-mono">{shop.id}</code></span>
+                <div className="flex flex-col gap-1 text-sm">
                   <span>{t('shop.itemsInShop')}: <span className="font-semibold">{shopItemCounts[shop.id] ?? '-'}</span></span>
-                  <span>{t('shop.createdAt')}: {formatTimestamp(shop.created_at)}</span>
-                  <span>{t('shop.updatedAt')}: {formatTimestamp(shop.updated_at)}</span>
                 </div>
-                <Button asChild variant="outline" className="mt-4 w-full">
-                  <Link href={`/games/${params.id}/shops/${shop.id}`}>{t('shop.viewDetails')}</Link>
-                </Button>
               </CardContent>
             </Card>
           ))}

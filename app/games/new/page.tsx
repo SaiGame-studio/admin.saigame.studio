@@ -83,7 +83,7 @@ export default function NewGamePage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('game.createNew')}</h1>
-          <p className="text-muted-foreground">{t('game.addToStudio')}</p>
+          <p className="">{t('game.addToStudio')}</p>
         </div>
       </div>
       <Card className="max-w-2xl mx-auto">

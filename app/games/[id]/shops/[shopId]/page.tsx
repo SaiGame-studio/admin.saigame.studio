@@ -258,12 +258,12 @@ export default function ShopDetailPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">{shop?.name || t('shop.title')}</span>
+              <span className="">{shop?.name || t('shop.title')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <Card className="mb-6">
+      <Card className="mb-6 group">
         <CardHeader>
           <ShopNameEditable
             shop={shop}
@@ -286,31 +286,27 @@ export default function ShopDetailPage() {
             {t('shop.game')}: {shop.game?.id && shop.game?.name ? (
               <Link href={`/games/${shop.game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
                 {shop.game.name}
-                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                <ExternalLink className="w-4 h-4 " />
               </Link>
             ) : (
               <span className="font-semibold">{shop.game?.name}</span>
             )}
           </div>
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 group flex items-center gap-2">
             {t('shop.currency')}: <span className="font-semibold">
               {shop.currency ? (
                 <Link href={`/games/${params.id}/item-profiles/${shop.currency.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                   {shop.currency.name}
-                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                  <ExternalLink className="w-4 h-4 " />
                 </Link>
               ) : (
-                <span className="text-muted-foreground">{t('shop.noCurrencySet')}</span>
+                <span className="">{t('shop.noCurrencySet')}</span>
               )}
             </span>
-            <Button size="icon" variant="ghost" onClick={openCurrencyModal}>
+            <Button size="icon" variant="ghost" onClick={openCurrencyModal} className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>
           </div>
-
-          <div className="mb-2">{t('shop.createdAt')}: {formatTimestamp(shop.created_at)}</div>
-          <div className="mb-2">{t('shop.updatedAt')}: {formatTimestamp(shop.updated_at)}</div>
-
         </CardContent>
       </Card>
       <div className="flex items-center justify-between mb-4">
@@ -330,14 +326,14 @@ export default function ShopDetailPage() {
       ) : (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {shop.items_in_shop?.map((item: any) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="group">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle>
                       <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                         {item.item_profile?.name}
-                        <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                        <ExternalLink className="w-4 h-4 " />
                       </Link>
                     </CardTitle>
                     <CardDescription>{t('shop.type')}: {item.item_profile?.type}</CardDescription>
@@ -358,12 +354,12 @@ export default function ShopDetailPage() {
                   {item.currency && item.currency.name ? (
                     <span className="font-semibold">{item.currency.name}</span>
                   ) : (
-                    <span className="text-muted-foreground">{t('shop.noCurrencySet')}</span>
+                    <span className="">{t('shop.noCurrencySet')}</span>
                   )}
                   <Button size="icon" variant="ghost" onClick={() => {
                     setEditingCurrencyItemId(item.id);
                     setSelectedItemCurrency(item.currency_id || shop.currency_id || '');
-                  }}>
+                  }} className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <Pencil className="w-4 h-4" />
                   </Button>
                   <Button size="icon" variant="ghost" onClick={async () => {
@@ -447,7 +443,7 @@ export default function ShopDetailPage() {
                               >
                                 <div className="flex w-full justify-between items-center">
                                   <span>{cur.name}</span>
-                                  <span className="text-xs text-muted-foreground">{cur.type}</span>
+                                  <span className="text-xs ">{cur.type}</span>
                                 </div>
                               </CommandItem>
                             ))}
@@ -519,7 +515,7 @@ export default function ShopDetailPage() {
                   >
                     <div className="flex w-full justify-between items-center">
                       <span>{item.name}</span>
-                      <span className="text-xs text-muted-foreground">{item.type}</span>
+                      <span className="text-xs ">{item.type}</span>
                     </div>
                   </CommandItem>
                 ))}
@@ -577,7 +573,7 @@ export default function ShopDetailPage() {
                       >
                         <div className="flex w-full justify-between items-center">
                           <span>{profile.name}</span>
-                          <span className="text-xs text-muted-foreground">{profile.type}</span>
+                          <span className="text-xs ">{profile.type}</span>
                         </div>
                       </CommandItem>
                     ))}
@@ -589,7 +585,7 @@ export default function ShopDetailPage() {
             <div className="space-y-3">
               <h4 className="text-sm font-medium">{t('shop.priceSettings')}</h4>
               <div>
-                <label className="text-sm text-muted-foreground">{t('shop.currentPrice')} *</label>
+                <label className="text-sm ">{t('shop.currentPrice')} *</label>
                 <Input
                   type="number"
                   value={currentPrice}
@@ -599,7 +595,7 @@ export default function ShopDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">{t('shop.oldPrice')}</label>
+                <label className="text-sm ">{t('shop.oldPrice')}</label>
                 <Input
                   type="number"
                   value={oldPrice}
@@ -635,15 +631,15 @@ export default function ShopDetailPage() {
           {removeItemError && <div className="text-red-500 text-sm mb-2">{removeItemError}</div>}
           
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm ">
               {t('shop.removeItemConfirmText')}
             </p>
             
             {itemToRemove && (
               <div className="p-3 border rounded-lg bg-muted/50">
                 <p className="font-medium">{itemToRemove.item_profile?.name}</p>
-                <p className="text-sm text-muted-foreground">{t('shop.type')}: {itemToRemove.item_profile?.type}</p>
-                <p className="text-sm text-muted-foreground">{t('shop.currentPrice')}: {itemToRemove.price_current}</p>
+                <p className="text-sm ">{t('shop.type')}: {itemToRemove.item_profile?.type}</p>
+                <p className="text-sm ">{t('shop.currentPrice')}: {itemToRemove.price_current}</p>
               </div>
             )}
           </div>
@@ -705,7 +701,7 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
 
   return (
     <div className="flex flex-col gap-1 mb-2">
-      <div className="flex items-center gap-2">
+      <div className="group flex items-center gap-2">
         <span>{t('shop.currentPrice')}:</span>
         {editing === "current" ? (
           <>
@@ -726,13 +722,13 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
         ) : (
           <>
             <span>{item.price_current}</span>
-            <Button size="icon" variant="ghost" onClick={() => setEditing("current") }>
+            <Button size="icon" variant="ghost" onClick={() => setEditing("current") } className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>
           </>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="group flex items-center gap-2">
         <span>{t('shop.oldPrice')}:</span>
         {editing === "old" ? (
           <>
@@ -753,7 +749,7 @@ function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: str
         ) : (
           <>
             <span>{item.price_old}</span>
-            <Button size="icon" variant="ghost" onClick={() => setEditing("old") }>
+            <Button size="icon" variant="ghost" onClick={() => setEditing("old") } className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>
           </>
@@ -791,7 +787,7 @@ function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: s
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="group flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -810,7 +806,7 @@ function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: s
       ) : (
         <>
           <span className="text-2xl font-bold">{shop.name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
@@ -847,7 +843,7 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="group flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -866,7 +862,7 @@ function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, s
       ) : (
         <>
           <span>{t('shop.code')}: {shop.code_name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
@@ -903,7 +899,7 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
   }
 
   return (
-    <div className="mb-2 flex items-center gap-2">
+    <div className="mb-2 group flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -923,7 +919,7 @@ function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: 
       ) : (
         <>
           <span>{t('shop.description')}: {shop.description || t('shop.noDescription')}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>

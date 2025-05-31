@@ -61,7 +61,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <span className="text-muted-foreground">{t('userProfiles.title')}</span>
+                <span className="">{t('userProfiles.title')}</span>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -72,7 +72,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           <CardTitle>
             {t('userProfiles.title')} - {game?.name} {game?.studio?.name ? `| ${game.studio.name}` : ""}
           </CardTitle>
-          <p className="mt-2 text-sm text-muted-foreground">{t('userProfiles.note')}</p>
+          <p className="mt-2 text-sm ">{t('userProfiles.note')}</p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

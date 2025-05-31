@@ -108,7 +108,7 @@ export default function GamesPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('games.title')}</h1>
-          <p className="text-muted-foreground">{t('games.subtitle')}</p>
+          <p className="">{t('games.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="default">
@@ -152,7 +152,7 @@ export default function GamesPage() {
           </PopoverContent>
         </Popover>
         {statusFilter.length > 0 && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm ">
             {t('games.showingGames')}: {filteredGames.length} / {games.length}
           </span>
         )}
@@ -211,7 +211,7 @@ export default function GamesPage() {
       ) : games.length === 0 ? (
         <Card className="text-center p-6">
           <CardHeader>
-            <Gamepad2 className="mx-auto h-12 w-12 text-muted-foreground" />
+            <Gamepad2 className="mx-auto h-12 w-12 " />
             <CardTitle className="mt-4">{t('games.noGamesFound')}</CardTitle>
             <CardDescription>{t('games.noGamesDesc')}</CardDescription>
           </CardHeader>
@@ -224,7 +224,7 @@ export default function GamesPage() {
       ) : filteredGames.length === 0 ? (
         <Card className="text-center p-6">
           <CardHeader>
-            <Gamepad2 className="mx-auto h-12 w-12 text-muted-foreground" />
+            <Gamepad2 className="mx-auto h-12 w-12 " />
             <CardTitle className="mt-4">{t('games.noFilteredGames')}</CardTitle>
             <CardDescription>{t('games.noFilteredGamesDesc')}</CardDescription>
           </CardHeader>
@@ -243,18 +243,18 @@ export default function GamesPage() {
                   <CardTitle className="text-xl">
                     <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                       {game.name}
-                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                      <ExternalLink className="w-4 h-4 " />
                     </Link>
                   </CardTitle>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{t('games.status')}:</span>
+                      <span className="text-sm ">{t('games.status')}:</span>
                       <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
                     </div>
                     {game.tier && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{t('games.tier')}:</span>
-                        <span className="text-sm text-muted-foreground">{game.tier}</span>
+                        <span className="text-sm ">{t('games.tier')}:</span>
+                        <span className="text-sm ">{game.tier}</span>
                       </div>
                     )}
                   </div>
@@ -264,11 +264,11 @@ export default function GamesPage() {
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-1 text-sm ">
                   <span>{t('games.studio')}: {game.studio?.name && game.studio?.id ? (
                     <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
                       {game.studio.name}
-                      <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      <ExternalLink className="w-3 h-3 " />
                     </Link>
                   ) : (
                     <span className="font-semibold">-</span>

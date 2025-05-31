@@ -59,7 +59,7 @@ export default function StudiosPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">{t('common.studios')}</h1>
-          <p className="text-muted-foreground">{t('studio.manageTitle')}</p>
+          <p className="">{t('studio.manageTitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -128,7 +128,7 @@ export default function StudiosPage() {
       ) : studios.length === 0 ? (
         <Card className="bg-muted/50">
           <CardContent className="flex flex-col items-center justify-center py-10">
-            <p className="text-muted-foreground mb-4">{t('studio.noStudios')}</p>
+            <p className="mb-4">{t('studio.noStudios')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -140,14 +140,14 @@ export default function StudiosPage() {
                   <CardTitle className="text-xl">
                     <Link href={`/studios/${studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                       {studio.name}
-                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                      <ExternalLink className="w-4 h-4 " />
                     </Link>
                   </CardTitle>
                   <div className="flex flex-col gap-1">
                     {studio.tier && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{t('studio.tier')}:</span>
-                        <span className="text-sm text-muted-foreground">{studio.tier}</span>
+                        <span className="text-sm ">{t('studio.tier')}:</span>
+                        <span className="text-sm ">{studio.tier}</span>
                       </div>
                     )}
                   </div>
@@ -157,7 +157,7 @@ export default function StudiosPage() {
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-1 text-sm ">
                   <span>{t('common.games')}: {studio.games_count}</span>
                 </div>
               </CardContent>

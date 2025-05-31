@@ -18,47 +18,11 @@ import { fetchGameItemProfiles, createItemProfile, updateItemProfile, ItemProfil
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Pencil, Save } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { ItemProfileStatus } from "@/types/game";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-
-// Function to get status config
-function getStatusConfig(status: string) {
-  switch (status) {
-    case ItemProfileStatus.ReadyToUse:
-      return {
-        label: "Ready To Use",
-        className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-      };
-    case ItemProfileStatus.InProgress:
-      return {
-        label: "In Progress",
-        className: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800"
-      };
-    case ItemProfileStatus.ErrorUnStackAmountTooBig:
-      return {
-        label: "Error: Unstackable Amount Too Big",
-        className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
-      };
-    default:
-      return {
-        label: status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        className: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800"
-      };
-  }
-}
-
-// Component để hiển thị status badge với màu sắc đẹp
-function StatusBadge({ status }: { status: string }) {
-  const config = getStatusConfig(status);
-  
-  return (
-    <span className={`inline-flex items-center px-2 py-1 text-xs font-medium border rounded-full ${config.className}`}>
-      {config.label}
-    </span>
-  );
-}
+import { getAllStatusOptions, getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status";
+import { StatusBadge } from "@/components/ItemProfileStatus";
 
 export default function GameItemProfilesPage() {
   const params = useParams() as { id: string };
@@ -80,21 +44,11 @@ export default function GameItemProfilesPage() {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [nameFilter, setNameFilter] = useState<string>("");
 
-  const itemProfileStatuses = Object.values(ItemProfileStatus);
   // Lọc ra các trạng thái error vì chỉ server mới được set
-  const editableStatuses = itemProfileStatuses.filter(status => 
-    !status.toLowerCase().includes('error') && 
-    !status.includes('un_stackable_amount_too_big')
-  );
+  const editableStatuses = getEditableStatusOptions();
 
   // Available status options for filter
-  const statusOptions = itemProfileStatuses.map(status => {
-    const config = getStatusConfig(status);
-    return {
-      value: status,
-      label: config.label
-    };
-  });
+  const statusOptions = getAllStatusOptions();
 
   // Filter profiles based on status and name
   const filteredProfiles = itemProfiles.filter(profile => {
@@ -255,7 +209,7 @@ export default function GameItemProfilesPage() {
       <div className="mb-6">
         <div>
           <h1 className="text-3xl font-bold">{t('itemProfile.title')}</h1>
-          <p className="text-muted-foreground text-base">{t('itemProfile.listDesc')} {gameName && (
+          <p className=" text-base">{t('itemProfile.listDesc')} {gameName && (
             <Link href={`/games/${params.id}`} className="text-lg font-normal text-muted-foreground inline-flex items-center gap-1 hover:text-primary">
               {gameName}
               <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -446,7 +400,7 @@ export default function GameItemProfilesPage() {
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-1 text-sm">
                   <div className="flex items-center gap-2">
                     {editingStatus[profile.id] ? (
                       <>
@@ -489,8 +443,24 @@ export default function GameItemProfilesPage() {
                     ) : (
                       <>
                         <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{t('itemProfile.status')}:</span>
-                          <StatusBadge status={profile.status} />
+                          <span>{t('itemProfile.status')}:</span>
+                          <span 
+                            className="font-semibold"
+                            style={{ 
+                              color: (() => {
+                                const config = getItemProfileStatusConfig(profile.status);
+                                switch (config.textColor) {
+                                  case 'text-green-600': return '#16a34a';
+                                  case 'text-yellow-600': return '#ca8a04';
+                                  case 'text-red-600': return '#dc2626';
+                                  default: return 'inherit';
+                                }
+                              })()
+                            }}
+                            title={`Status: ${profile.status}, Color: ${getItemProfileStatusConfig(profile.status).textColor}`}
+                          >
+                            {profile.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
                           <Button 
                             size="icon" 
                             variant="ghost" 
