@@ -215,14 +215,6 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
                           <p className="text-sm ">{game.item_profile_count ?? 0}</p>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium">{t('studio.createdAt')}</p>
-                          <p className="text-sm ">{formatTimestamp(game.created_at)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{t('studio.updatedAt')}</p>
-                          <p className="text-sm ">{formatTimestamp(game.updated_at)}</p>
-                        </div>
                         {game.studio && (
                           <div className="col-span-2">
                             <p className="text-sm font-medium">Studio (object)</p>

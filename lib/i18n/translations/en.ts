@@ -199,6 +199,7 @@ export const en = {
     createdAt: "Created At",
     updatedAt: "Updated At",
     customData: "Custom Data",
+    noCustomData: "No custom data has been set for this item profile.",
     newCustomData: "New Custom Data",
     propertyName: "Property name",
     propertyValue: "Property value",

@@ -217,7 +217,7 @@ export default function ItemProfileDetailPage() {
                     />
                   ))
                 ) : newCustomDataForms.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No custom data has been set for this item profile.</p>
+                  <p className="text-muted-foreground text-sm">{t('itemProfile.noCustomData')}</p>
                 ) : null}
                 
                 {newCustomDataForms.length < 5 && (

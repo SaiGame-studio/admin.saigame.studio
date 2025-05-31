@@ -199,6 +199,7 @@ export const vi = {
     createdAt: "Ngày tạo",
     updatedAt: "Ngày cập nhật",
     customData: "Dữ liệu tùy chỉnh",
+    noCustomData: "Chưa có dữ liệu tùy chỉnh nào được thiết lập cho hồ sơ vật phẩm này.",
     newCustomData: "Dữ liệu tùy chỉnh mới",
     propertyName: "Tên thuộc tính",
     propertyValue: "Giá trị thuộc tính",
