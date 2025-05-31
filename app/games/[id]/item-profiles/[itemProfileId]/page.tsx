@@ -702,7 +702,7 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
                 onCheckedChange={checked => setStackable(checked === true)}
                 disabled={loading}
               />
-              <label className="text-sm">Stackable</label>
+              <label className="text-sm">{t('itemProfile.stackable')}</label>
             </div>
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
               <Save className="w-4 h-4" />
@@ -713,7 +713,7 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
           </>
         ) : (
           <>
-            <span>Stackable: <span className="font-semibold">{itemProfile.stackable ? "Yes" : "No"}</span></span>
+            <span>{t('itemProfile.stackable')}: <span className="font-semibold">{itemProfile.stackable ? t('common.yes') : t('common.no')}</span></span>
             <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>
@@ -762,7 +762,7 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
                 onCheckedChange={checked => setCreateOnRegistry(checked === true)}
                 disabled={loading}
               />
-              <label className="text-sm">Create on Registry</label>
+              <label className="text-sm">{t('itemProfile.createOnRegistry')}</label>
             </div>
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
               <Save className="w-4 h-4" />
@@ -773,7 +773,7 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
           </>
         ) : (
           <>
-            <span>Create on Registry: <span className="font-semibold">{itemProfile.create_on_registry ? "Yes" : "No"}</span></span>
+            <span>{t('itemProfile.createOnRegistry')}: <span className="font-semibold">{itemProfile.create_on_registry ? t('common.yes') : t('common.no')}</span></span>
             <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>
@@ -832,7 +832,7 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
           </>
         ) : (
           <>
-            <span>Amount on Registry: <span className="font-semibold">{itemProfile.amount_on_registry || 0}</span></span>
+            <span>{t('itemProfile.amountOnRegistry')}: <span className="font-semibold">{itemProfile.amount_on_registry || 0}</span></span>
             <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
               <Pencil className="w-4 h-4" />
             </Button>

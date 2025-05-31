@@ -233,7 +233,10 @@ export const en = {
     searchByName: "Search by name",
     searchPlaceholder: "Search profiles...",
     clearSearch: "Clear search",
-    filters: "Filters"
+    filters: "Filters",
+    stackable: "Stackable",
+    createOnRegistry: "Create on Registry",
+    amountOnRegistry: "Amount on Registry"
   },
   settings: {
     title: "Settings",

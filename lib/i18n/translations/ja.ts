@@ -233,7 +233,10 @@ export const ja = {
     searchByName: "名前で検索",
     searchPlaceholder: "プロフィールを検索...",
     clearSearch: "検索をクリア",
-    filters: "フィルター"
+    filters: "フィルター",
+    stackable: "スタック可能",
+    createOnRegistry: "レジストリに作成",
+    amountOnRegistry: "レジストリの数量"
   },
   settings: {
     title: "設定",

@@ -233,7 +233,10 @@ export const vi = {
     searchByName: "Tìm kiếm theo tên",
     searchPlaceholder: "Tìm kiếm hồ sơ...",
     clearSearch: "Xóa tìm kiếm",
-    filters: "Bộ lọc"
+    filters: "Bộ lọc",
+    stackable: "Có thể xếp chồng",
+    createOnRegistry: "Tạo trên Registry",
+    amountOnRegistry: "Số lượng trên Registry"
   },
   settings: {
     title: "Cài đặt",

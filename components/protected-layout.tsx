@@ -36,9 +36,9 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <TopNav />
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         <SideNav />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto min-h-full">{children}</main>
       </div>
     </div>
   )

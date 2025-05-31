@@ -173,9 +173,9 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.status')}</h3>
                                     <GameStatusEditable
-                                      game={game}
-                                      gameId={game.id}
-                                      onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}
+                                        game={game}
+                                        gameId={game.id}
+                                        onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}
                                     />
                                 </div>
                                 {game.tier && (
@@ -195,7 +195,14 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                         </p>
                                     </div>
                                 )}
-
+                                <div>
+                                    <h3 className="text-sm font-medium ">{t('game.createdAt')}</h3>
+                                    <p className="text-lg">{formatTimestamp(game.created_at)}</p>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-medium ">{t('game.updatedAt')}</h3>
+                                    <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
+                                </div>
                             </div>
                             <div className="space-y-4">
                                 <div>
@@ -224,14 +231,6 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
                                     </p>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium ">{t('game.createdAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.created_at)}</p>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium ">{t('game.updatedAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
                                 </div>
                             </div>
                         </div>

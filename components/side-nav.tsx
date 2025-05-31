@@ -29,7 +29,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "next-themes"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
 import { SITE_NAME } from "@/lib/utils/site-config"
-import { LanguageSwitcher } from "@/components/ui/language-switcher"
+import { LanguageSelector } from "@/components/ui/language-selector"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
 const MIN_SIDEBAR_WIDTH = 200
@@ -114,119 +114,130 @@ export function SideNav() {
           margin-left: var(--sidebar-width);
           transition: margin-left 0.2s ease-in-out;
         }
+        .sidebar-container {
+          height: 100vh;
+          min-height: 100vh;
+          max-height: 100vh;
+          position: sticky;
+          top: 0;
+        }
       `}</style>
       <div
         ref={sidebarRef}
-        className="hidden border-r bg-muted/40 lg:block dark:bg-background h-screen"
-        style={{ width: `${sidebarWidth}px` }}
+        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col sidebar-container"
+        style={{ 
+          width: `${sidebarWidth}px`
+        }}
       >
-        <div className="flex h-full flex-col">
-          <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
-            {!isCollapsed && (
-              <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
-                <Server className="h-5 w-5 flex-shrink-0" />
-                <span>{SITE_NAME}</span>
-              </Link>
-            )}
-            {isCollapsed && (
-              <div className="flex justify-center w-full">
-                <Server className="h-5 w-5 flex-shrink-0" />
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={toggleCollapse}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          <ScrollArea className="flex-1 px-3 py-2">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/">
-                    <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/studios">
-                    <Brush className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/games">
-                    <Gamepad2 className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/users">
-                    <Users className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.users')}</span>}
-                  </Link>
-                </Button>
-              </div>
-              {!isCollapsed && (
-                <div className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
-                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                    <Link href="/profile">
-                      <User className="h-4 w-4 flex-shrink-0" />
-                      <span className="whitespace-nowrap">{t('common.profile')}</span>
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                    <Link href="/settings">
-                      <Cog className="h-4 w-4 flex-shrink-0" />
-                      <span className="whitespace-nowrap">{t('common.settings')}</span>
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                    <Link href="/documentation">
-                      <FileText className="h-4 w-4 flex-shrink-0" />
-                      <span className="whitespace-nowrap">{t('common.documentation')}</span>
-                    </Link>
-                  </Button>
-                  {/* Separator line */}
-                  <div className="border-t border-border/50 my-2"></div>
-                  {!isCollapsed && (
-                    <div className="flex items-center gap-2 px-2">
-                      <LanguageSwitcher />
-                      <span className="text-sm text-muted-foreground">
-                        {locale === 'en' ? 'English' : 'Tiếng Việt'}
-                      </span>
-                    </div>
-                  )}
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
-                    {theme === "dark-green" ? (
-                      <>
-                        <Sun className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="h-4 w-4 flex-shrink-0" />
-                        {!isCollapsed && <span className="whitespace-nowrap">Dark Green</span>}
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
-                    <LogOut className="h-4 w-4 flex-shrink-0" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
-                  </Button>
-                </div>
-              )}
+        <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
+          {!isCollapsed && (
+            <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
+              <Server className="h-5 w-5 flex-shrink-0" />
+              <span>{SITE_NAME}</span>
+            </Link>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center w-full">
+              <Server className="h-5 w-5 flex-shrink-0" />
             </div>
-          </ScrollArea>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={toggleCollapse}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
         </div>
+        <ScrollArea className="flex-1 px-3 py-2">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/">
+                  <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/studios">
+                  <Brush className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/games">
+                  <Gamepad2 className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/users">
+                  <Users className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.users')}</span>}
+                </Link>
+              </Button>
+            </div>
+            {!isCollapsed && (
+              <div className="space-y-1">
+                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/profile">
+                    <User className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.profile')}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/settings">
+                    <Cog className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.settings')}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/documentation">
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.documentation')}</span>
+                  </Link>
+                </Button>
+                {/* Separator line */}
+                <div className="border-t border-border/50 my-2"></div>
+                {isCollapsed ? (
+                  <div className="px-2">
+                    <LanguageSelector compact fullWidth />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      {t('settings.interfaceLanguage')}
+                    </div>
+                    <LanguageSelector fullWidth />
+                  </div>
+                )}
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={toggleTheme}>
+                  {theme === "dark-green" ? (
+                    <>
+                      <Sun className="h-4 w-4 flex-shrink-0" />
+                      {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4 flex-shrink-0" />
+                      {!isCollapsed && <span className="whitespace-nowrap">Dark Green</span>}
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
+                  <LogOut className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
+                </Button>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
 
         {/* Resize handle */}
         {!isCollapsed && (
