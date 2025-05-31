@@ -68,7 +68,7 @@ export default function UsersPage() {
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl font-mono">{profile.id || '-'}</CardTitle>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-muted-foreground"></span>
+                    <span className="text-xs"></span>
                   </div>
                 </div>
                 <CardDescription>
@@ -77,7 +77,7 @@ export default function UsersPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-1 text-sm">
                   <span>Created At: {formatTimestamp(profile.created_at)}</span>
                   <span>Updated At: {formatTimestamp(profile.updated_at)}</span>
                   {profile.studios_count !== undefined && (

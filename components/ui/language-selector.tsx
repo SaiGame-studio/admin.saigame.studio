@@ -18,6 +18,12 @@ const languages = [
     countryCode: 'VN',
     nativeName: 'Tiếng Việt',
   },
+  {
+    code: 'ja' as ValidLocale,
+    name: 'Japanese',
+    countryCode: 'JP',
+    nativeName: '日本語',
+  },
   // Các ngôn ngữ có thể thêm trong tương lai
   // {
   //   code: 'zh' as ValidLocale,
@@ -32,13 +38,6 @@ const languages = [
   //   countryCode: 'TW',
   //   nativeName: '繁體中文',
   //   region: 'Taiwan'
-  // },
-  // {
-  //   code: 'ja' as ValidLocale,
-  //   name: 'Japanese',
-  //   countryCode: 'JP',
-  //   nativeName: '日本語',
-  //   region: 'Japan'
   // },
   // {
   //   code: 'ko' as ValidLocale,

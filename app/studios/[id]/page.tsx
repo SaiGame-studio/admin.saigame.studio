@@ -68,7 +68,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="text-muted-foreground">{studio?.name || t('studio.details')}</span>
+              <span className="">{studio?.name || t('studio.details')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -105,7 +105,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       ) : studio ? (
         <>
           <div className="flex justify-between items-start mb-6">
-            <div>
+            <div className="group">
               <StudioNameEditable
                 studio={studio}
                 studioId={studio.id}
@@ -123,7 +123,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium">ID</p>
-                  <p className="text-sm text-muted-foreground">{studio.id}</p>
+                  <p className="text-sm ">{studio.id}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
@@ -131,7 +131,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t('studio.userProfileId')}</p>
-                  <p className="text-sm text-muted-foreground">{studio.user_profile_id}</p>
+                  <p className="text-sm ">{studio.user_profile_id}</p>
                 </div>
               </CardContent>
             </Card>
@@ -144,11 +144,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium">{t('studio.createdAt')}</p>
-                  <p className="text-sm text-muted-foreground">{formatTimestamp(studio.created_at)}</p>
+                  <p className="text-sm ">{formatTimestamp(studio.created_at)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t('studio.updatedAt')}</p>
-                  <p className="text-sm text-muted-foreground">{formatTimestamp(studio.updated_at)}</p>
+                  <p className="text-sm ">{formatTimestamp(studio.updated_at)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -182,7 +182,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="font-medium text-lg">
                             <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                               {game.name}
-                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              <ExternalLink className="w-4 h-4 " />
                             </Link>
                           </p>
                         </div>
@@ -193,35 +193,27 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                           <p className="text-sm font-medium">ID</p>
-                          <p className="text-sm text-muted-foreground">{game.id}</p>
+                          <p className="text-sm ">{game.id}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.status')}</p>
-                          <p className="text-sm text-muted-foreground">{game.status}</p>
+                          <p className="text-sm ">{game.status}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.tier')}</p>
-                          <p className="text-sm text-muted-foreground">{game.tier ?? '-'}</p>
+                          <p className="text-sm ">{game.tier ?? '-'}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.shopCount')}</p>
-                          <p className="text-sm text-muted-foreground">{game.shop_count ?? 0}</p>
+                          <p className="text-sm ">{game.shop_count ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
-                          <p className="text-sm text-muted-foreground">{game.total_player ?? 0}</p>
+                          <p className="text-sm ">{game.total_player ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
-                          <p className="text-sm text-muted-foreground">{game.item_profile_count ?? 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{t('studio.createdAt')}</p>
-                          <p className="text-sm text-muted-foreground">{formatTimestamp(game.created_at)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{t('studio.updatedAt')}</p>
-                          <p className="text-sm text-muted-foreground">{formatTimestamp(game.updated_at)}</p>
+                          <p className="text-sm ">{game.item_profile_count ?? 0}</p>
                         </div>
                         {game.studio && (
                           <div className="col-span-2">
@@ -235,7 +227,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <p className="text-muted-foreground">No games found for this studio.</p>
+                  <p className="">No games found for this studio.</p>
                   <Button asChild className="mt-4">
                     <a href={`/games/new?studio=${studio.id}`}>
                       <Plus className="mr-2 h-4 w-4" /> Create Your First Game

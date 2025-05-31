@@ -15,7 +15,8 @@ export const LanguageButton = ({ currentLocale, onLocaleChange }: LanguageButton
 
   const languageNames = {
     en: 'English',
-    vi: 'Tiếng Việt'
+    vi: 'Tiếng Việt',
+    ja: '日本語'
   };
 
   return (

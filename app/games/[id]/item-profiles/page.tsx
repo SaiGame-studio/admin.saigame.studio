@@ -14,9 +14,15 @@ import { AlertCircle, X } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTranslation } from '@/lib/i18n/useTranslation';
-import { fetchGameItemProfiles, createItemProfile, ItemProfile } from "@/lib/item-profile-api";
+import { fetchGameItemProfiles, createItemProfile, updateItemProfile, ItemProfile } from "@/lib/item-profile-api";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pencil, Save } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { getAllStatusOptions, getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status";
+import { StatusBadge } from "@/components/ItemProfileStatus";
 
 export default function GameItemProfilesPage() {
   const params = useParams() as { id: string };
@@ -32,6 +38,46 @@ export default function GameItemProfilesPage() {
   const [quickProfileLoading, setQuickProfileLoading] = useState(false);
   const [createProfileError, setCreateProfileError] = useState<{ message: string; hints: string[] } | null>(null);
   const quickInputRef = useRef<HTMLInputElement>(null);
+  const [editingStatus, setEditingStatus] = useState<{ [key: string]: boolean }>({});
+  const [statusValues, setStatusValues] = useState<{ [key: string]: string }>({});
+  const [statusLoading, setStatusLoading] = useState<{ [key: string]: boolean }>({});
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [nameFilter, setNameFilter] = useState<string>("");
+
+  // Lọc ra các trạng thái error vì chỉ server mới được set
+  const editableStatuses = getEditableStatusOptions();
+
+  // Available status options for filter
+  const statusOptions = getAllStatusOptions();
+
+  // Filter profiles based on status and name
+  const filteredProfiles = itemProfiles.filter(profile => {
+    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(profile.status);
+    const matchesName = nameFilter.trim() === "" || 
+      profile.name.toLowerCase().includes(nameFilter.toLowerCase()) ||
+      profile.code_name.toLowerCase().includes(nameFilter.toLowerCase());
+    return matchesStatus && matchesName;
+  });
+
+  // Toggle status filter
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilter(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setStatusFilter([]);
+    setNameFilter("");
+  };
+
+  // Clear name filter only
+  const clearNameFilter = () => {
+    setNameFilter("");
+  };
 
   useEffect(() => {
     async function loadItemProfilesAndGame() {
@@ -44,6 +90,14 @@ export default function GameItemProfilesPage() {
         setGameName(gameData.name);
         setGame(gameData);
         setItemProfiles(profiles);
+        
+        // Initialize status values
+        const statusValuesMap: { [key: string]: string } = {};
+        profiles.forEach(profile => {
+          statusValuesMap[profile.id] = profile.status;
+        });
+        setStatusValues(statusValuesMap);
+        
         setError(null);
       } catch (err: any) {
         setError(err.message || "Unknown error");
@@ -59,16 +113,12 @@ export default function GameItemProfilesPage() {
     setQuickProfileLoading(true);
     setCreateProfileError(null);
     try {
-      await createItemProfile(params.id, { name: quickProfileName });
+      const newProfile = await createItemProfile(params.id, { name: quickProfileName });
       setQuickProfileName("");
       if (quickInputRef.current) quickInputRef.current.value = "";
-      // reload profiles
-      const [gameData, profiles] = await Promise.all([
-        getGame(params.id),
-        fetchGameItemProfiles(params.id)
-      ]);
-      setGameName(gameData.name);
-      setItemProfiles(profiles);
+      
+      // Chuyển hướng đến trang detail của profile mới tạo
+      router.push(`/games/${params.id}/item-profiles/${newProfile.id}`);
     } catch (e: any) {
       if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
         setCreateProfileError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] });
@@ -78,6 +128,43 @@ export default function GameItemProfilesPage() {
     } finally {
       setQuickProfileLoading(false);
     }
+  }
+
+  function handleEditStatus(profileId: string) {
+    setEditingStatus(prev => ({ ...prev, [profileId]: true }));
+  }
+
+  async function handleSaveStatus(profileId: string) {
+    const newStatus = statusValues[profileId];
+    setStatusLoading(prev => ({ ...prev, [profileId]: true }));
+    
+    try {
+      const updatedProfile = await updateItemProfile(profileId, { status: newStatus });
+      
+      // Sử dụng thông tin mới nhất từ API để update toàn bộ profile trong danh sách
+      setItemProfiles(prev => prev.map(profile => 
+        profile.id === profileId ? updatedProfile : profile
+      ));
+      
+      // Cập nhật statusValues với giá trị mới từ server
+      setStatusValues(prev => ({ ...prev, [profileId]: updatedProfile.status }));
+      
+      setEditingStatus(prev => ({ ...prev, [profileId]: false }));
+    } catch (e: any) {
+      // Reset status value on error
+      setStatusValues(prev => ({ 
+        ...prev, 
+        [profileId]: itemProfiles.find(p => p.id === profileId)?.status || '' 
+      }));
+    } finally {
+      setStatusLoading(prev => ({ ...prev, [profileId]: false }));
+    }
+  }
+
+  function handleCancelEditStatus(profileId: string) {
+    const originalStatus = itemProfiles.find(p => p.id === profileId)?.status || '';
+    setStatusValues(prev => ({ ...prev, [profileId]: originalStatus }));
+    setEditingStatus(prev => ({ ...prev, [profileId]: false }));
   }
 
   if (loading) {
@@ -119,33 +206,139 @@ export default function GameItemProfilesPage() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6">
         <div>
           <h1 className="text-3xl font-bold">{t('itemProfile.title')}</h1>
-          <p className="text-muted-foreground text-base">{t('itemProfile.listDesc')} {gameName && (
+          <p className=" text-base">{t('itemProfile.listDesc')} {gameName && (
             <Link href={`/games/${params.id}`} className="text-lg font-normal text-muted-foreground inline-flex items-center gap-1 hover:text-primary">
               {gameName}
               <ExternalLink className="w-4 h-4 text-muted-foreground" />
             </Link>
           )}</p>
         </div>
-        <div className="flex gap-2 items-center">
-          <input
-            ref={quickInputRef}
-            type="text"
-            className="border rounded px-2 py-1 bg-background text-foreground"
-            placeholder={t('itemProfile.quickNamePlaceholder')}
-            value={quickProfileName}
-            onChange={e => setQuickProfileName(e.target.value)}
-            disabled={quickProfileLoading}
-            onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateProfile() }}
-            style={{ minWidth: 160 }}
-          />
-          <Button onClick={handleQuickCreateProfile} disabled={quickProfileLoading || !quickProfileName.trim()}>
-            {quickProfileLoading ? t('itemProfile.creating') : t('itemProfile.create')}
-          </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">{t('itemProfile.filters')}:</span>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                className="border rounded px-3 py-2 bg-background text-foreground pr-8"
+                placeholder={t('itemProfile.searchPlaceholder')}
+                value={nameFilter}
+                onChange={e => setNameFilter(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
+              {nameFilter && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+                  onClick={clearNameFilter}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+
+            {/* Status Dropdown */}
+            <Popover>
+              <PopoverTrigger>
+                <Button variant="outline" size="sm">
+                  {statusFilter.length > 0 ? `${statusFilter.length} ${t('itemProfile.selected')}` : t('itemProfile.selectStatus')}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px]">
+                <div className="flex flex-col gap-2">
+                  {statusOptions.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={option.value}
+                        checked={statusFilter.includes(option.value)}
+                        onCheckedChange={(checked) => toggleStatusFilter(option.value)}
+                      />
+                      <label
+                        htmlFor={option.value}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center"
+                      >
+                        <StatusBadge status={option.value} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Results Count */}
+            {(statusFilter.length > 0 || nameFilter.trim() !== "") && (
+              <span className="text-sm text-muted-foreground">
+                {t('itemProfile.showing')}: {filteredProfiles.length} / {itemProfiles.length}
+              </span>
+            )}
+          </div>
+
+          {/* Create Profile Section */}
+          <div className="flex gap-2 items-center">
+            <input
+              ref={quickInputRef}
+              type="text"
+              className="border rounded px-2 py-1 bg-background text-foreground"
+              placeholder={t('itemProfile.quickNamePlaceholder')}
+              value={quickProfileName}
+              onChange={e => setQuickProfileName(e.target.value)}
+              disabled={quickProfileLoading}
+              onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateProfile() }}
+              style={{ minWidth: 160 }}
+            />
+            <Button onClick={handleQuickCreateProfile} disabled={quickProfileLoading || !quickProfileName.trim()}>
+              {quickProfileLoading ? t('itemProfile.creating') : t('itemProfile.create')}
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Active Filters */}
+      {(statusFilter.length > 0 || nameFilter.trim() !== "") && (
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{t('itemProfile.activeFilters')}:</span>
+          
+          {/* Name Filter Badge */}
+          {nameFilter.trim() !== "" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              {t('itemProfile.searchByName')}: "{nameFilter}"
+              <X 
+                className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
+                onClick={clearNameFilter}
+              />
+            </Badge>
+          )}
+          
+          {/* Status Filter Badges */}
+          {statusFilter.map((status) => {
+            const statusOption = statusOptions.find(opt => opt.value === status);
+            return (
+              <Badge key={status} variant="secondary" className="flex items-center gap-1">
+                {statusOption?.label}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
+                  onClick={() => toggleStatusFilter(status)}
+                />
+              </Badge>
+            );
+          })}
+          
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs">
+            {t('itemProfile.clearAll')}
+          </Button>
+        </div>
+      )}
+
       {createProfileError && (
         <Alert variant="destructive" className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -176,10 +369,22 @@ export default function GameItemProfilesPage() {
             <CardDescription>{t('itemProfile.noProfilesDesc')}</CardDescription>
           </CardHeader>
         </Card>
+      ) : filteredProfiles.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('itemProfile.noFilteredProfiles')}</CardTitle>
+            <CardDescription>{t('itemProfile.noFilteredProfilesDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={clearAllFilters}>
+              {t('itemProfile.clearFilter')}
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {itemProfiles.map((profile) => (
-            <Card key={profile.id} className="overflow-hidden">
+          {filteredProfiles.map((profile) => (
+            <Card key={profile.id} className="overflow-hidden group">
               <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
                 <div className="flex flex-col">
                   <CardTitle className="text-xl font-mono">
@@ -195,11 +400,82 @@ export default function GameItemProfilesPage() {
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex flex-col gap-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    {editingStatus[profile.id] ? (
+                      <>
+                        <span>{t('itemProfile.status')}:</span>
+                        <Select 
+                          value={statusValues[profile.id] || profile.status} 
+                          onValueChange={value => setStatusValues(prev => ({ ...prev, [profile.id]: value }))}
+                          disabled={statusLoading[profile.id]}
+                        >
+                          <SelectTrigger className="w-40 h-6 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {editableStatuses.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6"
+                          onClick={() => handleSaveStatus(profile.id)} 
+                          disabled={statusLoading[profile.id]}
+                        >
+                          <Save className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6"
+                          onClick={() => handleCancelEditStatus(profile.id)} 
+                          disabled={statusLoading[profile.id]}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span>{t('itemProfile.status')}:</span>
+                          <span 
+                            className="font-semibold"
+                            style={{ 
+                              color: (() => {
+                                const config = getItemProfileStatusConfig(profile.status);
+                                switch (config.textColor) {
+                                  case 'text-green-600': return '#16a34a';
+                                  case 'text-yellow-600': return '#ca8a04';
+                                  case 'text-red-600': return '#dc2626';
+                                  default: return 'inherit';
+                                }
+                              })()
+                            }}
+                            title={`Status: ${profile.status}, Color: ${getItemProfileStatusConfig(profile.status).textColor}`}
+                          >
+                            {profile.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleEditStatus(profile.id)}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
                   <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
                   <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
-                  <span>{t('itemProfile.status')}: {profile.status}</span>
                   {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
                     <Collapsible>
                       <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">

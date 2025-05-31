@@ -38,7 +38,7 @@ export default function StudioNameEditable({ studio, studioId, onNameUpdate }: S
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="group flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -57,7 +57,7 @@ export default function StudioNameEditable({ studio, studioId, onNameUpdate }: S
       ) : (
         <>
           <span className="text-3xl font-bold">{studio.name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
@@ -98,7 +98,7 @@ export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditabl
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="group flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -117,7 +117,7 @@ export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditabl
       ) : (
         <>
           <span className="text-3xl font-bold">{game.name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
@@ -158,7 +158,7 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="group flex items-center gap-2">
       {editing ? (
         <>
           <Select value={status} onValueChange={setStatus} disabled={loading}>
@@ -183,7 +183,7 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
       ) : (
         <>
           <Badge className={`mt-1`}>{game.status}</Badge>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
