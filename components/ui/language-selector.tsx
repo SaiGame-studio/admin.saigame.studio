@@ -62,7 +62,12 @@ const languages = [
   // }
 ];
 
-export function LanguageSelector() {
+interface LanguageSelectorProps {
+  compact?: boolean;
+  fullWidth?: boolean;
+}
+
+export function LanguageSelector({ compact = false, fullWidth = false }: LanguageSelectorProps) {
   const { locale, setLocale } = useLanguage();
 
   const currentLanguage = languages.find(lang => lang.code === locale);
@@ -71,9 +76,15 @@ export function LanguageSelector() {
     setLocale(value as ValidLocale);
   };
 
+  const getWidth = () => {
+    if (fullWidth) return "w-full";
+    if (compact) return "w-full";
+    return "w-[180px]";
+  };
+
   return (
     <Select value={locale} onValueChange={handleLanguageChange}>
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className={getWidth()}>
         <SelectValue placeholder="Select language">
           {currentLanguage && (
             <div className="flex items-center gap-3">
@@ -86,9 +97,11 @@ export function LanguageSelector() {
                 }}
                 title={currentLanguage.name}
               />
-              <div className="flex flex-col text-left">
-                <span className="text-sm font-medium">{currentLanguage.nativeName}</span>
-              </div>
+              {!compact && (
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-medium">{currentLanguage.nativeName}</span>
+                </div>
+              )}
             </div>
           )}
         </SelectValue>
