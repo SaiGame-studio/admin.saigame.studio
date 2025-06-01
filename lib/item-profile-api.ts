@@ -111,7 +111,7 @@ export async function updateItemProfile(profileId: string, updateData: {
   })
   if (!res.ok) {
     const error = await res.json().catch(() => ({}))
-    throw new Error(error.message || `Failed to update item profile: ${res.status}`)
+    throw { message: error.message || `Failed to update item profile: ${res.status}`, hints: error.hints || [] }
   }
   const data = await res.json()
   return data.data
@@ -158,4 +158,113 @@ export async function deleteItemProfile(profileId: string) {
     throw new Error(error.message || `Failed to delete item profile: ${res.status}`)
   }
   return true
+}
+
+export async function updateItemProfileStatus(profileId: string, status: string) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/item-profiles/${profileId}/status`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ status }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to update item profile status: ${res.status}`, hints: error.hints || [] }
+  }
+  const data = await res.json()
+  return data.data
+}
+
+// Inventory API functions
+export async function getInventoryItemProfiles(inventoryProfileId: string): Promise<ItemProfile[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to fetch inventory item profiles: ${res.status}`)
+  }
+  const data: ApiResponse<ItemProfile[]> = await res.json()
+  return data.data || []
+}
+
+export async function addItemToInventory(inventoryProfileId: string, itemProfileIds: string[]) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      add: itemProfileIds,
+      remove: []
+    }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to add items to inventory: ${res.status}`, hints: error.hints || [] }
+  }
+  const data = await res.json()
+  return data.data
+}
+
+export async function removeItemFromInventory(inventoryProfileId: string, itemProfileIds: string[]) {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  const res = await fetch(`${API_URL}/api/inventories/${inventoryProfileId}/item-profiles`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      add: [],
+      remove: itemProfileIds
+    }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to remove items from inventory: ${res.status}`, hints: error.hints || [] }
+  }
+  const data = await res.json()
+  return data.data
+}
+
+// Get all inventory profiles for a game
+export async function getGameInventoryProfiles(gameId: string): Promise<ItemProfile[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  // Get all item profiles for the game and filter for inventory type
+  const allItems = await fetchGameItemProfiles(gameId)
+  return allItems.filter(item => item.type === 'inventory')
 } 

@@ -23,6 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { getAllStatusOptions, getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status";
 import { StatusBadge } from "@/components/ItemProfileStatus";
+import { getInventoryTabUrl, isInventoryType } from "@/lib/utils/item-profile-utils";
+import { InventoryLink } from "@/components/ui/inventory-link";
 
 export default function GameItemProfilesPage() {
   const params = useParams() as { id: string };
@@ -42,6 +44,7 @@ export default function GameItemProfilesPage() {
   const [statusValues, setStatusValues] = useState<{ [key: string]: string }>({});
   const [statusLoading, setStatusLoading] = useState<{ [key: string]: boolean }>({});
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [nameFilter, setNameFilter] = useState<string>("");
 
   // Lọc ra các trạng thái error vì chỉ server mới được set
@@ -50,13 +53,25 @@ export default function GameItemProfilesPage() {
   // Available status options for filter
   const statusOptions = getAllStatusOptions();
 
-  // Filter profiles based on status and name
+  // Available item type options for filter
+  const itemTypeOptions = [
+    { value: "char_profile", label: "Character Profile" },
+    { value: "equipment", label: "Equipment" },
+    { value: "quest_item", label: "Quest Item" },
+    { value: "inventory", label: "Inventory" },
+    { value: "currency", label: "Currency" },
+    { value: "misc", label: "Miscellaneous" },
+    { value: "loot_box", label: "Loot Box" },
+  ];
+
+  // Filter profiles based on status, type and name
   const filteredProfiles = itemProfiles.filter(profile => {
     const matchesStatus = statusFilter.length === 0 || statusFilter.includes(profile.status);
+    const matchesType = typeFilter.length === 0 || (profile.type && typeFilter.includes(profile.type));
     const matchesName = nameFilter.trim() === "" || 
       profile.name.toLowerCase().includes(nameFilter.toLowerCase()) ||
       profile.code_name.toLowerCase().includes(nameFilter.toLowerCase());
-    return matchesStatus && matchesName;
+    return matchesStatus && matchesType && matchesName;
   });
 
   // Toggle status filter
@@ -68,9 +83,19 @@ export default function GameItemProfilesPage() {
     );
   };
 
+  // Toggle type filter
+  const toggleTypeFilter = (type: string) => {
+    setTypeFilter(prev => 
+      prev.includes(type) 
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
+  };
+
   // Clear all filters
   const clearAllFilters = () => {
     setStatusFilter([]);
+    setTypeFilter([]);
     setNameFilter("");
   };
 
@@ -275,12 +300,43 @@ export default function GameItemProfilesPage() {
               </PopoverContent>
             </Popover>
 
+            {/* Type Dropdown */}
+            <Popover>
+              <PopoverTrigger>
+                <Button variant="outline" size="sm">
+                  {typeFilter.length > 0 ? `${typeFilter.length} ${t('itemProfile.selected')}` : t('itemProfile.selectType')}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px]">
+                <div className="flex flex-col gap-2">
+                  {itemTypeOptions.map((option) => (
+                    <div key={option.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={option.value}
+                        checked={typeFilter.includes(option.value)}
+                        onCheckedChange={(checked) => toggleTypeFilter(option.value)}
+                      />
+                      <label
+                        htmlFor={option.value}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center"
+                      >
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {/* Results Count */}
-            {(statusFilter.length > 0 || nameFilter.trim() !== "") && (
-              <span className="text-sm text-muted-foreground">
-                {t('itemProfile.showing')}: {filteredProfiles.length} / {itemProfiles.length}
-              </span>
-            )}
+            <span className="text-sm text-muted-foreground">
+              {(statusFilter.length > 0 || typeFilter.length > 0 || nameFilter.trim() !== "") ? (
+                `${t('itemProfile.showing')}: ${filteredProfiles.length} / ${itemProfiles.length}`
+              ) : (
+                `${t('itemProfile.total')}: ${itemProfiles.length}`
+              )}
+            </span>
           </div>
 
           {/* Create Profile Section */}
@@ -304,7 +360,7 @@ export default function GameItemProfilesPage() {
       </div>
 
       {/* Active Filters */}
-      {(statusFilter.length > 0 || nameFilter.trim() !== "") && (
+      {(statusFilter.length > 0 || typeFilter.length > 0 || nameFilter.trim() !== "") && (
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{t('itemProfile.activeFilters')}:</span>
           
@@ -328,6 +384,20 @@ export default function GameItemProfilesPage() {
                 <X 
                   className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
                   onClick={() => toggleStatusFilter(status)}
+                />
+              </Badge>
+            );
+          })}
+          
+          {/* Type Filter Badges */}
+          {typeFilter.length > 0 && typeFilter.map((type) => {
+            const typeOption = itemTypeOptions.find(opt => opt.value === type);
+            return (
+              <Badge key={type} variant="secondary" className="flex items-center gap-1">
+                {typeOption?.label || type}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
+                  onClick={() => toggleTypeFilter(type)}
                 />
               </Badge>
             );
@@ -385,112 +455,117 @@ export default function GameItemProfilesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => (
             <Card key={profile.id} className="overflow-hidden group">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
-                <div className="flex flex-col">
-                  <CardTitle className="text-xl font-mono">
+              <div className="grid grid-cols-3 gap-4 p-6">
+                {/* Left column - Item Properties */}
+                <div className="col-span-2">
+                  <CardTitle className="text-xl font-mono mb-2">
                     <Link href={`/games/${params.id}/item-profiles/${profile.id}`} className="inline-flex items-center gap-1">
                       {profile.name}
                       <ExternalLink className="w-4 h-4 text-muted-foreground" />
                     </Link>
                   </CardTitle>
-                  <CardDescription>{t('itemProfile.code')}: {profile.code_name}</CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/games/${params.id}/item-profiles/${profile.id}`}>{t('itemProfile.viewDetails')}</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    {editingStatus[profile.id] ? (
-                      <>
-                        <span>{t('itemProfile.status')}:</span>
-                        <Select 
-                          value={statusValues[profile.id] || profile.status} 
-                          onValueChange={value => setStatusValues(prev => ({ ...prev, [profile.id]: value }))}
-                          disabled={statusLoading[profile.id]}
-                        >
-                          <SelectTrigger className="w-40 h-6 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {editableStatuses.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="h-6 w-6"
-                          onClick={() => handleSaveStatus(profile.id)} 
-                          disabled={statusLoading[profile.id]}
-                        >
-                          <Save className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="h-6 w-6"
-                          onClick={() => handleCancelEditStatus(profile.id)} 
-                          disabled={statusLoading[profile.id]}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-2">
+                  <CardDescription className="mb-3">{t('itemProfile.code')}: {profile.code_name}</CardDescription>
+                  
+                  <div className="flex flex-col gap-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      {editingStatus[profile.id] ? (
+                        <>
                           <span>{t('itemProfile.status')}:</span>
-                          <span 
-                            className="font-semibold"
-                            style={{ 
-                              color: (() => {
-                                const config = getItemProfileStatusConfig(profile.status);
-                                switch (config.textColor) {
-                                  case 'text-green-600': return '#16a34a';
-                                  case 'text-yellow-600': return '#ca8a04';
-                                  case 'text-red-600': return '#dc2626';
-                                  default: return 'inherit';
-                                }
-                              })()
-                            }}
-                            title={`Status: ${profile.status}, Color: ${getItemProfileStatusConfig(profile.status).textColor}`}
+                          <Select 
+                            value={statusValues[profile.id] || profile.status} 
+                            onValueChange={value => setStatusValues(prev => ({ ...prev, [profile.id]: value }))}
+                            disabled={statusLoading[profile.id]}
                           >
-                            {profile.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </span>
+                            <SelectTrigger className="w-40 h-6 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {editableStatuses.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleEditStatus(profile.id)}
+                            className="h-6 w-6"
+                            onClick={() => handleSaveStatus(profile.id)} 
+                            disabled={statusLoading[profile.id]}
                           >
-                            <Pencil className="w-3 h-3" />
+                            <Save className="w-3 h-3" />
                           </Button>
-                        </div>
-                      </>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-6 w-6"
+                            onClick={() => handleCancelEditStatus(profile.id)} 
+                            disabled={statusLoading[profile.id]}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span>{t('itemProfile.status')}:</span>
+                            <span 
+                              className="font-semibold"
+                              style={{ 
+                                color: (() => {
+                                  const config = getItemProfileStatusConfig(profile.status);
+                                  switch (config.textColor) {
+                                    case 'text-green-600': return '#16a34a';
+                                    case 'text-yellow-600': return '#ca8a04';
+                                    case 'text-red-600': return '#dc2626';
+                                    default: return 'inherit';
+                                  }
+                                })()
+                              }}
+                              title={`Status: ${profile.status}, Color: ${getItemProfileStatusConfig(profile.status).textColor}`}
+                            >
+                              {profile.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleEditStatus(profile.id)}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
+                    <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
+                    <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
+                    {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
+                      <Collapsible>
+                        <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
+                          {t('itemProfile.customData')}
+                          <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="ml-4 mt-2">
+                          {Object.entries(profile.custom_data).map(([key, value]) => (
+                            <div key={key} className="text-sm">{key}: {String(value)}</div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
                     )}
                   </div>
-                  <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
-                  <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
-                  <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
-                  {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
-                    <Collapsible>
-                      <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
-                        {t('itemProfile.customData')}
-                        <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="ml-4 mt-2">
-                        {Object.entries(profile.custom_data).map(([key, value]) => (
-                          <div key={key} className="text-sm">{key}: {String(value)}</div>
-                        ))}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
                 </div>
-              </CardContent>
+                
+                {/* Right column - Buttons */}
+                <div className="col-span-1 flex flex-col gap-2 justify-start">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/games/${params.id}/item-profiles/${profile.id}`}>{t('itemProfile.viewDetails')}</Link>
+                  </Button>
+                  <InventoryLink gameId={params.id} itemProfile={profile} />
+                </div>
+              </div>
             </Card>
           ))}
         </div>

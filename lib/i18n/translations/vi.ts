@@ -43,7 +43,11 @@ export const vi = {
     unknown: "Không rõ",
     pending: "Chờ xử lý",
     active: "Hoạt động",
-    inactive: "Không hoạt động"
+    inactive: "Không hoạt động",
+    viewDetails: "Xem chi tiết",
+    remove: "Xóa",
+    adding: "Đang thêm...",
+    moveItem: "Di chuyển vật phẩm"
   },
   shop: {
     title: "Cửa hàng Game",
@@ -184,6 +188,7 @@ export const vi = {
   },
   itemProfile: {
     title: "Hồ sơ vật phẩm",
+    details: "Chi tiết",
     listDesc: "Quản lý hồ sơ vật phẩm cho",
     quickNamePlaceholder: "Nhập tên hồ sơ...",
     create: "Tạo hồ sơ",
@@ -223,7 +228,9 @@ export const vi = {
     statusErrorUnStackAmountTooBig: "Lỗi: Số lượng không thể xếp chồng quá lớn",
     filterByStatus: "Lọc theo trạng thái",
     selectStatus: "Chọn trạng thái",
+    selectType: "Chọn loại",
     selected: "Đã chọn",
+    total: "Tổng số",
     showing: "Hiển thị",
     activeFilters: "Bộ lọc đang hoạt động",
     clearAll: "Xóa tất cả",
@@ -236,7 +243,34 @@ export const vi = {
     filters: "Bộ lọc",
     stackable: "Có thể xếp chồng",
     createOnRegistry: "Tạo trên Registry",
-    amountOnRegistry: "Số lượng trên Registry"
+    amountOnRegistry: "Số lượng trên Registry",
+    switchingToTab: "Đang chuyển đến tab",
+    tabChanged: "Đã chuyển tab thành công",
+    belongsToInventory: "Thuộc về Inventory"
+  },
+  inventory: {
+    title: "Inventory",
+    addItem: "Thêm vật phẩm",
+    removeItem: "Xóa vật phẩm",
+    removeItemConfirm: "Bạn có chắc chắn muốn xóa vật phẩm",
+    selectItem: "Chọn vật phẩm",
+    searchItems: "Tìm kiếm vật phẩm...",
+    currentItems: "Vật phẩm hiện tại",
+    emptyInventory: "Inventory trống",
+    notInventoryType: "Hồ sơ vật phẩm này không phải là loại inventory",
+    adding: "Đang thêm...",
+    removing: "Đang xóa...",
+    viewInventory: "Xem Inventory",
+    openInventory: "Mở Inventory",
+    inventoryNotLoaded: "Không thể tải thông tin Inventory",
+    alreadyInInventory: "Đã có trong Inventory",
+    inOtherInventory: "Trong Inventory khác",
+    clickToViewInventory: "Click để xem inventory này",
+    moveItemWarning: "Cảnh báo di chuyển vật phẩm",
+    moveItemWarningText: "Vật phẩm này hiện đang nằm trong inventory khác. Bạn có chắc chắn muốn di chuyển nó sang inventory này không?",
+    currentInventory: "Inventory hiện tại",
+    moveItem: "Di chuyển",
+    keepInCurrent: "Giữ nguyên"
   },
   settings: {
     title: "Cài đặt",

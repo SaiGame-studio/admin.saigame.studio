@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,9 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2 } from "lucide-react"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { ChevronDown } from "lucide-react"
-import { fetchItemProfile, updateItemProfile, updateItemProfileCustomData, ItemProfile } from "@/lib/item-profile-api"
+import { fetchItemProfile, updateItemProfile, updateItemProfileCustomData, updateItemProfileStatus, ItemProfile } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -20,21 +18,66 @@ import { getGame } from "@/lib/game-api"
 import { ItemType } from "@/types/game"
 import { getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { InventoryTab } from "@/components/ui/inventory-tab"
+import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl } from "@/lib/utils/item-profile-utils"
+
+// Available item type options for editing
+const itemTypeOptions = [
+  { value: "char_profile", label: "Character Profile" },
+  { value: "equipment", label: "Equipment" },
+  { value: "quest_item", label: "Quest Item" },
+  { value: "inventory", label: "Inventory" },
+  { value: "currency", label: "Currency" },
+  { value: "misc", label: "Miscellaneous" },
+  { value: "loot_box", label: "Loot Box" },
+];
 
 export default function ItemProfileDetailPage() {
   const params = useParams() as { id: string; itemProfileId: string }
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
   const [itemProfile, setItemProfile] = useState<ItemProfile | null>(null)
   const [game, setGame] = useState<any>(null)
+  const [inventoryProfile, setInventoryProfile] = useState<ItemProfile | null>(null)
+  const [inventoryLoading, setInventoryLoading] = useState(false)
+  const [inventoryError, setInventoryError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newCustomDataForms, setNewCustomDataForms] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState("details")
 
   // Single function to update the entire item profile with fresh data from API
   const updateItemProfileData = (updatedData: ItemProfile) => {
     setItemProfile(updatedData)
+    
+    // If inventory_profile_id changed, fetch new inventory profile info
+    if (updatedData.inventory_profile_id !== itemProfile?.inventory_profile_id) {
+      loadInventoryProfile(updatedData.inventory_profile_id)
+    }
+  }
+
+  // Function to load inventory profile information
+  const loadInventoryProfile = async (inventoryProfileId?: string) => {
+    if (!inventoryProfileId) {
+      setInventoryProfile(null)
+      setInventoryError(false)
+      return
+    }
+
+    try {
+      setInventoryLoading(true)
+      setInventoryError(false)
+      const inventoryData = await fetchItemProfile(inventoryProfileId)
+      setInventoryProfile(inventoryData)
+    } catch (err: any) {
+      console.error('Failed to load inventory profile:', err)
+      setInventoryProfile(null)
+      setInventoryError(true)
+    } finally {
+      setInventoryLoading(false)
+    }
   }
 
   const addNewCustomDataForm = () => {
@@ -56,6 +99,12 @@ export default function ItemProfileDetailPage() {
         ])
         setItemProfile(profileData)
         setGame(gameData)
+        
+        // Load inventory profile if exists
+        if (profileData.inventory_profile_id) {
+          await loadInventoryProfile(profileData.inventory_profile_id)
+        }
+        
         setError(null)
       } catch (err: any) {
         setError(err.message || "Unknown error")
@@ -65,6 +114,44 @@ export default function ItemProfileDetailPage() {
     }
     loadItemProfileAndGame()
   }, [params.itemProfileId, params.id])
+
+  // Auto switch to details tab if current tab is inventory but item type is not inventory
+  useEffect(() => {
+    if (itemProfile && activeTab === "inventory" && itemProfile.type !== 'inventory') {
+      setActiveTab("details")
+    }
+  }, [itemProfile, activeTab])
+
+  // Handle URL tab parameter
+  useEffect(() => {
+    if (itemProfile) {
+      const requestedTab = parseTabFromUrl(searchParams)
+      
+      if (requestedTab === 'inventory' && itemProfile.type === 'inventory') {
+        setActiveTab('inventory')
+      } else if (requestedTab === 'inventory' && itemProfile.type !== 'inventory') {
+        // If trying to access inventory tab but item is not inventory type, redirect to details
+        const detailsUrl = getItemProfileUrl(params.id, params.itemProfileId, 'details')
+        router.replace(detailsUrl, { scroll: false })
+        setActiveTab('details')
+      } else {
+        // Default to details tab
+        setActiveTab('details')
+      }
+    }
+  }, [searchParams, itemProfile, params.id, params.itemProfileId, router])
+
+  // Function to change tab and update URL
+  const changeTab = (newTab: ItemProfileTab) => {
+    setActiveTab(newTab)
+    
+    // Update URL using utility function
+    const newUrl = getItemProfileUrl(params.id, params.itemProfileId, newTab)
+    router.replace(newUrl, { scroll: false })
+    
+    // Optional: Log for debugging
+    // console.log(`Tab changed to: ${newTab}, URL updated to: ${newUrl}`)
+  }
 
   if (loading) return <div className="container mx-auto py-6">{t('common.loading')}</div>
   if (error) return (
@@ -85,7 +172,7 @@ export default function ItemProfileDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-2">
+      <div className="mb-6">
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
@@ -107,143 +194,213 @@ export default function ItemProfileDetailPage() {
         </Breadcrumb>
       </div>
 
-      <Card className="mb-6 group">
-        <CardHeader>
-          <ItemProfileNameEditable
-            itemProfile={itemProfile}
-            itemProfileId={params.itemProfileId}
-            onItemProfileUpdate={updateItemProfileData}
-          />
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Normal Properties */}
-            <div className="space-y-4">
-              <div className="mb-2">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code></div>
+      <div className="mb-6">
+        <ItemProfileNameEditable
+          itemProfile={itemProfile}
+          itemProfileId={params.itemProfileId}
+          onItemProfileUpdate={updateItemProfileData}
+        />
+      </div>
 
-              <div>
-                <ItemProfileCodeNameEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
+      <div className="bg-background border rounded-lg">
+        <div className="border-b">
+          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+            <button
+              onClick={() => changeTab("details")}
+              className={`${
+                activeTab === "details"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+            >
+              {t('itemProfile.details')}
+            </button>
+            <button
+              onClick={() => {
+                if (itemProfile.type === 'inventory') {
+                  changeTab("inventory")
+                }
+              }}
+              disabled={itemProfile.type !== 'inventory'}
+              className={`${
+                itemProfile.type !== 'inventory'
+                  ? "border-transparent text-gray-300 cursor-not-allowed line-through"
+                  : activeTab === "inventory"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+            >
+              {t('inventory.title')}
+            </button>
+          </nav>
+        </div>
 
-              <div>
-                <ItemProfileTypeEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
+        <div className="p-6">
+          {activeTab === "details" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column - Normal Properties */}
+                <div className="space-y-4">
+                  <div className="mb-2">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code></div>
 
-              <div>
-                <ItemProfileStatusEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>
-                <ItemProfileLevelEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>
-                <ItemProfileStackableEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>
-                <ItemProfileStackLimitEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>
-                <ItemProfileCreateOnRegistryEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>
-                <ItemProfileAmountOnRegistryEditable
-                  itemProfile={itemProfile}
-                  itemProfileId={params.itemProfileId}
-                  onItemProfileUpdate={updateItemProfileData}
-                />
-              </div>
-
-              <div>{t('common.game')}: {game?.id && game?.name ? (
-                <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
-                  {game.name}
-                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                </Link>
-              ) : (
-                <span className="font-semibold">{game?.name}</span>
-              )}</div>
-
-              <div>{t('itemProfile.createdAt')}: {formatTimestamp(itemProfile.created_at)}</div>
-              <div>{t('itemProfile.updatedAt')}: {formatTimestamp(itemProfile.updated_at)}</div>
-            </div>
-
-            {/* Right Column - Custom Data */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">{t('itemProfile.customData')}</h3>
-              </div>
-              
-              <div className="space-y-2">
-                {itemProfile.custom_data && Object.keys(itemProfile.custom_data).length > 0 ? (
-                  Object.entries(itemProfile.custom_data).map(([key, value]) => (
-                    <ItemProfileCustomDataEditable
-                      key={key}
+                  <div>
+                    <ItemProfileCodeNameEditable
                       itemProfile={itemProfile}
                       itemProfileId={params.itemProfileId}
                       onItemProfileUpdate={updateItemProfileData}
-                      customKey={key}
-                      customValue={value}
                     />
-                  ))
-                ) : newCustomDataForms.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">{t('itemProfile.noCustomData')}</p>
-                ) : null}
-                
-                {newCustomDataForms.length < 5 && (
-                  <button 
-                    className="text-sm text-primary hover:text-primary/80 transition-colors font-medium disabled:text-muted-foreground disabled:cursor-not-allowed"
-                    onClick={addNewCustomDataForm}
-                  >
-                    + {t('itemProfile.newCustomData')}
-                  </button>
-                )}
-                
-                {newCustomDataForms.map(formId => (
-                  <ItemProfileNewCustomDataForm
-                    key={formId}
-                    formId={formId}
-                    itemProfile={itemProfile}
-                    itemProfileId={params.itemProfileId}
-                    onItemProfileUpdate={updateItemProfileData}
-                    onRemove={() => removeNewCustomDataForm(formId)}
-                  />
-                ))}
+                  </div>
+
+                  <div>
+                    <ItemProfileTypeEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileStatusEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileLevelEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileStackableEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileStackLimitEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileCreateOnRegistryEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>
+                    <ItemProfileAmountOnRegistryEditable
+                      itemProfile={itemProfile}
+                      itemProfileId={params.itemProfileId}
+                      onItemProfileUpdate={updateItemProfileData}
+                    />
+                  </div>
+
+                  <div>{t('common.game')}: {game?.id && game?.name ? (
+                    <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
+                      {game.name}
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">{game?.name}</span>
+                  )}</div>
+
+                  {/* Inventory Profile Link */}
+                  {itemProfile.inventory_profile_id && (
+                    <div>{t('itemProfile.belongsToInventory')}: 
+                      <Link 
+                        href={getInventoryTabUrl(params.id, itemProfile.inventory_profile_id)} 
+                        className="inline-flex items-center gap-1 hover:text-primary font-semibold ml-1"
+                        title={inventoryProfile ? `${inventoryProfile.name} (${inventoryProfile.code_name})` : undefined}
+                      >
+                        {inventoryLoading ? (
+                          <span className="text-muted-foreground">{t('common.loading')}</span>
+                        ) : inventoryProfile ? (
+                          inventoryProfile.name
+                        ) : inventoryError ? (
+                          <span className="text-muted-foreground text-sm" title={t('inventory.inventoryNotLoaded')}>
+                            {t('inventory.title')}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground font-mono text-sm">
+                            {itemProfile.inventory_profile_id}
+                          </span>
+                        )}
+                        <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                      </Link>
+                    </div>
+                  )}
+
+                  <div>{t('itemProfile.createdAt')}: {formatTimestamp(itemProfile.created_at)}</div>
+                  <div>{t('itemProfile.updatedAt')}: {formatTimestamp(itemProfile.updated_at)}</div>
+                </div>
+
+                {/* Right Column - Custom Data */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">{t('itemProfile.customData')}</h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {itemProfile.custom_data && Object.keys(itemProfile.custom_data).length > 0 ? (
+                      Object.entries(itemProfile.custom_data).map(([key, value]) => (
+                        <ItemProfileCustomDataEditable
+                          key={key}
+                          itemProfile={itemProfile}
+                          itemProfileId={params.itemProfileId}
+                          onItemProfileUpdate={updateItemProfileData}
+                          customKey={key}
+                          customValue={value}
+                        />
+                      ))
+                    ) : newCustomDataForms.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">{t('itemProfile.noCustomData')}</p>
+                    ) : null}
+                    
+                    {newCustomDataForms.length < 5 && (
+                      <button 
+                        className="text-sm text-primary hover:text-primary/80 transition-colors font-medium disabled:text-muted-foreground disabled:cursor-not-allowed"
+                        onClick={addNewCustomDataForm}
+                      >
+                        + {t('itemProfile.newCustomData')}
+                      </button>
+                    )}
+                    
+                    {newCustomDataForms.map(formId => (
+                      <ItemProfileNewCustomDataForm
+                        key={formId}
+                        formId={formId}
+                        itemProfile={itemProfile}
+                        itemProfileId={params.itemProfileId}
+                        onItemProfileUpdate={updateItemProfileData}
+                        onRemove={() => removeNewCustomDataForm(formId)}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+
+          {activeTab === "inventory" && (
+            <InventoryTab 
+              itemProfile={itemProfile} 
+              gameId={params.id}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -252,7 +409,7 @@ function ItemProfileNameEditable({ itemProfile, itemProfileId, onItemProfileUpda
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(itemProfile.name)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -268,7 +425,11 @@ function ItemProfileNameEditable({ itemProfile, itemProfileId, onItemProfileUpda
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -299,7 +460,18 @@ function ItemProfileNameEditable({ itemProfile, itemProfileId, onItemProfileUpda
           </Button>
         </>
       )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -308,7 +480,7 @@ function ItemProfileCodeNameEditable({ itemProfile, itemProfileId, onItemProfile
   const [editing, setEditing] = useState(false)
   const [codeName, setCodeName] = useState(itemProfile.code_name)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -324,7 +496,11 @@ function ItemProfileCodeNameEditable({ itemProfile, itemProfileId, onItemProfile
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -355,7 +531,18 @@ function ItemProfileCodeNameEditable({ itemProfile, itemProfileId, onItemProfile
           </Button>
         </>
       )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -364,7 +551,7 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
   const [editing, setEditing] = useState(false)
   const [type, setType] = useState(itemProfile.type)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -380,13 +567,15 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
   }
-
-  const itemTypes = Object.values(ItemType)
 
   return (
     <div className="group flex items-center gap-2">
@@ -397,9 +586,9 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {itemTypes.map((itemType) => (
-                <SelectItem key={itemType} value={itemType}>
-                  {itemType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {itemTypeOptions.map((itemType) => (
+                <SelectItem key={itemType.value} value={itemType.value}>
+                  {itemType.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -419,7 +608,18 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
           </Button>
         </>
       )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -428,7 +628,7 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
   const [editing, setEditing] = useState(false)
   const [status, setStatus] = useState(itemProfile.status)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -440,11 +640,15 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
     setLoading(true)
     setError(null)
     try {
-      const updatedData = await updateItemProfile(itemProfileId, { status })
+      const updatedData = await updateItemProfileStatus(itemProfileId, status)
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
       // Reset status value on error
       setStatus(itemProfile.status)
     } finally {
@@ -465,13 +669,8 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
       <div className="group flex items-center gap-2">
         {editing ? (
           <>
-            <span>{t('itemProfile.status')}:</span>
-            <Select 
-              value={status} 
-              onValueChange={setStatus}
-              disabled={loading}
-            >
-              <SelectTrigger className="w-40 h-8">
+            <Select value={status} onValueChange={setStatus} disabled={loading}>
+              <SelectTrigger className="w-48 h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -482,29 +681,19 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              onClick={handleSave} 
-              disabled={loading}
-            >
+            <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
               <Save className="w-4 h-4" />
             </Button>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              onClick={handleCancel} 
-              disabled={loading}
-            >
+            <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading}>
               <X className="w-4 h-4" />
             </Button>
           </>
         ) : (
           <>
             <span>{t('itemProfile.status')}:</span>
-            <span 
+            <span
               className="font-semibold"
-              style={{ 
+              style={{
                 color: (() => {
                   const config = getItemProfileStatusConfig(itemProfile.status);
                   switch (config.textColor) {
@@ -519,9 +708,9 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
             >
               {itemProfile.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </span>
-            <Button 
-              size="icon" 
-              variant="ghost" 
+            <Button
+              size="icon"
+              variant="ghost"
               className="opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={() => setEditing(true)}
             >
@@ -530,7 +719,18 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -540,7 +740,7 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
   const [levelStart, setLevelStart] = useState(itemProfile.level_start)
   const [levelMax, setLevelMax] = useState(itemProfile.level_max)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -557,7 +757,11 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -574,6 +778,7 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
                 value={levelStart}
                 onChange={e => setLevelStart(Number(e.target.value))}
                 className="w-20 h-8 px-2 text-sm"
+                placeholder="Min"
                 disabled={loading}
               />
               <span>-</span>
@@ -582,6 +787,7 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
                 value={levelMax}
                 onChange={e => setLevelMax(Number(e.target.value))}
                 className="w-20 h-8 px-2 text-sm"
+                placeholder="Max"
                 disabled={loading}
               />
             </div>
@@ -601,7 +807,18 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -610,7 +827,7 @@ function ItemProfileStackLimitEditable({ itemProfile, itemProfileId, onItemProfi
   const [editing, setEditing] = useState(false)
   const [stackLimit, setStackLimit] = useState(itemProfile.stack_limit)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -626,7 +843,11 @@ function ItemProfileStackLimitEditable({ itemProfile, itemProfileId, onItemProfi
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -660,7 +881,18 @@ function ItemProfileStackLimitEditable({ itemProfile, itemProfileId, onItemProfi
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -669,7 +901,7 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
   const [editing, setEditing] = useState(false)
   const [stackable, setStackable] = useState(Boolean(itemProfile.stackable))
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -685,7 +917,11 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -696,14 +932,12 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
       <div className="group flex items-center gap-2">
         {editing ? (
           <>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={stackable}
-                onCheckedChange={checked => setStackable(checked === true)}
-                disabled={loading}
-              />
-              <label className="text-sm">{t('itemProfile.stackable')}</label>
-            </div>
+            <Checkbox
+              checked={stackable}
+              onCheckedChange={(checked) => setStackable(checked === true)}
+              disabled={loading}
+            />
+            <span>{t('itemProfile.stackable')}</span>
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
               <Save className="w-4 h-4" />
             </Button>
@@ -720,7 +954,18 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -729,7 +974,7 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
   const [editing, setEditing] = useState(false)
   const [createOnRegistry, setCreateOnRegistry] = useState(Boolean(itemProfile.create_on_registry))
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -745,7 +990,11 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -756,14 +1005,12 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
       <div className="group flex items-center gap-2">
         {editing ? (
           <>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={createOnRegistry}
-                onCheckedChange={checked => setCreateOnRegistry(checked === true)}
-                disabled={loading}
-              />
-              <label className="text-sm">{t('itemProfile.createOnRegistry')}</label>
-            </div>
+            <Checkbox
+              checked={createOnRegistry}
+              onCheckedChange={(checked) => setCreateOnRegistry(checked === true)}
+              disabled={loading}
+            />
+            <span>{t('itemProfile.createOnRegistry')}</span>
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
               <Save className="w-4 h-4" />
             </Button>
@@ -780,7 +1027,18 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -789,7 +1047,7 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
   const [editing, setEditing] = useState(false)
   const [amountOnRegistry, setAmountOnRegistry] = useState(itemProfile.amount_on_registry || 0)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -805,7 +1063,11 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
       onItemProfileUpdate(updatedData)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -820,7 +1082,7 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
               type="number"
               value={amountOnRegistry}
               onChange={e => setAmountOnRegistry(Number(e.target.value))}
-              className="w-32 h-8 px-2 text-sm"
+              className="w-24 h-8 px-2 text-sm"
               disabled={loading}
             />
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
@@ -839,7 +1101,18 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
           </>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -876,15 +1149,15 @@ function ItemProfileCustomDataEditable({ itemProfile, itemProfileId, onItemProfi
     try {
       // Create new custom_data object
       const updatedCustomData = { ...itemProfile.custom_data }
-      
+
       // If key changed, remove old key
       if (key !== customKey) {
         delete updatedCustomData[customKey]
       }
-      
+
       // Convert value to number if possible, otherwise keep as string
       let processedValue: any = value.trim()
-      
+
       // Check if the value is a valid number
       if (processedValue !== '' && !isNaN(Number(processedValue))) {
         const numValue = Number(processedValue)
@@ -893,7 +1166,7 @@ function ItemProfileCustomDataEditable({ itemProfile, itemProfileId, onItemProfi
           processedValue = numValue
         }
       }
-      
+
       // Set new/updated key with processed value
       updatedCustomData[key] = processedValue
 
@@ -990,7 +1263,7 @@ function ItemProfileCustomDataEditable({ itemProfile, itemProfileId, onItemProfi
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                    <AlertDialogAction 
+                    <AlertDialogAction
                       onClick={handleDelete}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       disabled={deleting}
@@ -1024,19 +1297,19 @@ function ItemProfileNewCustomDataForm({ formId, itemProfile, itemProfileId, onIt
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
   const handleSave = async () => {
     if (!key.trim()) {
-      setError("Key name cannot be empty")
+      setError({ message: "Key name cannot be empty", hints: [] })
       return
     }
 
     // Check if key already exists
     if (itemProfile.custom_data && itemProfile.custom_data[key] !== undefined) {
-      setError(`Key "${key}" already exists`)
+      setError({ message: `Key "${key}" already exists`, hints: [] })
       return
     }
 
@@ -1045,10 +1318,10 @@ function ItemProfileNewCustomDataForm({ formId, itemProfile, itemProfileId, onIt
     try {
       // Create new custom_data object
       const updatedCustomData = { ...itemProfile.custom_data }
-      
+
       // Convert value to number if possible, otherwise keep as string
       let processedValue: any = value.trim()
-      
+
       // Check if the value is a valid number
       if (processedValue !== '' && !isNaN(Number(processedValue))) {
         const numValue = Number(processedValue)
@@ -1057,17 +1330,21 @@ function ItemProfileNewCustomDataForm({ formId, itemProfile, itemProfileId, onIt
           processedValue = numValue
         }
       }
-      
+
       // Set new key with processed value
       updatedCustomData[key] = processedValue
 
       const updatedData = await updateItemProfileCustomData(itemProfileId, updatedCustomData)
       onItemProfileUpdate(updatedData)
-      
+
       // Remove this form after successful save
       onRemove()
     } catch (e: any) {
-      setError(e?.message || t('itemProfile.updateError'))
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('itemProfile.updateError'), hints: [] })
+      }
     } finally {
       setLoading(false)
     }
@@ -1078,31 +1355,43 @@ function ItemProfileNewCustomDataForm({ formId, itemProfile, itemProfileId, onIt
   }
 
   return (
-    <div className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/50">
-      <div className="flex items-center gap-2">
+    <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
+      <div className="grid grid-cols-2 gap-2">
         <Input
+          placeholder={t('itemProfile.propertyName')}
           value={key}
           onChange={e => setKey(e.target.value)}
-          className="w-32 h-8 px-2 text-sm font-medium"
           disabled={loading}
-          placeholder={t('itemProfile.propertyName')}
         />
-        <span>:</span>
         <Input
+          placeholder={t('itemProfile.propertyValue')}
           value={value}
           onChange={e => setValue(e.target.value)}
-          className="w-48 h-8 px-2 text-sm"
           disabled={loading}
-          placeholder={t('itemProfile.propertyValue')}
         />
-        <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || !key.trim()}>
-          <Save className="w-4 h-4" />
+      </div>
+
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSave} disabled={loading || !key.trim()}>
+          {loading ? t('common.loading') : t('itemProfile.done')}
         </Button>
-        <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading}>
-          <X className="w-4 h-4" />
+        <Button size="sm" variant="outline" onClick={handleCancel} disabled={loading}>
+          {t('common.cancel')}
         </Button>
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+
+      {error && (
+        <div className="text-red-500 text-xs mt-1">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 } 
