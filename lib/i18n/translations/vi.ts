@@ -272,6 +272,28 @@ export const vi = {
     moveItem: "Di chuyển",
     keepInCurrent: "Giữ nguyên"
   },
+  lootbox: {
+    title: "Fix Lootbox",
+    addItems: "Thêm vật phẩm",
+    removeItems: "Xóa vật phẩm",
+    currentItems: "Vật phẩm hiện tại",
+    emptyLootbox: "Hộp quà trống",
+    notLootboxType: "Hồ sơ vật phẩm này không phải là loại hộp quà",
+    selectItem: "Chọn vật phẩm",
+    searchItems: "Tìm kiếm vật phẩm...",
+    quantity: "Số lượng",
+    enterQuantity: "Nhập số lượng",
+    addToLootbox: "Thêm vào hộp quà",
+    removeFromLootbox: "Xóa khỏi hộp quà",
+    updating: "Đang cập nhật...",
+    itemsToAdd: "Vật phẩm cần thêm",
+    itemsToRemove: "Vật phẩm cần xóa",
+    updateLootbox: "Cập nhật hộp quà",
+    addItem: "Thêm vật phẩm",
+    removeItem: "Xóa vật phẩm",
+    itemUpdatedSuccessfully: "Đã cập nhật hộp quà thành công",
+    failedToUpdateLootbox: "Cập nhật hộp quà thất bại"
+  },
   settings: {
     title: "Cài đặt",
     general: "Tổng quát",

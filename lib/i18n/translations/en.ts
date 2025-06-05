@@ -268,6 +268,28 @@ export const en = {
     moveItem: "Move",
     keepInCurrent: "Keep in Current"
   },
+  lootbox: {
+    title: "Fix Lootbox",
+    addItems: "Add items",
+    removeItems: "Remove items",
+    currentItems: "Current items",
+    emptyLootbox: "Lootbox is empty",
+    notLootboxType: "This item profile is not a lootbox type",
+    selectItem: "Select item",
+    searchItems: "Search items...",
+    quantity: "Quantity",
+    enterQuantity: "Enter quantity",
+    addToLootbox: "Add to lootbox",
+    removeFromLootbox: "Remove from lootbox",
+    updating: "Updating...",
+    itemsToAdd: "Items to add",
+    itemsToRemove: "Items to remove",
+    updateLootbox: "Update lootbox",
+    addItem: "Add item",
+    removeItem: "Remove item",
+    itemUpdatedSuccessfully: "Lootbox updated successfully",
+    failedToUpdateLootbox: "Failed to update lootbox"
+  },
   settings: {
     title: "Settings",
     general: "General",

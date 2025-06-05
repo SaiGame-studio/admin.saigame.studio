@@ -160,26 +160,22 @@ export async function deleteItemProfile(profileId: string) {
   return true
 }
 
-export async function updateItemProfileStatus(profileId: string, status: string) {
+export async function updateItemProfileStatus(itemProfileId: string, status: string): Promise<ItemProfile> {
   const token = localStorage.getItem("token")
   if (!token) {
     throw new Error("Authentication required")
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
-  const res = await fetch(`${API_URL}/api/item-profiles/${profileId}/status`, {
+  const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/status`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Accept: "application/json",
     },
     body: JSON.stringify({ status }),
   })
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}))
-    throw { message: error.message || `Failed to update item profile status: ${res.status}`, hints: error.hints || [] }
-  }
-  const data = await res.json()
+  if (!res.ok) throw new Error("Failed to update item profile status")
+  const data: ApiResponse<ItemProfile> = await res.json()
   return data.data
 }
 
@@ -267,4 +263,89 @@ export async function getGameInventoryProfiles(gameId: string): Promise<ItemProf
   // Get all item profiles for the game and filter for inventory type
   const allItems = await fetchGameItemProfiles(gameId)
   return allItems.filter(item => item.type === 'inventory')
+}
+
+export interface LootboxItem {
+  item_id: string
+  quantity: number
+}
+
+export interface LootboxItemDetail {
+  fix_loot_box_id: string
+  item_profile_id: string
+  quantity: number
+  game_id: string
+  created_at: number
+  updated_at: number
+  item_profile: {
+    id: string
+    name: string
+    code_name: string
+    type: string
+    status: string
+    level_start: number
+    level_max: number
+    stackable: number
+    stack_limit: number
+    create_on_registry: number
+    amount_on_registry: number
+    custom_data: any
+    game_id: string
+    updated_at: number
+    created_at: number
+  }
+}
+
+export interface UpdateLootboxRequest {
+  add: LootboxItem[]
+  remove: string[]
+}
+
+/**
+ * Fetch all items in a fix loot box
+ */
+export async function fetchFixLootboxItems(lootboxProfileId: string): Promise<LootboxItemDetail[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/fix-loot-boxes/${lootboxProfileId}/item-profiles`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+  
+  if (!res.ok) throw new Error("Failed to fetch loot box items")
+  
+  const data: ApiResponse<LootboxItemDetail[]> = await res.json()
+  return data.data
+}
+
+/**
+ * Update loot box items (add/remove)
+ */
+export async function updateLootboxItems(lootboxProfileId: string, request: UpdateLootboxRequest): Promise<any> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/fix-loot-boxes/${lootboxProfileId}/item-profiles`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  })
+  
+  if (!res.ok) throw new Error("Failed to update loot box items")
+  
+  const data: ApiResponse<any> = await res.json()
+  return data.data
 } 

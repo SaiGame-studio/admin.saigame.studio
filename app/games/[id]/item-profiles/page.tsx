@@ -25,6 +25,8 @@ import { getAllStatusOptions, getEditableStatusOptions, getItemProfileStatusConf
 import { StatusBadge } from "@/components/ItemProfileStatus";
 import { getInventoryTabUrl, isInventoryType } from "@/lib/utils/item-profile-utils";
 import { InventoryLink } from "@/components/ui/inventory-link";
+import { LootboxLink } from "@/components/ui/lootbox-link";
+import { getItemTypeOptions } from "@/lib/utils/item-type-utils";
 
 export default function GameItemProfilesPage() {
   const params = useParams() as { id: string };
@@ -54,15 +56,7 @@ export default function GameItemProfilesPage() {
   const statusOptions = getAllStatusOptions();
 
   // Available item type options for filter
-  const itemTypeOptions = [
-    { value: "char_profile", label: "Character Profile" },
-    { value: "equipment", label: "Equipment" },
-    { value: "quest_item", label: "Quest Item" },
-    { value: "inventory", label: "Inventory" },
-    { value: "currency", label: "Currency" },
-    { value: "misc", label: "Miscellaneous" },
-    { value: "loot_box", label: "Loot Box" },
-  ];
+  const itemTypeOptions = getItemTypeOptions();
 
   // Filter profiles based on status, type and name
   const filteredProfiles = itemProfiles.filter(profile => {
@@ -459,9 +453,9 @@ export default function GameItemProfilesPage() {
                 {/* Left column - Item Properties */}
                 <div className="col-span-2">
                   <CardTitle className="text-xl font-mono mb-2">
-                    <Link href={`/games/${params.id}/item-profiles/${profile.id}`} className="inline-flex items-center gap-1">
-                      {profile.name}
-                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    <Link href={`/games/${params.id}/item-profiles/${profile.id}`} className="inline-flex items-center gap-1 min-w-0 max-w-full">
+                      <span className="truncate min-w-0" title={profile.name}>{profile.name}</span>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     </Link>
                   </CardTitle>
                   <CardDescription className="mb-3">{t('itemProfile.code')}: {profile.code_name}</CardDescription>
@@ -564,6 +558,7 @@ export default function GameItemProfilesPage() {
                     <Link href={`/games/${params.id}/item-profiles/${profile.id}`}>{t('itemProfile.viewDetails')}</Link>
                   </Button>
                   <InventoryLink gameId={params.id} itemProfile={profile} />
+                  <LootboxLink gameId={params.id} itemProfile={profile} />
                 </div>
               </div>
             </Card>

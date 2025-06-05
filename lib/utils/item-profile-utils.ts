@@ -2,7 +2,7 @@
  * Utility functions for item profile operations
  */
 
-export type ItemProfileTab = 'details' | 'inventory'
+export type ItemProfileTab = 'details' | 'inventory' | 'lootbox'
 
 /**
  * Generate URL for item profile detail page with specific tab
@@ -23,6 +23,13 @@ export function getInventoryTabUrl(gameId: string, itemProfileId: string): strin
 }
 
 /**
+ * Generate URL for lootbox tab of an item profile
+ */
+export function getLootboxTabUrl(gameId: string, itemProfileId: string): string {
+  return getItemProfileUrl(gameId, itemProfileId, 'lootbox')
+}
+
+/**
  * Generate URL for details tab of an item profile
  */
 export function getDetailsTabUrl(gameId: string, itemProfileId: string): string {
@@ -37,6 +44,9 @@ export function parseTabFromUrl(searchParams: URLSearchParams): ItemProfileTab {
   if (tab === 'inventory') {
     return 'inventory'
   }
+  if (tab === 'lootbox') {
+    return 'lootbox'
+  }
   return 'details' // default tab
 }
 
@@ -48,12 +58,21 @@ export function isInventoryType(itemProfile: { type: string }): boolean {
 }
 
 /**
+ * Check if item profile type supports lootbox tab
+ */
+export function isLootboxType(itemProfile: { type: string }): boolean {
+  return itemProfile.type === 'fix_loot_box'
+}
+
+/**
  * Get display name for item profile tab
  */
 export function getTabDisplayName(tab: string, t: (key: string) => string): string {
   switch (tab) {
     case 'inventory':
       return t('inventory.title')
+    case 'lootbox':
+      return t('lootbox.title')
     case 'details':
     default:
       return t('itemProfile.details')
@@ -67,6 +86,9 @@ export function getAvailableTabs(itemProfile: { type: string }): ItemProfileTab[
   const tabs: ItemProfileTab[] = ['details']
   if (isInventoryType(itemProfile)) {
     tabs.push('inventory')
+  }
+  if (isLootboxType(itemProfile)) {
+    tabs.push('lootbox')
   }
   return tabs
 } 
