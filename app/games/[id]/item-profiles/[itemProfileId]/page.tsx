@@ -19,18 +19,12 @@ import { ItemType } from "@/types/game"
 import { getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { InventoryTab } from "@/components/ui/inventory-tab"
-import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl } from "@/lib/utils/item-profile-utils"
+import { FixLootBoxTab } from "@/components/ui/lootbox-tab"
+import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType } from "@/lib/utils/item-profile-utils"
+import { getItemTypeOptions } from "@/lib/utils/item-type-utils"
 
 // Available item type options for editing
-const itemTypeOptions = [
-  { value: "char_profile", label: "Character Profile" },
-  { value: "equipment", label: "Equipment" },
-  { value: "quest_item", label: "Quest Item" },
-  { value: "inventory", label: "Inventory" },
-  { value: "currency", label: "Currency" },
-  { value: "misc", label: "Miscellaneous" },
-  { value: "loot_box", label: "Loot Box" },
-];
+const itemTypeOptions = getItemTypeOptions()
 
 export default function ItemProfileDetailPage() {
   const params = useParams() as { id: string; itemProfileId: string }
@@ -115,9 +109,12 @@ export default function ItemProfileDetailPage() {
     loadItemProfileAndGame()
   }, [params.itemProfileId, params.id])
 
-  // Auto switch to details tab if current tab is inventory but item type is not inventory
+  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not fix_loot_box
   useEffect(() => {
     if (itemProfile && activeTab === "inventory" && itemProfile.type !== 'inventory') {
+      setActiveTab("details")
+    }
+    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'fix_loot_box') {
       setActiveTab("details")
     }
   }, [itemProfile, activeTab])
@@ -129,8 +126,11 @@ export default function ItemProfileDetailPage() {
       
       if (requestedTab === 'inventory' && itemProfile.type === 'inventory') {
         setActiveTab('inventory')
-      } else if (requestedTab === 'inventory' && itemProfile.type !== 'inventory') {
-        // If trying to access inventory tab but item is not inventory type, redirect to details
+      } else if (requestedTab === 'lootbox' && itemProfile.type === 'fix_loot_box') {
+        setActiveTab('lootbox')
+      } else if ((requestedTab === 'inventory' && itemProfile.type !== 'inventory') || 
+                 (requestedTab === 'lootbox' && itemProfile.type !== 'fix_loot_box')) {
+        // If trying to access invalid tab for item type, redirect to details
         const detailsUrl = getItemProfileUrl(params.id, params.itemProfileId, 'details')
         router.replace(detailsUrl, { scroll: false })
         setActiveTab('details')
@@ -232,12 +232,29 @@ export default function ItemProfileDetailPage() {
             >
               {t('inventory.title')}
             </button>
+            <button
+              onClick={() => {
+                if (itemProfile.type === 'fix_loot_box') {
+                  changeTab("lootbox")
+                }
+              }}
+              disabled={itemProfile.type !== 'fix_loot_box'}
+              className={`${
+                itemProfile.type !== 'fix_loot_box'
+                  ? "border-transparent text-gray-300 cursor-not-allowed line-through"
+                  : activeTab === "lootbox"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+            >
+              {t('lootbox.title')}
+            </button>
           </nav>
         </div>
 
         <div className="p-6">
           {activeTab === "details" && (
-            <div className="space-y-6">
+            <div className="space-y-6 group">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Normal Properties */}
                 <div className="space-y-4">
@@ -399,6 +416,13 @@ export default function ItemProfileDetailPage() {
               gameId={params.id}
             />
           )}
+
+          {activeTab === "lootbox" && (
+            <FixLootBoxTab 
+              itemProfile={itemProfile} 
+              gameId={params.id}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -436,7 +460,7 @@ function ItemProfileNameEditable({ itemProfile, itemProfileId, onItemProfileUpda
   }
 
   return (
-    <div className="group flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -507,7 +531,7 @@ function ItemProfileCodeNameEditable({ itemProfile, itemProfileId, onItemProfile
   }
 
   return (
-    <div className="group flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {editing ? (
         <>
           <Input
@@ -578,7 +602,7 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
   }
 
   return (
-    <div className="group flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {editing ? (
         <>
           <Select value={type} onValueChange={setType} disabled={loading}>
@@ -666,7 +690,7 @@ function ItemProfileStatusEditable({ itemProfile, itemProfileId, onItemProfileUp
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <Select value={status} onValueChange={setStatus} disabled={loading}>
@@ -769,7 +793,7 @@ function ItemProfileLevelEditable({ itemProfile, itemProfileId, onItemProfileUpd
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <div className="flex items-center gap-2">
@@ -855,7 +879,7 @@ function ItemProfileStackLimitEditable({ itemProfile, itemProfileId, onItemProfi
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <Input
@@ -929,7 +953,7 @@ function ItemProfileStackableEditable({ itemProfile, itemProfileId, onItemProfil
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <Checkbox
@@ -1002,7 +1026,7 @@ function ItemProfileCreateOnRegistryEditable({ itemProfile, itemProfileId, onIte
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <Checkbox
@@ -1075,7 +1099,7 @@ function ItemProfileAmountOnRegistryEditable({ itemProfile, itemProfileId, onIte
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <Input
@@ -1214,7 +1238,7 @@ function ItemProfileCustomDataEditable({ itemProfile, itemProfileId, onItemProfi
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <div className="flex items-center gap-2">

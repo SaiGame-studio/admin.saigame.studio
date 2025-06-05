@@ -313,5 +313,27 @@ export const ja = {
     currentInventory: "現在のインベントリ",
     moveItem: "移動",
     keepInCurrent: "現在のインベントリに保持"
+  },
+  lootbox: {
+    title: "ルートボックス",
+    addItems: "アイテム追加",
+    removeItems: "アイテム削除",
+    currentItems: "現在のアイテム",
+    emptyLootbox: "ルートボックスが空です",
+    notLootboxType: "このアイテムプロファイルはルートボックスタイプではありません",
+    selectItem: "アイテムを選択",
+    searchItems: "アイテムを検索...",
+    quantity: "数量",
+    enterQuantity: "数量を入力",
+    addToLootbox: "ルートボックスに追加",
+    removeFromLootbox: "ルートボックスから削除",
+    updating: "更新中...",
+    itemsToAdd: "追加するアイテム",
+    itemsToRemove: "削除するアイテム",
+    updateLootbox: "ルートボックスを更新",
+    addItem: "アイテム追加",
+    removeItem: "アイテム削除",
+    itemUpdatedSuccessfully: "ルートボックスが正常に更新されました",
+    failedToUpdateLootbox: "ルートボックスの更新に失敗しました"
   }
 }; 
