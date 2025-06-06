@@ -32,7 +32,6 @@ interface PropertyFormData {
   name: string
   type: string
   value: string
-  description: string
   is_active: boolean
   is_visible: boolean
 }
@@ -40,9 +39,7 @@ interface PropertyFormData {
 const PROPERTY_TYPES = [
   { value: 'string', label: 'Text' },
   { value: 'number', label: 'Number' },
-  { value: 'boolean', label: 'Yes/No' },
-  { value: 'array', label: 'List' },
-  { value: 'object', label: 'Object' }
+  { value: 'boolean', label: 'Yes/No' }
 ]
 
 export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
@@ -61,7 +58,6 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
     name: '',
     type: 'string',
     value: '',
-    description: '',
     is_active: true,
     is_visible: true
   })
@@ -90,7 +86,6 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       name: '',
       type: 'string',
       value: '',
-      description: '',
       is_active: true,
       is_visible: true
     })
@@ -133,19 +128,12 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
         }
       } else if (formData.type === 'boolean') {
         parsedValue = formData.value === 'true'
-      } else if (formData.type === 'array' || formData.type === 'object') {
-        try {
-          parsedValue = JSON.parse(formData.value)
-        } catch {
-          throw new Error(`Invalid JSON for ${formData.type} type`)
-        }
       }
 
       const propertyData = {
         name: formData.name,
         type: formData.type,
         value: parsedValue,
-        description: formData.description || undefined,
         is_active: formData.is_active,
         is_visible: formData.is_visible,
         metadata: {} // Start with empty metadata
@@ -174,7 +162,6 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       name: property.name,
       type: property.type,
       value: typeof property.value === 'object' ? JSON.stringify(property.value, null, 2) : String(property.value),
-      description: property.description || '',
       is_active: property.is_active,
       is_visible: property.is_visible
     })
@@ -273,26 +260,10 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       {/* Create/Edit Form */}
       {showCreateForm && (
         <Card className="border-border/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {editingPropertyId ? t('properties.editProperty') : t('properties.createProperty')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="p-4">
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="name" className="text-xs font-medium">{t('properties.propertyName')} *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                    disabled={isSubmitting}
-                    className="h-8"
-                  />
-                </div>
-                <div>
+              <div className="grid grid-cols-12 gap-3">
+                <div className="col-span-2">
                   <Label htmlFor="type" className="text-xs font-medium">{t('properties.propertyType')} *</Label>
                   <Select 
                     value={formData.type} 
@@ -311,7 +282,18 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="col-span-3">
+                  <Label htmlFor="name" className="text-xs font-medium">{t('properties.propertyName')} *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                    disabled={isSubmitting}
+                    className="h-8"
+                  />
+                </div>
+                <div className="col-span-4">
                   <Label htmlFor="value" className="text-xs font-medium">{t('properties.propertyValue')} *</Label>
                   {formData.type === 'boolean' ? (
                     <Select 
@@ -327,17 +309,6 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                         <SelectItem value="false">No</SelectItem>
                       </SelectContent>
                     </Select>
-                  ) : formData.type === 'array' || formData.type === 'object' ? (
-                    <Textarea
-                      id="value"
-                      value={formData.value}
-                      onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
-                      placeholder={formData.type === 'array' ? '["item1", "item2"]' : '{"key": "value"}'}
-                      required
-                      disabled={isSubmitting}
-                      rows={2}
-                      className="text-xs"
-                    />
                   ) : (
                     <Input
                       id="value"
@@ -350,55 +321,16 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                     />
                   )}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="description" className="text-xs font-medium">{t('properties.propertyDescription')}</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    disabled={isSubmitting}
-                    className="h-8"
-                    placeholder="Optional description..."
-                  />
-                </div>
-                <div className="flex items-end gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="active"
-                      checked={formData.is_active}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: !!checked }))}
-                      disabled={isSubmitting}
-                    />
-                    <Label htmlFor="active" className="text-xs">{t('properties.isActive')}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="visible"
-                      checked={formData.is_visible}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_visible: !!checked }))}
-                      disabled={isSubmitting}
-                    />
-                    <Label htmlFor="visible" className="text-xs">{t('properties.isVisible')}</Label>
+                <div className="col-span-3 flex items-end justify-between">
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={isSubmitting || !formData.name.trim()} size="sm">
+                      {isSubmitting ? t('common.loading') : (editingPropertyId ? 'Update' : 'Create')}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting} size="sm">
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={isSubmitting || !formData.name.trim()} size="sm">
-                  {isSubmitting ? (
-                    t('common.loading')
-                  ) : editingPropertyId ? (
-                    t('properties.updateProperty')
-                  ) : (
-                    t('properties.createProperty')
-                  )}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting} size="sm">
-                  {t('common.cancel')}
-                </Button>
               </div>
             </form>
           </CardContent>
