@@ -33,9 +33,8 @@ interface PropertyFormData {
   type: string
   value: string
   description: string
-  is_required: boolean
+  is_active: boolean
   is_visible: boolean
-  metadata: string
 }
 
 const PROPERTY_TYPES = [
@@ -56,15 +55,15 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [newMetadataForms, setNewMetadataForms] = useState<{[propertyId: string]: string[]}>({})
   
   const [formData, setFormData] = useState<PropertyFormData>({
     name: '',
     type: 'string',
     value: '',
     description: '',
-    is_required: false,
-    is_visible: true,
-    metadata: '{}'
+    is_active: true,
+    is_visible: true
   })
 
   // Load properties
@@ -92,12 +91,28 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       type: 'string',
       value: '',
       description: '',
-      is_required: false,
-      is_visible: true,
-      metadata: '{}'
+      is_active: true,
+      is_visible: true
     })
     setShowCreateForm(false)
     setEditingPropertyId(null)
+  }
+
+  // Add new metadata form
+  const addNewMetadataForm = (propertyId: string) => {
+    const newFormId = Date.now().toString()
+    setNewMetadataForms(prev => ({
+      ...prev,
+      [propertyId]: [...(prev[propertyId] || []), newFormId]
+    }))
+  }
+
+  // Remove metadata form
+  const removeNewMetadataForm = (propertyId: string, formId: string) => {
+    setNewMetadataForms(prev => ({
+      ...prev,
+      [propertyId]: (prev[propertyId] || []).filter(id => id !== formId)
+    }))
   }
 
   // Handle form submission
@@ -109,26 +124,16 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       setIsSubmitting(true)
       setError(null)
 
-      // Parse metadata JSON
-      let metadata = {}
-      try {
-        if (formData.metadata.trim()) {
-          metadata = JSON.parse(formData.metadata)
+      // Parse value based on type
+      let parsedValue: any = formData.value
+      if (formData.type === 'number') {
+        parsedValue = Number(formData.value)
+        if (isNaN(parsedValue as number)) {
+          throw new Error("Invalid number value")
         }
-      } catch {
-        throw new Error("Invalid JSON in metadata field")
-      }
-
-             // Parse value based on type
-       let parsedValue: any = formData.value
-       if (formData.type === 'number') {
-         parsedValue = Number(formData.value)
-         if (isNaN(parsedValue as number)) {
-           throw new Error("Invalid number value")
-         }
-       } else if (formData.type === 'boolean') {
-         parsedValue = formData.value === 'true'
-       } else if (formData.type === 'array' || formData.type === 'object') {
+      } else if (formData.type === 'boolean') {
+        parsedValue = formData.value === 'true'
+      } else if (formData.type === 'array' || formData.type === 'object') {
         try {
           parsedValue = JSON.parse(formData.value)
         } catch {
@@ -141,9 +146,9 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
         type: formData.type,
         value: parsedValue,
         description: formData.description || undefined,
-        is_required: formData.is_required,
+        is_active: formData.is_active,
         is_visible: formData.is_visible,
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+        metadata: {} // Start with empty metadata
       }
 
       if (editingPropertyId) {
@@ -170,9 +175,8 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       type: property.type,
       value: typeof property.value === 'object' ? JSON.stringify(property.value, null, 2) : String(property.value),
       description: property.description || '',
-      is_required: property.is_required,
-      is_visible: property.is_visible,
-      metadata: property.metadata ? JSON.stringify(property.metadata, null, 2) : '{}'
+      is_active: property.is_active,
+      is_visible: property.is_visible
     })
     setEditingPropertyId(property.id || null)
     setShowCreateForm(true)
@@ -186,6 +190,45 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
       await loadProperties()
     } catch (err: any) {
       setError(err.message || "Failed to delete property")
+    }
+  }
+
+  // Update property data
+  const updatePropertyData = (updatedProperty: ItemProperty) => {
+    setProperties(prev => prev.map(p => p.id === updatedProperty.id ? updatedProperty : p))
+  }
+
+  // Toggle is_active
+  const toggleIsActive = async (property: ItemProperty) => {
+    if (!property.id) return
+    
+    try {
+      setError(null)
+      const updatedData = await updateItemProfileProperty(
+        itemProfileId, 
+        property.id, 
+        { is_active: !property.is_active }
+      )
+      updatePropertyData(updatedData)
+    } catch (err: any) {
+      setError(err.message || "Failed to update property")
+    }
+  }
+
+  // Toggle is_visible
+  const toggleIsVisible = async (property: ItemProperty) => {
+    if (!property.id) return
+    
+    try {
+      setError(null)
+      const updatedData = await updateItemProfileProperty(
+        itemProfileId, 
+        property.id, 
+        { is_visible: !property.is_visible }
+      )
+      updatePropertyData(updatedData)
+    } catch (err: any) {
+      setError(err.message || "Failed to update property")
     }
   }
 
@@ -229,33 +272,34 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
 
       {/* Create/Edit Form */}
       {showCreateForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card className="border-border/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
               {editingPropertyId ? t('properties.editProperty') : t('properties.createProperty')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="pt-0">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <Label htmlFor="name">{t('properties.propertyName')} *</Label>
+                  <Label htmlFor="name" className="text-xs font-medium">{t('properties.propertyName')} *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     required
                     disabled={isSubmitting}
+                    className="h-8"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="type">{t('properties.propertyType')} *</Label>
+                  <Label htmlFor="type" className="text-xs font-medium">{t('properties.propertyType')} *</Label>
                   <Select 
                     value={formData.type} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
                     disabled={isSubmitting}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -267,92 +311,83 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="value" className="text-xs font-medium">{t('properties.propertyValue')} *</Label>
+                  {formData.type === 'boolean' ? (
+                    <Select 
+                      value={formData.value} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, value }))}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : formData.type === 'array' || formData.type === 'object' ? (
+                    <Textarea
+                      id="value"
+                      value={formData.value}
+                      onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
+                      placeholder={formData.type === 'array' ? '["item1", "item2"]' : '{"key": "value"}'}
+                      required
+                      disabled={isSubmitting}
+                      rows={2}
+                      className="text-xs"
+                    />
+                  ) : (
+                    <Input
+                      id="value"
+                      type={formData.type === 'number' ? 'number' : 'text'}
+                      value={formData.value}
+                      onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
+                      required
+                      disabled={isSubmitting}
+                      className="h-8"
+                    />
+                  )}
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="value">{t('properties.propertyValue')} *</Label>
-                {formData.type === 'boolean' ? (
-                  <Select 
-                    value={formData.value} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, value }))}
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : formData.type === 'array' || formData.type === 'object' ? (
-                  <Textarea
-                    id="value"
-                    value={formData.value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
-                    placeholder={formData.type === 'array' ? '["item1", "item2"]' : '{"key": "value"}'}
-                    required
-                    disabled={isSubmitting}
-                    rows={3}
-                  />
-                ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="description" className="text-xs font-medium">{t('properties.propertyDescription')}</Label>
                   <Input
-                    id="value"
-                    type={formData.type === 'number' ? 'number' : 'text'}
-                    value={formData.value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
-                    required
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     disabled={isSubmitting}
+                    className="h-8"
+                    placeholder="Optional description..."
                   />
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="description">{t('properties.propertyDescription')}</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  disabled={isSubmitting}
-                  rows={2}
-                />
-              </div>
-
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="required"
-                    checked={formData.is_required}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_required: !!checked }))}
-                    disabled={isSubmitting}
-                  />
-                  <Label htmlFor="required">{t('properties.isRequired')}</Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="visible"
-                    checked={formData.is_visible}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_visible: !!checked }))}
-                    disabled={isSubmitting}
-                  />
-                  <Label htmlFor="visible">{t('properties.isVisible')}</Label>
+                <div className="flex items-end gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: !!checked }))}
+                      disabled={isSubmitting}
+                    />
+                    <Label htmlFor="active" className="text-xs">{t('properties.isActive')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="visible"
+                      checked={formData.is_visible}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_visible: !!checked }))}
+                      disabled={isSubmitting}
+                    />
+                    <Label htmlFor="visible" className="text-xs">{t('properties.isVisible')}</Label>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="metadata">{t('properties.metadata')} (JSON)</Label>
-                <Textarea
-                  id="metadata"
-                  value={formData.metadata}
-                  onChange={(e) => setFormData(prev => ({ ...prev, metadata: e.target.value }))}
-                  placeholder='{"min": 0, "max": 100, "unit": "points"}'
-                  disabled={isSubmitting}
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isSubmitting || !formData.name.trim()}>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" disabled={isSubmitting || !formData.name.trim()} size="sm">
                   {isSubmitting ? (
                     t('common.loading')
                   ) : editingPropertyId ? (
@@ -361,7 +396,7 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                     t('properties.createProperty')
                   )}
                 </Button>
-                <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting}>
+                <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting} size="sm">
                   {t('common.cancel')}
                 </Button>
               </div>
@@ -379,27 +414,20 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {properties.map((property) => (
-            <Card key={property.id} className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {properties.map((property, index) => (
+            <div key={property.id} className="relative pl-4 border-l border-border/50 first:pl-0 first:border-l-0">
+              <Card className="p-4 group border-none shadow-none">
               <div className="flex items-start justify-between">
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{property.name}</h4>
-                    <Badge variant="secondary" className="text-xs">
-                      {PROPERTY_TYPES.find(t => t.value === property.type)?.label || property.type}
-                    </Badge>
-                    {property.is_required && (
-                      <Badge variant="destructive" className="text-xs">Required</Badge>
-                    )}
+                    <h4 className={`font-medium ${!property.is_active ? 'line-through text-muted-foreground' : ''}`}>
+                      {property.name}
+                    </h4>
                     {property.is_visible ? (
-                      <div className="w-4 h-4 text-green-600" title="Visible">
-                        <Eye className="w-4 h-4" />
-                      </div>
+                      <Eye className="w-4 h-4 text-green-600" />
                     ) : (
-                      <div className="w-4 h-4 text-gray-400" title="Hidden">
-                        <EyeOff className="w-4 h-4" />
-                      </div>
+                      <EyeOff className="w-4 h-4 text-gray-400" />
                     )}
                   </div>
                   
@@ -414,60 +442,426 @@ export function PropertiesTab({ itemProfileId }: PropertiesTabProps) {
                     <p className="text-sm text-muted-foreground">{property.description}</p>
                   )}
                   
-                  {property.metadata && Object.keys(property.metadata).length > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-medium">Metadata: </span>
-                      <code className="bg-muted px-1 rounded">
-                        {JSON.stringify(property.metadata)}
-                      </code>
+                  {/* Metadata Section */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h5 className="text-sm font-medium">{t('properties.metadata')}</h5>
                     </div>
-                  )}
+                    
+                    <div className="pl-4 space-y-1">
+                      {property.metadata && Object.keys(property.metadata).length > 0 ? (
+                        Object.entries(property.metadata).map(([key, value]) => (
+                          <PropertyMetadataEditable
+                            key={key}
+                            property={property}
+                            itemProfileId={itemProfileId}
+                            onPropertyUpdate={updatePropertyData}
+                            metadataKey={key}
+                            metadataValue={value}
+                          />
+                        ))
+                      ) : (newMetadataForms[property.id || ''] || []).length === 0 ? (
+                        <p className="text-muted-foreground text-xs">{t('properties.noMetadata')}</p>
+                      ) : null}
+                      
+                      {(newMetadataForms[property.id || ''] || []).length < 5 && (
+                        <button 
+                          className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                          onClick={() => addNewMetadataForm(property.id || '')}
+                        >
+                          + {t('properties.newMetadata')}
+                        </button>
+                      )}
+                      
+                      {(newMetadataForms[property.id || ''] || []).map(formId => (
+                        <PropertyNewMetadataForm
+                          key={formId}
+                          formId={formId}
+                          property={property}
+                          itemProfileId={itemProfileId}
+                          onPropertyUpdate={updatePropertyData}
+                          onRemove={() => removeNewMetadataForm(property.id || '', formId)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   
                   <div className="text-xs text-muted-foreground">
                     {t('itemProfile.updatedAt')}: {formatTimestamp(property.updated_at || 0)}
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEdit(property)}
-                    disabled={showCreateForm}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEdit(property)}
+                      disabled={showCreateForm}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t('properties.deleteProperty')}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t('properties.confirmDeleteProperty')} <br />
+                            <strong>{property.name}</strong><br />
+                            {t('properties.deletePropertyText')}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => property.id && handleDelete(property.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {t('common.delete')}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                   
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('properties.deleteProperty')}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t('properties.confirmDeleteProperty')} <br />
-                          <strong>{property.name}</strong><br />
-                          {t('properties.deletePropertyText')}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => property.id && handleDelete(property.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {t('common.delete')}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="sm"
+                      variant={property.is_active ? "default" : "outline"}
+                      className="h-6 px-2 text-xs"
+                      onClick={() => toggleIsActive(property)}
+                    >
+                      {property.is_active ? t('properties.isActive') : t('properties.inactive')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={property.is_visible ? "default" : "outline"}
+                      className="h-6 px-2 text-xs"
+                      onClick={() => toggleIsVisible(property)}
+                    >
+                      {property.is_visible ? t('properties.visible') : t('properties.hidden')}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </Card>
+              </Card>
+            </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Component for editing existing metadata
+function PropertyMetadataEditable({ 
+  property, 
+  itemProfileId, 
+  onPropertyUpdate, 
+  metadataKey, 
+  metadataValue 
+}: { 
+  property: ItemProperty
+  itemProfileId: string
+  onPropertyUpdate: (updatedProperty: ItemProperty) => void
+  metadataKey: string
+  metadataValue: any 
+}) {
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [key, setKey] = useState(metadataKey)
+  const [value, setValue] = useState(String(metadataValue))
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
+
+  useEffect(() => {
+    setKey(metadataKey)
+    setValue(String(metadataValue))
+  }, [metadataKey, metadataValue])
+
+  const handleSave = async () => {
+    if (!key.trim()) {
+      setError({ message: "Key name cannot be empty", hints: [] })
+      return
+    }
+
+    // Check if new key already exists (and it's different from current key)
+    if (key !== metadataKey && property.metadata && property.metadata[key] !== undefined) {
+      setError({ message: `Key "${key}" already exists`, hints: [] })
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      // Create new metadata object
+      const updatedMetadata = { ...property.metadata }
+
+      // If key changed, remove old key
+      if (key !== metadataKey) {
+        delete updatedMetadata[metadataKey]
+      }
+
+      // Convert value to number if possible, otherwise keep as string
+      let processedValue: any = value.trim()
+      if (processedValue !== '' && !isNaN(Number(processedValue))) {
+        const numValue = Number(processedValue)
+        if (isFinite(numValue)) {
+          processedValue = numValue
+        }
+      }
+
+      // Set new/updated key with processed value
+      updatedMetadata[key] = processedValue
+
+      const updatedData = await updateItemProfileProperty(
+        itemProfileId, 
+        property.id!, 
+        { metadata: updatedMetadata }
+      )
+      onPropertyUpdate(updatedData)
+      setEditing(false)
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('properties.updateError'), hints: [] })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+    try {
+      // Create new metadata object without the deleted key
+      const updatedMetadata = { ...property.metadata }
+      delete updatedMetadata[metadataKey]
+
+      const updatedData = await updateItemProfileProperty(
+        itemProfileId, 
+        property.id!, 
+        { metadata: updatedMetadata }
+      )
+      onPropertyUpdate(updatedData)
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('properties.deleteError'), hints: [] })
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setEditing(false)
+    setKey(metadataKey)
+    setValue(String(metadataValue))
+    setError(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-1 group">
+      <div className="flex items-center gap-2">
+        {editing ? (
+          <>
+            <Input
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              className="w-24 h-6 px-2 text-xs font-medium"
+              disabled={loading}
+              placeholder="Key"
+            />
+            <span className="text-xs">:</span>
+            <Input
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              className="w-32 h-6 px-2 text-xs"
+              disabled={loading}
+              placeholder="Value"
+            />
+            <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || !key.trim()} className="h-6 w-6">
+              <Save className="w-3 h-3" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading} className="h-6 w-6">
+              <X className="w-3 h-3" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="text-xs">{metadataKey}: <span className="font-medium">{String(metadataValue)}</span></span>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" disabled={deleting}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('properties.confirmDeleteMetadata')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('properties.confirmDeleteMetadataText')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleting}
+                  >
+                    {deleting ? t('common.deleting') : t('common.delete')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+          </>
+        )}
+      </div>
+      {error && (
+        <div className="text-red-500 text-xs">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Component for adding new metadata
+function PropertyNewMetadataForm({ 
+  formId, 
+  property, 
+  itemProfileId, 
+  onPropertyUpdate, 
+  onRemove 
+}: { 
+  formId: string
+  property: ItemProperty
+  itemProfileId: string
+  onPropertyUpdate: (updatedProperty: ItemProperty) => void
+  onRemove: () => void 
+}) {
+  const [key, setKey] = useState('')
+  const [value, setValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<{ message: string; hints: string[] } | null>(null)
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
+
+  const handleSave = async () => {
+    if (!key.trim()) {
+      setError({ message: "Key name cannot be empty", hints: [] })
+      return
+    }
+
+    // Check if key already exists
+    if (property.metadata && property.metadata[key] !== undefined) {
+      setError({ message: `Key "${key}" already exists`, hints: [] })
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      // Create new metadata object
+      const updatedMetadata = { ...property.metadata }
+
+      // Convert value to number if possible, otherwise keep as string
+      let processedValue: any = value.trim()
+      if (processedValue !== '' && !isNaN(Number(processedValue))) {
+        const numValue = Number(processedValue)
+        if (isFinite(numValue)) {
+          processedValue = numValue
+        }
+      }
+
+      // Set new key with processed value
+      updatedMetadata[key] = processedValue
+
+      const updatedData = await updateItemProfileProperty(
+        itemProfileId, 
+        property.id!, 
+        { metadata: updatedMetadata }
+      )
+      onPropertyUpdate(updatedData)
+
+      // Remove this form after successful save
+      onRemove()
+    } catch (e: any) {
+      if (e && typeof e === 'object' && 'message' in e && 'hints' in e) {
+        setError({ message: e.message, hints: Array.isArray(e.hints) ? e.hints : [] })
+      } else {
+        setError({ message: e?.message || t('properties.updateError'), hints: [] })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancel = () => {
+    onRemove()
+  }
+
+  return (
+    <div className="border rounded p-2 space-y-2 bg-muted/30">
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          placeholder="Key"
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          disabled={loading}
+          className="h-6 text-xs"
+        />
+        <Input
+          placeholder="Value"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          disabled={loading}
+          className="h-6 text-xs"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSave} disabled={loading || !key.trim()} className="h-6 text-xs">
+          {loading ? t('common.loading') : t('common.save')}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleCancel} disabled={loading} className="h-6 text-xs">
+          {t('common.cancel')}
+        </Button>
+      </div>
+
+      {error && (
+        <div className="text-red-500 text-xs">
+          <div>{error.message}</div>
+          {Array.isArray(error.hints) && error.hints.length > 0 && (
+            <ul className="mt-1 list-disc list-inside">
+              {error.hints.map((hint, idx) => (
+                <li key={idx}>{hint}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

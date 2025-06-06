@@ -356,7 +356,7 @@ export interface ItemProperty {
   type: string
   value: any
   description?: string
-  is_required: boolean
+  is_active: boolean
   is_visible: boolean
   metadata?: Record<string, any>
   item_profile_id?: string
@@ -369,7 +369,7 @@ export interface CreatePropertyRequest {
   type: string
   value: any
   description?: string
-  is_required: boolean
+  is_active: boolean
   is_visible: boolean
   metadata?: Record<string, any>
 }
@@ -379,7 +379,7 @@ export interface UpdatePropertyRequest {
   type?: string
   value?: any
   description?: string
-  is_required?: boolean
+  is_active?: boolean
   is_visible?: boolean
   metadata?: Record<string, any>
 }

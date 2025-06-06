@@ -47,7 +47,11 @@ export const ja = {
     active: "アクティブ",
     inactive: "非アクティブ",
     viewDetails: "詳細を表示",
-    moveItem: "アイテムを移動"
+    moveItem: "アイテムを移動",
+    hideDisabledTabs: "無効なタブを非表示",
+    showDisabledTabs: "無効なタブを表示",
+    showingDisabledTabs: "無効なタブを表示中",
+    hiddenDisabledTabs: "無効なタブを非表示中"
   },
   shop: {
     title: "ゲームショップ",
@@ -335,5 +339,45 @@ export const ja = {
     removeItem: "アイテム削除",
     itemUpdatedSuccessfully: "ルートボックスが正常に更新されました",
     failedToUpdateLootbox: "ルートボックスの更新に失敗しました"
+  },
+  properties: {
+    title: "プロパティ",
+    noProperties: "プロパティがありません",
+    noPropertiesDesc: "最初のプロパティを作成してください。",
+    addProperty: "プロパティ追加",
+    editProperty: "プロパティ編集",
+    deleteProperty: "プロパティ削除",
+    propertyName: "プロパティ名",
+    propertyType: "プロパティタイプ",
+    propertyValue: "プロパティ値",
+    propertyDescription: "説明",
+    isActive: "アクティブ",
+    inactive: "非アクティブ",
+    isVisible: "表示",
+    visible: "表示",
+    hidden: "非表示",
+    metadata: "メタデータ",
+    noMetadata: "このプロパティにはメタデータが設定されていません。",
+    newMetadata: "新しいメタデータ",
+    confirmDeleteProperty: "このプロパティを削除してもよろしいですか？",
+    deletePropertyText: "この操作は元に戻せません。",
+    confirmDeleteMetadata: "削除確認",
+    confirmDeleteMetadataText: "このメタデータを削除してもよろしいですか？この操作は元に戻せません。",
+    createProperty: "プロパティ作成",
+    updateProperty: "プロパティ更新",
+    loadError: "プロパティを読み込めませんでした",
+    createError: "プロパティを作成できませんでした",
+    updateError: "プロパティを更新できませんでした",
+    deleteError: "プロパティを削除できませんでした",
+    createSuccess: "プロパティが正常に作成されました",
+    updateSuccess: "プロパティが正常に更新されました",
+    deleteSuccess: "プロパティが正常に削除されました",
+    typeOptions: {
+      string: "テキスト",
+      number: "数値",
+      boolean: "はい/いいえ",
+      array: "リスト",
+      object: "オブジェクト"
+    }
   }
 }; 

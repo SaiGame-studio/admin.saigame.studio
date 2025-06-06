@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Save, X, Trash2, Eye, EyeOff } from "lucide-react"
 import { fetchItemProfile, updateItemProfile, updateItemProfileCustomData, updateItemProfileStatus, ItemProfile } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
@@ -18,6 +18,7 @@ import { getGame } from "@/lib/game-api"
 import { ItemType } from "@/types/game"
 import { getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { InventoryTab } from "@/components/ui/inventory-tab"
 import { FixLootBoxTab } from "@/components/ui/lootbox-tab"
 import { PropertiesTab } from "@/components/ui/properties-tab"
@@ -42,6 +43,18 @@ export default function ItemProfileDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [newCustomDataForms, setNewCustomDataForms] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("details")
+  const [hideDisabledTabs, setHideDisabledTabs] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedState = localStorage.getItem('item-profile-hide-disabled-tabs')
+        return savedState !== null ? JSON.parse(savedState) : false
+      } catch (error) {
+        console.error('Error loading initial hide disabled tabs state:', error)
+        return false
+      }
+    }
+    return false
+  })
 
   // Single function to update the entire item profile with fresh data from API
   const updateItemProfileData = (updatedData: ItemProfile) => {
@@ -83,6 +96,19 @@ export default function ItemProfileDetailPage() {
   const removeNewCustomDataForm = (formId: string) => {
     setNewCustomDataForms(prev => prev.filter(id => id !== formId))
   }
+
+
+
+  // Save hide disabled tabs state to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('item-profile-hide-disabled-tabs', JSON.stringify(hideDisabledTabs))
+      } catch (error) {
+        console.error('Error saving hide disabled tabs state:', error)
+      }
+    }
+  }, [hideDisabledTabs])
 
   useEffect(() => {
     async function loadItemProfileAndGame() {
@@ -207,62 +233,84 @@ export default function ItemProfileDetailPage() {
 
       <div className="bg-background border rounded-lg">
         <div className="border-b">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            <button
-              onClick={() => changeTab("details")}
-              className={`${
-                activeTab === "details"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
-            >
-              {t('itemProfile.details')}
-            </button>
-            <button
-              onClick={() => changeTab("properties")}
-              className={`${
-                activeTab === "properties"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
-            >
-              {t('properties.title')}
-            </button>
-            <button
-              onClick={() => {
-                if (itemProfile.type === 'inventory') {
-                  changeTab("inventory")
-                }
-              }}
-              disabled={itemProfile.type !== 'inventory'}
-              className={`${
-                itemProfile.type !== 'inventory'
-                  ? "border-transparent text-gray-300 cursor-not-allowed line-through"
-                  : activeTab === "inventory"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
-            >
-              {t('inventory.title')}
-            </button>
-            <button
-              onClick={() => {
-                if (itemProfile.type === 'fix_loot_box') {
-                  changeTab("lootbox")
-                }
-              }}
-              disabled={itemProfile.type !== 'fix_loot_box'}
-              className={`${
-                itemProfile.type !== 'fix_loot_box'
-                  ? "border-transparent text-gray-300 cursor-not-allowed line-through"
-                  : activeTab === "lootbox"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
-            >
-              {t('lootbox.title')}
-            </button>
-          </nav>
+          <div className="flex justify-between items-center px-6">
+            <nav className="flex space-x-8" aria-label="Tabs">
+              <button
+                onClick={() => changeTab("details")}
+                className={`${
+                  activeTab === "details"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+              >
+                {t('itemProfile.details')}
+              </button>
+              <button
+                onClick={() => changeTab("properties")}
+                className={`${
+                  activeTab === "properties"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+              >
+                {t('properties.title')}
+              </button>
+              {(!hideDisabledTabs || itemProfile.type === 'inventory') && (
+                <button
+                  onClick={() => {
+                    if (itemProfile.type === 'inventory') {
+                      changeTab("inventory")
+                    }
+                  }}
+                  disabled={itemProfile.type !== 'inventory'}
+                  className={`${
+                    itemProfile.type !== 'inventory'
+                      ? "border-transparent text-gray-300 cursor-not-allowed line-through"
+                      : activeTab === "inventory"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+                >
+                  {t('inventory.title')}
+                </button>
+              )}
+              {(!hideDisabledTabs || itemProfile.type === 'fix_loot_box') && (
+                <button
+                  onClick={() => {
+                    if (itemProfile.type === 'fix_loot_box') {
+                      changeTab("lootbox")
+                    }
+                  }}
+                  disabled={itemProfile.type !== 'fix_loot_box'}
+                  className={`${
+                    itemProfile.type !== 'fix_loot_box'
+                      ? "border-transparent text-gray-300 cursor-not-allowed line-through"
+                      : activeTab === "lootbox"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+                >
+                  {t('lootbox.title')}
+                </button>
+              )}
+            </nav>
+            {/* Toggle button to hide/show disabled tabs */}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setHideDisabledTabs(!hideDisabledTabs)}
+                    className="py-2 px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200 border border-gray-200 rounded-md flex items-center justify-center"
+                  >
+                    {hideDisabledTabs ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{hideDisabledTabs ? t('common.hiddenDisabledTabs') : t('common.showingDisabledTabs')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
 
         <div className="p-6">
