@@ -424,19 +424,6 @@ export default function ShopDetailPage() {
                     }))
                   }}
                 />
-                {item.item_profile?.custom_data && (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
-                      {t('shop.customData')}
-                      <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="ml-4 mt-2">
-                      {Object.entries(item.item_profile.custom_data).map(([key, value]) => (
-                        <div key={key} className="text-sm">{key}: {String(value)}</div>
-                      ))}
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
                 <Dialog open={editingCurrencyItemId === item.id} onOpenChange={(open) => {
                   if (!open) setEditingCurrencyItemId(null);
                 }}>

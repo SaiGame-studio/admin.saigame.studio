@@ -20,6 +20,7 @@ import { getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/util
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { InventoryTab } from "@/components/ui/inventory-tab"
 import { FixLootBoxTab } from "@/components/ui/lootbox-tab"
+import { PropertiesTab } from "@/components/ui/properties-tab"
 import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType } from "@/lib/utils/item-profile-utils"
 import { getItemTypeOptions } from "@/lib/utils/item-type-utils"
 
@@ -128,6 +129,8 @@ export default function ItemProfileDetailPage() {
         setActiveTab('inventory')
       } else if (requestedTab === 'lootbox' && itemProfile.type === 'fix_loot_box') {
         setActiveTab('lootbox')
+      } else if (requestedTab === 'properties') {
+        setActiveTab('properties')
       } else if ((requestedTab === 'inventory' && itemProfile.type !== 'inventory') || 
                  (requestedTab === 'lootbox' && itemProfile.type !== 'fix_loot_box')) {
         // If trying to access invalid tab for item type, redirect to details
@@ -214,6 +217,16 @@ export default function ItemProfileDetailPage() {
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
             >
               {t('itemProfile.details')}
+            </button>
+            <button
+              onClick={() => changeTab("properties")}
+              className={`${
+                activeTab === "properties"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+            >
+              {t('properties.title')}
             </button>
             <button
               onClick={() => {
@@ -421,6 +434,12 @@ export default function ItemProfileDetailPage() {
             <FixLootBoxTab 
               itemProfile={itemProfile} 
               gameId={params.id}
+            />
+          )}
+
+          {activeTab === "properties" && (
+            <PropertiesTab 
+              itemProfileId={params.itemProfileId}
             />
           )}
         </div>

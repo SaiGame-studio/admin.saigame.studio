@@ -236,15 +236,7 @@ export const en = {
     clearAll: "Clear all",
     clearFilter: "Clear filter",
     noFilteredProfiles: "No matching profiles",
-    noFilteredProfilesDesc: "No item profiles match the selected status filter. Try changing the filter or clearing all filters.",
-    searchByName: "Search by name",
-    searchPlaceholder: "Search profiles...",
-    clearSearch: "Clear search",
-    filters: "Filters",
-    stackable: "Stackable",
-    createOnRegistry: "Create on Registry",
-    amountOnRegistry: "Amount on Registry",
-    belongsToInventory: "Belongs to Inventory"
+    belongsToInventory: "Belongs to inventory"
   },
   inventory: {
     title: "Inventory",
@@ -335,5 +327,38 @@ export const en = {
     notificationPrefs: "Notification Preferences",
     notificationPrefsDesc: "Control how and when you receive notifications",
     comingSoon: "This feature will be available in a future update."
+  },
+  properties: {
+    title: "Properties",
+    noProperties: "No properties yet",
+    noPropertiesDesc: "Create your first property to get started.",
+    addProperty: "Add Property",
+    editProperty: "Edit Property",
+    deleteProperty: "Delete Property",
+    propertyName: "Property Name",
+    propertyType: "Property Type",
+    propertyValue: "Property Value",
+    propertyDescription: "Description",
+    isRequired: "Required",
+    isVisible: "Visible",
+    metadata: "Metadata",
+    confirmDeleteProperty: "Are you sure you want to delete this property?",
+    deletePropertyText: "This action cannot be undone.",
+    createProperty: "Create Property",
+    updateProperty: "Update Property",
+    loadError: "Could not load properties",
+    createError: "Could not create property",
+    updateError: "Could not update property",
+    deleteError: "Could not delete property",
+    createSuccess: "Property created successfully",
+    updateSuccess: "Property updated successfully",
+    deleteSuccess: "Property deleted successfully",
+    typeOptions: {
+      string: "Text",
+      number: "Number",
+      boolean: "Yes/No",
+      array: "List",
+      object: "Object"
+    }
   }
 }; 

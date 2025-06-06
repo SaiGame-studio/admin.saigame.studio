@@ -536,19 +536,6 @@ export default function GameItemProfilesPage() {
                     <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
                     <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
                     <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
-                    {profile.custom_data && Object.keys(profile.custom_data).length > 0 && (
-                      <Collapsible>
-                        <CollapsibleTrigger className="flex items-center gap-2 mt-2 font-semibold hover:underline">
-                          {t('itemProfile.customData')}
-                          <ChevronDown className="w-4 h-4 transition-transform data-[state=open]:rotate-180" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="ml-4 mt-2">
-                          {Object.entries(profile.custom_data).map(([key, value]) => (
-                            <div key={key} className="text-sm">{key}: {String(value)}</div>
-                          ))}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
                   </div>
                 </div>
                 

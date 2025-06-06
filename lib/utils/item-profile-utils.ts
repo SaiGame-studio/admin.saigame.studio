@@ -2,7 +2,7 @@
  * Utility functions for item profile operations
  */
 
-export type ItemProfileTab = 'details' | 'inventory' | 'lootbox'
+export type ItemProfileTab = 'details' | 'inventory' | 'lootbox' | 'properties'
 
 /**
  * Generate URL for item profile detail page with specific tab
@@ -30,6 +30,13 @@ export function getLootboxTabUrl(gameId: string, itemProfileId: string): string 
 }
 
 /**
+ * Generate URL for properties tab of an item profile
+ */
+export function getPropertiesTabUrl(gameId: string, itemProfileId: string): string {
+  return getItemProfileUrl(gameId, itemProfileId, 'properties')
+}
+
+/**
  * Generate URL for details tab of an item profile
  */
 export function getDetailsTabUrl(gameId: string, itemProfileId: string): string {
@@ -46,6 +53,9 @@ export function parseTabFromUrl(searchParams: URLSearchParams): ItemProfileTab {
   }
   if (tab === 'lootbox') {
     return 'lootbox'
+  }
+  if (tab === 'properties') {
+    return 'properties'
   }
   return 'details' // default tab
 }
@@ -65,6 +75,13 @@ export function isLootboxType(itemProfile: { type: string }): boolean {
 }
 
 /**
+ * Check if item profile supports properties tab (all types support properties)
+ */
+export function supportsProperties(itemProfile: { type: string }): boolean {
+  return true // All item profiles can have properties
+}
+
+/**
  * Get display name for item profile tab
  */
 export function getTabDisplayName(tab: string, t: (key: string) => string): string {
@@ -73,6 +90,8 @@ export function getTabDisplayName(tab: string, t: (key: string) => string): stri
       return t('inventory.title')
     case 'lootbox':
       return t('lootbox.title')
+    case 'properties':
+      return t('properties.title')
     case 'details':
     default:
       return t('itemProfile.details')
@@ -83,7 +102,14 @@ export function getTabDisplayName(tab: string, t: (key: string) => string): stri
  * Get available tabs for an item profile
  */
 export function getAvailableTabs(itemProfile: { type: string }): ItemProfileTab[] {
-  const tabs: ItemProfileTab[] = ['details']
+  const tabs: ItemProfileTab[] = []
+  
+  // Details tab comes first
+  tabs.push('details')
+  
+  // Properties tab comes second (right after Details)
+  tabs.push('properties')
+  
   if (isInventoryType(itemProfile)) {
     tabs.push('inventory')
   }
