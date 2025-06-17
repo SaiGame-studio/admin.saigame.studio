@@ -47,7 +47,11 @@ export const en = {
     active: "Active",
     inactive: "Inactive",
     viewDetails: "View Details",
-    moveItem: "Move Item"
+    moveItem: "Move Item",
+    hideDisabledTabs: "Hide disabled tabs",
+    showDisabledTabs: "Show disabled tabs",
+    showingDisabledTabs: "Showing disabled tabs",
+    hiddenDisabledTabs: "Hidden disabled tabs"
   },
   shop: {
     title: "Game Shops",
@@ -236,7 +240,7 @@ export const en = {
     clearAll: "Clear all",
     clearFilter: "Clear filter",
     noFilteredProfiles: "No matching profiles",
-    noFilteredProfilesDesc: "No item profiles match the selected status filter. Try changing the filter or clearing all filters.",
+    noFilteredProfilesDesc: "No item profiles match the selected filters. Try changing the filters or clear all filters.",
     searchByName: "Search by name",
     searchPlaceholder: "Search profiles...",
     clearSearch: "Clear search",
@@ -244,7 +248,9 @@ export const en = {
     stackable: "Stackable",
     createOnRegistry: "Create on Registry",
     amountOnRegistry: "Amount on Registry",
-    belongsToInventory: "Belongs to Inventory"
+    switchingToTab: "Switching to tab",
+    tabChanged: "Tab changed successfully",
+    belongsToInventory: "Belongs to inventory"
   },
   inventory: {
     title: "Inventory",
@@ -335,5 +341,52 @@ export const en = {
     notificationPrefs: "Notification Preferences",
     notificationPrefsDesc: "Control how and when you receive notifications",
     comingSoon: "This feature will be available in a future update."
+  },
+  auth: {
+    sessionExpiring: "Session Expiring Soon",
+    sessionExpiringDesc: "Your session will expire in:",
+    renewSession: "Renew Session",
+    tokenExpired: "Session Expired",
+    tokenExpiredDesc: "Your session has expired. Please log in again."
+  },
+  properties: {
+    title: "Properties",
+    noProperties: "No properties yet",
+    noPropertiesDesc: "Create your first property to get started.",
+    addProperty: "Add Property",
+    editProperty: "Edit Property",
+    deleteProperty: "Delete Property",
+    propertyName: "Property Name",
+    propertyType: "Property Type",
+    propertyValue: "Property Value",
+    propertyDescription: "Description",
+    isActive: "Active",
+    inactive: "Inactive",
+    isVisible: "Visible",
+    visible: "Visible",
+    hidden: "Hidden",
+    metadata: "Metadata",
+    noMetadata: "No metadata has been set up for this property.",
+    newMetadata: "New metadata",
+    confirmDeleteProperty: "Are you sure you want to delete this property?",
+    deletePropertyText: "This action cannot be undone.",
+    confirmDeleteMetadata: "Confirm deletion",
+    confirmDeleteMetadataText: "Are you sure you want to delete this metadata? This action cannot be undone.",
+    createProperty: "Create Property",
+    updateProperty: "Update Property",
+    loadError: "Could not load properties",
+    createError: "Could not create property",
+    updateError: "Could not update property",
+    deleteError: "Could not delete property",
+    createSuccess: "Property created successfully",
+    updateSuccess: "Property updated successfully",
+    deleteSuccess: "Property deleted successfully",
+    typeOptions: {
+      string: "Text",
+      number: "Number",
+      boolean: "Yes/No",
+      array: "List",
+      object: "Object"
+    }
   }
 }; 

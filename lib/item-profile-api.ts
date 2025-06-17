@@ -348,4 +348,149 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
   
   const data: ApiResponse<any> = await res.json()
   return data.data
+}
+
+export interface ItemProperty {
+  id?: string
+  name: string
+  type: string
+  value: any
+  description?: string
+  is_active: boolean
+  is_visible: boolean
+  metadata?: Record<string, any>
+  item_profile_id?: string
+  created_at?: number
+  updated_at?: number
+}
+
+export interface CreatePropertyRequest {
+  name: string
+  type: string
+  value: any
+  description?: string
+  is_active: boolean
+  is_visible: boolean
+  metadata?: Record<string, any>
+}
+
+export interface UpdatePropertyRequest {
+  name?: string
+  type?: string
+  value?: any
+  description?: string
+  is_active?: boolean
+  is_visible?: boolean
+  metadata?: Record<string, any>
+}
+
+/**
+ * Fetch all properties for an item profile
+ */
+export async function getItemProfileProperties(itemProfileId: string): Promise<ItemProperty[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to fetch item profile properties: ${res.status}`)
+  }
+  
+  const data: ApiResponse<ItemProperty[]> = await res.json()
+  return data.data || []
+}
+
+/**
+ * Create a new property for an item profile
+ */
+export async function createItemProfileProperty(itemProfileId: string, propertyData: CreatePropertyRequest): Promise<ItemProperty> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(propertyData),
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to create property: ${res.status}`, hints: error.hints || [] }
+  }
+  
+  const data: ApiResponse<ItemProperty> = await res.json()
+  return data.data
+}
+
+/**
+ * Update an existing property
+ */
+export async function updateItemProfileProperty(itemProfileId: string, propertyId: string, propertyData: UpdatePropertyRequest): Promise<ItemProperty> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(propertyData),
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw { message: error.message || `Failed to update property: ${res.status}`, hints: error.hints || [] }
+  }
+  
+  const data: ApiResponse<ItemProperty> = await res.json()
+  return data.data
+}
+
+/**
+ * Delete a property
+ */
+export async function deleteItemProfileProperty(itemProfileId: string, propertyId: string): Promise<boolean> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/item-profiles/${itemProfileId}/properties/${propertyId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to delete property: ${res.status}`)
+  }
+  
+  return true
 } 
