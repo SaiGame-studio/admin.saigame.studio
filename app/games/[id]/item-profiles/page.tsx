@@ -536,6 +536,7 @@ export default function GameItemProfilesPage() {
                     <span>{t('itemProfile.type')}: {profile.type || '-'}</span>
                     <span>{t('itemProfile.level')}: {profile.level_start} - {profile.level_max}</span>
                     <span>{t('itemProfile.stackLimit')}: {profile.stack_limit}</span>
+                    <span>{t('itemProfile.createOnRegistry')}: {profile.create_on_registry ? 'Yes' : 'No'}</span>
                   </div>
                 </div>
                 

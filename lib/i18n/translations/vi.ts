@@ -383,5 +383,12 @@ export const vi = {
     notificationPrefs: "Tùy chọn thông báo",
     notificationPrefsDesc: "Kiểm soát cách thức và thời điểm nhận thông báo",
     comingSoon: "Tính năng này sẽ có trong bản cập nhật tương lai."
+  },
+  auth: {
+    sessionExpiring: "Phiên sắp hết hạn",
+    sessionExpiringDesc: "Phiên của bạn sẽ hết hạn sau:",
+    renewSession: "Gia hạn phiên",
+    tokenExpired: "Phiên đã hết hạn",
+    tokenExpiredDesc: "Phiên của bạn đã hết hạn. Vui lòng đăng nhập lại."
   }
 }; 

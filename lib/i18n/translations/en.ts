@@ -240,6 +240,16 @@ export const en = {
     clearAll: "Clear all",
     clearFilter: "Clear filter",
     noFilteredProfiles: "No matching profiles",
+    noFilteredProfilesDesc: "No item profiles match the selected filters. Try changing the filters or clear all filters.",
+    searchByName: "Search by name",
+    searchPlaceholder: "Search profiles...",
+    clearSearch: "Clear search",
+    filters: "Filters",
+    stackable: "Stackable",
+    createOnRegistry: "Create on Registry",
+    amountOnRegistry: "Amount on Registry",
+    switchingToTab: "Switching to tab",
+    tabChanged: "Tab changed successfully",
     belongsToInventory: "Belongs to inventory"
   },
   inventory: {
@@ -331,6 +341,13 @@ export const en = {
     notificationPrefs: "Notification Preferences",
     notificationPrefsDesc: "Control how and when you receive notifications",
     comingSoon: "This feature will be available in a future update."
+  },
+  auth: {
+    sessionExpiring: "Session Expiring Soon",
+    sessionExpiringDesc: "Your session will expire in:",
+    renewSession: "Renew Session",
+    tokenExpired: "Session Expired",
+    tokenExpiredDesc: "Your session has expired. Please log in again."
   },
   properties: {
     title: "Properties",
