@@ -129,7 +129,7 @@ export default function ShopDetailPage() {
 
   const filteredOptions = currencyOptions.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (!showCurrencyOnly || item.type === "currencies")
+    (!showCurrencyOnly || item.type === "currency")
   );
 
   // Fetch currency options when modal opens (cho từng item)
@@ -445,7 +445,7 @@ export default function ShopDetailPage() {
                           {currencyOptions
                             .filter(cur =>
                               cur.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) &&
-                              (!itemShowCurrencyOnly || cur.type === "currencies")
+                              (!itemShowCurrencyOnly || cur.type === "currency")
                             )
                             .map((cur) => (
                               <CommandItem

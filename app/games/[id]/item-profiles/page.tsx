@@ -14,7 +14,7 @@ import { AlertCircle, X } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTranslation } from '@/lib/i18n/useTranslation';
-import { fetchGameItemProfiles, createItemProfile, updateItemProfile, ItemProfile } from "@/lib/item-profile-api";
+import { fetchGameItemProfiles, createItemProfile, updateItemProfile, updateItemProfileStatus, ItemProfile } from "@/lib/item-profile-api";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Pencil, Save } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -158,7 +158,7 @@ export default function GameItemProfilesPage() {
     setStatusLoading(prev => ({ ...prev, [profileId]: true }));
     
     try {
-      const updatedProfile = await updateItemProfile(profileId, { status: newStatus });
+      const updatedProfile = await updateItemProfileStatus(profileId, newStatus);
       
       // Sử dụng thông tin mới nhất từ API để update toàn bộ profile trong danh sách
       setItemProfiles(prev => prev.map(profile => 
