@@ -20,7 +20,7 @@ import { getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/util
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { InventoryTab } from "@/components/ui/inventory-tab"
-import { FixLootBoxTab } from "@/components/ui/lootbox-tab"
+import { FixedLootBoxTab } from "@/components/ui/lootbox-tab"
 import { PropertiesTab } from "@/components/ui/properties-tab"
 import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType } from "@/lib/utils/item-profile-utils"
 import { getItemTypeOptions } from "@/lib/utils/item-type-utils"
@@ -136,12 +136,12 @@ export default function ItemProfileDetailPage() {
     loadItemProfileAndGame()
   }, [params.itemProfileId, params.id])
 
-  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not fix_loot_box
+  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not fixed_loot_box
   useEffect(() => {
     if (itemProfile && activeTab === "inventory" && itemProfile.type !== 'inventory') {
       setActiveTab("details")
     }
-    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'fix_loot_box') {
+    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'fixed_loot_box') {
       setActiveTab("details")
     }
   }, [itemProfile, activeTab])
@@ -153,12 +153,12 @@ export default function ItemProfileDetailPage() {
       
       if (requestedTab === 'inventory' && itemProfile.type === 'inventory') {
         setActiveTab('inventory')
-      } else if (requestedTab === 'lootbox' && itemProfile.type === 'fix_loot_box') {
+      } else if (requestedTab === 'lootbox' && itemProfile.type === 'fixed_loot_box') {
         setActiveTab('lootbox')
       } else if (requestedTab === 'properties') {
         setActiveTab('properties')
       } else if ((requestedTab === 'inventory' && itemProfile.type !== 'inventory') || 
-                 (requestedTab === 'lootbox' && itemProfile.type !== 'fix_loot_box')) {
+                 (requestedTab === 'lootbox' && itemProfile.type !== 'fixed_loot_box')) {
         // If trying to access invalid tab for item type, redirect to details
         const detailsUrl = getItemProfileUrl(params.id, params.itemProfileId, 'details')
         router.replace(detailsUrl, { scroll: false })
@@ -274,16 +274,16 @@ export default function ItemProfileDetailPage() {
                   {t('inventory.title')}
                 </button>
               )}
-              {(!hideDisabledTabs || itemProfile.type === 'fix_loot_box') && (
+              {(!hideDisabledTabs || itemProfile.type === 'fixed_loot_box') && (
                 <button
                   onClick={() => {
-                    if (itemProfile.type === 'fix_loot_box') {
+                    if (itemProfile.type === 'fixed_loot_box') {
                       changeTab("lootbox")
                     }
                   }}
-                  disabled={itemProfile.type !== 'fix_loot_box'}
+                  disabled={itemProfile.type !== 'fixed_loot_box'}
                   className={`${
-                    itemProfile.type !== 'fix_loot_box'
+                    itemProfile.type !== 'fixed_loot_box'
                       ? "border-transparent text-gray-300 cursor-not-allowed line-through"
                       : activeTab === "lootbox"
                       ? "border-blue-500 text-blue-600"
@@ -479,7 +479,7 @@ export default function ItemProfileDetailPage() {
           )}
 
           {activeTab === "lootbox" && (
-            <FixLootBoxTab 
+            <FixedLootBoxTab 
               itemProfile={itemProfile} 
               gameId={params.id}
             />

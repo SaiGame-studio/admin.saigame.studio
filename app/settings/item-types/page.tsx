@@ -131,7 +131,7 @@ export default function ItemTypesConfigPage() {
                 <div className="text-sm font-medium">Function: getItemTypeLabel()</div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div>getItemTypeLabel("equipment") → "{getItemTypeLabel("equipment")}"</div>
-                  <div>getItemTypeLabel("fix_loot_box") → "{getItemTypeLabel("fix_loot_box")}"</div>
+                  <div>getItemTypeLabel("fixed_loot_box") → "{getItemTypeLabel("fixed_loot_box")}"</div>
                 </div>
               </div>
               

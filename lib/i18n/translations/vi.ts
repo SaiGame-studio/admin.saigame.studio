@@ -277,7 +277,7 @@ export const vi = {
     keepInCurrent: "Giữ nguyên"
   },
   lootbox: {
-    title: "Fix Lootbox",
+    title: "Hộp quà cố định",
     addItems: "Thêm vật phẩm",
     removeItems: "Xóa vật phẩm",
     currentItems: "Vật phẩm hiện tại",
