@@ -275,7 +275,7 @@ export const en = {
     keepInCurrent: "Keep in Current"
   },
   lootbox: {
-    title: "Fix Lootbox",
+    title: "Fixed Lootbox",
     addItems: "Add items",
     removeItems: "Remove items",
     currentItems: "Current items",

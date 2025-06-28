@@ -271,7 +271,7 @@ export interface LootboxItem {
 }
 
 export interface LootboxItemDetail {
-  fix_loot_box_id: string
+  fixed_loot_box_id: string
   item_profile_id: string
   quantity: number
   game_id: string
@@ -302,16 +302,16 @@ export interface UpdateLootboxRequest {
 }
 
 /**
- * Fetch all items in a fix loot box
+ * Fetch all items in a fixed loot box
  */
-export async function fetchFixLootboxItems(lootboxProfileId: string): Promise<LootboxItemDetail[]> {
+export async function fetchFixedLootboxItems(lootboxProfileId: string): Promise<LootboxItemDetail[]> {
   const token = localStorage.getItem("token")
   if (!token) {
     throw new Error("Authentication required")
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fix-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -335,7 +335,7 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fix-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,

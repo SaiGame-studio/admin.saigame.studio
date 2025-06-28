@@ -20,7 +20,7 @@ const ITEM_TYPE_OPTIONS: ItemTypeOption[] = [
   { value: "inventory", label: "Inventory" },
   { value: "currency", label: "Currency" },
   { value: "misc", label: "Miscellaneous" },
-  { value: "fix_loot_box", label: "Fix Loot Box" },
+  { value: "fixed_loot_box", label: "Fixed Loot Box" },
   { value: "loot_box", label: "Loot Box" },
 ]
 

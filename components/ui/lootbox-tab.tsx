@@ -8,13 +8,13 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Trash2, Plus, Search, Eye, ExternalLink, Package, Pencil, Save, X } from "lucide-react"
-import { fetchGameItemProfiles, updateLootboxItems, fetchFixLootboxItems, ItemProfile, LootboxItem, LootboxItemDetail, UpdateLootboxRequest } from "@/lib/item-profile-api"
+import { fetchGameItemProfiles, updateLootboxItems, fetchFixedLootboxItems, ItemProfile, LootboxItem, LootboxItemDetail, UpdateLootboxRequest } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
-interface FixLootBoxTabProps {
+interface FixedLootBoxTabProps {
   itemProfile: ItemProfile
   gameId: string
 }
@@ -123,7 +123,7 @@ function EditableQuantity({ item, lootboxProfileId, onUpdate, disabled }: Editab
   )
 }
 
-export function FixLootBoxTab({ itemProfile, gameId }: FixLootBoxTabProps) {
+export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
   
@@ -144,12 +144,12 @@ export function FixLootBoxTab({ itemProfile, gameId }: FixLootBoxTabProps) {
       
       const [allItems, currentLootboxItems] = await Promise.all([
         fetchGameItemProfiles(gameId),
-        fetchFixLootboxItems(itemProfile.id)
+        fetchFixedLootboxItems(itemProfile.id)
       ])
       
-      // Filter out fix_loot_box items and the current item itself for available items
+      // Filter out fixed_loot_box items and the current item itself for available items
       const filteredItems = allItems.filter(item => 
-        item.type !== 'fix_loot_box' && item.id !== itemProfile.id
+        item.type !== 'fixed_loot_box' && item.id !== itemProfile.id
       )
       setAvailableItems(filteredItems)
       setLootboxItems(currentLootboxItems)
@@ -217,7 +217,7 @@ export function FixLootBoxTab({ itemProfile, gameId }: FixLootBoxTabProps) {
     }
   }
 
-  if (itemProfile.type !== 'fix_loot_box') {
+  if (itemProfile.type !== 'fixed_loot_box') {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Package className="mx-auto h-12 w-12 mb-4" />
