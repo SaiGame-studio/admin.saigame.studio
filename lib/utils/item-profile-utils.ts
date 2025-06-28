@@ -71,7 +71,7 @@ export function isInventoryType(itemProfile: { type: string }): boolean {
  * Check if item profile type supports lootbox tab
  */
 export function isLootboxType(itemProfile: { type: string }): boolean {
-  return itemProfile.type === 'fixed_loot_box'
+  return itemProfile.type === 'loot_box_fixed'
 }
 
 /**

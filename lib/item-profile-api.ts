@@ -271,7 +271,7 @@ export interface LootboxItem {
 }
 
 export interface LootboxItemDetail {
-  fixed_loot_box_id: string
+  loot_box_fixed_id: string
   item_profile_id: string
   quantity: number
   game_id: string
@@ -311,7 +311,7 @@ export async function fetchFixedLootboxItems(lootboxProfileId: string): Promise<
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -335,7 +335,7 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,

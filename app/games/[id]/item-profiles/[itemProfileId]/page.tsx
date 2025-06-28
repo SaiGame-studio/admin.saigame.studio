@@ -136,12 +136,12 @@ export default function ItemProfileDetailPage() {
     loadItemProfileAndGame()
   }, [params.itemProfileId, params.id])
 
-  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not fixed_loot_box
+  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not loot_box_fixed
   useEffect(() => {
     if (itemProfile && activeTab === "inventory" && itemProfile.type !== 'inventory') {
       setActiveTab("details")
     }
-    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'fixed_loot_box') {
+    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'loot_box_fixed') {
       setActiveTab("details")
     }
   }, [itemProfile, activeTab])
@@ -153,12 +153,12 @@ export default function ItemProfileDetailPage() {
       
       if (requestedTab === 'inventory' && itemProfile.type === 'inventory') {
         setActiveTab('inventory')
-      } else if (requestedTab === 'lootbox' && itemProfile.type === 'fixed_loot_box') {
+      } else if (requestedTab === 'lootbox' && itemProfile.type === 'loot_box_fixed') {
         setActiveTab('lootbox')
       } else if (requestedTab === 'properties') {
         setActiveTab('properties')
       } else if ((requestedTab === 'inventory' && itemProfile.type !== 'inventory') || 
-                 (requestedTab === 'lootbox' && itemProfile.type !== 'fixed_loot_box')) {
+                 (requestedTab === 'lootbox' && itemProfile.type !== 'loot_box_fixed')) {
         // If trying to access invalid tab for item type, redirect to details
         const detailsUrl = getItemProfileUrl(params.id, params.itemProfileId, 'details')
         router.replace(detailsUrl, { scroll: false })
@@ -274,16 +274,16 @@ export default function ItemProfileDetailPage() {
                   {t('inventory.title')}
                 </button>
               )}
-              {(!hideDisabledTabs || itemProfile.type === 'fixed_loot_box') && (
+              {(!hideDisabledTabs || itemProfile.type === 'loot_box_fixed') && (
                 <button
                   onClick={() => {
-                    if (itemProfile.type === 'fixed_loot_box') {
+                    if (itemProfile.type === 'loot_box_fixed') {
                       changeTab("lootbox")
                     }
                   }}
-                  disabled={itemProfile.type !== 'fixed_loot_box'}
+                  disabled={itemProfile.type !== 'loot_box_fixed'}
                   className={`${
-                    itemProfile.type !== 'fixed_loot_box'
+                    itemProfile.type !== 'loot_box_fixed'
                       ? "border-transparent text-gray-300 cursor-not-allowed line-through"
                       : activeTab === "lootbox"
                       ? "border-blue-500 text-blue-600"

@@ -147,9 +147,9 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
         fetchFixedLootboxItems(itemProfile.id)
       ])
       
-      // Filter out fixed_loot_box items and the current item itself for available items
+      // Filter out loot_box_fixed items and the current item itself for available items
       const filteredItems = allItems.filter(item => 
-        item.type !== 'fixed_loot_box' && item.id !== itemProfile.id
+        item.type !== 'loot_box_fixed' && item.id !== itemProfile.id
       )
       setAvailableItems(filteredItems)
       setLootboxItems(currentLootboxItems)
@@ -217,7 +217,7 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
     }
   }
 
-  if (itemProfile.type !== 'fixed_loot_box') {
+  if (itemProfile.type !== 'loot_box_fixed') {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <Package className="mx-auto h-12 w-12 mb-4" />
