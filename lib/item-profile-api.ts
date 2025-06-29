@@ -347,13 +347,6 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
   if (!res.ok) {
     const error = await res.json().catch(() => ({}))
     
-    // Debug logging
-    console.error('Fixed lootbox update failed:', {
-      status: res.status,
-      statusText: res.statusText,
-      error: error
-    })
-    
     // Handle detailed error messages from backend
     let errorMessage = `Failed to update loot box items: ${res.status} ${res.statusText}`
     
@@ -656,10 +649,6 @@ export async function updateRngLootboxItems(lootboxProfileId: string, request: U
     "User-Agent": "Mozilla/5.0 (compatible; Admin-Panel)" // Add User-Agent
   }
   
-  console.log('Sending RNG lootbox update request to URL:', requestUrl)
-  console.log('Request headers:', requestHeaders)
-  console.log('Sending RNG lootbox update request:', JSON.stringify(apiRequest, null, 2))
-  
   const res = await fetch(requestUrl, {
     method: "PUT",
     headers: requestHeaders,
@@ -671,30 +660,10 @@ export async function updateRngLootboxItems(lootboxProfileId: string, request: U
     // Handle redirect response (302, 301, etc.)
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('Location')
-      console.error('Server returned redirect:', {
-        status: res.status,
-        location: location,
-        finalUrl: res.url
-      })
       throw new Error(`Server redirected request (${res.status}). Check API endpoint URL. Redirected to: ${location || 'unknown'}`)
     }
     
-    // Debug logging for response
-    console.error('RNG lootbox update response:', {
-      url: res.url,
-      status: res.status,
-      statusText: res.statusText,
-      headers: Object.fromEntries(res.headers.entries())
-    })
-    
     const error = await res.json().catch(() => ({}))
-    
-    // Debug logging
-    console.error('RNG lootbox update failed:', {
-      status: res.status,
-      statusText: res.statusText,
-      error: error
-    })
     
     // Handle detailed error messages from backend
     let errorMessage = `Failed to update RNG loot box items: ${res.status} ${res.statusText}`
