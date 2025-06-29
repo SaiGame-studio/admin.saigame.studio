@@ -250,7 +250,11 @@ export const en = {
     amountOnRegistry: "Amount on Registry",
     switchingToTab: "Switching to tab",
     tabChanged: "Tab changed successfully",
-    belongsToInventory: "Belongs to inventory"
+    belongsToInventory: "Belongs to inventory",
+    name: "Name",
+    codeName: "Code Name",
+    enterName: "Enter name",
+    enterCodeName: "Enter code name"
   },
   inventory: {
     title: "Inventory",
@@ -318,6 +322,9 @@ export const en = {
     addItem: "Add item",
     removeItem: "Remove item",
     removeItemConfirmation: "Are you sure you want to remove this item from the RNG lootbox?",
+    createNew: "Create New",
+    createNewItem: "Create New Item Profile",
+    createNewItemDescription: "Create a new item profile that can be added to this RNG lootbox",
     itemUpdatedSuccessfully: "RNG Lootbox updated successfully",
     failedToUpdateLootbox: "Failed to update RNG lootbox"
   },

@@ -250,7 +250,11 @@ export const vi = {
     amountOnRegistry: "Số lượng trên Registry",
     switchingToTab: "Đang chuyển đến tab",
     tabChanged: "Đã chuyển tab thành công",
-    belongsToInventory: "Thuộc về Inventory"
+    belongsToInventory: "Thuộc về Inventory",
+    name: "Tên",
+    codeName: "Tên mã",
+    enterName: "Nhập tên",
+    enterCodeName: "Nhập tên mã"
   },
   inventory: {
     title: "Inventory",
@@ -320,6 +324,9 @@ export const vi = {
     addItem: "Thêm vật phẩm",
     removeItem: "Xóa vật phẩm",
     removeItemConfirmation: "Bạn có chắc chắn muốn xóa vật phẩm này khỏi hộp quà RNG?",
+    createNew: "Tạo mới",
+    createNewItem: "Tạo hồ sơ vật phẩm mới",
+    createNewItemDescription: "Tạo một hồ sơ vật phẩm mới có thể được thêm vào hộp quà RNG này",
     itemUpdatedSuccessfully: "Đã cập nhật hộp quà RNG thành công",
     failedToUpdateLootbox: "Cập nhật hộp quà RNG thất bại"
   },

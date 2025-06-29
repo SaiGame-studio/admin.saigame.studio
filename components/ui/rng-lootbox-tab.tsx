@@ -33,7 +33,7 @@ interface EditableQuantityRangeProps {
   lootboxProfileId: string
   onUpdate: () => void
   disabled: boolean
-  field: 'min_quantity' | 'max_quantity'
+  field: 'min_qty' | 'max_qty'
 }
 
 function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: EditableWeightProps) {
@@ -67,8 +67,8 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
         add: [{
           item_id: item.item_profile_id,
           weight: weight,
-          min_quantity: item.min_quantity,
-          max_quantity: item.max_quantity
+          min_quantity: item.min_qty,
+          max_quantity: item.max_qty
         }],
         remove: []
       }
@@ -92,43 +92,34 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Weight:</span>
+      <div className="group flex items-center gap-2">
         {editing ? (
           <>
+            <span className="text-sm text-muted-foreground">Weight:</span>
             <Input
               type="number"
-              value={weight}
-              onChange={(e) => setWeight(parseInt(e.target.value) || 0)}
-              className="w-20 h-8"
               min="1"
+              value={weight}
+              onChange={(e) => setWeight(parseInt(e.target.value) || 1)}
+              className="w-20 h-6 px-2 text-sm"
               disabled={loading}
             />
-            <Button
-              onClick={handleSave}
-              size="sm"
-              variant="outline"
-              disabled={loading || disabled}
-            >
-              {loading ? <span className="animate-spin">⟳</span> : <Save className="w-3 h-3" />}
+            <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || weight <= 0} className="h-6 w-6">
+              <Save className="w-3 h-3" />
             </Button>
-            <Button
-              onClick={handleCancel}
-              size="sm"
-              variant="outline"
-              disabled={loading}
-            >
+            <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading} className="h-6 w-6">
               <X className="w-3 h-3" />
             </Button>
           </>
         ) : (
           <>
-            <span className="font-medium">{item.weight}</span>
-            <Button
-              onClick={() => setEditing(true)}
-              size="sm"
-              variant="ghost"
+            <span className="text-sm text-muted-foreground">Weight: <span className="font-medium">{item.weight}</span></span>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setEditing(true)} 
               disabled={disabled}
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Pencil className="w-3 h-3" />
             </Button>
@@ -162,12 +153,12 @@ function EditableQuantityRange({ item, lootboxProfileId, onUpdate, disabled, fie
       return
     }
 
-    if (field === 'max_quantity' && quantity < item.min_quantity) {
+    if (field === 'max_qty' && quantity < item.min_qty) {
       setError("Max quantity cannot be less than min quantity")
       return
     }
 
-    if (field === 'min_quantity' && quantity > item.max_quantity) {
+    if (field === 'min_qty' && quantity > item.max_qty) {
       setError("Min quantity cannot be greater than max quantity")
       return
     }
@@ -185,8 +176,8 @@ function EditableQuantityRange({ item, lootboxProfileId, onUpdate, disabled, fie
         add: [{
           item_id: item.item_profile_id,
           weight: item.weight,
-          min_quantity: field === 'min_quantity' ? quantity : item.min_quantity,
-          max_quantity: field === 'max_quantity' ? quantity : item.max_quantity
+          min_quantity: field === 'min_qty' ? quantity : item.min_qty,
+          max_quantity: field === 'max_qty' ? quantity : item.max_qty
         }],
         remove: []
       }
@@ -208,47 +199,38 @@ function EditableQuantityRange({ item, lootboxProfileId, onUpdate, disabled, fie
     setError(null)
   }
 
-  const label = field === 'min_quantity' ? 'Min Qty' : 'Max Qty'
+  const label = field === 'min_qty' ? 'Min Qty' : 'Max Qty'
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">{label}:</span>
+      <div className="group flex items-center gap-2">
         {editing ? (
           <>
+            <span className="text-sm text-muted-foreground">{label}:</span>
             <Input
               type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-              className="w-20 h-8"
               min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              className="w-20 h-6 px-2 text-sm"
               disabled={loading}
             />
-            <Button
-              onClick={handleSave}
-              size="sm"
-              variant="outline"
-              disabled={loading || disabled}
-            >
-              {loading ? <span className="animate-spin">⟳</span> : <Save className="w-3 h-3" />}
+            <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || quantity <= 0} className="h-6 w-6">
+              <Save className="w-3 h-3" />
             </Button>
-            <Button
-              onClick={handleCancel}
-              size="sm"
-              variant="outline"
-              disabled={loading}
-            >
+            <Button size="icon" variant="ghost" onClick={handleCancel} disabled={loading} className="h-6 w-6">
               <X className="w-3 h-3" />
             </Button>
           </>
         ) : (
           <>
-            <span className="font-medium">{item[field]}</span>
-            <Button
-              onClick={() => setEditing(true)}
-              size="sm"
-              variant="ghost"
+            <span className="text-sm text-muted-foreground">{label}: <span className="font-medium">{item[field]}</span></span>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setEditing(true)} 
               disabled={disabled}
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Pencil className="w-3 h-3" />
             </Button>
@@ -401,158 +383,167 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
         </div>
       )}
 
-      {/* Add Item Section */}
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h3 className="text-lg font-semibold mb-4">{t('rngLootbox.addItem')}</h3>
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder={t('rngLootbox.searchItems')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-              <SelectTrigger className="md:col-span-2">
-                <SelectValue placeholder={t('rngLootbox.selectItem')} />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredAvailableItems.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name} ({item.code_name})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              placeholder={t('rngLootbox.weight')}
-              value={weight}
-              onChange={(e) => setWeight(parseInt(e.target.value) || 1)}
-              min="1"
-            />
-            <Input
-              type="number"
-              placeholder={t('rngLootbox.minQuantity')}
-              value={minQuantity}
-              onChange={(e) => setMinQuantity(parseInt(e.target.value) || 1)}
-              min="1"
-            />
-            <Input
-              type="number"
-              placeholder={t('rngLootbox.maxQuantity')}
-              value={maxQuantity}
-              onChange={(e) => setMaxQuantity(parseInt(e.target.value) || 1)}
-              min="1"
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={handleAddItem}
-              disabled={!selectedItemId || weight <= 0 || minQuantity <= 0 || maxQuantity <= 0 || isUpdating}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              {isUpdating ? t('rngLootbox.updating') : t('rngLootbox.addItem')}
-            </Button>
-          </div>
-        </div>
-        {lootboxItems.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            {t('rngLootbox.emptyLootbox')}
-          </p>
-        ) : (
-          <div className="space-y-2 mt-6">
-            <h4 className="font-medium">{t('rngLootbox.currentItems')} ({lootboxItems.length})</h4>
-            {lootboxItems.map((item, index) => (
-              <div
-                key={`${item.item_profile_id}-${index}`}
-                className="flex items-center justify-between p-3 bg-background border rounded-lg"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Link 
-                      href={`/games/${gameId}/item-profiles/${item.item_profile_id}`}
-                      className="font-medium inline-flex items-center gap-1 hover:text-primary"
-                    >
-                      {item.item_profile.name}
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
-                    <Badge variant="secondary" className="text-xs">{item.item_profile.type}</Badge>
-                    <Badge 
-                      variant={item.item_profile.status === 'active' ? 'default' : 'secondary'} 
-                      className="text-xs"
-                    >
-                      {item.item_profile.status}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-4">
-                    <span>
-                      {item.item_profile.code_name && `${t('itemProfile.code')}: ${item.item_profile.code_name}`}
-                      {item.item_profile.updated_at && ` • ${t('itemProfile.updatedAt')}: ${formatTimestamp(item.item_profile.updated_at)}`}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 mt-2">
-                    <EditableWeight
-                      item={item}
-                      lootboxProfileId={itemProfile.id}
-                      onUpdate={loadData}
-                      disabled={isUpdating}
-                    />
-                    <EditableQuantityRange
-                      item={item}
-                      lootboxProfileId={itemProfile.id}
-                      onUpdate={loadData}
-                      disabled={isUpdating}
-                      field="min_quantity"
-                    />
-                    <EditableQuantityRange
-                      item={item}
-                      lootboxProfileId={itemProfile.id}
-                      onUpdate={loadData}
-                      disabled={isUpdating}
-                      field="max_quantity"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={`/games/${gameId}/item-profiles/${item.item_profile_id}`}>
-                    <Button variant="outline" size="sm">
-                      <Eye className="w-4 h-4 mr-2" />
-                      {t('common.viewDetails')}
-                    </Button>
-                  </Link>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" disabled={isUpdating}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('rngLootbox.removeItem')}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t('rngLootbox.removeItemConfirmation')} {item.item_profile.name}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleRemoveItem(item.item_profile_id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {t('common.remove')}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+      {/* RNG Lootbox Items List */}
+      <div className="rounded-lg">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold">{t('rngLootbox.currentItems')} ({lootboxItems.length})</h3>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder={t('rngLootbox.searchItems')}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
               </div>
-            ))}
+            </div>
+            <div className="flex gap-2">
+              <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder={t('rngLootbox.selectItem')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredAvailableItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{item.name}</span>
+                        <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="1"
+                value={weight}
+                onChange={(e) => setWeight(parseInt(e.target.value) || 1)}
+                placeholder={t('rngLootbox.weight')}
+                className="w-24"
+              />
+              <Input
+                type="number"
+                min="1"
+                value={minQuantity}
+                onChange={(e) => setMinQuantity(parseInt(e.target.value) || 1)}
+                placeholder={t('rngLootbox.minQuantity')}
+                className="w-24"
+              />
+              <Input
+                type="number"
+                min="1"
+                value={maxQuantity}
+                onChange={(e) => setMaxQuantity(parseInt(e.target.value) || 1)}
+                placeholder={t('rngLootbox.maxQuantity')}
+                className="w-24"
+              />
+              <Button 
+                onClick={handleAddItem} 
+                disabled={!selectedItemId || weight <= 0 || minQuantity <= 0 || maxQuantity <= 0 || isUpdating}
+                className="whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {isUpdating ? t('rngLootbox.updating') : t('rngLootbox.addItem')}
+              </Button>
+            </div>
           </div>
-        )}
+
+          {lootboxItems.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              {t('rngLootbox.emptyLootbox')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {lootboxItems.map((item, index) => (
+                <div
+                  key={`${item.item_profile_id}-${index}`}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Link 
+                        href={`/games/${gameId}/item-profiles/${item.item_profile_id}`}
+                        className="font-medium inline-flex items-center gap-1 hover:text-primary"
+                      >
+                        {item.item_profile.name}
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      <Badge variant="secondary" className="text-xs">{item.item_profile.type}</Badge>
+                      <Badge 
+                        variant={item.item_profile.status === 'active' ? 'default' : 'secondary'} 
+                        className="text-xs"
+                      >
+                        {item.item_profile.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-4">
+                      <span>
+                        {item.item_profile.code_name && `${t('itemProfile.code')}: ${item.item_profile.code_name}`}
+                        {item.item_profile.updated_at && ` • ${t('itemProfile.updatedAt')}: ${formatTimestamp(item.item_profile.updated_at)}`}
+                      </span>
+                    </div>
+                    <div className="flex gap-4 mt-2">
+                      <EditableWeight
+                        item={item}
+                        lootboxProfileId={itemProfile.id}
+                        onUpdate={loadData}
+                        disabled={isUpdating}
+                      />
+                      <EditableQuantityRange
+                        item={item}
+                        lootboxProfileId={itemProfile.id}
+                        onUpdate={loadData}
+                        disabled={isUpdating}
+                        field="min_qty"
+                      />
+                      <EditableQuantityRange
+                        item={item}
+                        lootboxProfileId={itemProfile.id}
+                        onUpdate={loadData}
+                        disabled={isUpdating}
+                        field="max_qty"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href={`/games/${gameId}/item-profiles/${item.item_profile_id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="w-4 h-4 mr-2" />
+                        {t('common.viewDetails')}
+                      </Button>
+                    </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={isUpdating}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t('rngLootbox.removeItem')}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t('inventory.removeItemConfirm')} "{item.item_profile.name}" {t('rngLootbox.removeFromLootbox')}?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleRemoveItem(item.item_profile_id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            {t('common.remove')}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

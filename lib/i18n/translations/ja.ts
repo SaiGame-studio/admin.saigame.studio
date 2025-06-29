@@ -248,7 +248,11 @@ export const ja = {
     stackable: "スタック可能",
     createOnRegistry: "レジストリに作成",
     amountOnRegistry: "レジストリの数量",
-    belongsToInventory: "インベントリに属する"
+    belongsToInventory: "インベントリに属する",
+    name: "名前",
+    codeName: "コード名",
+    enterName: "名前を入力",
+    enterCodeName: "コード名を入力"
   },
   settings: {
     title: "設定",
@@ -362,6 +366,9 @@ export const ja = {
     addItem: "アイテム追加",
     removeItem: "アイテム削除",
     removeItemConfirmation: "このアイテムをRNGルートボックスから削除してもよろしいですか？",
+    createNew: "新規作成",
+    createNewItem: "新しいアイテムプロファイル作成",
+    createNewItemDescription: "このRNGルートボックスに追加可能な新しいアイテムプロファイルを作成します",
     itemUpdatedSuccessfully: "RNGルートボックスが正常に更新されました",
     failedToUpdateLootbox: "RNGルートボックスの更新に失敗しました"
   },
