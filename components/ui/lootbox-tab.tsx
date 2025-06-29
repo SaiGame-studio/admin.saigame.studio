@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge"
 import { getItemTypeLabel } from '@/lib/utils/item-type-utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Trash2, Plus, Search, Eye, ExternalLink, Package, Pencil, Save, X } from "lucide-react"
+import { Trash2, Plus, Eye, ExternalLink, Package, Pencil, Save, X } from "lucide-react"
 import { fetchGameItemProfiles, updateLootboxItems, fetchFixedLootboxItems, ItemProfile, LootboxItem, LootboxItemDetail, UpdateLootboxRequest } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -132,7 +132,6 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
   const [availableItems, setAvailableItems] = useState<ItemProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
   const [selectedItemId, setSelectedItemId] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -235,11 +234,6 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
     )
   }
 
-  const filteredAvailableItems = availableItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.code_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
   return (
     <div className="space-y-6">
       {error && (
@@ -254,27 +248,18 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <h3 className="text-lg font-semibold">{t('lootbox.currentItems')} ({lootboxItems.length})</h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder={t('lootbox.searchItems')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-              </div>
             </div>
             <div className="flex gap-2">
               <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                <SelectTrigger className="w-64">
+                <SelectTrigger className="min-w-64 max-w-80 flex-1">
                   <SelectValue placeholder={t('lootbox.selectItem')} />
                 </SelectTrigger>
-                <SelectContent>
-                  {filteredAvailableItems.map((item) => (
+                <SelectContent className="max-w-96">
+                  {availableItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
-                        <span>{item.name}</span>
-                        <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
+                        <span className="truncate">{item.name}</span>
+                        <Badge variant="secondary" className="text-xs shrink-0">{getItemTypeLabel(item.type)}</Badge>
                       </div>
                     </SelectItem>
                   ))}

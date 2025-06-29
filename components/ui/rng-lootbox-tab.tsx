@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Badge } from "@/components/ui/badge"
 import { getItemTypeLabel } from '@/lib/utils/item-type-utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Trash2, Plus, Search, Eye, ExternalLink, Package, Pencil, Save, X } from "lucide-react"
+import { Trash2, Plus, Search, Eye, ExternalLink, Package, Pencil, Save, X, Percent, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react"
 import { fetchGameItemProfiles, updateRngLootboxItems, fetchRngLootboxItems, ItemProfile, RngLootboxItem, RngLootboxItemDetail, UpdateRngLootboxRequest } from "@/lib/item-profile-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { isRngLootboxType, isLootboxType } from "@/lib/utils/item-profile-utils"
@@ -50,7 +50,7 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
 
   const handleSave = async () => {
     if (weight <= 0) {
-      setError("Weight must be greater than 0")
+      setError("Percent must be greater than 0")
       return
     }
     
@@ -78,7 +78,7 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
       onUpdate()
       
     } catch (err: any) {
-      setError(err.message || "Failed to update weight")
+      setError(err.message || "Failed to update percent")
     } finally {
       setLoading(false)
     }
@@ -92,18 +92,22 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
-            <span className="text-sm text-muted-foreground">Weight:</span>
-            <Input
-              type="number"
-              min="1"
-              value={weight}
-              onChange={(e) => setWeight(parseInt(e.target.value) || 1)}
-              className="w-20 h-6 px-2 text-sm"
-              disabled={loading}
-            />
+            <span className="text-sm text-muted-foreground">Percent:</span>
+            <div className="relative">
+              <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3" />
+              <Input
+                type="number"
+                min="0"
+                step="0.00001"
+                value={weight}
+                onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                className="w-32 h-6 px-2 pl-8 text-sm"
+                disabled={loading}
+              />
+            </div>
             <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading || weight <= 0} className="h-6 w-6">
               <Save className="w-3 h-3" />
             </Button>
@@ -113,7 +117,7 @@ function EditableWeight({ item, lootboxProfileId, onUpdate, disabled }: Editable
           </>
         ) : (
           <>
-            <span className="text-sm text-muted-foreground">Weight: <span className="font-medium">{item.weight}</span></span>
+            <span className="text-sm text-muted-foreground">Percent: <span className="font-medium">{item.weight}%</span></span>
             <Button 
               size="icon" 
               variant="ghost" 
@@ -203,7 +207,7 @@ function EditableQuantityRange({ item, lootboxProfileId, onUpdate, disabled, fie
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="group flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {editing ? (
           <>
             <span className="text-sm text-muted-foreground">{label}:</span>
@@ -370,10 +374,11 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
     )
   }
 
-  const filteredAvailableItems = availableItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.code_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredAvailableItems = availableItems
+
+  // Calculate total weight
+  const totalWeight = lootboxItems.reduce((sum, item) => sum + item.weight, 0)
+  const isWeightIncomplete = totalWeight < 100 && lootboxItems.length > 0
 
   return (
     <div className="space-y-6">
@@ -389,56 +394,62 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <h3 className="text-lg font-semibold">{t('rngLootbox.currentItems')} ({lootboxItems.length})</h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder={t('rngLootbox.searchItems')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-              </div>
+              {lootboxItems.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Total Percent: <span className={`font-medium ${totalWeight === 100 ? 'text-green-600' : totalWeight > 100 ? 'text-red-600' : 'text-orange-600'}`}>{totalWeight}%</span>
+                </span>
+              )}
             </div>
             <div className="flex gap-2">
               <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                <SelectTrigger className="w-64">
+                <SelectTrigger className="min-w-64 max-w-80 flex-1">
                   <SelectValue placeholder={t('rngLootbox.selectItem')} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-96">
                   {filteredAvailableItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
-                        <span>{item.name}</span>
-                        <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
+                        <span className="truncate">{item.name}</span>
+                        <Badge variant="secondary" className="text-xs shrink-0">{getItemTypeLabel(item.type)}</Badge>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="number"
-                min="1"
-                value={weight}
-                onChange={(e) => setWeight(parseInt(e.target.value) || 1)}
-                placeholder={t('rngLootbox.weight')}
-                className="w-24"
-              />
-              <Input
-                type="number"
-                min="1"
-                value={minQuantity}
-                onChange={(e) => setMinQuantity(parseInt(e.target.value) || 1)}
-                placeholder={t('rngLootbox.minQuantity')}
-                className="w-24"
-              />
-              <Input
-                type="number"
-                min="1"
-                value={maxQuantity}
-                onChange={(e) => setMaxQuantity(parseInt(e.target.value) || 1)}
-                placeholder={t('rngLootbox.maxQuantity')}
-                className="w-24"
-              />
+              <div className="relative">
+                <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.00001"
+                  value={weight}
+                  onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                  placeholder={t('rngLootbox.weight')}
+                  className="w-32 pl-10"
+                />
+              </div>
+              <div className="relative">
+                <ChevronDown className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  type="number"
+                  min="1"
+                  value={minQuantity}
+                  onChange={(e) => setMinQuantity(parseInt(e.target.value) || 1)}
+                  placeholder={t('rngLootbox.minQuantity')}
+                  className="w-24 pl-10"
+                />
+              </div>
+              <div className="relative">
+                <ChevronUp className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  type="number"
+                  min="1"
+                  value={maxQuantity}
+                  onChange={(e) => setMaxQuantity(parseInt(e.target.value) || 1)}
+                  placeholder={t('rngLootbox.maxQuantity')}
+                  className="w-24 pl-10"
+                />
+              </div>
               <Button 
                 onClick={handleAddItem} 
                 disabled={!selectedItemId || weight <= 0 || minQuantity <= 0 || maxQuantity <= 0 || isUpdating}
@@ -450,6 +461,28 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
             </div>
           </div>
 
+          {/* Weight Warning */}
+          {lootboxItems.length > 0 && (isWeightIncomplete || totalWeight > 100) && (
+            <div className="mb-4">
+              {isWeightIncomplete && (
+                <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span className="text-sm font-medium">
+                    Warning: Percent distribution is incomplete ({totalWeight}%). Missing {100 - totalWeight}% to reach 100% for proper probability distribution.
+                  </span>
+                </div>
+              )}
+              {totalWeight > 100 && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span className="text-sm font-medium">
+                    Error: Percent exceeds 100% ({totalWeight}%). Exceeding by {totalWeight - 100}%. Please adjust item percents to total exactly 100%.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {lootboxItems.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {t('rngLootbox.emptyLootbox')}
@@ -459,7 +492,7 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
               {lootboxItems.map((item, index) => (
                 <div
                   key={`${item.item_profile_id}-${index}`}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                  className="group flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
