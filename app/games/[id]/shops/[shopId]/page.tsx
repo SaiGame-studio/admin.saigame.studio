@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { ChevronDown } from "lucide-react"
 import { fetchShop, updateShopItemPrice, updateShop, addItemToShop, removeItemFromShop } from "@/lib/shop-api"
 import { fetchGameItemProfiles } from "@/lib/item-profile-api"
+import { getItemTypeLabel } from "@/lib/utils/item-type-utils"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import {
@@ -528,7 +529,7 @@ export default function ShopDetailPage() {
                   >
                     <div className="flex w-full justify-between items-center">
                       <span>{item.name}</span>
-                      <span className="text-xs ">{item.type}</span>
+                      <span className="text-xs ">{getItemTypeLabel(item.type)}</span>
                     </div>
                   </CommandItem>
                 ))}

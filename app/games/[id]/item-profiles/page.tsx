@@ -23,9 +23,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { getAllStatusOptions, getEditableStatusOptions, getItemProfileStatusConfig } from "@/lib/utils/item-profile-status";
 import { StatusBadge } from "@/components/ItemProfileStatus";
-import { getInventoryTabUrl, isInventoryType } from "@/lib/utils/item-profile-utils";
+import { getInventoryTabUrl, isInventoryType, isRngLootboxType } from "@/lib/utils/item-profile-utils";
 import { InventoryLink } from "@/components/ui/inventory-link";
 import { LootboxLink } from "@/components/ui/lootbox-link";
+import { RngLootboxLink } from "@/components/ui/rng-lootbox-link";
 import { getItemTypeOptions } from "@/lib/utils/item-type-utils";
 
 export default function GameItemProfilesPage() {
@@ -547,6 +548,7 @@ export default function GameItemProfilesPage() {
                   </Button>
                   <InventoryLink gameId={params.id} itemProfile={profile} />
                   <LootboxLink gameId={params.id} itemProfile={profile} />
+                  <RngLootboxLink gameId={params.id} itemProfile={profile} />
                 </div>
               </div>
             </Card>

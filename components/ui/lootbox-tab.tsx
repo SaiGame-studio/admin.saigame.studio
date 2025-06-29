@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { getItemTypeLabel } from '@/lib/utils/item-type-utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Trash2, Plus, Search, Eye, ExternalLink, Package, Pencil, Save, X } from "lucide-react"
 import { fetchGameItemProfiles, updateLootboxItems, fetchFixedLootboxItems, ItemProfile, LootboxItem, LootboxItemDetail, UpdateLootboxRequest } from "@/lib/item-profile-api"
@@ -273,7 +274,7 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
                         <span>{item.name}</span>
-                        <Badge variant="secondary" className="text-xs">{item.type}</Badge>
+                        <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
                       </div>
                     </SelectItem>
                   ))}

@@ -493,4 +493,98 @@ export async function deleteItemProfileProperty(itemProfileId: string, propertyI
   }
   
   return true
-} 
+}
+
+/**
+ * RNG LootBox API functions
+ * These mirror the Fixed LootBox functions but use different endpoints
+ */
+
+export interface RngLootboxItemDetail {
+  loot_box_id: string
+  item_profile_id: string
+  weight: number
+  min_quantity: number
+  max_quantity: number
+  game_id: string
+  created_at: number
+  updated_at: number
+  item_profile: {
+    id: string
+    name: string
+    code_name: string
+    type: string
+    status: string
+    level_start: number
+    level_max: number
+    stackable: number
+    stack_limit: number
+    create_on_registry: number
+    amount_on_registry: number
+    custom_data: any
+    game_id: string
+    updated_at: number
+    created_at: number
+  }
+}
+
+export interface RngLootboxItem {
+  item_id: string
+  weight: number
+  min_quantity: number
+  max_quantity: number
+}
+
+export interface UpdateRngLootboxRequest {
+  add: RngLootboxItem[]
+  remove: string[]
+}
+
+/**
+ * Fetch all items in an RNG loot box
+ */
+export async function fetchRngLootboxItems(lootboxProfileId: string): Promise<RngLootboxItemDetail[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+  
+  if (!res.ok) throw new Error("Failed to fetch RNG loot box items")
+  
+  const data: ApiResponse<RngLootboxItemDetail[]> = await res.json()
+  return data.data
+}
+
+/**
+ * Update RNG loot box items (add/remove)
+ */
+export async function updateRngLootboxItems(lootboxProfileId: string, request: UpdateRngLootboxRequest): Promise<any> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  })
+  
+  if (!res.ok) throw new Error("Failed to update RNG loot box items")
+  
+  const data: ApiResponse<any> = await res.json()
+  return data.data
+}

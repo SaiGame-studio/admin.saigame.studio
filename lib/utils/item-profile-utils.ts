@@ -2,7 +2,7 @@
  * Utility functions for item profile operations
  */
 
-export type ItemProfileTab = 'details' | 'inventory' | 'lootbox' | 'properties'
+export type ItemProfileTab = 'details' | 'inventory' | 'lootbox' | 'rng-lootbox' | 'properties'
 
 /**
  * Generate URL for item profile detail page with specific tab
@@ -30,6 +30,13 @@ export function getLootboxTabUrl(gameId: string, itemProfileId: string): string 
 }
 
 /**
+ * Generate URL for rng lootbox tab of an item profile
+ */
+export function getRngLootboxTabUrl(gameId: string, itemProfileId: string): string {
+  return getItemProfileUrl(gameId, itemProfileId, 'rng-lootbox')
+}
+
+/**
  * Generate URL for properties tab of an item profile
  */
 export function getPropertiesTabUrl(gameId: string, itemProfileId: string): string {
@@ -54,6 +61,9 @@ export function parseTabFromUrl(searchParams: URLSearchParams): ItemProfileTab {
   if (tab === 'lootbox') {
     return 'lootbox'
   }
+  if (tab === 'rng-lootbox') {
+    return 'rng-lootbox'
+  }
   if (tab === 'properties') {
     return 'properties'
   }
@@ -75,6 +85,14 @@ export function isLootboxType(itemProfile: { type: string }): boolean {
 }
 
 /**
+ * Check if item profile type supports rng lootbox tab
+ */
+export function isRngLootboxType(itemProfile: { type: string }): boolean {
+  return itemProfile.type === 'loot_box_rng' || 
+         itemProfile.type === 'Loot Box_rng'  // Backend có thể trả về format này
+}
+
+/**
  * Check if item profile supports properties tab (all types support properties)
  */
 export function supportsProperties(itemProfile: { type: string }): boolean {
@@ -90,6 +108,8 @@ export function getTabDisplayName(tab: string, t: (key: string) => string): stri
       return t('inventory.title')
     case 'lootbox':
       return t('lootbox.title')
+    case 'rng-lootbox':
+      return t('rngLootbox.title')
     case 'properties':
       return t('properties.title')
     case 'details':
@@ -115,6 +135,9 @@ export function getAvailableTabs(itemProfile: { type: string }): ItemProfileTab[
   }
   if (isLootboxType(itemProfile)) {
     tabs.push('lootbox')
+  }
+  if (isRngLootboxType(itemProfile)) {
+    tabs.push('rng-lootbox')
   }
   return tabs
 } 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { getItemTypeLabel } from '@/lib/utils/item-type-utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Trash2, Plus, Search, Eye, ExternalLink, Package } from "lucide-react"
 import { getInventoryItemProfiles, addItemToInventory, removeItemFromInventory, fetchGameItemProfiles, ItemProfile, getGameInventoryProfiles } from "@/lib/item-profile-api"
@@ -211,7 +212,7 @@ export function InventoryTab({ itemProfile, gameId }: InventoryTabProps) {
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <span>{item.name}</span>
-                            <Badge variant="secondary" className="text-xs">{item.type}</Badge>
+                            <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
                           </div>
                           {belongsToInventory && (
                             <InventoryIndicator inventory={belongsToInventory} gameId={gameId} t={t} />
@@ -252,7 +253,7 @@ export function InventoryTab({ itemProfile, gameId }: InventoryTabProps) {
                         {item.name}
                         <ExternalLink className="w-4 h-4" />
                       </Link>
-                      <Badge variant="secondary" className="text-xs">{item.type}</Badge>
+                      <Badge variant="secondary" className="text-xs">{getItemTypeLabel(item.type)}</Badge>
                       <Badge 
                         variant={item.status === 'active' ? 'default' : 'secondary'} 
                         className="text-xs"
