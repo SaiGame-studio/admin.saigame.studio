@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Package } from "lucide-react"
+import { Lock } from "lucide-react"
 import { getLootboxTabUrl, isLootboxType } from "@/lib/utils/item-profile-utils"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
@@ -42,7 +42,7 @@ export function LootboxLink({
       return (
         <Link href={url} className={`inline-flex items-center gap-1 ${className}`}>
           <Badge variant="secondary" className="inline-flex items-center gap-1">
-            <Package className="w-3 h-3" />
+            <Lock className="w-3 h-3" />
             {text}
           </Badge>
         </Link>
@@ -54,7 +54,7 @@ export function LootboxLink({
           href={url} 
           className={`inline-flex items-center gap-1 text-primary hover:underline ${className}`}
         >
-          <Package className="w-4 h-4" />
+          <Lock className="w-4 h-4" />
           {text}
         </Link>
       )
@@ -64,7 +64,7 @@ export function LootboxLink({
       return (
         <Button asChild variant="secondary" size={size} className={className}>
           <Link href={url} className="inline-flex items-center gap-1">
-            <Package className="w-4 h-4" />
+            <Lock className="w-4 h-4" />
             {text}
           </Link>
         </Button>
