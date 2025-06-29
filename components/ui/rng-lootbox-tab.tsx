@@ -479,10 +479,10 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
                 </div>
               )}
               {totalWeight > 100 && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span className="text-sm font-medium">
-                    Error: Percent exceeds 100% ({totalWeight}%). Exceeding by {totalWeight - 100}%. Please adjust item percents to total exactly 100%.
+                    Warning: Percent exceeds 100% ({totalWeight}%). Drop rates will no longer be accurate.
                   </span>
                 </div>
               )}
