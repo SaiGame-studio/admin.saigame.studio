@@ -137,10 +137,12 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
   const [isUpdating, setIsUpdating] = useState(false)
 
   // Load lootbox items and available items
-  const loadData = async () => {
+  const loadData = async (clearError = true) => {
     try {
       setLoading(true)
-      setError(null)
+      if (clearError) {
+        setError(null)
+      }
       
       const [allItems, currentLootboxItems] = await Promise.all([
         fetchGameItemProfiles(gameId),
@@ -182,8 +184,8 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
       
       await updateLootboxItems(itemProfile.id, request)
       
-      // Reload data to get fresh state
-      await loadData()
+      // Reload data to get fresh state only on success
+      await loadData(true) // Clear error on successful reload
       
       setSelectedItemId("")
       setQuantity(1)
@@ -207,14 +209,18 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
       
       await updateLootboxItems(itemProfile.id, request)
       
-      // Reload data to get fresh state
-      await loadData()
+      // Reload data to get fresh state only on success
+      await loadData(true) // Clear error on successful reload
       
     } catch (err: any) {
       setError(err.message || "Failed to remove item from lootbox")
     } finally {
       setIsUpdating(false)
     }
+  }
+
+  const handleSuccessfulUpdate = () => {
+    loadData(true) // Clear error on successful update
   }
 
   if (itemProfile.type !== 'loot_box_fixed') {
@@ -320,7 +326,7 @@ export function FixedLootBoxTab({ itemProfile, gameId }: FixedLootBoxTabProps) {
                     <EditableQuantity
                       item={item}
                       lootboxProfileId={itemProfile.id}
-                      onUpdate={loadData}
+                      onUpdate={handleSuccessfulUpdate}
                       disabled={isUpdating}
                     />
                   </div>
