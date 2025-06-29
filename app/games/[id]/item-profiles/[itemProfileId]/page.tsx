@@ -21,9 +21,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { InventoryTab } from "@/components/ui/inventory-tab"
 import { FixedLootBoxTab } from "@/components/ui/lootbox-tab"
+import { RngLootBoxTab } from "@/components/ui/rng-lootbox-tab"
 import { PropertiesTab } from "@/components/ui/properties-tab"
-import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType } from "@/lib/utils/item-profile-utils"
-import { getItemTypeOptions } from "@/lib/utils/item-type-utils"
+import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType, isRngLootboxType } from "@/lib/utils/item-profile-utils"
+import { getItemTypeOptions, getItemTypeLabel } from "@/lib/utils/item-type-utils"
 
 // Available item type options for editing
 const itemTypeOptions = getItemTypeOptions()
@@ -136,12 +137,15 @@ export default function ItemProfileDetailPage() {
     loadItemProfileAndGame()
   }, [params.itemProfileId, params.id])
 
-  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not fixed_loot_box
+  // Auto switch to details tab if current tab is inventory but item type is not inventory, or lootbox but item type is not loot_box_fixed, or rng-lootbox but item type is not loot_box
   useEffect(() => {
     if (itemProfile && activeTab === "inventory" && itemProfile.type !== 'inventory') {
       setActiveTab("details")
     }
-    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'fixed_loot_box') {
+    if (itemProfile && activeTab === "lootbox" && itemProfile.type !== 'loot_box_fixed') {
+      setActiveTab("details")
+    }
+    if (itemProfile && activeTab === "rng-lootbox" && !isRngLootboxType(itemProfile)) {
       setActiveTab("details")
     }
   }, [itemProfile, activeTab])
@@ -153,12 +157,15 @@ export default function ItemProfileDetailPage() {
       
       if (requestedTab === 'inventory' && itemProfile.type === 'inventory') {
         setActiveTab('inventory')
-      } else if (requestedTab === 'lootbox' && itemProfile.type === 'fixed_loot_box') {
+      } else if (requestedTab === 'lootbox' && itemProfile.type === 'loot_box_fixed') {
         setActiveTab('lootbox')
+      } else if (requestedTab === 'rng-lootbox' && isRngLootboxType(itemProfile)) {
+        setActiveTab('rng-lootbox')
       } else if (requestedTab === 'properties') {
         setActiveTab('properties')
       } else if ((requestedTab === 'inventory' && itemProfile.type !== 'inventory') || 
-                 (requestedTab === 'lootbox' && itemProfile.type !== 'fixed_loot_box')) {
+                 (requestedTab === 'lootbox' && itemProfile.type !== 'loot_box_fixed') ||
+                 (requestedTab === 'rng-lootbox' && !isRngLootboxType(itemProfile))) {
         // If trying to access invalid tab for item type, redirect to details
         const detailsUrl = getItemProfileUrl(params.id, params.itemProfileId, 'details')
         router.replace(detailsUrl, { scroll: false })
@@ -274,16 +281,16 @@ export default function ItemProfileDetailPage() {
                   {t('inventory.title')}
                 </button>
               )}
-              {(!hideDisabledTabs || itemProfile.type === 'fixed_loot_box') && (
+              {(!hideDisabledTabs || itemProfile.type === 'loot_box_fixed') && (
                 <button
                   onClick={() => {
-                    if (itemProfile.type === 'fixed_loot_box') {
+                    if (itemProfile.type === 'loot_box_fixed') {
                       changeTab("lootbox")
                     }
                   }}
-                  disabled={itemProfile.type !== 'fixed_loot_box'}
+                  disabled={itemProfile.type !== 'loot_box_fixed'}
                   className={`${
-                    itemProfile.type !== 'fixed_loot_box'
+                    itemProfile.type !== 'loot_box_fixed'
                       ? "border-transparent text-gray-300 cursor-not-allowed line-through"
                       : activeTab === "lootbox"
                       ? "border-blue-500 text-blue-600"
@@ -291,6 +298,25 @@ export default function ItemProfileDetailPage() {
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
                 >
                   {t('lootbox.title')}
+                </button>
+              )}
+              {(!hideDisabledTabs || isRngLootboxType(itemProfile)) && (
+                <button
+                  onClick={() => {
+                    if (isRngLootboxType(itemProfile)) {
+                      changeTab("rng-lootbox")
+                    }
+                  }}
+                  disabled={!isRngLootboxType(itemProfile)}
+                  className={`${
+                    !isRngLootboxType(itemProfile)
+                      ? "border-transparent text-gray-300 cursor-not-allowed line-through"
+                      : activeTab === "rng-lootbox"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200`}
+                >
+                  {t('rngLootbox.title')}
                 </button>
               )}
             </nav>
@@ -480,6 +506,13 @@ export default function ItemProfileDetailPage() {
 
           {activeTab === "lootbox" && (
             <FixedLootBoxTab 
+              itemProfile={itemProfile} 
+              gameId={params.id}
+            />
+          )}
+
+          {activeTab === "rng-lootbox" && (
+            <RngLootBoxTab 
               itemProfile={itemProfile} 
               gameId={params.id}
             />
@@ -693,7 +726,7 @@ function ItemProfileTypeEditable({ itemProfile, itemProfileId, onItemProfileUpda
         </>
       ) : (
         <>
-          <span>{t('itemProfile.type')}: <span className="font-semibold">{itemProfile.type?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || '-'}</span></span>
+          <span>{t('itemProfile.type')}: <span className="font-semibold">{getItemTypeLabel(itemProfile.type || '') || '-'}</span></span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
             <Pencil className="w-4 h-4" />
           </Button>

@@ -271,7 +271,7 @@ export interface LootboxItem {
 }
 
 export interface LootboxItemDetail {
-  fixed_loot_box_id: string
+  loot_box_fixed_id: string
   item_profile_id: string
   quantity: number
   game_id: string
@@ -311,7 +311,7 @@ export async function fetchFixedLootboxItems(lootboxProfileId: string): Promise<
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -335,7 +335,7 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
-  const res = await fetch(`${API_URL}/api/fixed-loot-boxes/${lootboxProfileId}/item-profiles`, {
+  const res = await fetch(`${API_URL}/api/loot-box-fixed/${lootboxProfileId}/item-profiles`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -493,4 +493,118 @@ export async function deleteItemProfileProperty(itemProfileId: string, propertyI
   }
   
   return true
-} 
+}
+
+/**
+ * RNG LootBox API functions
+ * These mirror the Fixed LootBox functions but use different endpoints
+ */
+
+export interface RngLootboxItemDetail {
+  loot_box_rng_id: string
+  item_profile_id: string
+  weight: number
+  min_qty: number
+  max_qty: number
+  game_id: string
+  created_at: number
+  updated_at: number
+  id: string
+  item_profile: {
+    id: string
+    name: string
+    code_name: string
+    status: string
+    description: string
+    create_on_registry: number
+    amount_on_registry: number
+    type: string
+    level_start: number
+    level_max: number
+    stackable: number | boolean
+    stack_limit: number
+    game_id: string
+    updated_at: number
+    created_at: number
+    custom_data: any
+    inventory_profile_id: string
+  }
+}
+
+export interface RngLootboxItem {
+  item_id: string
+  weight: number
+  min_quantity: number
+  max_quantity: number
+}
+
+export interface UpdateRngLootboxRequest {
+  add: RngLootboxItem[]
+  remove: string[]
+}
+
+/**
+ * Fetch all items in an RNG loot box
+ */
+export async function fetchRngLootboxItems(lootboxProfileId: string): Promise<RngLootboxItemDetail[]> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to fetch RNG loot box items: ${res.status} ${res.statusText}`)
+  }
+  
+  const data: ApiResponse<RngLootboxItemDetail[]> = await res.json()
+  return data.data || []
+}
+
+/**
+ * Update RNG loot box items (add/remove)
+ */
+export async function updateRngLootboxItems(lootboxProfileId: string, request: UpdateRngLootboxRequest): Promise<any> {
+  const token = localStorage.getItem("token")
+  if (!token) {
+    throw new Error("Authentication required")
+  }
+  if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
+  
+  // Transform the request to match API format
+  const apiRequest = {
+    add: request.add.map(item => ({
+      item_id: item.item_id,
+      weight: item.weight,
+      min_qty: item.min_quantity,
+      max_qty: item.max_quantity
+    })),
+    remove: request.remove
+  }
+  
+  const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(apiRequest),
+  })
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.message || `Failed to update RNG loot box items: ${res.status} ${res.statusText}`)
+  }
+  
+  const data: ApiResponse<any> = await res.json()
+  return data.data
+}

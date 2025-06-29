@@ -20,8 +20,8 @@ const ITEM_TYPE_OPTIONS: ItemTypeOption[] = [
   { value: "inventory", label: "Inventory" },
   { value: "currency", label: "Currency" },
   { value: "misc", label: "Miscellaneous" },
-  { value: "fixed_loot_box", label: "Fixed Loot Box" },
-  { value: "loot_box", label: "Loot Box" },
+  { value: "loot_box_fixed", label: "Fixed Loot Box" },
+  { value: "loot_box_rng", label: "RNG Loot Box" },
 ]
 
 /**
@@ -37,7 +37,20 @@ export function getItemTypeOptions(): ItemTypeOption[] {
  */
 export function getItemTypeLabel(value: string): string {
   const option = ITEM_TYPE_OPTIONS.find(opt => opt.value === value)
-  return option?.label || value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  if (option) {
+    return option.label
+  }
+  
+  // Special handling for lootbox types with alternative formats
+  if (value.includes('loot_box_rng') || value.includes('loot box_rng') || value === 'Loot Box_rng') {
+    return 'RNG Loot Box'
+  }
+  if (value.includes('loot_box_fixed') || value.includes('loot box_fixed')) {
+    return 'Fixed Loot Box'
+  }
+  
+  // Default fallback
+  return value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
 /**
