@@ -266,10 +266,12 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
   const [isUpdating, setIsUpdating] = useState(false)
 
   // Load lootbox items and available items
-  const loadData = async () => {
+  const loadData = async (clearError = true) => {
     try {
       setLoading(true)
-      setError(null)
+      if (clearError) {
+        setError(null)
+      }
       
       const [allItems, currentLootboxItems] = await Promise.all([
         fetchGameItemProfiles(gameId),
@@ -320,8 +322,8 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
       
       await updateRngLootboxItems(itemProfile.id, request)
       
-      // Reload data to get fresh state
-      await loadData()
+      // Reload data to get fresh state only on success
+      await loadData(true) // Clear error on successful reload
       
       setSelectedItemId("")
       setWeight(1)
@@ -347,14 +349,18 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
       
       await updateRngLootboxItems(itemProfile.id, request)
       
-      // Reload data to get fresh state
-      await loadData()
+      // Reload data to get fresh state only on success
+      await loadData(true) // Clear error on successful reload
       
     } catch (err: any) {
       setError(err.message || "Failed to remove item from RNG lootbox")
     } finally {
       setIsUpdating(false)
     }
+  }
+
+  const handleSuccessfulUpdate = () => {
+    loadData(true) // Clear error on successful update
   }
 
   if (!isRngLootboxType(itemProfile)) {
@@ -473,10 +479,10 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
                 </div>
               )}
               {totalWeight > 100 && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span className="text-sm font-medium">
-                    Error: Percent exceeds 100% ({totalWeight}%). Exceeding by {totalWeight - 100}%. Please adjust item percents to total exactly 100%.
+                    Warning: Percent exceeds 100% ({totalWeight}%). Drop rates will no longer be accurate.
                   </span>
                 </div>
               )}
@@ -521,20 +527,20 @@ export function RngLootBoxTab({ itemProfile, gameId }: RngLootBoxTabProps) {
                       <EditableWeight
                         item={item}
                         lootboxProfileId={itemProfile.id}
-                        onUpdate={loadData}
+                        onUpdate={handleSuccessfulUpdate}
                         disabled={isUpdating}
                       />
                       <EditableQuantityRange
                         item={item}
                         lootboxProfileId={itemProfile.id}
-                        onUpdate={loadData}
+                        onUpdate={handleSuccessfulUpdate}
                         disabled={isUpdating}
                         field="min_qty"
                       />
                       <EditableQuantityRange
                         item={item}
                         lootboxProfileId={itemProfile.id}
-                        onUpdate={loadData}
+                        onUpdate={handleSuccessfulUpdate}
                         disabled={isUpdating}
                         field="max_qty"
                       />

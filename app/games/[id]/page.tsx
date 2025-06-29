@@ -139,15 +139,15 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/item-profiles`}>
-                            <Package className="h-4 w-4" />
-                            {t('game.itemProfiles')}
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex items-center gap-2">
                         <Link href={`/games/${game.id}/users`}>
                             <Users className="h-4 w-4" />
                             {t('game.users')}
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/item-profiles`}>
+                            <Package className="h-4 w-4" />
+                            {t('game.itemProfiles')}
                         </Link>
                     </Button>
                 </div>

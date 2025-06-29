@@ -344,7 +344,26 @@ export async function updateLootboxItems(lootboxProfileId: string, request: Upda
     body: JSON.stringify(request),
   })
   
-  if (!res.ok) throw new Error("Failed to update loot box items")
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    
+    // Handle detailed error messages from backend
+    let errorMessage = `Failed to update loot box items: ${res.status} ${res.statusText}`
+    
+    if (error.message) {
+      errorMessage = error.message
+    } else if (error.errors) {
+      // Handle validation errors array
+      if (Array.isArray(error.errors)) {
+        errorMessage = error.errors.join(', ')
+      } else if (typeof error.errors === 'object') {
+        const errorMessages = Object.values(error.errors).flat()
+        errorMessage = errorMessages.join(', ')
+      }
+    }
+    
+    throw new Error(errorMessage)
+  }
   
   const data: ApiResponse<any> = await res.json()
   return data.data
@@ -571,6 +590,31 @@ export async function fetchRngLootboxItems(lootboxProfileId: string): Promise<Rn
 }
 
 /**
+ * Validate RNG lootbox item data before sending to API
+ */
+function validateRngLootboxItem(item: RngLootboxItem): void {
+  if (!item.item_id || typeof item.item_id !== 'string') {
+    throw new Error('Invalid item_id: must be a non-empty string')
+  }
+  
+  if (typeof item.weight !== 'number' || item.weight <= 0 || !isFinite(item.weight)) {
+    throw new Error(`Invalid weight for item ${item.item_id}: must be a positive number`)
+  }
+  
+  if (typeof item.min_quantity !== 'number' || item.min_quantity <= 0 || !Number.isInteger(item.min_quantity)) {
+    throw new Error(`Invalid min_quantity for item ${item.item_id}: must be a positive integer`)
+  }
+  
+  if (typeof item.max_quantity !== 'number' || item.max_quantity <= 0 || !Number.isInteger(item.max_quantity)) {
+    throw new Error(`Invalid max_quantity for item ${item.item_id}: must be a positive integer`)
+  }
+  
+  if (item.min_quantity > item.max_quantity) {
+    throw new Error(`Invalid quantity range for item ${item.item_id}: min_quantity cannot be greater than max_quantity`)
+  }
+}
+
+/**
  * Update RNG loot box items (add/remove)
  */
 export async function updateRngLootboxItems(lootboxProfileId: string, request: UpdateRngLootboxRequest): Promise<any> {
@@ -580,29 +624,63 @@ export async function updateRngLootboxItems(lootboxProfileId: string, request: U
   }
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
   
+  // Validate request data
+  for (const item of request.add) {
+    validateRngLootboxItem(item)
+  }
+  
   // Transform the request to match API format
   const apiRequest = {
     add: request.add.map(item => ({
       item_id: item.item_id,
-      weight: item.weight,
-      min_qty: item.min_quantity,
-      max_qty: item.max_quantity
+      weight: Number(item.weight), // Ensure it's a proper number
+      min_qty: Number(item.min_quantity),
+      max_qty: Number(item.max_quantity)
     })),
     remove: request.remove
   }
   
-  const res = await fetch(`${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`, {
+  // Debug logging
+  const requestUrl = `${API_URL}/api/loot-box-rng/${lootboxProfileId}/item-profiles`
+  const requestHeaders = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Accept": "application/json", // Explicit Accept header
+    "User-Agent": "Mozilla/5.0 (compatible; Admin-Panel)" // Add User-Agent
+  }
+  
+  const res = await fetch(requestUrl, {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers: requestHeaders,
     body: JSON.stringify(apiRequest),
+    credentials: 'include' // Include cookies/credentials
   })
   
   if (!res.ok) {
+    // Handle redirect response (302, 301, etc.)
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('Location')
+      throw new Error(`Server redirected request (${res.status}). Check API endpoint URL. Redirected to: ${location || 'unknown'}`)
+    }
+    
     const error = await res.json().catch(() => ({}))
-    throw new Error(error.message || `Failed to update RNG loot box items: ${res.status} ${res.statusText}`)
+    
+    // Handle detailed error messages from backend
+    let errorMessage = `Failed to update RNG loot box items: ${res.status} ${res.statusText}`
+    
+    if (error.message) {
+      errorMessage = error.message
+    } else if (error.errors) {
+      // Handle validation errors array
+      if (Array.isArray(error.errors)) {
+        errorMessage = error.errors.join(', ')
+      } else if (typeof error.errors === 'object') {
+        const errorMessages = Object.values(error.errors).flat()
+        errorMessage = errorMessages.join(', ')
+      }
+    }
+    
+    throw new Error(errorMessage)
   }
   
   const data: ApiResponse<any> = await res.json()
