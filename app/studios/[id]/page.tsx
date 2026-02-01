@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { fetchStudio, fetchStudioGames } from "@/lib/studio-api"
+import { fetchStudio, fetchStudioGames, fetchStudioTeams } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Studio } from "@/types/studio"
 import type { Game } from "@/types/game"
+import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,10 +21,13 @@ import { useTranslation } from '@/lib/i18n/use-translation'
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
   const [games, setGames] = useState<Game[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [gamesLoading, setGamesLoading] = useState(true)
+  const [teamsLoading, setTeamsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gamesError, setGamesError] = useState<string | null>(null)
+  const [teamsError, setTeamsError] = useState<string | null>(null)
   const hasFetched = useRef(false)
   const router = useRouter()
   const { t } = useTranslation();
@@ -58,8 +62,22 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       }
     }
 
+    async function loadTeams() {
+      try {
+        setTeamsLoading(true)
+        const data = await fetchStudioTeams(params.id)
+        setTeams(data)
+        setTeamsError(null)
+      } catch (err) {
+        setTeamsError(err instanceof Error ? err.message : "Failed to load studio teams")
+      } finally {
+        setTeamsLoading(false)
+      }
+    }
+
     loadStudio().then();
     loadGames().then();
+    loadTeams().then();
   }, [params.id])
 
   return (
@@ -91,6 +109,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{gamesError}</AlertDescription>
+        </Alert>
+      )}
+
+      {teamsError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{teamsError}</AlertDescription>
         </Alert>
       )}
 
@@ -169,6 +195,38 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               </CardContent>
             </Card>
           </div>
+
+          {/* Teams Section */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Teams</CardTitle>
+              <CardDescription>Teams in this studio</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {teamsLoading ? (
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              ) : teams.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {teams.map((team) => (
+                    <Link 
+                      key={team.id} 
+                      href={`/teams/${team.id}`}
+                      className="inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
+                    >
+                      {team.name}
+                      <ExternalLink className="w-4 h-4" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No teams found for this studio.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">

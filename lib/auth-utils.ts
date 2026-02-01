@@ -2,11 +2,13 @@
 
 interface TokenData {
   token: string
+  refreshToken?: string
   expiresAt: number // timestamp in milliseconds
 }
 
 const TOKEN_KEY = 'token'
 const TOKEN_DATA_KEY = 'tokenData'
+const REFRESH_TOKEN_KEY = 'refreshToken'
 
 /**
  * Decode JWT token to get expiration time
@@ -38,11 +40,16 @@ function getTokenExpiration(token: string): number | null {
 }
 
 /**
- * Save token with expiration data
+ * Save token with expiration data and optional refresh token
  */
-export function saveToken(token: string): void {
+export function saveToken(token: string, refreshToken?: string): void {
   // Save the raw token for backward compatibility
   localStorage.setItem(TOKEN_KEY, token)
+  
+  // Save refresh token if provided
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  }
   
   // Try to extract expiration from JWT
   const expiresAt = getTokenExpiration(token)
@@ -50,6 +57,7 @@ export function saveToken(token: string): void {
   if (expiresAt) {
     const tokenData: TokenData = {
       token,
+      refreshToken,
       expiresAt
     }
     localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData))
@@ -58,6 +66,7 @@ export function saveToken(token: string): void {
     const defaultExpiration = Date.now() + (24 * 60 * 60 * 1000) // 24 hours
     const tokenData: TokenData = {
       token,
+      refreshToken,
       expiresAt: defaultExpiration
     }
     localStorage.setItem(TOKEN_DATA_KEY, JSON.stringify(tokenData))
@@ -172,6 +181,80 @@ export function getTimeUntilExpiration(): number | null {
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(TOKEN_DATA_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+/**
+ * Get refresh token
+ */
+export function getRefreshToken(): string | null {
+  try {
+    // First try to get from token data
+    const tokenDataStr = localStorage.getItem(TOKEN_DATA_KEY)
+    if (tokenDataStr) {
+      const tokenData: TokenData = JSON.parse(tokenDataStr)
+      if (tokenData.refreshToken) {
+        return tokenData.refreshToken
+      }
+    }
+    
+    // Fallback to direct storage
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
+  } catch (error) {
+    console.error('Error getting refresh token:', error)
+    return null
+  }
+}
+
+/**
+ * Refresh access token using refresh token
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      console.log('No refresh token available')
+      return null
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL
+    if (!apiUrl) {
+      console.error('API URL is not configured')
+      return null
+    }
+
+    console.log('Attempting to refresh access token...')
+    
+    const response = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+
+    if (!response.ok) {
+      console.log('Refresh token failed or expired')
+      clearToken()
+      return null
+    }
+
+    const data = await response.json()
+    
+    if (data.access_token) {
+      console.log('Successfully refreshed access token')
+      // Save the new tokens
+      saveToken(data.access_token, data.refresh_token || refreshToken)
+      return data.access_token
+    }
+
+    return null
+  } catch (error) {
+    console.error('Error refreshing access token:', error)
+    clearToken()
+    return null
+  }
 }
 
 /**

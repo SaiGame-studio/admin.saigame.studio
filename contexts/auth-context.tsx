@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration } from "@/lib/auth-utils"
+import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration, refreshAccessToken } from "@/lib/auth-utils"
 import { fetchUserProfile } from "@/lib/api"
 
 interface User {
@@ -17,7 +17,7 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean
   user: User | null
-  login: (token: string) => void
+  login: (token: string, refreshToken?: string) => void
   logout: () => void
   isLoading: boolean
   timeUntilExpiration: number | null
@@ -78,13 +78,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Set up interval to check token expiration every minute
+    // Set up interval to check token expiration and auto-refresh
     const interval = setInterval(async () => {
       if (isAuthenticated) {
-        const stillValid = await checkAuth()
-        if (!stillValid) {
-          console.log('Token expired, logging out user')
-          logout()
+        const token = getValidToken()
+        
+        // If no valid token, try to refresh
+        if (!token) {
+          console.log('Token expired, attempting to refresh...')
+          const newToken = await refreshAccessToken()
+          
+          if (newToken) {
+            console.log('Token refreshed successfully')
+            // Update authentication state
+            await checkAuth()
+          } else {
+            console.log('Refresh token expired or invalid, logging out user')
+            logout()
+          }
+        } else {
+          // Token is still valid, update expiration time
+          const timeLeft = getTimeUntilExpiration()
+          setTimeUntilExpiration(timeLeft)
         }
       }
     }, 60000) // Check every minute
@@ -103,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, isLoading, pathname, router])
 
-  const login = (token: string) => {
-    saveToken(token)
+  const login = (token: string, refreshToken?: string) => {
+    saveToken(token, refreshToken)
     checkAuth()
     router.push("/")
   }

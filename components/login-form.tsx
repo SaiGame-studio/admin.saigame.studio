@@ -81,7 +81,7 @@ export function LoginForm() {
 
       // Success - use the auth context to login
       if (data.access_token) {
-        login(data.access_token)
+        login(data.access_token, data.refresh_token)
 
         toast({
           title: "Login successful",
