@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { fetchTeamDetails } from "@/lib/team-api"
+import { fetchTeamDetails, fetchTeamMembers } from "@/lib/team-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
-import type { Team } from "@/types/team"
+import type { Team, TeamMember } from "@/types/team"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +19,11 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
   const [studio, setStudio] = useState<Studio | null>(null)
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [membersLoading, setMembersLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [membersError, setMembersError] = useState<string | null>(null)
   const hasFetched = useRef(false)
   const router = useRouter()
 
@@ -52,7 +55,21 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       }
     }
 
+    async function loadMembers() {
+      try {
+        setMembersLoading(true)
+        const data = await fetchTeamMembers(params.id)
+        setMembers(data)
+        setMembersError(null)
+      } catch (err) {
+        setMembersError(err instanceof Error ? err.message : "Failed to load team members")
+      } finally {
+        setMembersLoading(false)
+      }
+    }
+
     loadTeam().then();
+    loadMembers().then();
   }, [params.id])
 
   return (
@@ -91,6 +108,14 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {membersError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{membersError}</AlertDescription>
         </Alert>
       )}
 
@@ -166,6 +191,71 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               </CardContent>
             </Card>
           </div>
+
+          {/* Members Section */}
+          <Card className="mt-6 border-0 shadow-none">
+            <CardHeader>
+              <CardTitle>Members</CardTitle>
+              <CardDescription>Members in this team</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {membersLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : members.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {members.map((member) => (
+                    <div key={member.id} className="p-4 border rounded-md">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-medium text-lg">
+                            {member.display_name || member.username || "Unknown User"}
+                          </p>
+                          {member.email && (
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                          )}
+                        </div>
+                        <Badge variant={member.is_active ? "default" : "secondary"}>
+                          {member.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <p className="text-sm font-medium">Role</p>
+                          <p className="text-sm text-muted-foreground">{member.role_name || "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">User ID</p>
+                          <p className="text-sm text-muted-foreground font-mono truncate" title={member.user_id}>
+                            {member.user_id}
+                          </p>
+                        </div>
+                        {member.joined_at && (
+                          <div>
+                            <p className="text-sm font-medium">Joined At</p>
+                            <p className="text-sm text-muted-foreground">{formatTimestamp(member.joined_at)}</p>
+                          </div>
+                        )}
+                        {member.username && (
+                          <div>
+                            <p className="text-sm font-medium">Username</p>
+                            <p className="text-sm text-muted-foreground">@{member.username}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-muted-foreground">No members found for this team.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </>
       ) : (
         <Alert>
