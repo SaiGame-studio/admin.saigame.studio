@@ -3,19 +3,22 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { fetchTeamDetails } from "@/lib/team-api"
+import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Team } from "@/types/team"
+import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft } from "lucide-react"
+import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
+  const [studio, setStudio] = useState<Studio | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasFetched = useRef(false)
@@ -30,6 +33,17 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         setLoading(true)
         const data = await fetchTeamDetails(params.id)
         setTeam(data)
+        
+        // Load studio data with cache if studio_id exists
+        if (data.studio_id) {
+          try {
+            const studioData = await fetchStudioWithCache(data.studio_id)
+            setStudio(studioData)
+          } catch (err) {
+            console.error("Failed to load studio:", err)
+          }
+        }
+        
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load team details")
@@ -50,10 +64,10 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            {team && (
+            {studio && (
               <>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/studios/${team.studio_id}`}>Studio</BreadcrumbLink>
+                  <BreadcrumbLink href={`/studios/${team?.studio_id}`}>{studio.name}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
               </>
@@ -126,9 +140,10 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-medium">Studio ID</p>
-                  <Link href={`/studios/${team.studio_id}`} className="text-sm text-primary hover:underline">
-                    {team.studio_id}
+                  <p className="text-sm font-medium">Studio</p>
+                  <Link href={`/studios/${team.studio_id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                    {studio?.name || team.studio_id}
+                    <ExternalLink className="w-4 h-4" />
                   </Link>
                 </div>
               </CardContent>

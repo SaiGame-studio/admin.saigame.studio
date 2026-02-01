@@ -1,6 +1,7 @@
 import type {ApiResponse, Studio} from "@/types/studio"
 import type {Game} from "@/types/game"
 import type {Team} from "@/types/team"
+import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -58,6 +59,36 @@ export async function fetchStudio(id: string): Promise<Studio> {
     const data = await response.json()
     // API trả về trực tiếp studio object
     return data
+}
+
+/**
+ * Fetches a single studio by ID with caching support
+ * @param id Studio ID
+ * @param forceRefresh If true, bypass cache and fetch fresh data
+ * @param cacheExpiry Cache expiry time in milliseconds (default: 24 hours)
+ */
+export async function fetchStudioWithCache(
+    id: string, 
+    forceRefresh: boolean = false,
+    cacheExpiry: number = 24 * 60 * 60 * 1000 // 24 hours
+): Promise<Studio> {
+    const cacheKey = `studio_${id}`
+    
+    // Check cache first if not forcing refresh
+    if (!forceRefresh) {
+        const cachedStudio = getCacheItem<Studio>(cacheKey)
+        if (cachedStudio) {
+            return cachedStudio
+        }
+    }
+    
+    // Fetch from API
+    const studio = await fetchStudio(id)
+    
+    // Cache the result
+    setCacheItem(cacheKey, studio, cacheExpiry)
+    
+    return studio
 }
 
 /**

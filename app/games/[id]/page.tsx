@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getGame } from "@/lib/game-api"
-import { fetchStudio } from "@/lib/studio-api"
+import { fetchStudioWithCache } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                 // Load studio data if studio_id exists
                 if (gameData.studio_id) {
                     try {
-                        const studioData = await fetchStudio(gameData.studio_id)
+                        const studioData = await fetchStudioWithCache(gameData.studio_id)
                         setStudio(studioData)
                     } catch (err) {
                         console.error("Failed to load studio:", err)
