@@ -113,7 +113,8 @@ export async function addMemberToTeam(
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to add member: ${response.status}`)
+        const errorMessage = error.details || error.error || error.message || `Failed to add member: ${response.status}`
+        throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -153,4 +154,33 @@ export async function updateMemberRole(
 
     const data = await response.json()
     return data
+}
+
+/**
+ * Removes a member from a team
+ */
+export async function removeMemberFromTeam(
+    teamId: string,
+    memberId: string
+): Promise<void> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+
+    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}/members/${memberId}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+    })
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        const errorMessage = error.error || error.message || `Failed to remove member: ${response.status}`
+        throw new Error(errorMessage)
+    }
 }

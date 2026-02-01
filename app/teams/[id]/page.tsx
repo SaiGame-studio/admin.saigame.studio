@@ -17,6 +17,7 @@ import Link from "next/link"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { AddMemberDialog } from "@/components/AddMemberDialog"
 import { EditMemberRoleDialog } from "@/components/EditMemberRoleDialog"
+import { RemoveMemberDialog } from "@/components/RemoveMemberDialog"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
@@ -230,9 +231,16 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                             <p className="text-sm text-muted-foreground">@{member.username}</p>
                           )}
                         </div>
-                        <Badge variant={member.is_active ? "default" : "secondary"}>
-                          {member.is_active ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={member.is_active ? "default" : "secondary"}>
+                            {member.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                          <RemoveMemberDialog 
+                            teamId={team.id} 
+                            member={member} 
+                            onMemberRemoved={handleMemberAdded} 
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
