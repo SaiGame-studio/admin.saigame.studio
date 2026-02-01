@@ -15,6 +15,8 @@ import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
+import { AddMemberDialog } from "@/components/AddMemberDialog"
+import { EditMemberRoleDialog } from "@/components/EditMemberRoleDialog"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
@@ -71,6 +73,13 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     loadTeam().then();
     loadMembers().then();
   }, [params.id])
+
+  const handleMemberAdded = () => {
+    // Reload members list after adding a new member
+    fetchTeamMembers(params.id)
+      .then(data => setMembers(data))
+      .catch(err => console.error("Failed to reload members:", err))
+  }
 
   return (
     <div className="container mx-auto py-6">
@@ -194,9 +203,12 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
 
           {/* Members Section */}
           <Card className="mt-6 border-0 shadow-none">
-            <CardHeader>
-              <CardTitle>Members</CardTitle>
-              <CardDescription>Members in this team</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Members</CardTitle>
+                <CardDescription>Members in this team</CardDescription>
+              </div>
+              <AddMemberDialog teamId={team.id} onMemberAdded={handleMemberAdded} />
             </CardHeader>
             <CardContent>
               {membersLoading ? (
@@ -212,10 +224,10 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-medium text-lg">
-                            {member.display_name || member.username || "Unknown User"}
+                            {member.display_name}
                           </p>
-                          {member.email && (
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                          {member.username && (
+                            <p className="text-sm text-muted-foreground">@{member.username}</p>
                           )}
                         </div>
                         <Badge variant={member.is_active ? "default" : "secondary"}>
@@ -225,9 +237,20 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
                           <p className="text-sm font-medium">Role</p>
-                          <p className="text-sm text-muted-foreground">{member.role_name || "-"}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">{member.role_name}</p>
+                            <EditMemberRoleDialog 
+                              teamId={team.id} 
+                              member={member} 
+                              onRoleUpdated={handleMemberAdded} 
+                            />
+                          </div>
                         </div>
                         <div>
+                          <p className="text-sm font-medium">Email</p>
+                          <p className="text-sm text-muted-foreground">{member.email || "-"}</p>
+                        </div>
+                        <div className="col-span-2">
                           <p className="text-sm font-medium">User ID</p>
                           <p className="text-sm text-muted-foreground font-mono truncate" title={member.user_id}>
                             {member.user_id}
@@ -237,12 +260,6 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                           <div>
                             <p className="text-sm font-medium">Joined At</p>
                             <p className="text-sm text-muted-foreground">{formatTimestamp(member.joined_at)}</p>
-                          </div>
-                        )}
-                        {member.username && (
-                          <div>
-                            <p className="text-sm font-medium">Username</p>
-                            <p className="text-sm text-muted-foreground">@{member.username}</p>
                           </div>
                         )}
                       </div>

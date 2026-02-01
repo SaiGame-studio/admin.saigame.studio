@@ -9,6 +9,7 @@ import { ProtectedLayout } from "@/components/protected-layout"
 import { Footer } from "@/components/footer"
 import { SITE_NAME } from "@/lib/utils/site-config"
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -37,6 +38,7 @@ export default function RootLayout({
             <LanguageProvider>
               <ProtectedLayout>{children}</ProtectedLayout>
               <Footer />
+              <Toaster />
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>
