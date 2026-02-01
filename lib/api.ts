@@ -15,7 +15,7 @@ export async function fetchUserProfile() {
     throw new Error("Authentication token not found. Please log in again.")
   }
 
-  const response = await fetch(`${apiUrl}/api/user`, {
+  const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",

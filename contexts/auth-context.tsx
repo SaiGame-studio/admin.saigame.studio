@@ -3,26 +3,52 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration } from "@/lib/auth-utils"
+import { fetchUserProfile } from "@/lib/api"
+
+interface User {
+  id: string
+  username: string
+  email: string
+  is_active: boolean
+  is_verified: boolean
+  created_at: number
+}
 
 interface AuthContextType {
   isAuthenticated: boolean
+  user: User | null
   login: (token: string) => void
   logout: () => void
   isLoading: boolean
   timeUntilExpiration: number | null
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [timeUntilExpiration, setTimeUntilExpiration] = useState<number | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
+  // Function to fetch user data
+  const fetchUser = async () => {
+    try {
+      const response = await fetchUserProfile()
+      if (response.user) {
+        setUser(response.user)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error)
+      setUser(null)
+    }
+  }
+
   // Function to check authentication status
-  const checkAuth = () => {
+  const checkAuth = async () => {
     const token = getValidToken()
     const authenticated = !!token
     setIsAuthenticated(authenticated)
@@ -30,24 +56,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (authenticated) {
       const timeLeft = getTimeUntilExpiration()
       setTimeUntilExpiration(timeLeft)
+      await fetchUser()
     } else {
       setTimeUntilExpiration(null)
+      setUser(null)
     }
     
     return authenticated
   }
 
+  // Public function to refresh user data
+  const refreshUser = async () => {
+    if (isAuthenticated) {
+      await fetchUser()
+    }
+  }
+
   useEffect(() => {
     // Check if user is authenticated on initial load
-    checkAuth()
-    setIsLoading(false)
+    checkAuth().finally(() => setIsLoading(false))
   }, [])
 
   useEffect(() => {
     // Set up interval to check token expiration every minute
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (isAuthenticated) {
-        const stillValid = checkAuth()
+        const stillValid = await checkAuth()
         if (!stillValid) {
           console.log('Token expired, logging out user')
           logout()
@@ -78,11 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     clearToken()
     setIsAuthenticated(false)
+    setUser(null)
     setTimeUntilExpiration(null)
     router.push("/login")
   }
 
-  return <AuthContext.Provider value={{ isAuthenticated, login, logout, isLoading, timeUntilExpiration }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, timeUntilExpiration, refreshUser }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

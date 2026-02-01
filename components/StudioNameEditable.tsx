@@ -87,7 +87,7 @@ export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditabl
     setLoading(true);
     setError(null);
     try {
-      await updateGame(gameId, { name, status: game.status });
+      await updateGame(gameId, { name });
       onNameUpdate(name);
       setEditing(false);
     } catch (e: any) {
@@ -147,7 +147,7 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
     setLoading(true);
     setError(null);
     try {
-      await updateGame(gameId, { name: game.name, status });
+      await updateGame(gameId, { status });
       onStatusUpdate(status);
       setEditing(false);
     } catch (e: any) {

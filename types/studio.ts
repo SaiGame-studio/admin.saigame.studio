@@ -11,7 +11,7 @@ export interface Studio {
   slug: string
   description?: string
   tier: Tier
-  games_count: number
+  game_count: number
   user_profile_id: string
   owner_user_id: string
   is_active: boolean

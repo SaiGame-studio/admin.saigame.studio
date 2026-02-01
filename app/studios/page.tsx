@@ -169,7 +169,7 @@ export default function StudiosPage() {
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm ">
-                  <span>{t('common.games')}: {studio.games_count}</span>
+                  <span>{t('common.games')}: {studio.game_count}</span>
                 </div>
               </CardContent>
             </Card>

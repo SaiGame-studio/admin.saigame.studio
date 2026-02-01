@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getGame } from "@/lib/game-api"
+import { fetchStudio } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
+import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,16 +23,32 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const { locale } = useLanguage()
     const { t } = useTranslation(locale)
     const [game, setGame] = useState<Game | null>(null)
+    const [studio, setStudio] = useState<Studio | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const hasFetched = useRef(false)
     const gameId = params.id
 
     useEffect(() => {
+        if (hasFetched.current) return
+        hasFetched.current = true
+        
         async function loadGame() {
             try {
                 setLoading(true)
                 const gameData = await getGame(gameId)
                 setGame(gameData)
+                
+                // Load studio data if studio_id exists
+                if (gameData.studio_id) {
+                    try {
+                        const studioData = await fetchStudio(gameData.studio_id)
+                        setStudio(studioData)
+                    } catch (err) {
+                        console.error("Failed to load studio:", err)
+                    }
+                }
+                
                 setError(null)
             } catch (err) {
                 setError("Failed to load game details. Please try again.")
@@ -106,21 +124,29 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
 
     return (
         <div className="container mx-auto py-6">
-            {game.studio?.id && (
-                <div className="mb-2">
-                    <Breadcrumb>
-                        <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href={`/studios/${game.studio.id}`}>{game.studio.name || t('common.studio')}</BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                            <BreadcrumbItem>
-                                <span className="">{game.name}</span>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
-                </div>
-            )}
+            <div className="mb-2">
+                <Breadcrumb>
+                    <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+                        <BreadcrumbItem>
+                            <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                        {game.studio_id && (
+                            <>
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink href={`/studios/${game.studio_id}`}>
+                                        {studio?.name || game.studio?.name || t('common.studio')}
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                            </>
+                        )}
+                        <BreadcrumbItem>
+                            <span className="">{game.name}</span>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
+            </div>
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div className="group">
@@ -170,6 +196,18 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                         {game.id}
                                     </code>
                                 </div>
+                                {game.studio_id && (
+                                    <div>
+                                        <h3 className="text-sm font-medium ">Studio</h3>
+                                        <Link 
+                                            href={`/studios/${game.studio_id}`}
+                                            className="inline-flex items-center gap-1 hover:text-primary transition-colors text-lg"
+                                        >
+                                            {studio?.name || game.studio_id}
+                                            <ExternalLink className="w-4 h-4" />
+                                        </Link>
+                                    </div>
+                                )}
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.status')}</h3>
                                     <GameStatusEditable

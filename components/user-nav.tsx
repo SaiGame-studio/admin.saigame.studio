@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 
 export function UserNav() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
 
@@ -32,15 +32,15 @@ export function UserNav() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+              <AvatarImage src={''} alt={user.username} />
+              <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user.name}</p>
+              <p className="text-sm font-medium leading-none">{user.username}</p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user.email}
               </p>
@@ -58,7 +58,7 @@ export function UserNav() {
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={signOut}>
+          <DropdownMenuItem onClick={logout}>
             {t('common.logout')}
             <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
           </DropdownMenuItem>

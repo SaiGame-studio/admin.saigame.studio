@@ -13,12 +13,12 @@ import { Badge } from "@/components/ui/badge"
 import { UserProfiles } from "@/components/user-profiles"
 
 interface UserData {
-  id: number
-  name: string
+  id: string
+  username: string
   email: string
-  email_verified_at: number | null
+  is_active: boolean
+  is_verified: boolean
   created_at: number
-  updated_at: number
 }
 
 export function ProfileContent() {
@@ -35,8 +35,8 @@ export function ProfileContent() {
 
         const response = await fetchUserProfile()
 
-        if (response.status === "success" && response.data) {
-          setUserData(response.data)
+        if (response.user) {
+          setUserData(response.user)
         } else {
           throw new Error("Invalid response format")
         }
@@ -85,8 +85,8 @@ export function ProfileContent() {
 
   // Get initials for avatar
   const getInitials = () => {
-    if (userData.name && userData.name.trim() !== "") {
-      return userData.name
+    if (userData.username && userData.username.trim() !== "") {
+      return userData.username
         .split(" ")
         .map((part) => part[0])
         .join("")
@@ -105,11 +105,11 @@ export function ProfileContent() {
               <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <CardTitle className="text-2xl">{userData.name || "Unnamed User"}</CardTitle>
+              <CardTitle className="text-2xl">{userData.username || "Unnamed User"}</CardTitle>
               <CardDescription className="flex items-center">
                 <Mail className="mr-1 h-4 w-4" />
                 {userData.email}
-                {userData.email_verified_at ? (
+                {userData.is_verified ? (
                   <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
                     <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
                   </Badge>
@@ -143,9 +143,19 @@ export function ProfileContent() {
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground flex items-center">
-                <Clock className="mr-2 h-4 w-4" /> Last Updated
+                <UserIcon className="mr-2 h-4 w-4" /> Status
               </div>
-              <div className="font-medium">{formatDate(userData.updated_at * 1000)}</div>
+              <div className="font-medium">
+                {userData.is_active ? (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                    Inactive
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -165,7 +175,7 @@ export function ProfileContent() {
             <Button variant="outline" className="w-full">
               Change Password
             </Button>
-            {!userData.email_verified_at && (
+            {!userData.is_verified && (
               <Button variant="secondary" className="w-full">
                 Verify Email
               </Button>

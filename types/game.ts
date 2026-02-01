@@ -1,18 +1,27 @@
 export interface Game {
   id: string
+  studio_id: string
   name: string
+  slug: string
   description?: string
-  status: string
-  updated_at: number
+  game_type: string
+  config: {
+    max_players: number
+    server_region: string
+    [key: string]: any
+  }
+  is_active: boolean
   created_at: number
-  shop_count: number
-  studio_id?: string
+  updated_at: number
+  // Legacy fields for backward compatibility
+  status?: string
+  shop_count?: number
   tier?: string
   studio?: {
     id: string
     name: string
     tier: string
-    games_count: number
+    game_count: number
     user_profile_id: string
     updated_at: number
     created_at: number

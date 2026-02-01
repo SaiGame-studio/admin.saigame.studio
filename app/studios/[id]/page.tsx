@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { fetchStudio, fetchStudioGames } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
@@ -24,10 +24,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
   const [gamesLoading, setGamesLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gamesError, setGamesError] = useState<string | null>(null)
+  const hasFetched = useRef(false)
   const router = useRouter()
   const { t } = useTranslation();
 
   useEffect(() => {
+    if (hasFetched.current) return
+    hasFetched.current = true
+    
     async function loadStudio() {
       try {
         setLoading(true)
@@ -139,7 +143,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 )}
                 <div>
                   <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
-                  <p className="text-sm">{studio.games_count}</p>
+                  <p className="text-sm">{studio.game_count}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">Owner User ID</p>
@@ -212,8 +216,12 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm ">{game.status}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{t('studio.tier')}</p>
-                          <p className="text-sm ">{game.tier ?? '-'}</p>
+                          <p className="text-sm font-medium">Max Players</p>
+                          <p className="text-sm ">{game.config?.max_players ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Server Region</p>
+                          <p className="text-sm ">{game.config?.server_region ?? '-'}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.shopCount')}</p>

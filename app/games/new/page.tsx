@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createGame } from "@/lib/game-api"
 import { fetchUserStudios } from "@/lib/studio-api"
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useTranslation } from '@/lib/i18n/use-translation'
 
-export default function NewGamePage() {
+function NewGameForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [name, setName] = useState("")
@@ -29,13 +29,6 @@ export default function NewGamePage() {
       try {
         const studiosData = await fetchUserStudios()
         setStudios(studiosData)
-        // Check for studio query param
-        const studioParam = searchParams.get("studio")
-        if (studioParam && studiosData.some(s => s.id === studioParam)) {
-          setStudioId(studioParam)
-        } else if (studiosData.length > 0) {
-          setStudioId(studiosData[0].id)
-        }
       } catch (err) {
         setError("Failed to load studios. Please try again.")
       } finally {
@@ -43,7 +36,31 @@ export default function NewGamePage() {
       }
     }
     loadStudios()
-  }, [searchParams])
+  }, [])
+
+  // Separate effect to handle studio selection after studios are loaded
+  useEffect(() => {
+    if (studios.length === 0) return
+    
+    const studioParam = searchParams.get("studio")
+    console.log("Studio param from URL:", studioParam)
+    console.log("Available studios:", studios)
+    
+    if (studioParam) {
+      const studioExists = studios.some(s => s.id === studioParam)
+      console.log("Studio exists:", studioExists)
+      if (studioExists) {
+        console.log("Setting studioId to:", studioParam)
+        setStudioId(studioParam)
+      } else {
+        console.log("Studio param invalid, selecting first studio")
+        setStudioId(studios[0].id)
+      }
+    } else {
+      console.log("No studio param, selecting first studio")
+      setStudioId(studios[0].id)
+    }
+  }, [studios, searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -130,5 +147,23 @@ export default function NewGamePage() {
         </form>
       </Card>
     </div>
+  )
+}
+
+export default function NewGamePage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto py-6">
+        <div className="animate-pulse">
+          <div className="h-8 w-48 bg-muted/50 rounded mb-6" />
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader className="h-24 bg-muted/50" />
+            <CardContent className="h-48 bg-muted/30" />
+          </Card>
+        </div>
+      </div>
+    }>
+      <NewGameForm />
+    </Suspense>
   )
 } 
