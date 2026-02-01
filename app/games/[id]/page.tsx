@@ -17,6 +17,7 @@ import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEdi
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -176,6 +177,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                             {t('game.itemProfiles')}
                         </Link>
                     </Button>
+                    <DeleteGameDialog game={game} />
                 </div>
             </div>
 

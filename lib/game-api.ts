@@ -209,3 +209,29 @@ export async function fetchGameItemProfiles(gameId: string, params?: Record<stri
     const data = await response.json();
     return data.data || [];
 }
+
+/**
+ * Deletes a game by ID
+ */
+export async function deleteGame(gameId: string): Promise<void> {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+        throw new Error("Authentication required")
+    }
+
+    const response = await fetch(`${API_URL}/api/v1/games/${gameId}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+    })
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        const errorMessage = error.details || error.error || error.message || `Failed to delete game: ${response.status}`
+        throw new Error(errorMessage)
+    }
+}
