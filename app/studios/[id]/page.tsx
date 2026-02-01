@@ -125,13 +125,25 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <p className="text-sm font-medium">ID</p>
                   <p className="text-sm ">{studio.id}</p>
                 </div>
+                {studio.slug && (
+                  <div>
+                    <p className="text-sm font-medium">Slug</p>
+                    <Badge variant="outline" className="font-mono">{studio.slug}</Badge>
+                  </div>
+                )}
+                {studio.description && (
+                  <div>
+                    <p className="text-sm font-medium">Description</p>
+                    <p className="text-sm ">{studio.description}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
                   <p className="text-sm">{studio.games_count}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{t('studio.userProfileId')}</p>
-                  <p className="text-sm ">{studio.user_profile_id}</p>
+                  <p className="text-sm font-medium">Owner User ID</p>
+                  <p className="text-sm ">{studio.owner_user_id}</p>
                 </div>
               </CardContent>
             </Card>

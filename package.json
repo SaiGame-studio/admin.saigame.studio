@@ -3,7 +3,7 @@
   "version": "0.1.4",
   "private": true,
   "scripts": {
-    "dev": "next dev -H local-admin.saigame.studio -p 80",
+    "dev": "next dev -H local-admin.saigame.studio -p 81",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

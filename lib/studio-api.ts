@@ -13,7 +13,7 @@ export async function fetchUserStudios(): Promise<Studio[]> {
         throw new Error("Authentication required")
     }
 
-    const response = await fetch(`${API_URL}/api/user/studios`, {
+    const response = await fetch(`${API_URL}/api/v1/studios/me`, {
         headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -26,8 +26,9 @@ export async function fetchUserStudios(): Promise<Studio[]> {
         throw new Error(error.message || `Failed to fetch studios: ${response.status}`)
     }
 
-    const data: ApiResponse<Studio[]> = await response.json()
-    return data.data
+    const data = await response.json()
+    // API trả về trực tiếp array của studios, không có wrapper data
+    return Array.isArray(data) ? data : []
 }
 
 /**
@@ -40,7 +41,7 @@ export async function fetchStudio(id: string): Promise<Studio> {
         throw new Error("Authentication required")
     }
 
-    const response = await fetch(`${API_URL}/api/studios/${id}`, {
+    const response = await fetch(`${API_URL}/api/v1/studios/${id}`, {
         headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -53,8 +54,9 @@ export async function fetchStudio(id: string): Promise<Studio> {
         throw new Error(error.message || `Failed to fetch studio: ${response.status}`)
     }
 
-    const data: ApiResponse<Studio> = await response.json()
-    return data.data
+    const data = await response.json()
+    // API trả về trực tiếp studio object
+    return data
 }
 
 /**
@@ -67,7 +69,7 @@ export async function createStudio(studioData: { name: string }): Promise<Studio
         throw new Error("Authentication required")
     }
 
-    const response = await fetch(`${API_URL}/api/studios`, {
+    const response = await fetch(`${API_URL}/api/v1/studios`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${token}`,
@@ -82,8 +84,9 @@ export async function createStudio(studioData: { name: string }): Promise<Studio
         throw new Error(error.message || `Failed to create studio: ${response.status}`)
     }
 
-    const data: ApiResponse<Studio> = await response.json()
-    return data.data
+    const data = await response.json()
+    // API trả về trực tiếp studio object
+    return data
 }
 
 /**

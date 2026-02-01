@@ -8,9 +8,13 @@ export enum Tier {
 export interface Studio {
   id: string
   name: string
+  slug: string
+  description?: string
   tier: Tier
   games_count: number
   user_profile_id: string
+  owner_user_id: string
+  is_active: boolean
   updated_at: number
   created_at: number
 }

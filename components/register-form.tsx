@@ -26,6 +26,7 @@ export function RegisterForm() {
   const { toast } = useToast()
   const { login } = useAuth()
   const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -53,7 +54,7 @@ export function RegisterForm() {
       }
 
       // Update the fetch call in the handleSubmit function to include the Accept header
-      const response = await fetch(`${apiUrl}/api/register`, {
+      const response = await fetch(`${apiUrl}/api/v1/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,8 +62,8 @@ export function RegisterForm() {
         },
         body: JSON.stringify({
           email,
+          username,
           password,
-          password_confirmation: passwordConfirmation,
         }),
       })
 
@@ -82,27 +83,16 @@ export function RegisterForm() {
       // Save the email for future logins
       safeSetItem(REMEMBERED_EMAIL_KEY, email)
 
-      // Check if the API returned a token
-      if (data.token) {
-        // Use the auth context to login with the token
-        login(data.token)
+      // Registration successful - show success message and redirect to login
+      toast({
+        title: "Registration successful",
+        description: `Account created for ${data.user?.username || email}. Please log in to continue.`,
+      })
 
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created and you are now logged in.",
-        })
-      } else {
-        // If no token is returned, show success message and redirect to login
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created. You can now log in.",
-        })
-
-        // Redirect to login page after a short delay
-        setTimeout(() => {
-          router.push("/login")
-        }, 1500)
-      }
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        router.push("/login")
+      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
@@ -131,6 +121,18 @@ export function RegisterForm() {
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              type="text"
+              placeholder="your_username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               disabled={isLoading}
             />

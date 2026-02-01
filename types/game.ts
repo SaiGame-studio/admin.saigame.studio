@@ -1,6 +1,7 @@
 export interface Game {
   id: string
   name: string
+  description?: string
   status: string
   updated_at: number
   created_at: number

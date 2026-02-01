@@ -40,7 +40,10 @@ export default function StudiosPage() {
   }, [])
 
   async function handleCreateStudio() {
-    if (!newStudioName.trim()) return;
+    if (!newStudioName.trim()) {
+      setCreateError("Please enter a studio name");
+      return;
+    }
     setCreating(true);
     setCreateError(null);
     try {
@@ -69,14 +72,14 @@ export default function StudiosPage() {
             className="w-48"
             disabled={creating}
             onKeyDown={e => {
-              if (e.key === 'Enter' && newStudioName.trim() && !creating) {
+              if (e.key === 'Enter' && !creating) {
                 handleCreateStudio();
               }
             }}
           />
           <Button
             onClick={handleCreateStudio}
-            disabled={!newStudioName.trim() || creating}
+            disabled={creating}
             variant="default"
           >
             {creating ? t('common.loading') : t('studio.create')}
@@ -143,6 +146,14 @@ export default function StudiosPage() {
                       <ExternalLink className="w-4 h-4 " />
                     </Link>
                   </CardTitle>
+                  {studio.slug && (
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-xs font-mono">{studio.slug}</Badge>
+                    </div>
+                  )}
+                  {studio.description && (
+                    <p className="text-sm text-muted-foreground">{studio.description}</p>
+                  )}
                   <div className="flex flex-col gap-1">
                     {studio.tier && (
                       <div className="flex items-center gap-2">

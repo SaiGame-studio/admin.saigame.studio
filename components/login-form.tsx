@@ -64,7 +64,7 @@ export function LoginForm() {
         throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
       }
 
-      const response = await fetch(`${apiUrl}/api/login`, {
+      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,15 +80,15 @@ export function LoginForm() {
       }
 
       // Success - use the auth context to login
-      if (data.token) {
-        login(data.token)
+      if (data.access_token) {
+        login(data.access_token)
 
         toast({
           title: "Login successful",
-          description: "You have been successfully logged in.",
+          description: `Welcome back, ${data.user?.username || data.user?.email || 'User'}!`,
         })
       } else {
-        throw new Error("No token received from server")
+        throw new Error("No access token received from server")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
