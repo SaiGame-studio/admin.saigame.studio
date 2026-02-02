@@ -229,11 +229,13 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                           <Badge variant={member.is_active ? "default" : "secondary"}>
                             {member.is_active ? "Active" : "Inactive"}
                           </Badge>
-                          <RemoveMemberDialog 
-                            teamId={team.id} 
-                            member={member} 
-                            onMemberRemoved={handleMemberAdded} 
-                          />
+                          {member.role_name?.toLowerCase() !== "owner" && (
+                            <RemoveMemberDialog 
+                              teamId={team.id} 
+                              member={member} 
+                              onMemberRemoved={handleMemberAdded} 
+                            />
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-4">

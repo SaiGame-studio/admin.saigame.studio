@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
-import { GameNameEditable, GameStatusEditable } from "@/components/StudioNameEditable"
+import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
@@ -156,7 +156,11 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         gameId={game.id}
                         onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
                     />
-                    <p className="">{t('game.detailsDesc')}</p>
+                    <GameDescriptionEditable
+                        game={game}
+                        gameId={game.id}
+                        onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}
+                    />
                 </div>
                 <div className="flex gap-2 mt-4 md:mt-0">
                     <Button asChild variant="outline" className="flex items-center gap-2">
