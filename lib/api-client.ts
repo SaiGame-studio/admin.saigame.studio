@@ -96,11 +96,8 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
         return apiRequest(endpoint, options, retryCount + 1)
       }
       
-      // Refresh failed, clear tokens and redirect
+      // Refresh failed, clear tokens but don't redirect (let auth context handle it)
       clearToken()
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login'
-      }
       throw new ApiError("Authentication required", 401)
     }
 

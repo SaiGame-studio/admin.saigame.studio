@@ -1,59 +1,29 @@
 import type { Team, TeamMember } from "@/types/team"
 import type { Role } from "@/types/role"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+import { api } from "@/lib/api-client"
 
 /**
  * Fetches details of a specific team
  */
 export async function fetchTeamDetails(teamId: string): Promise<Team> {
-    const token = localStorage.getItem("token")
+    return await api.get(`/api/v1/teams/${teamId}`)
+}
 
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch team details: ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
+/**
+ * Updates a team
+ */
+export async function updateTeam(
+    teamId: string,
+    teamData: { name?: string; description?: string }
+): Promise<Team> {
+    return await api.put(`/api/v1/teams/${teamId}`, teamData)
 }
 
 /**
  * Fetches all members of a specific team
  */
 export async function fetchTeamMembers(teamId: string): Promise<TeamMember[]> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}/members`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch team members: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get(`/api/v1/teams/${teamId}/members`)
     return Array.isArray(data) ? data : []
 }
 
@@ -61,26 +31,7 @@ export async function fetchTeamMembers(teamId: string): Promise<TeamMember[]> {
  * Fetches all available roles
  */
 export async function fetchRoles(): Promise<Role[]> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/roles`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch roles: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get("/api/v1/roles")
     return Array.isArray(data) ? data : []
 }
 
@@ -92,33 +43,10 @@ export async function addMemberToTeam(
     userId: string, 
     roleId: string
 ): Promise<TeamMember> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}/members`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify({
-            user_id: userId,
-            role_id: roleId,
-        }),
+    return await api.post(`/api/v1/teams/${teamId}/members`, {
+        user_id: userId,
+        role_id: roleId,
     })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        const errorMessage = error.details || error.error || error.message || `Failed to add member: ${response.status}`
-        throw new Error(errorMessage)
-    }
-
-    const data = await response.json()
-    return data
 }
 
 /**
@@ -129,31 +57,9 @@ export async function updateMemberRole(
     memberId: string,
     roleId: string
 ): Promise<TeamMember> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}/members/${memberId}`, {
-        method: "PUT",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify({
-            role_id: roleId,
-        }),
+    return await api.put(`/api/v1/teams/${teamId}/members/${memberId}`, {
+        role_id: roleId,
     })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to update member role: ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
 }
 
 /**
@@ -163,24 +69,5 @@ export async function removeMemberFromTeam(
     teamId: string,
     memberId: string
 ): Promise<void> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/teams/${teamId}/members/${memberId}`, {
-        method: "DELETE",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        const errorMessage = error.error || error.message || `Failed to remove member: ${response.status}`
-        throw new Error(errorMessage)
-    }
+    await api.delete(`/api/v1/teams/${teamId}/members/${memberId}`)
 }

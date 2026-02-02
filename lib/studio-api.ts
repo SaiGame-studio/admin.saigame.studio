@@ -2,33 +2,13 @@ import type {ApiResponse, Studio} from "@/types/studio"
 import type {Game} from "@/types/game"
 import type {Team} from "@/types/team"
 import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+import { api } from "@/lib/api-client"
 
 /**
  * Fetches all studios for the current user
  */
 export async function fetchUserStudios(): Promise<Studio[]> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios/me`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch studios: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get("/api/v1/studios/me")
     // API trả về trực tiếp array của studios, không có wrapper data
     return Array.isArray(data) ? data : []
 }
@@ -37,26 +17,7 @@ export async function fetchUserStudios(): Promise<Studio[]> {
  * Fetches a single studio by ID
  */
 export async function fetchStudio(id: string): Promise<Studio> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios/${id}`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch studio: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get(`/api/v1/studios/${id}`)
     // API trả về trực tiếp studio object
     return data
 }
@@ -95,28 +56,7 @@ export async function fetchStudioWithCache(
  * Creates a new studio
  */
 export async function createStudio(studioData: { name: string }): Promise<Studio> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify(studioData),
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to create studio: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.post("/api/v1/studios", studioData)
     // API trả về trực tiếp studio object
     return data
 }
@@ -125,29 +65,8 @@ export async function createStudio(studioData: { name: string }): Promise<Studio
  * Updates an existing studio
  */
 export async function updateStudio(id: string, studioData: { name?: string; description?: string }): Promise<Studio> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios/${id}`, {
-        method: "PUT",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify(studioData),
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to update studio: ${response.status}`)
-    }
-
-    const data: ApiResponse<Studio> = await response.json()
-    return data.data
+    const data = await api.put(`/api/v1/studios/${id}`, studioData)
+    return data.data || data
 }
 
 /**
@@ -166,12 +85,6 @@ export async function createGame(
         }
     }
 ): Promise<Game> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
     // Set default values
     const requestData = {
         name: gameData.name,
@@ -183,22 +96,7 @@ export async function createGame(
         }
     }
 
-    const response = await fetch(`${API_URL}/api/v1/studios/${studioId}/games`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify(requestData),
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to create game: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.post(`/api/v1/studios/${studioId}/games`, requestData)
     return data
 }
 
@@ -206,26 +104,7 @@ export async function createGame(
  * Fetches all games for a specific studio
  */
 export async function fetchStudioGames(studioId: string): Promise<Game[]> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios/${studioId}/games`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch studio games: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get(`/api/v1/studios/${studioId}/games`)
     return Array.isArray(data) ? data : []
 }
 
@@ -233,25 +112,6 @@ export async function fetchStudioGames(studioId: string): Promise<Game[]> {
  * Fetches all teams for a specific studio
  */
 export async function fetchStudioTeams(studioId: string): Promise<Team[]> {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-        throw new Error("Authentication required")
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/studios/${studioId}/teams`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-    })
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || `Failed to fetch studio teams: ${response.status}`)
-    }
-
-    const data = await response.json()
+    const data = await api.get(`/api/v1/studios/${studioId}/teams`)
     return Array.isArray(data) ? data : []
 }
