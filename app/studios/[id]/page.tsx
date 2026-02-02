@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
-import StudioNameEditable from "@/components/StudioNameEditable"
+import StudioNameEditable, { StudioDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useTranslation } from '@/lib/i18n/use-translation'
 
@@ -141,6 +141,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 studioId={studio.id}
                 onNameUpdate={newName => setStudio(prev => prev ? { ...prev, name: newName } : prev)}
               />
+              <StudioDescriptionEditable
+                studio={studio}
+                studioId={studio.id}
+                onDescriptionUpdate={newDescription => setStudio(prev => prev ? { ...prev, description: newDescription } : prev)}
+              />
               <Badge className="mt-2">{studio.tier}</Badge>
             </div>
           </div>
@@ -159,12 +164,6 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <div>
                     <p className="text-sm font-medium">Slug</p>
                     <Badge variant="outline" className="font-mono">{studio.slug}</Badge>
-                  </div>
-                )}
-                {studio.description && (
-                  <div>
-                    <p className="text-sm font-medium">Description</p>
-                    <p className="text-sm ">{studio.description}</p>
                   </div>
                 )}
                 <div>
