@@ -1,23 +1,22 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useRouter } from "next/navigation"
 import { fetchTeamDetails, fetchTeamMembers } from "@/lib/team-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Team, TeamMember } from "@/types/team"
 import type { Studio } from "@/types/studio"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react"
+import { AlertCircle, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { AddMemberDialog } from "@/components/AddMemberDialog"
 import { EditMemberRoleDialog } from "@/components/EditMemberRoleDialog"
 import { RemoveMemberDialog } from "@/components/RemoveMemberDialog"
+import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamNameEditable"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
@@ -28,7 +27,6 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
   const [error, setError] = useState<string | null>(null)
   const [membersError, setMembersError] = useState<string | null>(null)
   const hasFetched = useRef(false)
-  const router = useRouter()
 
   useEffect(() => {
     if (hasFetched.current) return
@@ -106,13 +104,6 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         </Breadcrumb>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-      </div>
-
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
@@ -145,8 +136,17 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         <>
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{team.name}</h1>
-              <Badge variant={team.is_active ? "default" : "secondary"}>
+              <TeamNameEditable
+                team={team}
+                teamId={team.id}
+                onNameUpdate={newName => setTeam(prev => prev ? { ...prev, name: newName } : prev)}
+              />
+              <TeamDescriptionEditable
+                team={team}
+                teamId={team.id}
+                onDescriptionUpdate={newDescription => setTeam(prev => prev ? { ...prev, description: newDescription } : prev)}
+              />
+              <Badge variant={team.is_active ? "default" : "secondary"} className="mt-2">
                 {team.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
@@ -166,12 +166,6 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                   <div>
                     <p className="text-sm font-medium">Slug</p>
                     <Badge variant="outline" className="font-mono">{team.slug}</Badge>
-                  </div>
-                )}
-                {team.description && (
-                  <div>
-                    <p className="text-sm font-medium">Description</p>
-                    <p className="text-sm text-muted-foreground">{team.description}</p>
                   </div>
                 )}
                 <div>
@@ -221,11 +215,11 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               ) : members.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {members.map((member) => (
-                    <div key={member.id} className="p-4 border rounded-md">
+                    <div key={member.id} className="p-4 border rounded-md group">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-medium text-lg">
-                            {member.display_name}
+                            {member.email || member.display_name || "-"}
                           </p>
                           {member.username && (
                             <p className="text-sm text-muted-foreground">@{member.username}</p>
