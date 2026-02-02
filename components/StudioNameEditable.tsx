@@ -191,4 +191,67 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
     </div>
   );
-} 
+}
+
+interface StudioDescriptionEditableProps {
+  studio: any;
+  studioId: string;
+  onDescriptionUpdate: (newDescription: string) => void;
+}
+
+export function StudioDescriptionEditable({ studio, studioId, onDescriptionUpdate }: StudioDescriptionEditableProps) {
+  const [editing, setEditing] = useState(false);
+  const [description, setDescription] = useState(studio.description || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDescription(studio.description || '');
+  }, [studio.description]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await updateStudio(studioId, { description });
+      onDescriptionUpdate(description);
+      setEditing(false);
+    } catch (e: any) {
+      setError(e.message || "Failed to update studio description");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="group flex items-center gap-2 mt-1">
+      {editing ? (
+        <>
+          <Input
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Add studio description..."
+            className="w-96 h-8 px-2 text-sm"
+            disabled={loading}
+          />
+          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
+            <Save className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(studio.description || ''); }} disabled={loading}>
+            <X className="w-4 h-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="text-sm text-muted-foreground">
+            {description || "Add studio description..."}
+          </span>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+    </div>
+  );
+}

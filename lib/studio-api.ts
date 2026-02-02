@@ -124,14 +124,14 @@ export async function createStudio(studioData: { name: string }): Promise<Studio
 /**
  * Updates an existing studio
  */
-export async function updateStudio(id: string, studioData: { name?: string }): Promise<Studio> {
+export async function updateStudio(id: string, studioData: { name?: string; description?: string }): Promise<Studio> {
     const token = localStorage.getItem("token")
 
     if (!token) {
         throw new Error("Authentication required")
     }
 
-    const response = await fetch(`${API_URL}/api/studios/${id}`, {
+    const response = await fetch(`${API_URL}/api/v1/studios/${id}`, {
         method: "PUT",
         headers: {
             Authorization: `Bearer ${token}`,
