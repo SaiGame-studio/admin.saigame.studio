@@ -13,6 +13,7 @@ export interface Game {
   is_active: boolean
   created_at: number
   updated_at: number
+  player_count?: number
   // Legacy fields for backward compatibility
   status?: string
   shop_count?: number
