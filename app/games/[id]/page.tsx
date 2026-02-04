@@ -262,7 +262,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <h3 className="text-sm font-medium ">{t('game.totalPlayer')}</h3>
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.total_player ?? 0}
+                                            {game.player_count ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
                                     </p>

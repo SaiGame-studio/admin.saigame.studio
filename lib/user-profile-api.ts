@@ -17,7 +17,7 @@ export async function fetchPlayerProfiles(): Promise<UserProfile[]> {
     throw new Error("Authentication token not found. Please log in again.")
   }
 
-  const response = await fetch(`${apiUrl}/api/user/profiles`, {
+  const response = await fetch(`${apiUrl}/api/v1/me/profiles`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -30,7 +30,7 @@ export async function fetchPlayerProfiles(): Promise<UserProfile[]> {
     throw new Error(errorData.message || `Failed to fetch user profiles: ${response.status}`)
   }
 
-  const data = await response.json()
-  // API trả về { status, message, message_code, data: UserProfile[] }
-  return data.data || []
+  const data: UserProfilesResponse = await response.json()
+  // API trả về { count, profiles, user_id }
+  return data.profiles || []
 }

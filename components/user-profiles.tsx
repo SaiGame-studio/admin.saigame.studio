@@ -77,7 +77,8 @@ export function UserProfiles() {
 }
 
 function ProfileCard({ profile }: { profile: UserProfile }) {
-  const isDeveloper = profile.type === "developer"
+  const isDeveloper = profile.profile_type === "developer"
+  const isGames = profile.profile_type === "games"
 
   return (
     <Card>
@@ -85,11 +86,10 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
         <div className="flex justify-between items-center">
           <Badge variant={isDeveloper ? "default" : "secondary"} className="mb-2">
             {isDeveloper ? <Code className="mr-1 h-3 w-3" /> : <Gamepad2 className="mr-1 h-3 w-3" />}
-            {profile.type.charAt(0).toUpperCase() + profile.type.slice(1)}
+            {profile.profile_type.charAt(0).toUpperCase() + profile.profile_type.slice(1)}
           </Badge>
-          <Badge variant="outline">{profile.tier}</Badge>
         </div>
-        <CardTitle>{isDeveloper ? "Developer Profile" : "Player Profile"}</CardTitle>
+        <CardTitle>{isDeveloper ? "Developer Profile" : isGames ? "Games Profile" : "Profile"}</CardTitle>
         <CardDescription className="text-xs text-muted-foreground">Profile ID: {profile.id}</CardDescription>
       </CardHeader>
       <CardContent className="pt-2">
@@ -108,12 +108,24 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
               <div className="font-medium text-lg text-left">{formatDate(profile.updated_at * 1000)}</div>
             </div>
           </div>
-          {isDeveloper && (
+          {profile.custom_data && (
             <div className="flex flex-col items-end justify-start h-full">
-              <div className="flex items-center text-sm text-muted-foreground w-full justify-end">
-                <Brush className="mr-2 h-4 w-4" /> Studios
-              </div>
-              <div className="font-bold text-2xl text-right w-full">{profile.studios_count || 0}</div>
+              {profile.custom_data.studio_count !== undefined && (
+                <>
+                  <div className="flex items-center text-sm text-muted-foreground w-full justify-end">
+                    <Brush className="mr-2 h-4 w-4" /> Studios
+                  </div>
+                  <div className="font-bold text-2xl text-right w-full">{profile.custom_data.studio_count}</div>
+                </>
+              )}
+              {profile.custom_data.games_joined_count !== undefined && (
+                <>
+                  <div className="flex items-center text-sm text-muted-foreground w-full justify-end mt-4">
+                    <Gamepad2 className="mr-2 h-4 w-4" /> Games Joined
+                  </div>
+                  <div className="font-bold text-2xl text-right w-full">{profile.custom_data.games_joined_count}</div>
+                </>
+              )}
             </div>
           )}
         </div>

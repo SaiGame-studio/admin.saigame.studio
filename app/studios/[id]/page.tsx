@@ -286,7 +286,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
-                          <p className="text-sm ">{game.total_player ?? 0}</p>
+                          <p className="text-sm ">{game.player_count ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
