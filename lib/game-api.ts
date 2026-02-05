@@ -1,4 +1,5 @@
 import type {ApiResponse, Game} from "@/types/game"
+import type {Team} from "@/types/team"
 import { api } from "@/lib/api-client"
 
 // Get all games for a specific studio
@@ -79,4 +80,34 @@ export async function fetchGameItemProfiles(gameId: string, params?: Record<stri
  */
 export async function deleteGame(gameId: string): Promise<void> {
     await api.delete(`/api/v1/games/${gameId}`)
+}
+
+/**
+ * Fetches all teams assigned to a specific game
+ */
+export async function fetchGameTeams(gameId: string): Promise<Team[]> {
+    const data = await api.get(`/api/v1/games/${gameId}/teams`)
+    return data?.teams && Array.isArray(data.teams) ? data.teams : []
+}
+
+/**
+ * Unassigns a team from a game
+ */
+export async function unassignTeamFromGame(
+    gameId: string,
+    teamId: string
+): Promise<void> {
+    await api.delete(`/api/v1/teams/${teamId}/games/${gameId}`)
+}
+
+/**
+ * Assigns a team to a game
+ */
+export async function assignTeamToGame(
+    teamId: string,
+    gameId: string
+): Promise<void> {
+    await api.post(`/api/v1/teams/${teamId}/games`, {
+        game_id: gameId,
+    })
 }

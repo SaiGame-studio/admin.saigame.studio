@@ -3,10 +3,11 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { getGame } from "@/lib/game-api"
+import { getGame, fetchGameTeams } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
+import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +19,9 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
+import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
+import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -25,7 +29,9 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const { t } = useTranslation(locale)
     const [game, setGame] = useState<Game | null>(null)
     const [studio, setStudio] = useState<Studio | null>(null)
+    const [teams, setTeams] = useState<Team[]>([])
     const [loading, setLoading] = useState(true)
+    const [teamsLoading, setTeamsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const hasFetched = useRef(false)
     const gameId = params.id
@@ -59,8 +65,27 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             }
         }
 
+        async function loadTeams() {
+            try {
+                setTeamsLoading(true)
+                const teamsData = await fetchGameTeams(gameId)
+                setTeams(teamsData)
+            } catch (err) {
+                console.error("Failed to load teams:", err)
+            } finally {
+                setTeamsLoading(false)
+            }
+        }
+
         loadGame().then();
+        loadTeams().then();
     }, [gameId])
+
+    const handleTeamRemoved = () => {
+        fetchGameTeams(gameId)
+            .then(data => setTeams(data))
+            .catch(err => console.error("Failed to reload teams:", err))
+    }
 
     function getStatusColor(status: string) {
         switch (status) {
@@ -278,6 +303,52 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Teams Section */}
+                <Card className="lg:col-span-3 mt-6">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <div>
+                            <CardTitle>Teams</CardTitle>
+                            <CardDescription>Teams assigned to this game</CardDescription>
+                        </div>
+                        {game.studio_id && (
+                            <AddTeamToGameDialog 
+                                gameId={game.id} 
+                                studioId={game.studio_id}
+                                existingTeamIds={teams.map(t => t.id)}
+                                onTeamsAdded={handleTeamRemoved}
+                            />
+                        )}
+                    </CardHeader>
+                    <CardContent className="group">
+                        {teamsLoading ? (
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-full" />
+                            </div>
+                        ) : teams.length > 0 ? (
+                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                {teams.map((team) => (
+                                    <div key={team.id} className="inline-flex items-center gap-1">
+                                        <Link
+                                            href={`/teams/${team.id}`}
+                                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                        >
+                                            {team.name}
+                                            <ExternalLink className="w-4 h-4" />
+                                        </Link>
+                                        <RemoveTeamFromGameDialog 
+                                            gameId={game.id}
+                                            team={team}
+                                            onTeamRemoved={handleTeamRemoved}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No teams assigned to this game.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
