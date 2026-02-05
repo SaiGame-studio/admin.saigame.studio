@@ -1,5 +1,6 @@
 import type { Team, TeamMember } from "@/types/team"
 import type { Role } from "@/types/role"
+import type { Game } from "@/types/game"
 import { api } from "@/lib/api-client"
 
 /**
@@ -70,4 +71,34 @@ export async function removeMemberFromTeam(
     memberId: string
 ): Promise<void> {
     await api.delete(`/api/v1/teams/${teamId}/members/${memberId}`)
+}
+
+/**
+ * Fetches all games assigned to a specific team
+ */
+export async function fetchTeamGames(teamId: string): Promise<Game[]> {
+    const data = await api.get(`/api/v1/teams/${teamId}/games`)
+    return Array.isArray(data) ? data : []
+}
+
+/**
+ * Assigns multiple games to a team
+ */
+export async function assignGamesToTeam(
+    teamId: string,
+    gameIds: string[]
+): Promise<void> {
+    await api.post(`/api/v1/teams/${teamId}/games/batch`, {
+        game_ids: gameIds,
+    })
+}
+
+/**
+ * Unassigns a game from a team
+ */
+export async function unassignGameFromTeam(
+    teamId: string,
+    gameId: string
+): Promise<void> {
+    await api.delete(`/api/v1/teams/${teamId}/games/${gameId}`)
 }

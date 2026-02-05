@@ -3,7 +3,7 @@ import { api } from "@/lib/api-client"
 
 // Get all games for a specific studio
 export async function getStudioGames(studioId: string, limit: number = 50, offset: number = 0): Promise<Game[]> {
-    const data = await api.get(`/api/v1/studios/${studioId}/games?limit=${limit}&offset=${offset}`)
+    const data = await api.get(`/api/v1/studios/${studioId}/games/me?limit=${limit}&offset=${offset}`)
     return Array.isArray(data) ? data : []
 }
 

@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { fetchTeamDetails, fetchTeamMembers } from "@/lib/team-api"
+import { fetchTeamDetails, fetchTeamMembers, fetchTeamGames } from "@/lib/team-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Team, TeamMember } from "@/types/team"
 import type { Studio } from "@/types/studio"
+import type { Game } from "@/types/game"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,16 +17,21 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { AddMemberDialog } from "@/components/AddMemberDialog"
 import { EditMemberRoleDialog } from "@/components/EditMemberRoleDialog"
 import { RemoveMemberDialog } from "@/components/RemoveMemberDialog"
+import { AddGameToTeamDialog } from "@/components/AddGameToTeamDialog"
+import { RemoveGameFromTeamDialog } from "@/components/RemoveGameFromTeamDialog"
 import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamNameEditable"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
   const [studio, setStudio] = useState<Studio | null>(null)
   const [members, setMembers] = useState<TeamMember[]>([])
+  const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [membersLoading, setMembersLoading] = useState(true)
+  const [gamesLoading, setGamesLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [membersError, setMembersError] = useState<string | null>(null)
+  const [gamesError, setGamesError] = useState<string | null>(null)
   const hasFetched = useRef(false)
 
   useEffect(() => {
@@ -69,8 +75,22 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       }
     }
 
+    async function loadGames() {
+      try {
+        setGamesLoading(true)
+        const data = await fetchTeamGames(params.id)
+        setGames(data)
+        setGamesError(null)
+      } catch (err) {
+        setGamesError(err instanceof Error ? err.message : "Failed to load team games")
+      } finally {
+        setGamesLoading(false)
+      }
+    }
+
     loadTeam().then();
     loadMembers().then();
+    loadGames().then();
   }, [params.id])
 
   const handleMemberAdded = () => {
@@ -78,6 +98,13 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     fetchTeamMembers(params.id)
       .then(data => setMembers(data))
       .catch(err => console.error("Failed to reload members:", err))
+  }
+
+  const handleGamesAdded = () => {
+    // Reload games list after adding new games
+    fetchTeamGames(params.id)
+      .then(data => setGames(data))
+      .catch(err => console.error("Failed to reload games:", err))
   }
 
   return (
@@ -117,6 +144,14 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{membersError}</AlertDescription>
+        </Alert>
+      )}
+
+      {gamesError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{gamesError}</AlertDescription>
         </Alert>
       )}
 
@@ -195,6 +230,53 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               </CardContent>
             </Card>
           </div>
+
+          {/* Games Section */}
+          <Card className="mt-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle>Games</CardTitle>
+                <CardDescription>Games assigned to this team</CardDescription>
+              </div>
+              {team.studio_id && (
+                <AddGameToTeamDialog 
+                  teamId={team.id} 
+                  studioId={team.studio_id}
+                  existingGameIds={games.map(g => g.id)}
+                  onGamesAdded={handleGamesAdded}
+                />
+              )}
+            </CardHeader>
+            <CardContent className="group">
+              {gamesLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : games.length > 0 ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {games.map((game) => (
+                    <div key={game.id} className="inline-flex items-center gap-1">
+                      <Link
+                        href={`/games/${game.id}`}
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        {game.name}
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      <RemoveGameFromTeamDialog 
+                        teamId={team.id}
+                        game={game}
+                        onGameRemoved={handleGamesAdded}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No games assigned to this team.</p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Members Section */}
           <Card className="mt-6 border-0 shadow-none">
