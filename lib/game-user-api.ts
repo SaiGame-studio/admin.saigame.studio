@@ -1,27 +1,30 @@
-import { ApiResponse } from "@/types/game";
+import { api } from "@/lib/api-client"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export interface GameProgress {
+  id: string
+  user_id: string
+  game_id: string
+  level: number
+  experience: number
+  gold: number
+  game_data: Record<string, any>
+  created_at: number
+  updated_at: number
+  version: number
+  user_display_name: string
+  user_email: string
+  user_created_at: number
+}
 
-// Lấy danh sách user profiles của 1 game
-export async function getGameUserProfiles(gameId: string, page = 1, perPage = 10) {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("Authentication required");
+// Lấy danh sách progress (gamers) của 1 game
+export async function getGameProgressList(
+  gameId: string,
+  params?: { display_name?: string }
+): Promise<GameProgress[]> {
+  let query = ""
+  if (params?.display_name) {
+    query = "?" + new URLSearchParams({ display_name: params.display_name }).toString()
   }
-  try {
-    const response = await fetch(`${API_URL}/api/games/${gameId}/users/profiles?page=${page}&per_page=${perPage}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Error fetching user profiles: ${response.status}`);
-    }
-    const data: ApiResponse<any> = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch user profiles:", error);
-    throw error;
-  }
+  const data = await api.get(`/api/v1/games/${gameId}/progress-list${query}`)
+  return data?.progress && Array.isArray(data.progress) ? data.progress : []
 } 
