@@ -17,6 +17,7 @@ import Link from "next/link"
 import StudioNameEditable, { StudioDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useTranslation } from '@/lib/i18n/use-translation'
+import CreateTeamDialog from "@/components/CreateTeamDialog"
 
 export default function StudioDetailsPage({ params }: { params: { id: string } }) {
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -197,9 +198,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
 
           {/* Teams Section */}
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Teams</CardTitle>
-              <CardDescription>Teams in this studio</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Teams</CardTitle>
+                <CardDescription>Teams in this studio</CardDescription>
+              </div>
+              <CreateTeamDialog
+                studioId={studio.id}
+                onTeamCreated={(newTeam) => {
+                  setTeams([...teams, newTeam])
+                }}
+              />
             </CardHeader>
             <CardContent>
               {teamsLoading ? (
