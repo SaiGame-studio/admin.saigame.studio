@@ -104,7 +104,7 @@ export async function createGame(
  * Fetches all games for a specific studio
  */
 export async function fetchStudioGames(studioId: string): Promise<Game[]> {
-    const data = await api.get(`/api/v1/studios/${studioId}/games`)
+    const data = await api.get(`/api/v1/studios/${studioId}/games/me`)
     return Array.isArray(data) ? data : []
 }
 
