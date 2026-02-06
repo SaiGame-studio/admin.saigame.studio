@@ -59,10 +59,10 @@ export async function updateGame(
     return await api.patch(`/api/v1/games/${gameId}`, gameData)
 }
 
-// Get all games (across all studios)
+// Get all games of current user
 export async function getAllGames(): Promise<Game[]> {
-    const data = await api.get("/api/games")
-    return data.data || data || []
+    const data = await api.get("/api/v1/me/games")
+    return data?.games && Array.isArray(data.games) ? data.games : []
 }
 
 // Lấy tất cả item profiles của 1 game

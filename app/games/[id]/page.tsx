@@ -328,22 +328,27 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <Skeleton className="h-6 w-full" />
                             </div>
                         ) : teams.length > 0 ? (
-                            <div className="flex flex-wrap gap-x-4 gap-y-2">
-                                {teams.map((team) => (
-                                    <div key={team.id} className="inline-flex items-center gap-1">
-                                        <Link
-                                            href={`/teams/${team.id}`}
-                                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                                        >
-                                            {team.name}
-                                            <ExternalLink className="w-4 h-4" />
-                                        </Link>
-                                        <RemoveTeamFromGameDialog 
-                                            gameId={game.id}
-                                            team={team}
-                                            onTeamRemoved={handleTeamRemoved}
-                                        />
-                                    </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {teams.map((team, index) => (
+                                    <React.Fragment key={team.id}>
+                                        <div className="inline-flex items-center gap-1">
+                                            <Link
+                                                href={`/teams/${team.id}`}
+                                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                            >
+                                                {team.name}
+                                                <ExternalLink className="w-4 h-4" />
+                                            </Link>
+                                            <RemoveTeamFromGameDialog 
+                                                gameId={game.id}
+                                                team={team}
+                                                onTeamRemoved={handleTeamRemoved}
+                                            />
+                                        </div>
+                                        {index < teams.length - 1 && (
+                                            <span className="text-muted-foreground">•</span>
+                                        )}
+                                    </React.Fragment>
                                 ))}
                             </div>
                         ) : (

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getAllGames } from "@/lib/game-api"
+import { fetchStudioWithCache } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +26,7 @@ export default function GamesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [studioNames, setStudioNames] = useState<Record<string, { id: string; name: string }>>({})
 
   // Available status options
   const statusOptions = [
@@ -54,6 +56,25 @@ export default function GamesPage() {
     setStatusFilter([])
   }
 
+  // Load studio names for games that don't have studio info embedded
+  async function loadStudioNames(gamesData: Game[]) {
+    const studioIds = [...new Set(gamesData.filter(g => g.studio_id && !g.studio?.name).map(g => g.studio_id))]
+    if (studioIds.length === 0) return
+
+    const names: Record<string, { id: string; name: string }> = {}
+    await Promise.all(
+      studioIds.map(async (studioId) => {
+        try {
+          const studio = await fetchStudioWithCache(studioId)
+          names[studioId] = { id: studio.id, name: studio.name }
+        } catch (err) {
+          console.error(`Failed to load studio ${studioId}`, err)
+        }
+      })
+    )
+    setStudioNames(prev => ({ ...prev, ...names }))
+  }
+
   useEffect(() => {
     async function loadGames() {
       try {
@@ -61,6 +82,7 @@ export default function GamesPage() {
         const gamesData = await getAllGames()
         setGames(gamesData)
         setError(null)
+        loadStudioNames(gamesData)
       } catch (err) {
         setError(t('games.loadError'))
         console.error(err)
@@ -78,6 +100,7 @@ export default function GamesPage() {
       const gamesData = await getAllGames()
       setGames(gamesData)
       setError(null)
+      loadStudioNames(gamesData)
     } catch (err) {
       setError(t('games.refreshError'))
       console.error(err)
@@ -270,10 +293,17 @@ export default function GamesPage() {
                       {game.studio.name}
                       <ExternalLink className="w-3 h-3 " />
                     </Link>
+                  ) : studioNames[game.studio_id] ? (
+                    <Link href={`/studios/${studioNames[game.studio_id].id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
+                      {studioNames[game.studio_id].name}
+                      <ExternalLink className="w-3 h-3 " />
+                    </Link>
+                  ) : game.studio_id ? (
+                    <span className="font-semibold text-muted-foreground">...</span>
                   ) : (
                     <span className="font-semibold">-</span>
                   )}</span>
-                  <span>{t('games.totalPlayers')}: {game.total_player ?? 0}</span>
+                  <span>{t('games.totalPlayers')}: {game.player_count ?? game.total_player ?? 0}</span>
                   <span>{t('games.shopCount')}: {game.shop_count ?? 0}</span>
                 </div>
               </CardContent>

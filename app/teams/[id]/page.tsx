@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { fetchTeamDetails, fetchTeamMembers, fetchTeamGames } from "@/lib/team-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
@@ -254,22 +254,27 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                   <Skeleton className="h-8 w-full" />
                 </div>
               ) : games.length > 0 ? (
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {games.map((game) => (
-                    <div key={game.id} className="inline-flex items-center gap-1">
-                      <Link
-                        href={`/games/${game.id}`}
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                      >
-                        {game.name}
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                      <RemoveGameFromTeamDialog 
-                        teamId={team.id}
-                        game={game}
-                        onGameRemoved={handleGamesAdded}
-                      />
-                    </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {games.map((game, index) => (
+                    <React.Fragment key={game.id}>
+                      <div className="inline-flex items-center gap-1">
+                        <Link
+                          href={`/games/${game.id}`}
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                          {game.name}
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        <RemoveGameFromTeamDialog 
+                          teamId={team.id}
+                          game={game}
+                          onGameRemoved={handleGamesAdded}
+                        />
+                      </div>
+                      {index < games.length - 1 && (
+                        <span className="text-muted-foreground">•</span>
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               ) : (

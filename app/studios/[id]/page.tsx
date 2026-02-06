@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { fetchStudio, fetchStudioGames, fetchStudioTeams } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
@@ -209,16 +209,20 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <Skeleton className="h-8 w-24" />
                 </div>
               ) : teams.length > 0 ? (
-                <div className="flex flex-wrap gap-3">
-                  {teams.map((team) => (
-                    <Link 
-                      key={team.id} 
-                      href={`/teams/${team.id}`}
-                      className="inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
-                    >
-                      {team.name}
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  {teams.map((team, index) => (
+                    <React.Fragment key={team.id}>
+                      <Link 
+                        href={`/teams/${team.id}`}
+                        className="inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
+                      >
+                        {team.name}
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      {index < teams.length - 1 && (
+                        <span className="text-muted-foreground">•</span>
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               ) : (
