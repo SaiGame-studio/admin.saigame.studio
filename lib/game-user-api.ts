@@ -1,27 +1,50 @@
-import { ApiResponse } from "@/types/game";
+import { api } from "@/lib/api-client"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export interface GameProgress {
+  id: string
+  user_id: string
+  game_id: string
+  level: number
+  experience: number
+  gold: number
+  game_data: Record<string, any>
+  created_at: number
+  updated_at: number
+  version: number
+  user_display_name: string
+  user_email: string
+  user_created_at: number
+  banned_at?: string | null
+  banned_by?: string | null
+}
 
-// Lấy danh sách user profiles của 1 game
-export async function getGameUserProfiles(gameId: string, page = 1, perPage = 10) {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("Authentication required");
+export interface GameProgressResult {
+  progress: GameProgress[]
+  total_count: number
+}
+
+// Lấy danh sách progress (gamers) của 1 game
+export async function getGameProgressList(
+  gameId: string,
+  params?: { display_name?: string }
+): Promise<GameProgressResult> {
+  const searchParams = new URLSearchParams({ page_size: "100" })
+  if (params?.display_name) {
+    searchParams.set("display_name", params.display_name)
   }
-  try {
-    const response = await fetch(`${API_URL}/api/games/${gameId}/users/profiles?page=${page}&per_page=${perPage}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Error fetching user profiles: ${response.status}`);
-    }
-    const data: ApiResponse<any> = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch user profiles:", error);
-    throw error;
+  const data = await api.get(`/api/v1/games/${gameId}/progress-list?${searchParams.toString()}`)
+  return {
+    progress: data?.progress && Array.isArray(data.progress) ? data.progress : [],
+    total_count: data?.total_count ?? 0,
   }
+}
+
+// Ban a player progress
+export async function banProgress(progressId: string): Promise<void> {
+  await api.post(`/api/v1/gamer-progress/${progressId}/ban`, {})
+}
+
+// Unban a player progress
+export async function unbanProgress(progressId: string): Promise<void> {
+  await api.post(`/api/v1/gamer-progress/${progressId}/unban`, {})
 } 
