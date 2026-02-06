@@ -4,6 +4,16 @@ import type { Game } from "@/types/game"
 import { api } from "@/lib/api-client"
 
 /**
+ * Creates a new team in a studio
+ */
+export async function createTeam(
+    studioId: string,
+    teamData: { name: string; description?: string }
+): Promise<Team> {
+    return await api.post(`/api/v1/studios/${studioId}/teams`, teamData)
+}
+
+/**
  * Fetches details of a specific team
  */
 export async function fetchTeamDetails(teamId: string): Promise<Team> {
