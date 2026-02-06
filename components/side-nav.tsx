@@ -12,6 +12,7 @@ import {
   LogOut,
   Server,
   Shield,
+  ShieldCheck,
   Terminal,
   User,
   Users,
@@ -26,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/contexts/auth-context"
+import { useCapabilities } from "@/hooks/use-capabilities"
 import { useTheme } from "next-themes"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
 import { SITE_NAME } from "@/lib/utils/site-config"
@@ -41,6 +43,7 @@ const SIDEBAR_COLLAPSED_KEY = "sai-admin-sidebar-collapsed"
 
 export function SideNav() {
   const { logout } = useAuth()
+  const capabilities = useCapabilities()
   const { theme, setTheme } = useTheme()
   const { t, locale } = useTranslation()
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
@@ -203,6 +206,27 @@ export function SideNav() {
                     <span className="whitespace-nowrap">{t('common.documentation')}</span>
                   </Link>
                 </Button>
+              </div>
+            )}
+            {!isCollapsed && capabilities.is_super_admin && (
+              <div className="space-y-1">
+                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.admin')}</h3>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/users">
+                    <Users className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.allUsers')}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/studios">
+                    <Brush className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.allStudios')}</span>
+                  </Link>
+                </Button>
+              </div>
+            )}
+            {!isCollapsed && (
+              <div className="space-y-1">
                 {/* Separator line */}
                 <div className="border-t border-border/50 my-2"></div>
                 {isCollapsed ? (

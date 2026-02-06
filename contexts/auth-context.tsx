@@ -4,6 +4,14 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRouter, usePathname } from "next/navigation"
 import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration, refreshAccessToken } from "@/lib/auth-utils"
 import { fetchUserProfile } from "@/lib/api"
+import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
+
+export interface UserCapabilities {
+  is_super_admin: boolean
+  can_view_all_users: boolean
+  can_view_all_studios: boolean
+  permissions: string[]
+}
 
 interface User {
   id: string
@@ -12,6 +20,8 @@ interface User {
   is_active: boolean
   is_verified: boolean
   created_at: number
+  display_name?: string
+  capabilities?: UserCapabilities
 }
 
 interface AuthContextType {
@@ -40,6 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetchUserProfile()
       if (response.user) {
         setUser(response.user)
+        // Save capabilities to localStorage for global access
+        if (response.user.capabilities) {
+          safeSetItem('user_capabilities', JSON.stringify(response.user.capabilities))
+        }
       }
     } catch (error) {
       console.error('Failed to fetch user:', error)
@@ -126,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     clearToken()
+    safeRemoveItem('user_capabilities')
     setIsAuthenticated(false)
     setUser(null)
     setTimeUntilExpiration(null)
