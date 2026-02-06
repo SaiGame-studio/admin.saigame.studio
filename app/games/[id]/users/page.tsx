@@ -3,14 +3,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { getGameProgressList, GameProgress } from "@/lib/game-user-api";
+import { getGameProgressList, GameProgress, banProgress, unbanProgress } from "@/lib/game-user-api";
 import { getGame } from "@/lib/game-api";
 import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, RefreshCw, User, Trophy, Coins, Star } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, User, Trophy, Coins, Star, ShieldBan, ShieldCheck, Loader2 } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -21,11 +22,13 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
   const [progressList, setProgressList] = useState<GameProgress[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [banningIds, setBanningIds] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const loadData = useCallback(async (displayName?: string) => {
@@ -35,7 +38,8 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         getGameProgressList(gameId, displayName ? { display_name: displayName } : undefined),
         game ? Promise.resolve(game) : getGame(gameId),
       ]);
-      setProgressList(progressRes);
+      setProgressList(progressRes.progress);
+      setTotalCount(progressRes.total_count);
       if (!game) setGame(gameRes);
       setError(null);
     } catch (err) {
@@ -90,7 +94,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
             Players {game ? `- ${game.name}` : ""}
           </h1>
           <p className="text-muted-foreground">
-            {progressList.length} player{progressList.length !== 1 ? "s" : ""} found
+            {progressList.length} / {totalCount} player{totalCount !== 1 ? "s" : ""} found
             {searchQuery && ` for "${searchQuery}"`}
           </p>
         </div>
@@ -184,7 +188,10 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                     <p className="text-xs text-muted-foreground font-mono">User ID: {item.user_id}</p>
                     <p className="text-xs text-muted-foreground font-mono">Progress ID: {item.id}</p>
                   </div>
-                  <Badge variant="secondary">v{item.version}</Badge>
+                  <div className="flex items-center gap-2">
+                    {item.banned_at && <Badge variant="destructive">Banned</Badge>}
+                    <Badge variant="secondary">v{item.version}</Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -206,9 +213,69 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                   </div>
                 </div>
 
-                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between">
-                  <span>Joined: {formatTimestamp(item.user_created_at)}</span>
-                  <span>Updated: {formatTimestamp(item.updated_at)}</span>
+                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center">
+                  <div className="flex flex-col gap-0.5">
+                    <span>Joined: {formatTimestamp(item.user_created_at)}</span>
+                    <span>Updated: {formatTimestamp(item.updated_at)}</span>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant={item.banned_at ? "outline" : "destructive"}
+                        size="sm"
+                        disabled={banningIds.has(item.id)}
+                      >
+                        {banningIds.has(item.id) ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : item.banned_at ? (
+                          <><ShieldCheck className="h-3.5 w-3.5 mr-1" /> Unban</>
+                        ) : (
+                          <><ShieldBan className="h-3.5 w-3.5 mr-1" /> Ban</>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {item.banned_at ? "Unban" : "Ban"} player?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to {item.banned_at ? "unban" : "ban"}{" "}
+                          <strong>{item.user_display_name || "this player"}</strong>?
+                          {!item.banned_at && " This player will no longer be able to access the game."}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className={!item.banned_at ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                          onClick={async () => {
+                            setBanningIds(prev => new Set(prev).add(item.id));
+                            try {
+                              if (item.banned_at) {
+                                await unbanProgress(item.id);
+                              } else {
+                                await banProgress(item.id);
+                              }
+                              setProgressList(prev =>
+                                prev.map(p => p.id === item.id ? { ...p, banned_at: p.banned_at ? null : new Date().toISOString() } : p)
+                              );
+                            } catch (err) {
+                              console.error("Ban/unban failed", err);
+                            } finally {
+                              setBanningIds(prev => {
+                                const next = new Set(prev);
+                                next.delete(item.id);
+                                return next;
+                              });
+                            }
+                          }}
+                        >
+                          {item.banned_at ? "Unban" : "Ban"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
