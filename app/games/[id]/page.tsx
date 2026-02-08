@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable"
@@ -33,6 +33,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const [loading, setLoading] = useState(true)
     const [teamsLoading, setTeamsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
     const hasFetched = useRef(false)
     const gameId = params.id
 
@@ -223,9 +224,34 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                             <div className="space-y-4">
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.gameId')}</h3>
-                                    <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
-                                        {game.id}
-                                    </code>
+                                    <div className="flex items-center gap-2">
+                                        <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
+                                            {game.id}
+                                        </code>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0"
+                                            onClick={() => {
+                                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                    navigator.clipboard.writeText(game.id)
+                                                } else {
+                                                    const textarea = document.createElement('textarea')
+                                                    textarea.value = game.id
+                                                    textarea.style.position = 'fixed'
+                                                    textarea.style.opacity = '0'
+                                                    document.body.appendChild(textarea)
+                                                    textarea.select()
+                                                    document.execCommand('copy')
+                                                    document.body.removeChild(textarea)
+                                                }
+                                                setCopied(true)
+                                                setTimeout(() => setCopied(false), 2000)
+                                            }}
+                                        >
+                                            {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                                        </Button>
+                                    </div>
                                 </div>
                                 {game.studio_id && (
                                     <div>
