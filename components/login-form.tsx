@@ -17,28 +17,28 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
 import { useRouter } from "next/navigation"
 
-// Storage key for remembered email
-const REMEMBERED_EMAIL_KEY = "game_server_admin_remembered_email"
+// Storage key for remembered email/username
+const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
 
 export function LoginForm() {
   const { login } = useAuth()
   const { toast } = useToast()
-  const [email, setEmail] = useState("")
+  const [usernameOrEmail, setUsernameOrEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rememberMe, setRememberMe] = useState(false)
-  const [emailWasRemembered, setEmailWasRemembered] = useState(false)
+  const [loginWasRemembered, setLoginWasRemembered] = useState(false)
   const router = useRouter()
 
-  // Check for remembered email on component mount
+  // Check for remembered email/username on component mount
   useEffect(() => {
-    const rememberedEmail = safeGetItem(REMEMBERED_EMAIL_KEY)
-    if (rememberedEmail) {
-      setEmail(rememberedEmail)
+    const rememberedLogin = safeGetItem(REMEMBERED_LOGIN_KEY)
+    if (rememberedLogin) {
+      setUsernameOrEmail(rememberedLogin)
       setRememberMe(true)
-      setEmailWasRemembered(true)
+      setLoginWasRemembered(true)
     }
   }, [])
 
@@ -49,12 +49,12 @@ export function LoginForm() {
 
     try {
       // Handle "Remember Me" functionality
-      if (rememberMe && email) {
-        // Store email in localStorage if "Remember Me" is checked
-        safeSetItem(REMEMBERED_EMAIL_KEY, email)
+      if (rememberMe && usernameOrEmail) {
+        // Store email/username in localStorage if "Remember Me" is checked
+        safeSetItem(REMEMBERED_LOGIN_KEY, usernameOrEmail)
       } else {
-        // Remove stored email if "Remember Me" is unchecked
-        safeRemoveItem(REMEMBERED_EMAIL_KEY)
+        // Remove stored email/username if "Remember Me" is unchecked
+        safeRemoveItem(REMEMBERED_LOGIN_KEY)
       }
 
       // Get the API URL from environment variable
@@ -70,7 +70,7 @@ export function LoginForm() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username: usernameOrEmail, password }),
       })
 
       const data = await response.json()
@@ -102,7 +102,7 @@ export function LoginForm() {
       <form onSubmit={handleSubmit}>
         <CardHeader className="space-y-1">
           <div className="text-2xl font-bold">Login</div>
-          <div className="text-sm text-muted-foreground">Enter your email and password to sign in</div>
+          <div className="text-sm text-muted-foreground">Enter your email or username and password to sign in</div>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -111,22 +111,22 @@ export function LoginForm() {
             </Alert>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="usernameOrEmail">Email or Username</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="usernameOrEmail"
+              type="text"
+              placeholder="name@example.com or username"
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
               required
               disabled={isLoading}
-              className={cn(emailWasRemembered && "border-primary")}
-              aria-describedby={emailWasRemembered ? "email-remembered" : undefined}
+              className={cn(loginWasRemembered && "border-primary")}
+              aria-describedby={loginWasRemembered ? "login-remembered" : undefined}
             />
-            {emailWasRemembered && (
-              <p id="email-remembered" className="text-xs text-muted-foreground flex items-center">
+            {loginWasRemembered && (
+              <p id="login-remembered" className="text-xs text-muted-foreground flex items-center">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary mr-1.5"></span>
-                Email remembered from previous login
+                Login remembered from previous session
               </p>
             )}
           </div>
@@ -172,9 +172,9 @@ export function LoginForm() {
                 checked={rememberMe}
                 onCheckedChange={(checked) => {
                   setRememberMe(checked === true)
-                  // If unchecking, reset the emailWasRemembered state
+                  // If unchecking, reset the loginWasRemembered state
                   if (checked === false) {
-                    setEmailWasRemembered(false)
+                    setLoginWasRemembered(false)
                   }
                 }}
               />
