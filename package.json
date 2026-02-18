@@ -1,6 +1,6 @@
 {
   "name": "sai-admin",
-  "version": "0.0.5",
+  "version": "0.0.5b1",
   "private": true,
   "scripts": {
     "dev": "next dev -H local-admin.saigame.studio -p 81",
