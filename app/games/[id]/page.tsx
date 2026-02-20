@@ -347,7 +347,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Concurrent Users */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">Concurrent Users</span>
+                                        <span className="font-medium">Online Users</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.concurrent_users ?? 0} / {game.limits?.max_concurrent_users ?? '∞'}
                                             {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ' (Limit reached)'}
