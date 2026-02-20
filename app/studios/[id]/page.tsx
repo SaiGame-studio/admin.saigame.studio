@@ -101,7 +101,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -109,7 +109,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       {gamesError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{gamesError}</AlertDescription>
         </Alert>
       )}
@@ -117,7 +117,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       {teamsError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{teamsError}</AlertDescription>
         </Alert>
       )}
@@ -173,7 +173,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <p className="text-sm">{studio.usage?.games ?? studio.game_count}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Owner User ID</p>
+                  <p className="text-sm font-medium">{t('studio.ownerUserId')}</p>
                   <p className="text-sm ">{studio.owner_user_id}</p>
                 </div>
               </CardContent>
@@ -203,7 +203,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BarChart2 className="mr-2 h-5 w-5" />
-                  Limits &amp; Usage
+                  {t('studio.limitsAndUsage')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -211,14 +211,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   {/* Games */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Games</span>
+                      <span className="font-medium">{t('common.games')}</span>
                       <span className={`text-muted-foreground ${
                         studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
                           ? 'text-destructive font-semibold'
                           : ''
                       }`}>
                         {studio.usage?.games ?? 0} / {studio.limits?.max_games ?? '∞'}
-                        {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games && ' (Limit reached)'}
+                        {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games && ` (${t('studio.limitReached')})`}
                       </span>
                     </div>
                     <Progress
@@ -235,14 +235,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   {/* Total Members */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Total Members</span>
+                      <span className="font-medium">{t('studio.totalMembers')}</span>
                       <span className={`text-muted-foreground ${
                         studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members
                           ? 'text-destructive font-semibold'
                           : ''
                       }`}>
                         {studio.usage?.total_members ?? 0} / {studio.limits?.max_total_members ?? '∞'}
-                        {studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members && ' (Limit reached)'}
+                        {studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members && ` (${t('studio.limitReached')})`}
                       </span>
                     </div>
                     <Progress
@@ -265,8 +265,8 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Teams</CardTitle>
-                <CardDescription>Teams in this studio</CardDescription>
+                <CardTitle>{t('studio.teams')}</CardTitle>
+                <CardDescription>{t('studio.teamsInStudio')}</CardDescription>
               </div>
               <CreateTeamDialog
                 studioId={studio.id}
@@ -300,7 +300,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No teams found for this studio.</p>
+                <p className="text-sm text-muted-foreground">{t('studio.noTeams')}</p>
               )}
             </CardContent>
           </Card>
@@ -374,10 +374,10 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <p className="">No games found for this studio.</p>
+                  <p className="">{t('studio.noGamesInStudio')}</p>
                   <Button asChild className="mt-4">
                     <a href={`/games/new?studio=${studio.id}`}>
-                      <Plus className="mr-2 h-4 w-4" /> Create Your First Game
+                      <Plus className="mr-2 h-4 w-4" /> {t('studio.createFirstGame')}
                     </a>
                   </Button>
                 </div>
@@ -388,8 +388,8 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       ) : (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Not Found</AlertTitle>
-          <AlertDescription>The requested studio could not be found.</AlertDescription>
+          <AlertTitle>{t('studio.notFound')}</AlertTitle>
+          <AlertDescription>{t('studio.notFoundDesc')}</AlertDescription>
         </Alert>
       )}
     </div>

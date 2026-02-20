@@ -17,6 +17,7 @@ import { unassignTeamFromGame } from "@/lib/game-api"
 import type { Team } from "@/types/team"
 import { X, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface RemoveTeamFromGameDialogProps {
   gameId: string
@@ -28,6 +29,7 @@ export function RemoveTeamFromGameDialog({ gameId, team, onTeamRemoved }: Remove
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   async function handleRemove() {
     try {
@@ -35,8 +37,8 @@ export function RemoveTeamFromGameDialog({ gameId, team, onTeamRemoved }: Remove
       await unassignTeamFromGame(gameId, team.id)
       
       toast({
-        title: "Success",
-        description: "Team unassigned successfully.",
+        title: t('common.success'),
+        description: t('team.unassignedSuccess'),
       })
       
       setOpen(false)
@@ -47,8 +49,8 @@ export function RemoveTeamFromGameDialog({ gameId, team, onTeamRemoved }: Remove
     } catch (err) {
       console.error("Failed to unassign team:", err)
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to unassign team. Please try again.",
+        title: t('common.error'),
+        description: err instanceof Error ? err.message : t('team.unassignError'),
         variant: "destructive",
       })
     } finally {
@@ -70,14 +72,13 @@ export function RemoveTeamFromGameDialog({ gameId, team, onTeamRemoved }: Remove
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Unassign Team from Game?</AlertDialogTitle>
+          <AlertDialogTitle>{t('team.unassignTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to unassign <strong>{team.name}</strong> from this game? 
-            This action can be reversed by adding the team back.
+            {t('team.unassignPrefix')} <strong>{team.name}</strong> {t('team.unassignSuffix')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault()
@@ -87,7 +88,7 @@ export function RemoveTeamFromGameDialog({ gameId, team, onTeamRemoved }: Remove
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Unassign
+            {t('team.unassign')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

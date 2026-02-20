@@ -10,11 +10,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle } from "lucide-react"
+import { useTranslation } from '@/lib/i18n/use-translation'
 
 export function UserProfiles() {
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   useEffect(() => {
     async function loadUserProfiles() {
@@ -44,7 +46,7 @@ export function UserProfiles() {
     return (
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
+        <AlertTitle>{t('common.error')}</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
       </Alert>
     )
@@ -54,8 +56,8 @@ export function UserProfiles() {
     return (
       <Alert className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>No Profiles</AlertTitle>
-        <AlertDescription>No user profiles available.</AlertDescription>
+        <AlertTitle>{t('profilePage.noProfiles')}</AlertTitle>
+        <AlertDescription>{t('profilePage.noProfilesDesc')}</AlertDescription>
       </Alert>
     )
   }
@@ -64,8 +66,8 @@ export function UserProfiles() {
     <div className="grid gap-6 md:grid-cols-2">
       <Card className="md:col-span-2">
         <CardHeader>
-          <CardTitle>Your Profiles</CardTitle>
-          <CardDescription>Your developer and player profiles</CardDescription>
+          <CardTitle>{t('profilePage.yourProfiles')}</CardTitle>
+          <CardDescription>{t('profilePage.yourProfilesDesc')}</CardDescription>
         </CardHeader>
       </Card>
 
@@ -79,6 +81,7 @@ export function UserProfiles() {
 function ProfileCard({ profile }: { profile: UserProfile }) {
   const isDeveloper = profile.profile_type === "developer"
   const isGames = profile.profile_type === "games"
+  const { t } = useTranslation()
 
   return (
     <Card>
@@ -89,21 +92,21 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
             {profile.profile_type.charAt(0).toUpperCase() + profile.profile_type.slice(1)}
           </Badge>
         </div>
-        <CardTitle>{isDeveloper ? "Developer Profile" : isGames ? "Games Profile" : "Profile"}</CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">Profile ID: {profile.id}</CardDescription>
+        <CardTitle>{isDeveloper ? t('profilePage.developerProfile') : isGames ? t('profilePage.gamesProfile') : t('profilePage.profileFallback')}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">{t('profilePage.profileId')}: {profile.id}</CardDescription>
       </CardHeader>
       <CardContent className="pt-2">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <div className="space-y-4">
             <div>
               <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="mr-2 h-4 w-4" /> Created
+                <Calendar className="mr-2 h-4 w-4" /> {t('profilePage.created')}
               </div>
               <div className="font-medium text-lg text-left">{formatDate(profile.created_at * 1000)}</div>
             </div>
             <div>
               <div className="flex items-center text-sm text-muted-foreground">
-                <Clock className="mr-2 h-4 w-4" /> Last Updated
+                <Clock className="mr-2 h-4 w-4" /> {t('profilePage.lastUpdated')}
               </div>
               <div className="font-medium text-lg text-left">{formatDate(profile.updated_at * 1000)}</div>
             </div>
@@ -113,7 +116,7 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
               {profile.custom_data.studio_count !== undefined && (
                 <>
                   <div className="flex items-center text-sm text-muted-foreground w-full justify-end">
-                    <Brush className="mr-2 h-4 w-4" /> Studios
+                    <Brush className="mr-2 h-4 w-4" /> {t('profilePage.studiosCount')}
                   </div>
                   <div className="font-bold text-2xl text-right w-full">{profile.custom_data.studio_count}</div>
                 </>
@@ -121,7 +124,7 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
               {profile.custom_data.games_joined_count !== undefined && (
                 <>
                   <div className="flex items-center text-sm text-muted-foreground w-full justify-end mt-4">
-                    <Gamepad2 className="mr-2 h-4 w-4" /> Games Joined
+                    <Gamepad2 className="mr-2 h-4 w-4" /> {t('profilePage.gamesJoined')}
                   </div>
                   <div className="font-bold text-2xl text-right w-full">{profile.custom_data.games_joined_count}</div>
                 </>

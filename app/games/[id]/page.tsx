@@ -131,18 +131,18 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             <div className="container mx-auto py-6">
                 <Card className="border-destructive">
                     <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>There was a problem loading the game details</CardDescription>
+                        <CardTitle>{t('common.error')}</CardTitle>
+                        <CardDescription>{t('game.loadError')}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p>{error || "Game not found"}</p>
+                        <p>{error || t('game.notFoundText')}</p>
                     </CardContent>
                     <CardFooter>
                         <Button variant="outline" onClick={() => router.back()}>
-                            Go Back
+                            {t('common.back')}
                         </Button>
                         <Button className="ml-2" onClick={() => router.refresh()}>
-                            Try Again
+                            {t('game.tryAgain')}
                         </Button>
                     </CardFooter>
                 </Card>
@@ -256,7 +256,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 </div>
                                 {game.studio_id && (
                                     <div>
-                                        <h3 className="text-sm font-medium ">Studio</h3>
+                                        <h3 className="text-sm font-medium ">{t('common.studio')}</h3>
                                         <Link 
                                             href={`/studios/${game.studio_id}`}
                                             className="inline-flex items-center gap-1 hover:text-primary transition-colors text-lg"
@@ -339,7 +339,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         <CardHeader>
                             <CardTitle className="flex items-center">
                                 <BarChart2 className="mr-2 h-5 w-5" />
-                                Limits &amp; Usage
+                                {t('game.limitsAndUsage')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -347,10 +347,10 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Concurrent Users */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">Online Users</span>
+                                        <span className="font-medium">{t('game.onlineUsers')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.concurrent_users ?? 0} / {game.limits?.max_concurrent_users ?? '∞'}
-                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ' (Limit reached)'}
+                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
@@ -364,12 +364,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/users`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
-                                            Total Players
+                                            {t('game.totalPlayer')}
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.player_profiles ?? 0} / {game.limits?.max_player_profiles ?? '∞'}
-                                            {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ' (Limit reached)'}
+                                            {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
@@ -382,10 +382,10 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Items */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">Items</span>
+                                        <span className="font-medium">{t('game.items')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.items ?? 0} / {game.limits?.max_items ?? '∞'}
-                                            {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ' (Limit reached)'}
+                                            {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
@@ -398,10 +398,10 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">Shops</span>
+                                        <span className="font-medium">{t('game.shops')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.shops ?? 0} / {game.limits?.max_shops ?? '∞'}
-                                            {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ' (Limit reached)'}
+                                            {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
@@ -420,8 +420,8 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                 <Card className="lg:col-span-3 mt-6">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                         <div>
-                            <CardTitle>Teams</CardTitle>
-                            <CardDescription>Teams assigned to this game</CardDescription>
+                            <CardTitle>{t('studio.teams')}</CardTitle>
+                            <CardDescription>{t('game.teamsDesc')}</CardDescription>
                         </div>
                         {game.studio_id && (
                             <AddTeamToGameDialog 
@@ -462,7 +462,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">No teams assigned to this game.</p>
+                            <p className="text-sm text-muted-foreground">{t('game.noTeamsAssigned')}</p>
                         )}
                     </CardContent>
                 </Card>
