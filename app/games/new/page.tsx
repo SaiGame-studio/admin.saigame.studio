@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createGame } from "@/lib/game-api"
 import { fetchUserStudios } from "@/lib/studio-api"
+import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,7 +18,7 @@ function NewGameForm() {
   const searchParams = useSearchParams()
   const [name, setName] = useState("")
   const [studioId, setStudioId] = useState("")
-  const [studios, setStudios] = useState<{ id: string; name: string }[]>([])
+  const [studios, setStudios] = useState<Studio[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -62,6 +63,9 @@ function NewGameForm() {
     }
   }, [studios, searchParams])
 
+  const selectedStudio = studios.find(s => s.id === studioId)
+  const studioLimitReached = !!(selectedStudio?.limits?.max_games != null && (selectedStudio.usage?.games ?? 0) >= selectedStudio.limits.max_games)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) {
@@ -70,6 +74,10 @@ function NewGameForm() {
     }
     if (!studioId) {
       setError("Please select a studio")
+      return
+    }
+    if (studioLimitReached) {
+      setError(`Game limit reached for this studio (${selectedStudio?.usage?.games ?? 0}/${selectedStudio?.limits?.max_games}). Upgrade your plan to create more games.`)
       return
     }
     try {
@@ -111,6 +119,11 @@ function NewGameForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{error}</div>}
+            {studioLimitReached && (
+              <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+                This studio has reached its game limit ({selectedStudio?.usage?.games ?? 0}/{selectedStudio?.limits?.max_games}). Upgrade your plan to create more games.
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="studio">{t('common.studio')}</Label>
               <Select value={studioId} onValueChange={setStudioId} disabled={loading || studios.length === 0}>
@@ -118,9 +131,14 @@ function NewGameForm() {
                   <SelectValue placeholder={t('game.selectStudio')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {studios.map((studio) => (
-                    <SelectItem key={studio.id} value={studio.id}>{studio.name}</SelectItem>
-                  ))}
+                  {studios.map((studio) => {
+                    const atLimit = studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                    return (
+                      <SelectItem key={studio.id} value={studio.id}>
+                        {studio.name}{atLimit ? ` (limit reached: ${studio.usage?.games}/${studio.limits?.max_games})` : studio.limits?.max_games != null ? ` (${studio.usage?.games ?? 0}/${studio.limits.max_games})` : ''}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -139,7 +157,7 @@ function NewGameForm() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={submitting || loading || studios.length === 0}>
+            <Button type="submit" disabled={submitting || loading || studios.length === 0 || studioLimitReached}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('game.create')}
             </Button>

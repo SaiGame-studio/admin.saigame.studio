@@ -212,30 +212,48 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Games</span>
-                      <span className="text-muted-foreground">
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
                         {studio.usage?.games ?? 0} / {studio.limits?.max_games ?? '∞'}
+                        {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games && ' (Limit reached)'}
                       </span>
                     </div>
                     <Progress
                       value={studio.limits?.max_games
-                        ? ((studio.usage?.games ?? 0) / studio.limits.max_games) * 100
+                        ? Math.min(((studio.usage?.games ?? 0) / studio.limits.max_games) * 100, 100)
                         : 0}
-                      className="h-2"
+                      className={`h-2 ${
+                        studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
                     />
                   </div>
                   {/* Total Members */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Total Members</span>
-                      <span className="text-muted-foreground">
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
                         {studio.usage?.total_members ?? 0} / {studio.limits?.max_total_members ?? '∞'}
+                        {studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members && ' (Limit reached)'}
                       </span>
                     </div>
                     <Progress
                       value={studio.limits?.max_total_members
-                        ? ((studio.usage?.total_members ?? 0) / studio.limits.max_total_members) * 100
+                        ? Math.min(((studio.usage?.total_members ?? 0) / studio.limits.max_total_members) * 100, 100)
                         : 0}
-                      className="h-2"
+                      className={`h-2 ${
+                        studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
                     />
                   </div>
                 </div>
@@ -293,11 +311,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 <CardTitle>{t('common.games')}</CardTitle>
                 <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
               </div>
-              <Button asChild>
-                <a href={`/games/new?studio=${studio.id}`}>
+              {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games ? (
+                <Button disabled title={`Game limit reached (${studio.usage?.games ?? 0}/${studio.limits.max_games})`}>
                   <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
-                </a>
-              </Button>
+                </Button>
+              ) : (
+                <Button asChild>
+                  <a href={`/games/new?studio=${studio.id}`}>
+                    <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
+                  </a>
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {gamesLoading ? (

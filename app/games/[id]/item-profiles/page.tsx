@@ -128,8 +128,14 @@ export default function GameItemProfilesPage() {
     loadItemProfilesAndGame();
   }, [params.id]);
 
+  const itemLimitReached = !!(game?.limits?.max_items != null && (game?.usage?.items ?? itemProfiles.length) >= game.limits.max_items)
+
   async function handleQuickCreateProfile() {
     if (!quickProfileName.trim()) return;
+    if (itemLimitReached) {
+      setCreateProfileError({ message: `Item profile limit reached (${game?.usage?.items ?? itemProfiles.length}/${game?.limits?.max_items}). Upgrade your plan to create more item profiles.`, hints: [] })
+      return
+    }
     setQuickProfileLoading(true);
     setCreateProfileError(null);
     try {
@@ -336,20 +342,28 @@ export default function GameItemProfilesPage() {
 
           {/* Create Profile Section */}
           <div className="flex gap-2 items-center">
-            <input
-              ref={quickInputRef}
-              type="text"
-              className="border rounded px-2 py-1 bg-background text-foreground"
-              placeholder={t('itemProfile.quickNamePlaceholder')}
-              value={quickProfileName}
-              onChange={e => setQuickProfileName(e.target.value)}
-              disabled={quickProfileLoading}
-              onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateProfile() }}
-              style={{ minWidth: 160 }}
-            />
-            <Button onClick={handleQuickCreateProfile} disabled={quickProfileLoading || !quickProfileName.trim()}>
-              {quickProfileLoading ? t('itemProfile.creating') : t('itemProfile.create')}
-            </Button>
+            {itemLimitReached ? (
+              <span className="text-sm text-destructive font-medium">
+                Limit reached ({game?.usage?.items ?? itemProfiles.length}/{game?.limits?.max_items})
+              </span>
+            ) : (
+              <>
+                <input
+                  ref={quickInputRef}
+                  type="text"
+                  className="border rounded px-2 py-1 bg-background text-foreground"
+                  placeholder={t('itemProfile.quickNamePlaceholder')}
+                  value={quickProfileName}
+                  onChange={e => setQuickProfileName(e.target.value)}
+                  disabled={quickProfileLoading}
+                  onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateProfile() }}
+                  style={{ minWidth: 160 }}
+                />
+                <Button onClick={handleQuickCreateProfile} disabled={quickProfileLoading || !quickProfileName.trim()}>
+                  {quickProfileLoading ? t('itemProfile.creating') : t('itemProfile.create')}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

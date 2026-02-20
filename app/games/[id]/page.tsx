@@ -348,15 +348,16 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">Concurrent Users</span>
-                                        <span className="text-muted-foreground">
+                                        <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.concurrent_users ?? 0} / {game.limits?.max_concurrent_users ?? '∞'}
+                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ' (Limit reached)'}
                                         </span>
                                     </div>
                                     <Progress
                                         value={game.limits?.max_concurrent_users
-                                            ? ((game.usage?.concurrent_users ?? 0) / game.limits.max_concurrent_users) * 100
+                                            ? Math.min(((game.usage?.concurrent_users ?? 0) / game.limits.max_concurrent_users) * 100, 100)
                                             : 0}
-                                        className="h-2"
+                                        className={`h-2 ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                                 {/* Player Profiles (Total Players) */}
@@ -366,45 +367,48 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                             Total Players
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
-                                        <span className="text-muted-foreground">
+                                        <span className={`text-muted-foreground ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.player_profiles ?? 0} / {game.limits?.max_player_profiles ?? '∞'}
+                                            {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ' (Limit reached)'}
                                         </span>
                                     </div>
                                     <Progress
                                         value={game.limits?.max_player_profiles
-                                            ? ((game.usage?.player_profiles ?? 0) / game.limits.max_player_profiles) * 100
+                                            ? Math.min(((game.usage?.player_profiles ?? 0) / game.limits.max_player_profiles) * 100, 100)
                                             : 0}
-                                        className="h-2"
+                                        className={`h-2 ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                                 {/* Items */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">Items</span>
-                                        <span className="text-muted-foreground">
+                                        <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.items ?? 0} / {game.limits?.max_items ?? '∞'}
+                                            {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ' (Limit reached)'}
                                         </span>
                                     </div>
                                     <Progress
                                         value={game.limits?.max_items
-                                            ? ((game.usage?.items ?? 0) / game.limits.max_items) * 100
+                                            ? Math.min(((game.usage?.items ?? 0) / game.limits.max_items) * 100, 100)
                                             : 0}
-                                        className="h-2"
+                                        className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">Shops</span>
-                                        <span className="text-muted-foreground">
+                                        <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
                                             {game.usage?.shops ?? 0} / {game.limits?.max_shops ?? '∞'}
+                                            {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ' (Limit reached)'}
                                         </span>
                                     </div>
                                     <Progress
                                         value={game.limits?.max_shops
-                                            ? ((game.usage?.shops ?? 0) / game.limits.max_shops) * 100
+                                            ? Math.min(((game.usage?.shops ?? 0) / game.limits.max_shops) * 100, 100)
                                             : 0}
-                                        className="h-2"
+                                        className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                             </div>
