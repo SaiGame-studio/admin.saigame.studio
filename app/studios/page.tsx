@@ -4,13 +4,14 @@ import { useEffect, useState } from "react"
 import { fetchUserStudios, createStudio } from "@/lib/studio-api"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Plus, X, ExternalLink } from "lucide-react"
+import { AlertCircle, Plus, X, ExternalLink, Lock } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from '@/lib/i18n/use-translation'
+import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
 
 export default function StudiosPage() {
@@ -20,7 +21,12 @@ export default function StudiosPage() {
   const [newStudioName, setNewStudioName] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const { t } = useTranslation();
+  const { t } = useTranslation()
+  const { user } = useAuth()
+
+  const maxStudios = user?.limits?.max_studios ?? null
+  const usedStudios = user?.usage?.studios ?? 0
+  const atLimit = maxStudios !== null && usedStudios >= maxStudios
 
   useEffect(() => {
     async function loadStudios() {
@@ -44,6 +50,10 @@ export default function StudiosPage() {
       setCreateError("Please enter a studio name");
       return;
     }
+    if (atLimit) {
+      setCreateError(`You have reached your studio limit (${usedStudios} / ${maxStudios}).`);
+      return;
+    }
     setCreating(true);
     setCreateError(null);
     try {
@@ -64,28 +74,50 @@ export default function StudiosPage() {
           <h1 className="text-3xl font-bold">{t('common.studios')}</h1>
           <p className="">{t('studio.manageTitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Input
-            value={newStudioName}
-            onChange={e => setNewStudioName(e.target.value)}
-            placeholder={t('studio.newName')}
-            className="w-48"
-            disabled={creating}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !creating) {
-                handleCreateStudio();
-              }
-            }}
-          />
-          <Button
-            onClick={handleCreateStudio}
-            disabled={creating}
-            variant="default"
-          >
-            {creating ? t('common.loading') : t('studio.create')}
-          </Button>
+        <div className="flex flex-col items-end gap-2">
+          {maxStudios !== null && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="text-muted-foreground">Studios used:</span>
+              <Badge variant={atLimit ? "destructive" : "secondary"}>
+                {usedStudios} / {maxStudios}
+              </Badge>
+              {atLimit && <Lock className="h-3.5 w-3.5 text-destructive" />}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Input
+              value={newStudioName}
+              onChange={e => setNewStudioName(e.target.value)}
+              placeholder={t('studio.newName')}
+              className="w-48"
+              disabled={creating || atLimit}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !creating && !atLimit) {
+                  handleCreateStudio();
+                }
+              }}
+            />
+            <Button
+              onClick={handleCreateStudio}
+              disabled={creating || atLimit}
+              variant="default"
+              title={atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
+            >
+              {creating ? t('common.loading') : t('studio.create')}
+            </Button>
+          </div>
         </div>
       </div>
+
+      {atLimit && (
+        <Alert variant="destructive" className="mb-6">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>Studio limit reached</AlertTitle>
+          <AlertDescription>
+            You have used {usedStudios} of {maxStudios} allowed studio{maxStudios !== 1 ? "s" : ""}. Please contact support to increase your limit.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {error && (
         <Alert variant="destructive" className="mb-6">

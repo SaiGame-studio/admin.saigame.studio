@@ -5,24 +5,33 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCapabilities } from "@/hooks/use-capabilities"
-import { Brush, ShieldAlert, Search, RefreshCw, CheckCircle2, XCircle, Gamepad2, ExternalLink } from "lucide-react"
+import {
+  Brush,
+  CheckCircle2,
+  ExternalLink,
+  Gamepad2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
-import { getAllStudiosAdmin, AdminStudio } from "@/lib/admin-api"
+import { getAllGamesAdmin, AdminGame } from "@/lib/admin-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
-import { AdminStudioLimitsDialog } from "@/components/AdminStudioLimitsDialog"
+import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog"
 
-export default function AllStudiosPage() {
+export default function AllGamesPage() {
   const router = useRouter()
   const capabilities = useCapabilities()
-  const [studios, setStudios] = useState<AdminStudio[]>([])
+  const [games, setGames] = useState<AdminGame[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [nameFilter, setNameFilter] = useState("")
   const [nameSearch, setNameSearch] = useState("")
 
@@ -32,18 +41,16 @@ export default function AllStudiosPage() {
     }
   }, [capabilities, router])
 
-  const loadStudios = async () => {
+  const loadGames = async (name?: string) => {
     try {
       setLoading(true)
-      const result = await getAllStudiosAdmin({
-        name: nameSearch || undefined,
-      })
-      setStudios(result.studios)
+      const result = await getAllGamesAdmin({ name: name || undefined })
+      setGames(result.games)
       setTotalCount(result.count)
       setError(null)
     } catch (err) {
-      console.error("Failed to load studios", err)
-      setError("Failed to load studios")
+      console.error("Failed to load games", err)
+      setError("Failed to load games")
     } finally {
       setLoading(false)
     }
@@ -51,20 +58,20 @@ export default function AllStudiosPage() {
 
   useEffect(() => {
     if (capabilities.is_super_admin) {
-      loadStudios()
+      loadGames()
     }
   }, [capabilities.is_super_admin])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setNameSearch(nameFilter)
-    loadStudios()
+    loadGames(nameFilter)
   }
 
   const handleClearFilters = () => {
     setNameFilter("")
     setNameSearch("")
-    loadStudios()
+    loadGames("")
   }
 
   if (!capabilities.is_super_admin) {
@@ -95,17 +102,17 @@ export default function AllStudiosPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Brush className="h-8 w-8" />
-            All Studios
+            <Gamepad2 className="h-8 w-8" />
+            All Games
           </h1>
           <p className="text-muted-foreground">
-            {totalCount} studio{totalCount !== 1 ? "s" : ""} found
+            {totalCount} game{totalCount !== 1 ? "s" : ""} found
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={loadStudios}
+          onClick={() => loadGames(nameSearch)}
           disabled={loading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -122,9 +129,9 @@ export default function AllStudiosPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Studio Name</label>
+                <label className="text-sm font-medium">Game Name</label>
                 <Input
-                  placeholder="Search by studio name..."
+                  placeholder="Search by game name..."
                   value={nameFilter}
                   onChange={(e) => setNameFilter(e.target.value)}
                 />
@@ -145,14 +152,13 @@ export default function AllStudiosPage() {
         </Card>
       </form>
 
-      {/* Studios Table */}
+      {/* Games Table */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-6 space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-4 w-1/3" />
                     <Skeleton className="h-3 w-1/2" />
@@ -163,14 +169,14 @@ export default function AllStudiosPage() {
           ) : error ? (
             <div className="p-6 text-center text-destructive">
               <p>{error}</p>
-              <Button variant="outline" className="mt-4" onClick={loadStudios}>
+              <Button variant="outline" className="mt-4" onClick={() => loadGames(nameSearch)}>
                 Try Again
               </Button>
             </div>
-          ) : studios.length === 0 ? (
+          ) : games.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">
-              <Brush className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No studios found</p>
+              <Gamepad2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No games found</p>
               {nameSearch && (
                 <Button variant="outline" size="sm" className="mt-4" onClick={handleClearFilters}>
                   Clear Filters
@@ -182,34 +188,45 @@ export default function AllStudiosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Studio</TableHead>
+                    <TableHead>Game</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Games</TableHead>
+                    <TableHead>Studio</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {studios.map((studio) => (
-                    <TableRow key={studio.id}>
+                  {games.map((game) => (
+                    <TableRow key={game.id}>
                       <TableCell>
-                        <div className="font-medium">{studio.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{studio.id}</div>
+                        <div className="font-medium">{game.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{game.id}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground max-w-md truncate">
-                          {studio.description || "-"}
+                        <div className="text-sm text-muted-foreground max-w-xs truncate">
+                          {game.description || "-"}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Gamepad2 className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{studio.game_count}</span>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Brush className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          {game.studio_name ? (
+                            <Link
+                              href={`/studios/${game.studio_id}`}
+                              className="hover:underline truncate max-w-[140px]"
+                            >
+                              {game.studio_name}
+                            </Link>
+                          ) : (
+                            <span className="font-mono text-xs text-muted-foreground truncate max-w-[140px]">
+                              {game.studio_id}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {studio.is_active ? (
+                        {game.is_active ? (
                           <Badge variant="default" className="w-fit">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Active
@@ -222,13 +239,13 @@ export default function AllStudiosPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{formatTimestamp(studio.created_at)}</div>
+                        <div className="text-sm">{formatTimestamp(game.created_at)}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <AdminStudioLimitsDialog studio={studio} />
+                          <AdminGameLimitsDialog game={game} />
                           <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/studios/${studio.id}`} className="flex items-center gap-1">
+                            <Link href={`/games/${game.id}`} className="flex items-center gap-1">
                               <ExternalLink className="h-3.5 w-3.5" />
                               View
                             </Link>

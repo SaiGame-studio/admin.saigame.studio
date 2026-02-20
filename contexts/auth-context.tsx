@@ -13,6 +13,14 @@ export interface UserCapabilities {
   permissions: string[]
 }
 
+export interface UserLimits {
+  max_studios?: number | null
+}
+
+export interface UserUsage {
+  studios?: number | null
+}
+
 interface User {
   id: string
   username: string
@@ -21,6 +29,10 @@ interface User {
   is_verified: boolean
   created_at: number
   display_name?: string
+  permissions?: string[]
+  limits?: UserLimits
+  usage?: UserUsage
+  /** @deprecated derived from permissions now */
   capabilities?: UserCapabilities
 }
 
@@ -49,11 +61,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetchUserProfile()
       if (response.user) {
-        setUser(response.user)
-        // Save capabilities to localStorage for global access
-        if (response.user.capabilities) {
-          safeSetItem('user_capabilities', JSON.stringify(response.user.capabilities))
+        const rawUser = response.user
+        const permissions: string[] = Array.isArray(rawUser.permissions) ? rawUser.permissions : []
+
+        // Derive capabilities from permissions array
+        const capabilities: UserCapabilities = {
+          is_super_admin: permissions.includes("admin:manage_system"),
+          can_view_all_users: permissions.includes("admin:view_all_users"),
+          can_view_all_studios: permissions.includes("admin:view_all_studios"),
+          permissions,
         }
+
+        const user: User = {
+          ...rawUser,
+          permissions,
+          capabilities,
+        }
+
+        setUser(user)
+        // Save capabilities to localStorage for global access
+        safeSetItem('user_capabilities', JSON.stringify(capabilities))
       }
     } catch (error) {
       console.error('Failed to fetch user:', error)
