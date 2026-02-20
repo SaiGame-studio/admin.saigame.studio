@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink } from "lucide-react"
+import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink, BarChart2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
+import { Progress } from "@/components/ui/progress"
 import StudioNameEditable, { StudioDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useTranslation } from '@/lib/i18n/use-translation'
@@ -169,7 +170,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 )}
                 <div>
                   <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
-                  <p className="text-sm">{studio.game_count}</p>
+                  <p className="text-sm">{studio.usage?.games ?? studio.game_count}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">Owner User ID</p>
@@ -195,6 +196,52 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               </CardContent>
             </Card>
           </div>
+
+          {/* Limits & Usage Section */}
+          {(studio.limits || studio.usage) && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart2 className="mr-2 h-5 w-5" />
+                  Limits &amp; Usage
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Games */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Games</span>
+                      <span className="text-muted-foreground">
+                        {studio.usage?.games ?? 0} / {studio.limits?.max_games ?? '∞'}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_games
+                        ? ((studio.usage?.games ?? 0) / studio.limits.max_games) * 100
+                        : 0}
+                      className="h-2"
+                    />
+                  </div>
+                  {/* Total Members */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Total Members</span>
+                      <span className="text-muted-foreground">
+                        {studio.usage?.total_members ?? 0} / {studio.limits?.max_total_members ?? '∞'}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_total_members
+                        ? ((studio.usage?.total_members ?? 0) / studio.limits.max_total_members) * 100
+                        : 0}
+                      className="h-2"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Teams Section */}
           <Card className="mb-6">
