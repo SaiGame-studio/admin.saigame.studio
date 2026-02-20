@@ -87,7 +87,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <span>Players</span>
+                <span>{t('gameUsers.players')}</span>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -97,11 +97,11 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Players {game ? `- ${game.name}` : ""}
+            {t('gameUsers.players')}{game ? ` - ${game.name}` : ""}
           </h1>
           <p className="text-muted-foreground">
-            {progressList.length} / {totalCount} player{totalCount !== 1 ? "s" : ""} found
-            {searchQuery && ` for "${searchQuery}"`}
+            {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
+            {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
           </p>
         </div>
         <Button
@@ -111,7 +111,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           disabled={loading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          {t('gameUsers.refresh')}
         </Button>
       </div>
 
@@ -120,18 +120,18 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by display name..."
+            placeholder={t('gameUsers.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
         <Button type="submit" variant="default" size="default">
-          Search
+          {t('gameUsers.search')}
         </Button>
         {searchQuery && (
           <Button type="button" variant="outline" size="default" onClick={handleClearSearch}>
-            Clear
+            {t('gameUsers.clear')}
           </Button>
         )}
       </form>
@@ -160,7 +160,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           <CardContent>
             <p>{error}</p>
             <Button variant="outline" className="mt-4" onClick={() => loadData()}>
-              Try Again
+              {t('gameUsers.tryAgain')}
             </Button>
           </CardContent>
         </Card>
@@ -168,12 +168,12 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         <Card className="text-center p-6">
           <CardHeader>
             <User className="mx-auto h-12 w-12 text-muted-foreground" />
-            <CardTitle className="mt-4">No players found</CardTitle>
+            <CardTitle className="mt-4">{t('gameUsers.noPlayers')}</CardTitle>
             {searchQuery && (
               <p className="text-muted-foreground mt-2">
-                No results for &quot;{searchQuery}&quot;.{" "}
+                {t('gameUsers.noResults')} &quot;{searchQuery}&quot;.{" "}
                 <button className="text-primary hover:underline" onClick={handleClearSearch}>
-                  Clear search
+                  {t('gameUsers.clearSearch')}
                 </button>
               </p>
             )}
@@ -190,15 +190,15 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                   <div className="flex flex-col gap-1">
                     <CardTitle className="text-base flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      {identity?.display_name || item.user_display_name || "Unknown"}
+                      {identity?.display_name || item.user_display_name || t('gameUsers.unknown')}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">{identity?.masked_email || "***@saigame.studio"}</p>
-                    <p className="text-xs text-muted-foreground">Gamer: {identity?.gamer_name || "-"}</p>
-                    <p className="text-xs text-muted-foreground font-mono">User ID: {item.user_id}</p>
-                    <p className="text-xs text-muted-foreground font-mono">Progress ID: {item.id}</p>
+                    <p className="text-xs text-muted-foreground">{t('gameUsers.gamer')}: {identity?.gamer_name || "-"}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{t('gameUsers.userId')}: {item.user_id}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{t('gameUsers.progressId')}: {item.id}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {item.banned_at && <Badge variant="destructive">Banned</Badge>}
+                    {item.banned_at && <Badge variant="destructive">{t('gameUsers.banned')}</Badge>}
                     <Badge variant="secondary">v{item.version}</Badge>
                   </div>
                 </div>
@@ -207,25 +207,25 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="flex flex-col items-center gap-1 p-2 rounded-md bg-muted/50">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span className="text-xs text-muted-foreground">Level</span>
+                    <span className="text-xs text-muted-foreground">{t('gameUsers.level')}</span>
                     <span className="font-semibold text-sm">{item.level}</span>
                   </div>
                   <div className="flex flex-col items-center gap-1 p-2 rounded-md bg-muted/50">
                     <Trophy className="h-4 w-4 text-blue-500" />
-                    <span className="text-xs text-muted-foreground">EXP</span>
+                    <span className="text-xs text-muted-foreground">{t('gameUsers.exp')}</span>
                     <span className="font-semibold text-sm">{item.experience}</span>
                   </div>
                   <div className="flex flex-col items-center gap-1 p-2 rounded-md bg-muted/50">
                     <Coins className="h-4 w-4 text-amber-500" />
-                    <span className="text-xs text-muted-foreground">Gold</span>
+                    <span className="text-xs text-muted-foreground">{t('gameUsers.gold')}</span>
                     <span className="font-semibold text-sm">{item.gold}</span>
                   </div>
                 </div>
 
                 <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-2">
                   <div className="flex flex-col gap-0.5">
-                    <span>Joined: {formatTimestamp(item.user_created_at)}</span>
-                    <span>Updated: {formatTimestamp(item.updated_at)}</span>
+                    <span>{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
+                    <span>{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button asChild variant="outline" size="sm">

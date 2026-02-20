@@ -36,7 +36,7 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
     e.preventDefault()
     
     if (!name.trim()) {
-      setError("Team name is required")
+      setError(t('team.nameRequired'))
       return
     }
 
@@ -53,7 +53,7 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
       setDescription("")
     } catch (err) {
       console.error("Failed to create team:", err)
-      setError(err instanceof Error ? err.message : "Failed to create team")
+      setError(err instanceof Error ? err.message : t('team.failedCreate'))
     } finally {
       setLoading(false)
     }
@@ -75,25 +75,25 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="mr-2 h-4 w-4" />
-          Create Team
+          {t('team.create')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create Team</DialogTitle>
+            <DialogTitle>{t('team.createTitle')}</DialogTitle>
             <DialogDescription>
-              Create a new team for this studio. Teams help organize members and assign games.
+              {t('team.createDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">
-                Team Name <span className="text-destructive">*</span>
+                {t('team.nameLabel')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
-                placeholder="e.g., Main Development Team"
+                placeholder={t('team.namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={loading}
@@ -101,10 +101,10 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('team.descriptionLabel')}</Label>
               <Textarea
                 id="description"
-                placeholder="Describe the team's purpose and responsibilities..."
+                placeholder={t('team.descriptionPlaceholder')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={loading}
@@ -122,11 +122,11 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
               onClick={() => handleOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Team
+              {loading ? t('team.creating') : t('team.create')}
             </Button>
           </DialogFooter>
         </form>

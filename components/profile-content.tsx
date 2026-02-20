@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { UserProfiles } from "@/components/user-profiles"
+import { useTranslation } from '@/lib/i18n/use-translation'
 
 interface UserData {
   id: string
@@ -26,6 +27,7 @@ export function ProfileContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { t } = useTranslation()
 
   useEffect(() => {
     async function loadUserProfile() {
@@ -64,10 +66,10 @@ export function ProfileContent() {
     return (
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
+        <AlertTitle>{t('common.error')}</AlertTitle>
         <AlertDescription>
           {error}
-          {error.includes("Authentication") && <div className="mt-2">Redirecting to login page...</div>}
+          {error.includes("Authentication") && <div className="mt-2">{t('profilePage.redirectingToLogin')}</div>}
         </AlertDescription>
       </Alert>
     )
@@ -77,8 +79,8 @@ export function ProfileContent() {
     return (
       <Alert className="mb-6">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>No Data</AlertTitle>
-        <AlertDescription>No user profile data available.</AlertDescription>
+        <AlertTitle>{t('profilePage.noData')}</AlertTitle>
+        <AlertDescription>{t('profilePage.noDataDesc')}</AlertDescription>
       </Alert>
     )
   }
@@ -105,17 +107,17 @@ export function ProfileContent() {
               <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <CardTitle className="text-2xl">{userData.username || "Unnamed User"}</CardTitle>
+              <CardTitle className="text-2xl">{userData.username || t('profilePage.unnamedUser')}</CardTitle>
               <CardDescription className="flex items-center">
                 <Mail className="mr-1 h-4 w-4" />
                 {userData.email}
                 {userData.is_verified ? (
                   <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> {t('profilePage.verified')}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="ml-2 bg-yellow-50 text-yellow-700 border-yellow-200">
-                    Not Verified
+                    {t('profilePage.notVerified')}
                   </Badge>
                 )}
               </CardDescription>
@@ -125,34 +127,34 @@ export function ProfileContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>Your account details and information</CardDescription>
+            <CardTitle>{t('profilePage.accountInfo')}</CardTitle>
+            <CardDescription>{t('profilePage.accountInfoDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground flex items-center">
-                <UserIcon className="mr-2 h-4 w-4" /> User ID
+                <UserIcon className="mr-2 h-4 w-4" /> {t('profilePage.userId')}
               </div>
               <div className="font-medium">{userData.id}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground flex items-center">
-                <Calendar className="mr-2 h-4 w-4" /> Member Since
+                <Calendar className="mr-2 h-4 w-4" /> {t('profilePage.memberSince')}
               </div>
               <div className="font-medium">{formatDate(userData.created_at * 1000)}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground flex items-center">
-                <UserIcon className="mr-2 h-4 w-4" /> Status
+                <UserIcon className="mr-2 h-4 w-4" /> {t('profilePage.status')}
               </div>
               <div className="font-medium">
                 {userData.is_active ? (
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Active
+                    {t('common.active')}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-                    Inactive
+                    {t('common.inactive')}
                   </Badge>
                 )}
               </div>
@@ -162,22 +164,22 @@ export function ProfileContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Account Actions</CardTitle>
-            <CardDescription>Manage your account settings</CardDescription>
+            <CardTitle>{t('profilePage.accountActions')}</CardTitle>
+            <CardDescription>{t('profilePage.accountActionsDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">Update your profile information and preferences</div>
+              <div className="text-sm text-muted-foreground">{t('profilePage.accountActionsHint')}</div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col items-start gap-2">
-            <Button className="w-full">Edit Profile</Button>
+            <Button className="w-full">{t('profilePage.editProfile')}</Button>
             <Button variant="outline" className="w-full">
-              Change Password
+              {t('profilePage.changePassword')}
             </Button>
             {!userData.is_verified && (
               <Button variant="secondary" className="w-full">
-                Verify Email
+                {t('profilePage.verifyEmail')}
               </Button>
             )}
           </CardFooter>

@@ -303,8 +303,6 @@ export default function GamesPage() {
                   ) : (
                     <span className="font-semibold">-</span>
                   )}</span>
-                  <span>{t('games.totalPlayers')}: {game.player_count ?? game.total_player ?? 0}</span>
-                  <span>{t('games.shopCount')}: {game.shop_count ?? 0}</span>
                 </div>
               </CardContent>
             </Card>
