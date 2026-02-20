@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink } from "lucide-react"
+import { AlertCircle, ArrowLeft, Edit, Plus, ExternalLink, BarChart2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
+import { Progress } from "@/components/ui/progress"
 import StudioNameEditable, { StudioDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useTranslation } from '@/lib/i18n/use-translation'
@@ -169,7 +170,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 )}
                 <div>
                   <p className="text-sm font-medium">{t('studio.gamesCount')}</p>
-                  <p className="text-sm">{studio.game_count}</p>
+                  <p className="text-sm">{studio.usage?.games ?? studio.game_count}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">Owner User ID</p>
@@ -195,6 +196,70 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               </CardContent>
             </Card>
           </div>
+
+          {/* Limits & Usage Section */}
+          {(studio.limits || studio.usage) && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart2 className="mr-2 h-5 w-5" />
+                  Limits &amp; Usage
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Games */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Games</span>
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
+                        {studio.usage?.games ?? 0} / {studio.limits?.max_games ?? '∞'}
+                        {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games && ' (Limit reached)'}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_games
+                        ? Math.min(((studio.usage?.games ?? 0) / studio.limits.max_games) * 100, 100)
+                        : 0}
+                      className={`h-2 ${
+                        studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
+                    />
+                  </div>
+                  {/* Total Members */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Total Members</span>
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
+                        {studio.usage?.total_members ?? 0} / {studio.limits?.max_total_members ?? '∞'}
+                        {studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members && ' (Limit reached)'}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_total_members
+                        ? Math.min(((studio.usage?.total_members ?? 0) / studio.limits.max_total_members) * 100, 100)
+                        : 0}
+                      className={`h-2 ${
+                        studio.limits?.max_total_members != null && (studio.usage?.total_members ?? 0) >= studio.limits.max_total_members
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Teams Section */}
           <Card className="mb-6">
@@ -246,11 +311,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 <CardTitle>{t('common.games')}</CardTitle>
                 <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
               </div>
-              <Button asChild>
-                <a href={`/games/new?studio=${studio.id}`}>
+              {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games ? (
+                <Button disabled title={`Game limit reached (${studio.usage?.games ?? 0}/${studio.limits.max_games})`}>
                   <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
-                </a>
-              </Button>
+                </Button>
+              ) : (
+                <Button asChild>
+                  <a href={`/games/new?studio=${studio.id}`}>
+                    <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
+                  </a>
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {gamesLoading ? (
@@ -286,31 +357,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm ">{game.status}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Max Players</p>
-                          <p className="text-sm ">{game.config?.max_players ?? '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Server Region</p>
-                          <p className="text-sm ">{game.config?.server_region ?? '-'}</p>
-                        </div>
-                        <div>
                           <p className="text-sm font-medium">{t('studio.shopCount')}</p>
-                          <p className="text-sm ">{game.shop_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.shops ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
-                          <p className="text-sm ">{game.player_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.player_profiles ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
-                          <p className="text-sm ">{game.item_profile_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.items ?? 0}</p>
                         </div>
-                        {game.studio && (
-                          <div className="col-span-2">
-                            <p className="text-sm font-medium">Studio (object)</p>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">{JSON.stringify(game.studio, null, 2)}</pre>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}

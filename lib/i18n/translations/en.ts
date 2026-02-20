@@ -166,7 +166,7 @@ export const en = {
   game: {
     shops: "Shops",
     itemProfiles: "Item Profiles",
-    users: "Users",
+    users: "Players",
     createNew: "Create New Game",
     addToStudio: "Add a new game to your studio",
     details: "Game Details",

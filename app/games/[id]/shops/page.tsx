@@ -66,8 +66,14 @@ export default function GameShopsPage() {
     loadShopsAndGame()
   }, [params.id])
 
+  const shopLimitReached = !!(game?.limits?.max_shops != null && (game?.usage?.shops ?? shops.length) >= game.limits.max_shops)
+
   async function handleQuickCreateShop() {
     if (!quickShopName.trim()) return;
+    if (shopLimitReached) {
+      setCreateShopError({ message: `Shop limit reached (${game?.usage?.shops ?? shops.length}/${game?.limits?.max_shops}). Upgrade your plan to create more shops.`, hints: [] })
+      return
+    }
     setQuickShopLoading(true)
     setCreateShopError(null)
     try {
@@ -154,20 +160,28 @@ export default function GameShopsPage() {
           )}</p>
         </div>
         <div className="flex gap-2 items-center">
-          <input
-            ref={quickInputRef}
-            type="text"
-            className="border rounded px-2 py-1 bg-background text-foreground"
-            placeholder={t('shop.quickNamePlaceholder')}
-            value={quickShopName}
-            onChange={e => setQuickShopName(e.target.value)}
-            disabled={quickShopLoading}
-            onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateShop() }}
-            style={{ minWidth: 160 }}
-          />
-          <Button onClick={handleQuickCreateShop} disabled={quickShopLoading || !quickShopName.trim()}>
-            {quickShopLoading ? t('shop.creating') : t('shop.create')}
-          </Button>
+          {shopLimitReached ? (
+            <span className="text-sm text-destructive font-medium">
+              Limit reached ({game?.usage?.shops ?? shops.length}/{game?.limits?.max_shops})
+            </span>
+          ) : (
+            <>
+              <input
+                ref={quickInputRef}
+                type="text"
+                className="border rounded px-2 py-1 bg-background text-foreground"
+                placeholder={t('shop.quickNamePlaceholder')}
+                value={quickShopName}
+                onChange={e => setQuickShopName(e.target.value)}
+                disabled={quickShopLoading}
+                onKeyDown={e => { if (e.key === 'Enter') handleQuickCreateShop() }}
+                style={{ minWidth: 160 }}
+              />
+              <Button onClick={handleQuickCreateShop} disabled={quickShopLoading || !quickShopName.trim()}>
+                {quickShopLoading ? t('shop.creating') : t('shop.create')}
+              </Button>
+            </>
+          )}
         </div>
       </div>
       {createShopError && (

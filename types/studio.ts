@@ -5,6 +5,16 @@ export enum Tier {
   AaaStudio = "AAA Studio"
 }
 
+export interface StudioLimits {
+  max_games: number
+  max_total_members: number
+}
+
+export interface StudioUsage {
+  games: number
+  total_members: number
+}
+
 export interface Studio {
   id: string
   name: string
@@ -17,6 +27,8 @@ export interface Studio {
   is_active: boolean
   updated_at: number
   created_at: number
+  limits?: StudioLimits
+  usage?: StudioUsage
 }
 
 export interface ApiResponse<T> {

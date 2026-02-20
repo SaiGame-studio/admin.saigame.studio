@@ -11,9 +11,10 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2 } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
+import { Progress } from "@/components/ui/progress"
 import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -313,7 +314,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <h3 className="text-sm font-medium ">{t('game.totalPlayer')}</h3>
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.player_count ?? 0}
+                                            {game.usage?.player_profiles ?? game.player_count ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
                                     </p>
@@ -331,6 +332,89 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Limits & Usage Section */}
+                {(game.limits || game.usage) && (
+                    <Card className="lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <BarChart2 className="mr-2 h-5 w-5" />
+                                Limits &amp; Usage
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {/* Concurrent Users */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium">Concurrent Users</span>
+                                        <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
+                                            {game.usage?.concurrent_users ?? 0} / {game.limits?.max_concurrent_users ?? '∞'}
+                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ' (Limit reached)'}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_concurrent_users
+                                            ? Math.min(((game.usage?.concurrent_users ?? 0) / game.limits.max_concurrent_users) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
+                                {/* Player Profiles (Total Players) */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <Link href={`/games/${game.id}/users`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            Total Players
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
+                                        <span className={`text-muted-foreground ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? 'text-destructive font-semibold' : ''}`}>
+                                            {game.usage?.player_profiles ?? 0} / {game.limits?.max_player_profiles ?? '∞'}
+                                            {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ' (Limit reached)'}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_player_profiles
+                                            ? Math.min(((game.usage?.player_profiles ?? 0) / game.limits.max_player_profiles) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
+                                {/* Items */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium">Items</span>
+                                        <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
+                                            {game.usage?.items ?? 0} / {game.limits?.max_items ?? '∞'}
+                                            {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ' (Limit reached)'}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_items
+                                            ? Math.min(((game.usage?.items ?? 0) / game.limits.max_items) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
+                                {/* Shops */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium">Shops</span>
+                                        <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
+                                            {game.usage?.shops ?? 0} / {game.limits?.max_shops ?? '∞'}
+                                            {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ' (Limit reached)'}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_shops
+                                            ? Math.min(((game.usage?.shops ?? 0) / game.limits.max_shops) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Teams Section */}
                 <Card className="lg:col-span-3 mt-6">

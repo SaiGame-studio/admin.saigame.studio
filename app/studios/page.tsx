@@ -168,8 +168,9 @@ export default function StudiosPage() {
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm ">
-                  <span>{t('common.games')}: {studio.game_count}</span>
+                <div className="flex flex-row gap-4 text-sm">
+                  <span>{t('common.games')}: {studio.usage?.games ?? studio.game_count}</span>
+                  <span>Total Members: {studio.usage?.total_members ?? 0}</span>
                 </div>
               </CardContent>
             </Card>
