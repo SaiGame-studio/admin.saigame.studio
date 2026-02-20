@@ -166,7 +166,7 @@ export const vi = {
   game: {
     shops: "Cửa hàng",
     itemProfiles: "Hồ sơ vật phẩm",
-    users: "Người dùng",
+    users: "Người chơi",
     createNew: "Tạo Game mới",
     addToStudio: "Thêm game mới vào Studio của bạn",
     details: "Chi tiết Game",

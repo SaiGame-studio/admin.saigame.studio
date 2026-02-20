@@ -333,31 +333,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                           <p className="text-sm ">{game.status}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Max Players</p>
-                          <p className="text-sm ">{game.config?.max_players ?? '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Server Region</p>
-                          <p className="text-sm ">{game.config?.server_region ?? '-'}</p>
-                        </div>
-                        <div>
                           <p className="text-sm font-medium">{t('studio.shopCount')}</p>
-                          <p className="text-sm ">{game.shop_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.shops ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.totalPlayer')}</p>
-                          <p className="text-sm ">{game.player_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.player_profiles ?? 0}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{t('studio.itemProfileCount')}</p>
-                          <p className="text-sm ">{game.item_profile_count ?? 0}</p>
+                          <p className="text-sm ">{game.usage?.items ?? 0}</p>
                         </div>
-                        {game.studio && (
-                          <div className="col-span-2">
-                            <p className="text-sm font-medium">Studio (object)</p>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">{JSON.stringify(game.studio, null, 2)}</pre>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
