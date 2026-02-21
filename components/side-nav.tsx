@@ -22,6 +22,9 @@ import {
   Gamepad2,
   ChevronLeft,
   ChevronRight,
+  Wallet,
+  Gift,
+  ReceiptText,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -195,6 +198,12 @@ export function SideNav() {
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/payment">
+                    <Wallet className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.payment')}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/settings">
                     <Cog className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.settings')}</span>
@@ -227,6 +236,12 @@ export function SideNav() {
                   <Link href="/admin/games">
                     <Gamepad2 className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">All Games</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/gift-codes">
+                    <ReceiptText className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.transactions')}</span>
                   </Link>
                 </Button>
               </div>

@@ -1,21 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, LogOut, Menu, Server, User } from "lucide-react"
+import { LogOut, Menu, Server, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { CoinBalance } from "@/components/coin-balance"
 
 export function TopNav() {
   const { logout } = useAuth()
@@ -41,30 +34,7 @@ export function TopNav() {
       </div>
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                3
-              </span>
-              <span className="sr-only">Toggle notification menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <span className="font-medium">Server Alert:</span> Minecraft Survival CPU usage high
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <span className="font-medium">New User:</span> DragonSlayer joined CS:GO Competitive
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <span className="font-medium">Backup Complete:</span> Rust Community daily backup finished
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CoinBalance />
         <Button variant="outline" size="icon" asChild>
           <Link href="/profile">
             <User className="h-5 w-5" />
