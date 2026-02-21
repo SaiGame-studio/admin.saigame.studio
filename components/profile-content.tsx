@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle2, Mail, Calendar, UserIcon, Clock } from "lucide-react"
+import { AlertCircle, CheckCircle2, Mail, Calendar, UserIcon, Clock, Copy, Check } from "lucide-react"
 import { fetchUserProfile, formatDate } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,7 @@ export function ProfileContent() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     async function loadUserProfile() {
@@ -135,7 +136,34 @@ export function ProfileContent() {
               <div className="text-sm text-muted-foreground flex items-center">
                 <UserIcon className="mr-2 h-4 w-4" /> {t('profilePage.userId')}
               </div>
-              <div className="font-medium">{userData.id}</div>
+              <div className="flex items-center gap-2">
+                <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
+                  {userData.id}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      navigator.clipboard.writeText(userData.id)
+                    } else {
+                      const textarea = document.createElement('textarea')
+                      textarea.value = userData.id
+                      textarea.style.position = 'fixed'
+                      textarea.style.opacity = '0'
+                      document.body.appendChild(textarea)
+                      textarea.select()
+                      document.execCommand('copy')
+                      document.body.removeChild(textarea)
+                    }
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }}
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground flex items-center">
