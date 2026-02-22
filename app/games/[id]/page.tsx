@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Puzzle } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -23,6 +23,14 @@ import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api"
+
+const GEM_TIERS_MINI = [
+  { image: "/materias/common.png",    label: "Uncommon",  text: "text-green-400"  },
+  { image: "/materias/rare.png",      label: "Rare",      text: "text-blue-400"   },
+  { image: "/materias/epic.png",      label: "Epic",      text: "text-red-400"    },
+  { image: "/materias/legendary.png", label: "Legendary", text: "text-yellow-400" },
+]
 
 export default function GameDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -35,6 +43,8 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const [teamsLoading, setTeamsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null)
+    const [catalog, setCatalog] = useState<Plugin[]>([])
     const hasFetched = useRef(false)
     const gameId = params.id
 
@@ -79,8 +89,22 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             }
         }
 
+        async function loadPlugins() {
+            try {
+                const [catalogData, pluginsData] = await Promise.all([
+                    getPluginCatalog(),
+                    getGamePlugins(gameId),
+                ])
+                setCatalog(catalogData)
+                setGamePlugins(pluginsData)
+            } catch (err) {
+                console.error("Failed to load plugins:", err)
+            }
+        }
+
         loadGame().then();
         loadTeams().then();
+        loadPlugins().then();
     }, [gameId])
 
     const handleTeamRemoved = () => {
@@ -210,8 +234,8 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                     </Button>
                     <Button asChild variant="outline" className="flex items-center gap-2">
                         <Link href={`/games/${game.id}/plugins`}>
-                            <Puzzle className="h-4 w-4" />
-                            {t('game.plugins') || 'Plugins'}
+                            <Hammer className="h-4 w-4" />
+                            {t('game.plugins')}
                         </Link>
                     </Button>
                     <DeleteGameDialog game={game} />
@@ -227,7 +251,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="space-y-4">
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.gameId')}</h3>
@@ -335,6 +359,59 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Mini Equipment Panel — 3rd column */}
+                            {catalog.length > 0 && (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                            {t('plugins.materia.equipment')}
+                                        </p>
+                                        <Link
+                                            href={`/games/${game.id}/plugins`}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                        >
+                                            <Hammer className="h-3.5 w-3.5" />
+                                        </Link>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {catalog.filter(p => p.max_stacks > 0).map((plugin, idx) => {
+                                            const tier = GEM_TIERS_MINI[idx % 4]
+                                            const subs = gamePlugins?.subscriptions.filter(s => s.plugin.id === plugin.id) ?? []
+                                            const owned = subs.reduce((sum, s) => sum + s.subscription.stack_count, 0)
+                                            const cancelledOwned = subs.filter(s => s.is_cancelled).reduce((sum, s) => sum + s.subscription.stack_count, 0)
+                                            const activeOwned = owned - cancelledOwned
+                                            return (
+                                                <div key={plugin.id} className="flex items-center gap-3">
+                                                    <span className={`text-xs font-semibold w-20 shrink-0 ${tier.text}`}>{plugin.display_name}</span>
+                                                    <div className="flex gap-1">
+                                                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
+                                                            <span key={si} className="relative inline-flex w-5 h-5">
+                                                                <img
+                                                                    src={tier.image}
+                                                                    alt=""
+                                                                    className="w-full h-full rounded-full"
+                                                                    style={
+                                                                        si < activeOwned
+                                                                            ? undefined
+                                                                            : si < owned
+                                                                            ? { filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }
+                                                                            : { filter: "grayscale(1) brightness(0.3)", opacity: 0.3 }
+                                                                    }
+                                                                />
+                                                                {si >= activeOwned && si < owned && (
+                                                                    <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">{owned}/{plugin.max_stacks}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

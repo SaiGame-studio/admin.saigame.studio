@@ -37,20 +37,25 @@ export interface GamePluginSubscription {
   is_revoked: boolean
   revoked_at?: string | null
   revoked_by?: string | null
+  cancelled_at?: string | null
   note: string
+}
+
+export interface EffectiveLimits {
+  max_concurrent_users: number
+  max_profiles: number
+  max_items: number
+  max_shops: number
 }
 
 export interface GamePluginsResult {
   subscriptions: Array<{
     subscription: GamePluginSubscription
     plugin: Plugin
+    is_cancelled: boolean
   }>
-  effective_limits: {
-    max_concurrent_users: number
-    max_profiles: number
-    max_items: number
-    max_shops: number
-  }
+  effective_limits: EffectiveLimits
+  pending_limits?: EffectiveLimits | null
 }
 
 // ---------------------------------------------------------------------------
@@ -127,9 +132,10 @@ export function getRemainingStacks(
   plugin: Plugin,
   subscriptions: GamePluginsResult["subscriptions"]
 ): number {
-  const existing = subscriptions.find((s) => s.plugin.id === plugin.id)
-  const currentStacks = existing?.subscription.stack_count ?? 0
-  return plugin.max_stacks - currentStacks
+  const totalStacks = subscriptions
+    .filter((s) => s.plugin.id === plugin.id)
+    .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+  return plugin.max_stacks - totalStacks
 }
 
 /**

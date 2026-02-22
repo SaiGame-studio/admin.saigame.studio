@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle2, Mail, Calendar, UserIcon, Clock, Copy, Check } from "lucide-react"
-import { fetchUserProfile, formatDate } from "@/lib/api"
+import { AlertCircle, CheckCircle2, Mail, Calendar, UserIcon, Clock, Copy, Check, Pencil, Globe, ChevronsUpDown } from "lucide-react"
+import { updateUserTimezone, formatDate } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -12,6 +12,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { UserProfiles } from "@/components/user-profiles"
 import { useTranslation } from '@/lib/i18n/use-translation'
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { useAuth } from "@/contexts/auth-context"
+
+// All IANA timezones supported by the runtime (falls back to a curated list)
+const ALL_TIMEZONES: string[] = (() => {
+  try {
+    return (Intl as any).supportedValuesOf("timeZone") as string[]
+  } catch {
+    return [
+      "Pacific/Midway","Pacific/Honolulu","America/Anchorage","America/Los_Angeles",
+      "America/Denver","America/Chicago","America/New_York","America/Sao_Paulo",
+      "Atlantic/Azores","UTC","Europe/London","Europe/Paris","Europe/Berlin",
+      "Europe/Moscow","Asia/Dubai","Asia/Karachi","Asia/Kolkata","Asia/Dhaka",
+      "Asia/Bangkok","Asia/Ho_Chi_Minh","Asia/Shanghai","Asia/Tokyo","Asia/Seoul",
+      "Australia/Sydney","Pacific/Auckland",
+    ]
+  }
+})()
 
 interface UserData {
   id: string
@@ -20,46 +39,30 @@ interface UserData {
   is_active: boolean
   is_verified: boolean
   created_at: number
+  timezone?: string | null
 }
 
 export function ProfileContent() {
+  const { user: authUser, isLoading: authLoading } = useAuth()
   const [userData, setUserData] = useState<UserData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [tzEditing, setTzEditing] = useState(false)
+  const [tzValue, setTzValue] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [tzSaving, setTzSaving] = useState(false)
+  const [tzOpen, setTzOpen] = useState(false)
 
+  // Sync userData from authUser — no extra fetch needed
   useEffect(() => {
-    async function loadUserProfile() {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const response = await fetchUserProfile()
-
-        if (response.user) {
-          setUserData(response.user)
-        } else {
-          throw new Error("Invalid response format")
-        }
-      } catch (err) {
-        console.error("Failed to load user profile:", err)
-        setError(err instanceof Error ? err.message : "An unexpected error occurred")
-
-        // If the error is related to authentication, redirect to login
-        if (err instanceof Error && err.message.includes("Authentication")) {
-          setTimeout(() => router.push("/login"), 2000)
-        }
-      } finally {
-        setIsLoading(false)
-      }
+    if (authUser) {
+      setUserData(authUser as UserData)
+      setTzValue((authUser as any).timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
     }
+  }, [authUser])
 
-    loadUserProfile()
-  }, [router])
-
-  if (isLoading) {
+  if (authLoading) {
     return <ProfileSkeleton />
   }
 
@@ -186,6 +189,81 @@ export function ProfileContent() {
                   </Badge>
                 )}
               </div>
+            </div>
+            <div className="group/tz space-y-1">
+              <div className="text-sm text-muted-foreground flex items-center">
+                <Globe className="mr-2 h-4 w-4" /> {t('profilePage.timezone')}
+              </div>
+              {tzEditing ? (
+                <div className="flex items-center gap-2">
+                  <Popover open={tzOpen} onOpenChange={setTzOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-56 justify-between font-normal text-sm h-8"
+                      >
+                        <span className="truncate">{tzValue}</span>
+                        <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search timezone..." className="h-8" />
+                        <CommandList className="max-h-60">
+                          <CommandEmpty>No timezone found.</CommandEmpty>
+                          <CommandGroup>
+                            {ALL_TIMEZONES.map(tz => (
+                              <CommandItem
+                                key={tz}
+                                value={tz}
+                                onSelect={val => {
+                                  setTzValue(val)
+                                  setTzOpen(false)
+                                }}
+                              >
+                                <Check className={`mr-2 h-3.5 w-3.5 ${tzValue === tz ? "opacity-100" : "opacity-0"}`} />
+                                {tz}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    size="sm"
+                    disabled={tzSaving}
+                    onClick={async () => {
+                      setTzSaving(true)
+                      try {
+                        await updateUserTimezone(tzValue)
+                        setUserData(prev => prev ? { ...prev, timezone: tzValue } : prev)
+                        setTzEditing(false)
+                      } catch {}
+                      setTzSaving(false)
+                    }}
+                  >
+                    {t('profilePage.timezoneSave')}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setTzValue(userData.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone); setTzEditing(false) }}>
+                    {t('profilePage.timezoneCancel')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 font-medium">
+                  <span>{userData.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+                  {!userData.timezone && <span className="text-[10px] text-muted-foreground">(local)</span>}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 opacity-0 group-hover/tz:opacity-100 transition-opacity"
+                    onClick={() => setTzEditing(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

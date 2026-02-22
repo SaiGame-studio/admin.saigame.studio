@@ -32,6 +32,7 @@ interface User {
   permissions?: string[]
   limits?: UserLimits
   usage?: UserUsage
+  timezone?: string | null
   /** @deprecated derived from permissions now */
   capabilities?: UserCapabilities
 }
@@ -79,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(user)
-        // Save capabilities to localStorage for global access
+        // Save capabilities and timezone to localStorage for global access
         safeSetItem('user_capabilities', JSON.stringify(capabilities))
+        safeSetItem('user_timezone', rawUser.timezone ?? '')
       }
     } catch (error) {
       console.error('Failed to fetch user:', error)
@@ -168,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     clearToken()
     safeRemoveItem('user_capabilities')
+    safeRemoveItem('user_timezone')
     setIsAuthenticated(false)
     setUser(null)
     setTimeUntilExpiration(null)
