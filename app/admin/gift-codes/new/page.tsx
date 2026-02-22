@@ -206,12 +206,24 @@ export default function NewGiftCodePage() {
               {/* Active At */}
               <div className="space-y-1.5">
                 <Label htmlFor="activeAt">{t('adminGiftCodes.fieldActiveAt')}</Label>
-                <Input
-                  id="activeAt"
-                  type="datetime-local"
-                  value={activeAt}
-                  onChange={(e) => setActiveAt(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="activeAt"
+                    type="datetime-local"
+                    value={activeAt}
+                    onChange={(e) => setActiveAt(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setActiveAt(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16))}
+                  >
+                    Now
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {t('adminGiftCodes.activeAtHelper')}
                 </p>
@@ -220,12 +232,24 @@ export default function NewGiftCodePage() {
               {/* Expires At */}
               <div className="space-y-1.5">
                 <Label htmlFor="expiresAt">{t('adminGiftCodes.fieldExpiresAt')}</Label>
-                <Input
-                  id="expiresAt"
-                  type="datetime-local"
-                  value={expiresAt}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="expiresAt"
+                    type="datetime-local"
+                    value={expiresAt}
+                    onChange={(e) => setExpiresAt(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setExpiresAt(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16))}
+                  >
+                    +7 days
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.expiresAtHelper')}</p>
               </div>
             </CardContent>

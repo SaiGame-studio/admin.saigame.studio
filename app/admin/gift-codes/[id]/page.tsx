@@ -278,7 +278,7 @@ export default function GiftCodeDetailPage() {
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.coinsValue')}</p>
-                <p className="font-semibold">🪙 {gc.coins_amount}</p>
+                <p className="font-semibold">🪙 {gc.coins_amount.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.usedMax')}</p>

@@ -32,7 +32,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
   const [teamsError, setTeamsError] = useState<string | null>(null)
   const hasFetched = useRef(false)
   const router = useRouter()
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (hasFetched.current) return
