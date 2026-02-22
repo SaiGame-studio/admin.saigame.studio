@@ -46,6 +46,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
@@ -125,15 +126,16 @@ function formatNumber(n: number): string {
 }
 
 function ExpiryBadge({ expiresAt }: { expiresAt?: string | null }) {
-  if (!expiresAt) return <span className="text-xs text-muted-foreground">Permanent</span>
+  const { t } = useTranslation()
+  if (!expiresAt) return <span className="text-xs text-muted-foreground">{t('plugins.permanent')}</span>
   const d = new Date(expiresAt)
   const now = new Date()
   const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
   const color = daysLeft <= 7 ? "text-destructive" : daysLeft <= 30 ? "text-yellow-500" : "text-muted-foreground"
   return (
     <span className={`text-xs ${color}`}>
-      {d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-      {daysLeft > 0 && ` (${daysLeft}d)`}
+      {d.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}
+      {daysLeft > 0 && ` (${daysLeft}${t('plugins.materia.daysLeft')})`}
     </span>
   )
 }
@@ -141,15 +143,17 @@ function ExpiryBadge({ expiresAt }: { expiresAt?: string | null }) {
 /** Visual materia orb — filled or empty slot */
 function MateriaOrb({
   filled,
+  cancelled,
   gem,
   size = "sm",
 }: {
   filled: boolean
+  cancelled?: boolean
   gem: (typeof GEM_TIERS)[number]
   size?: "sm" | "md"
 }) {
   const dim = size === "md" ? "w-8 h-8" : "w-5 h-5"
-  if (filled) {
+  if (filled && !cancelled) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -158,6 +162,20 @@ function MateriaOrb({
         className={`inline-block ${dim} rounded-full object-contain drop-shadow-md`}
         style={{ filter: `drop-shadow(0 0 5px ${gem.glowColor})` }}
       />
+    )
+  }
+  if (filled && cancelled) {
+    return (
+      <span className={`relative inline-flex ${dim}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={gem.image}
+          alt={gem.label}
+          className={`${dim} rounded-full object-contain`}
+          style={{ filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }}
+        />
+        <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
+      </span>
     )
   }
   return (
@@ -210,7 +228,7 @@ export default function GamePluginsPage() {
         if (studioData) setStudio(studioData)
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to load", description: err?.message })
+      toast({ variant: "destructive", title: t('plugins.materia.toastFailedLoad'), description: err?.message })
     } finally {
       setLoading(false)
     }
@@ -235,11 +253,11 @@ export default function GamePluginsPage() {
     setUnsubTarget(null)
     try {
       await unsubscribeFromPlugin(gameId, plugin.id)
-      toast({ title: `🔮 ${plugin.display_name} materia removed.` })
+      toast({ title: `🔮 ${plugin.display_name} ${t('plugins.materia.toastRemoved')}` })
       window.dispatchEvent(new Event("wallet:refresh"))
       await loadAll()
     } catch (err: any) {
-      toast({ variant: "destructive", title: err?.data?.error ?? err?.message ?? "Unsubscribe failed." })
+      toast({ variant: "destructive", title: err?.data?.error ?? err?.message ?? t('plugins.materia.toastUnsubFailed') })
     } finally {
       setUnsubbing(null)
     }
@@ -252,14 +270,14 @@ export default function GamePluginsPage() {
     setConfirmPlugin(null)
     try {
       await subscribeToPlugin(gameId, pluginId, confirmStacks)
-      toast({ title: `✨ Materia socketed! ${confirmPlugin.display_name} × ${confirmStacks}` })
+      toast({ title: `✨ ${t('plugins.materia.toastSocketed')} ${confirmPlugin.display_name} × ${confirmStacks}` })
       window.dispatchEvent(new Event("wallet:refresh"))
       await loadAll()
     } catch (err: any) {
       const status = err?.status
-      let msg = err?.data?.error ?? err?.message ?? "Subscription failed."
-      if (status === 402) msg = `Not enough coins. Cost: 🪙 ${getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}`
-      else if (status === 400 && msg.includes("max stacks")) msg = "All slots are filled for this materia."
+      let msg = err?.data?.error ?? err?.message ?? t('plugins.materia.toastSubFailed')
+      if (status === 402) msg = `${t('plugins.materia.toastNotEnoughCoins')} 🪙 ${getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}`
+      else if (status === 400 && msg.includes("max stacks")) msg = t('plugins.materia.toastMaxStacks')
       toast({ variant: "destructive", title: msg })
     } finally {
       setSubscribing(null)
@@ -280,12 +298,15 @@ export default function GamePluginsPage() {
   }
 
   const lim = gamePlugins?.effective_limits
+  const pending = gamePlugins?.pending_limits
   const subs = gamePlugins?.subscriptions ?? []
-  const totalMonthlyCost = subs.reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
-  const subsByPluginId = Object.fromEntries(
-    subs.filter(({ subscription }) => subscription)
-      .map(({ subscription, plugin }) => [plugin.id, subscription])
-  )
+  const activeSubs_ = subs.filter((s) => !s.is_cancelled)
+  const totalMonthlyCost = activeSubs_.reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
+  const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
+  activeSubs_.forEach(({ subscription, plugin }) => {
+    if (!subsByPluginId[plugin.id]) subsByPluginId[plugin.id] = []
+    subsByPluginId[plugin.id].push(subscription)
+  })
 
   return (
     <div className="container mx-auto py-6 space-y-8">
@@ -304,7 +325,7 @@ export default function GamePluginsPage() {
           )}
           <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}`}>{game?.name ?? gameId}</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator>/</BreadcrumbSeparator>
-          <BreadcrumbItem><span>Materia</span></BreadcrumbItem>
+          <BreadcrumbItem><span>{t('plugins.materia.breadcrumb')}</span></BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
@@ -323,15 +344,15 @@ export default function GamePluginsPage() {
                 <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
               </Button>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Equipment</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.materia.equipment')}</p>
                 <h1 className="text-2xl font-extrabold tracking-tight leading-tight">{game?.name ?? gameId}</h1>
-                <p className="text-xs text-muted-foreground">Socket Materia to expand capacity</p>
+                <p className="text-xs text-muted-foreground">{t('plugins.materia.socketDesc')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {gamePlugins && (
                 <div className="flex items-center gap-1.5 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm">
-                  <span className="text-muted-foreground text-xs">Monthly</span>
+                  <span className="text-muted-foreground text-xs">{t('plugins.materia.monthly')}</span>
                   {totalMonthlyCost === 0 ? (
                     <span className="font-bold text-green-400">Free</span>
                   ) : (
@@ -352,12 +373,16 @@ export default function GamePluginsPage() {
                 const gem = getGemTier(idx)
                 const remaining = getRemainingStacks(plugin, subs)
                 const owned = plugin.max_stacks - remaining
+                const cancelledOwned2 = subs
+                  .filter((s) => s.plugin.id === plugin.id && s.is_cancelled)
+                  .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+                const activeOwned2 = owned - cancelledOwned2
                 return (
                   <div key={plugin.id} className="flex items-center gap-2">
                     <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                        <MateriaOrb key={si} filled={si < owned} gem={gem} size="sm" />
+                        <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
                       ))}
                     </div>
                     {owned > 0 && (
@@ -370,16 +395,18 @@ export default function GamePluginsPage() {
           )}
 
           {/* Stats row */}
-          {lim && (
+          {game && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-border/50">
               {([
-                { label: "CCU", max: lim.max_concurrent_users, used: game?.usage?.concurrent_users, icon: "👥" },
-                { label: "Profiles", max: lim.max_profiles, used: game?.usage?.player_profiles, icon: "👤" },
-                { label: "Items", max: lim.max_items, used: game?.usage?.items, icon: "📦" },
-                { label: "Shops", max: lim.max_shops, used: game?.usage?.shops, icon: "🏪" },
-              ] as { label: string; max: number; used: number | undefined; icon: string }[]).map((row) => {
-                const pct = (row.used != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
+                { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, pending: pending?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
+                { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
+                { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
+                { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
+              ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
+                const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
+                const hasCancelled = subs.some((s) => s.is_cancelled)
+                const hasPending = hasCancelled && row.pending != null && row.pending !== row.max
                 return (
                   <div key={row.label} className="rounded-xl bg-muted/40 px-3 py-2">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -388,8 +415,11 @@ export default function GamePluginsPage() {
                     </div>
                     <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
                       {row.used != null ? (
-                        <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {formatNumber(row.max)}</span></>
-                      ) : formatNumber(row.max)}
+                        <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
+                      ) : (row.max != null ? formatNumber(row.max) : '∞')}
+                      {hasPending && (
+                        <span className="text-[10px] text-orange-400 font-normal ml-2">→ {formatNumber(row.pending!)} {t('plugins.materia.afterExpiry')}</span>
+                      )}
                     </p>
                     {pct != null && (
                       <div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
@@ -412,7 +442,7 @@ export default function GamePluginsPage() {
          ────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-2 mb-5">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Available Materia</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.materia.availableMateria')}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -426,10 +456,14 @@ export default function GamePluginsPage() {
               const gem = getGemTier(idx)
               const remaining = gamePlugins ? getRemainingStacks(plugin, subs) : plugin.max_stacks
               const owned = plugin.max_stacks - remaining
+              const cancelledOwned = subs
+                .filter((s) => s.plugin.id === plugin.id && s.is_cancelled)
+                .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+              const activeOwned = owned - cancelledOwned
               const cost = plugin.cost_coins
               const canAfford = walletBalance !== null ? walletBalance >= cost : true
               const atCap = remaining <= 0
-              const activeSub = subsByPluginId[plugin.id]
+              const activeSubs = subsByPluginId[plugin.id] ?? []
               const isSpinning = subscribing === plugin.id
 
               return (
@@ -454,11 +488,6 @@ export default function GamePluginsPage() {
                     <span className={`text-xs font-extrabold uppercase tracking-widest ${gem.text}`}>
                       {plugin.display_name}
                     </span>
-                    {atCap && (
-                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${gem.activeBorder} ${gem.text} bg-transparent`}>
-                        ✦ MAX SOCKETED ✦
-                      </span>
-                    )}
                   </div>
 
                   {/* Cost */}
@@ -468,33 +497,39 @@ export default function GamePluginsPage() {
                     ) : (
                       <span className="text-2xl font-extrabold text-yellow-400 tabular-nums">🪙 {cost.toLocaleString()}</span>
                     )}
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">/ stack · month</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('plugins.materia.costSubtitle')}</p>
                   </div>
 
                   {/* Stack slots */}
                   <div className="px-4 py-2 flex flex-col items-center gap-1.5">
                     <div className="flex items-center gap-1.5 flex-wrap justify-center">
                       {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                        <MateriaOrb key={si} filled={si < owned} gem={gem} size="md" />
+                        <MateriaOrb
+                          key={si}
+                          filled={si < owned}
+                          cancelled={si >= activeOwned && si < owned}
+                          gem={gem}
+                          size="md"
+                        />
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">{owned} / {plugin.max_stacks} slots filled</p>
-                    {activeSub && (
-                      <p className="text-xs text-muted-foreground">
-                        <ExpiryBadge expiresAt={activeSub.expires_at} />
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {activeOwned} / {plugin.max_stacks} {t('plugins.materia.slotsFilled')}
+                      {cancelledOwned > 0 && (
+                        <span className="text-orange-400 ml-1">(+{cancelledOwned} {t('plugins.materia.expiring')})</span>
+                      )}
+                    </p>
                   </div>
 
                   {/* Per-stack grants */}
                   <div className="mx-4 my-2 rounded-xl bg-muted/40 px-3 py-2 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Per stack</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{t('plugins.materia.perStack')}</p>
                     <div className="space-y-1 text-xs">
                       {[
-                        { icon: "👥", label: "CCU", val: plugin.ccu_grant },
-                        { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
-                        { icon: "📦", label: "Items", val: plugin.items_grant },
-                        { icon: "🏪", label: "Shops", val: plugin.shops_grant },
+                        { icon: "👥", label: t('plugins.materia.labelCcu'), val: plugin.ccu_grant },
+                        { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
+                        { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
+                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -508,7 +543,7 @@ export default function GamePluginsPage() {
                   <div className="px-4 pb-4 pt-1 flex flex-row gap-2">
                     {atCap ? (
                       <Button className="w-full" size="sm" disabled variant="outline">
-                        <Check className="mr-1.5 h-4 w-4 text-green-400" /> All Slots Filled
+                        <Check className="mr-1.5 h-4 w-4 text-green-400" /> {t('plugins.materia.allSlotsFilled')}
                       </Button>
                     ) : (
                       <button
@@ -525,7 +560,7 @@ export default function GamePluginsPage() {
                         ) : (
                           <Plus className="h-4 w-4" />
                         )}
-                        {!canAfford ? "No Coins" : "Add Socket"}
+                        {!canAfford ? t('plugins.materia.noCoins') : t('plugins.materia.addSocket')}
                       </button>
                     )}
                     {owned > 0 && (
@@ -541,7 +576,7 @@ export default function GamePluginsPage() {
                         ) : (
                           <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                         )}
-                        Remove
+                        {t('plugins.materia.remove')}
                       </Button>
                     )}
                   </div>
@@ -557,7 +592,7 @@ export default function GamePluginsPage() {
         <div>
           <div className="flex items-center gap-2 mb-4">
             <BadgeDollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Admin Grants</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.adminGrants')}</span>
             <div className="flex-1 h-px bg-border" />
           </div>
           <div className="space-y-2">
@@ -565,7 +600,7 @@ export default function GamePluginsPage() {
               <div key={subscription.id} className="flex items-center justify-between rounded-xl border px-4 py-3 bg-muted/30">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full">Custom</span>
+            <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full">{t('plugins.materia.customBadge')}</span>
                     <span className="font-medium text-sm">{plugin.display_name}</span>
                   </div>
                   {subscription.note && <p className="text-xs text-muted-foreground mt-0.5">{subscription.note}</p>}
@@ -579,6 +614,88 @@ export default function GamePluginsPage() {
                 <ExpiryBadge expiresAt={subscription.expires_at} />
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────
+          ACTIVE SUBSCRIPTIONS LIST
+         ────────────────────────────────────────── */}
+      {subs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.activeSubscriptions')}</span>
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[10px] text-muted-foreground">{subs.length} {t('plugins.activeSubscriptions').toLowerCase()}</span>
+          </div>
+          <div className="space-y-2">
+            {subs.map(({ subscription, plugin, is_cancelled }, i) => {
+              const isExpired = subscription.expires_at ? new Date(subscription.expires_at) < new Date() : false
+              const isRevoked = subscription.is_revoked
+              const isCancelled = is_cancelled
+              const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
+              const activatedAt = new Date(subscription.activated_at)
+              const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
+              const daysLeft = expiresAt
+                ? Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000)
+                : null
+
+              return (
+                <div
+                  key={subscription.id}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 gap-4 ${
+                    isCancelled || isRevoked || isExpired
+                      ? "bg-muted/20 opacity-60"
+                      : "bg-card"
+                  }`}
+                >
+                  {/* Left: index + plugin name */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm">{plugin.display_name}</span>
+                        {isCancelled && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
+                        )}
+                        {!isCancelled && isRevoked && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
+                        )}
+                        {!isCancelled && !isRevoked && isExpired && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>
+                        )}
+                        {subscription.coins_per_month > 0 && (
+                          <span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                        {subscription.note && <span className="italic">{subscription.note}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: expiry info */}
+                  <div className="text-right shrink-0">
+                    {isCancelled ? (
+                      <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
+                    ) : expiresAt ? (
+                      <>
+                        <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
+                          {isExpired ? t('plugins.materia.statusExpired') : `${daysLeft}${t('plugins.materia.daysLeft')}`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -599,20 +716,19 @@ export default function GamePluginsPage() {
                   style={{ filter: `drop-shadow(0 0 6px ${getGemTier(unsubTarget.idx).glowColor})` }}
                 />
               )}
-              Remove {unsubTarget?.plugin.display_name} Materia?
+              Remove {unsubTarget?.plugin.display_name} {t('plugins.materia.removeConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              All stacks of <strong>{unsubTarget?.plugin.display_name}</strong> will be removed from this game.
-              The subscription will be cancelled and capacity reduced immediately. This cannot be undone.
+              {t('plugins.materia.removeConfirmDescPart1')} <strong>{unsubTarget?.plugin.display_name}</strong> {t('plugins.materia.removeConfirmDescPart2')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleUnsubConfirm}
             >
-              <Trash2 className="mr-1.5 h-4 w-4" /> Remove
+              <Trash2 className="mr-1.5 h-4 w-4" /> {t('plugins.materia.removeAction')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -634,20 +750,20 @@ export default function GamePluginsPage() {
                   style={{ filter: `drop-shadow(0 0 6px ${getGemTier(confirmPluginIdx).glowColor})` }}
                 />
               )}
-              Socket {confirmPlugin?.display_name} Materia?
+              Socket {confirmPlugin?.display_name} {t('plugins.materia.socketConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  Costs <strong>🪙 {confirmPlugin ? getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString() : 0}</strong> coins for 1 month.
+                  Costs <strong>🪙 {confirmPlugin ? getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString() : 0}</strong> {t('plugins.materia.socketConfirmCost')}
                 </p>
                 {confirmPlugin && (
                   <div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
                     {[
-                      { label: "CCU", val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
-                      { label: "Profiles", val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
-                      { label: "Items", val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
-                      { label: "Shops", val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
                     ].map((r) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
@@ -660,7 +776,7 @@ export default function GamePluginsPage() {
                   <Alert variant="destructive">
                     <AlertDescription>
                       You have 🪙 {walletBalance.toLocaleString()} — need 🪙 {getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}.{" "}
-                      <Link href="/payment" className="underline">Top up</Link>.
+                      <Link href="/payment" className="underline">{t('plugins.materia.topUp')}</Link>.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -668,7 +784,7 @@ export default function GamePluginsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubscribeConfirm}
               disabled={
@@ -677,7 +793,7 @@ export default function GamePluginsPage() {
                 walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks)
               }
             >
-              ✨ Socket Now
+              {t('plugins.materia.socketNow')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

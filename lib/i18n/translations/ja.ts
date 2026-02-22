@@ -210,7 +210,8 @@ export const ja = {
     limitReached: "制限に達しました",
     items: "アイテム",
     teamsDesc: "このゲームに割り当てられたチーム",
-    noTeamsAssigned: "このゲームには割り当てられたチームがありません。"
+    noTeamsAssigned: "このゲームには割り当てられたチームがありません。",
+    plugins: "マテリア"
   },
   userProfiles: {
     title: "ユーザープロフィール",
@@ -273,7 +274,11 @@ export const ja = {
     created: "作成日",
     lastUpdated: "最終更新",
     studiosCount: "スタジオ",
-    gamesJoined: "参加ゲーム数"
+    gamesJoined: "参加ゲーム数",
+    timezone: "タイムゾーン",
+    timezonePlaceholder: "例: Asia/Tokyo",
+    timezoneSave: "保存",
+    timezoneCancel: "キャンセル"
   },
   itemProfile: {
     title: "アイテムプロファイル",
@@ -746,6 +751,51 @@ export const ja = {
     fieldPluginId: "プラグイン",
     durationPermanent: "0 = 永続",
     free: "無料",
-    maxLabel: "最大"
+    maxLabel: "最大",
+    // Materia game plugins page
+    materia: {
+      breadcrumb: "マテリア",
+      equipment: "装備",
+      socketDesc: "マテリアをソケットしてキャパシティを拡張",
+      monthly: "月額",
+      availableMateria: "使用可能マテリア",
+      perStack: "スタックあたり",
+      costSubtitle: "/ スタック · 月",
+      slotsFilled: "スロット使用中",
+      expiring: "期限切れ予定",
+      allSlotsFilled: "全スロット埋まり",
+      noCoins: "コイン不足",
+      addSocket: "ソケット追加",
+      remove: "削除",
+      afterExpiry: "期限後",
+      statusCancelled: "キャンセル済",
+      statusRevoked: "取り消し済",
+      statusExpired: "期限切れ",
+      labelId: "ID",
+      labelActivated: "有効化日",
+      labelCancelledAt: "キャンセル日",
+      labelCcu: "CCU",
+      labelProfiles: "プロフィール",
+      labelItems: "アイテム",
+      labelShops: "ショップ",
+      willNotRenew: "更新されません",
+      daysLeft: "日残り",
+      customBadge: "カスタム",
+      removeConfirmTitle: "マテリア?",
+      removeConfirmDescPart1: "このゲームから",
+      removeConfirmDescPart2: "の全スタックが削除されます。購読はキャンセルされ、容量は即座に削減されます。元に戻すことはできません。",
+      removeAction: "削除",
+      socketConfirmTitle: "マテリア?",
+      socketConfirmCost: "コイン（1ヶ月）",
+      socketNow: "✨ 今すぐソケット",
+      topUp: "チャージ",
+      toastRemoved: "マテリアを削除しました。",
+      toastSocketed: "マテリアをソケットしました！",
+      toastFailedLoad: "読み込み失敗",
+      toastUnsubFailed: "購読解除に失敗しました。",
+      toastSubFailed: "購読に失敗しました。",
+      toastNotEnoughCoins: "コイン不足。費用:",
+      toastMaxStacks: "全スロットが埋まっています。"
+    }
   }
 };

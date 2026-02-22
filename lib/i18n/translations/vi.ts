@@ -210,7 +210,8 @@ export const vi = {
     limitReached: "Đạt giới hạn",
     items: "Vật phẩm",
     teamsDesc: "Các nhóm được gán cho game này",
-    noTeamsAssigned: "Chưa có nhóm nào được gán cho game này."
+    noTeamsAssigned: "Chưa có nhóm nào được gán cho game này.",
+    plugins: "Materia"
   },
   userProfiles: {
     title: "Hồ sơ người chơi",
@@ -273,7 +274,11 @@ export const vi = {
     created: "Ngày tạo",
     lastUpdated: "Cập nhật lần cuối",
     studiosCount: "Studio",
-    gamesJoined: "Game đã tham gia"
+    gamesJoined: "Game đã tham gia",
+    timezone: "Múi giờ",
+    timezonePlaceholder: "ví dụ: Asia/Ho_Chi_Minh",
+    timezoneSave: "Lưu",
+    timezoneCancel: "Hủy"
   },
   itemProfile: {
     title: "Hồ sơ vật phẩm",
@@ -757,6 +762,51 @@ export const vi = {
     fieldPluginId: "Plugin",
     durationPermanent: "0 = vĩnh viễn",
     free: "Miễn phí",
-    maxLabel: "Tối đa"
+    maxLabel: "Tối đa",
+    // Materia game plugins page
+    materia: {
+      breadcrumb: "Materia",
+      equipment: "Thiết bị",
+      socketDesc: "Gắn Materia để mở rộng năng lực",
+      monthly: "Hàng tháng",
+      availableMateria: "Materia Có sẵn",
+      perStack: "Mỗi stack",
+      costSubtitle: "/ stack · tháng",
+      slotsFilled: "slot đã dùng",
+      expiring: "sắp hết",
+      allSlotsFilled: "Đã đầy slot",
+      noCoins: "Không đủ xu",
+      addSocket: "Gắn socket",
+      remove: "Gỡ",
+      afterExpiry: "sau khi hết hạn",
+      statusCancelled: "Đã hủy",
+      statusRevoked: "Đã thu hồi",
+      statusExpired: "Đã hết hạn",
+      labelId: "ID",
+      labelActivated: "Kích hoạt",
+      labelCancelledAt: "Hủy lúc",
+      labelCcu: "CCU",
+      labelProfiles: "Hồ sơ",
+      labelItems: "Vật phẩm",
+      labelShops: "Cửa hàng",
+      willNotRenew: "Sẽ không gia hạn",
+      daysLeft: "ngày còn lại",
+      customBadge: "Tùy chỉnh",
+      removeConfirmTitle: "Materia?",
+      removeConfirmDescPart1: "Toàn bộ stack của",
+      removeConfirmDescPart2: "sẽ bị gỡ khỏi game này. Đăng ký sẽ bị hủy và năng lực giảm ngay lập tức. Không thể hoàn tác.",
+      removeAction: "Gỡ",
+      socketConfirmTitle: "Materia?",
+      socketConfirmCost: "xu cho 1 tháng.",
+      socketNow: "✨ Gắn ngay",
+      topUp: "Nạp xu",
+      toastRemoved: "materia đã được gỡ.",
+      toastSocketed: "Đã gắn Materia!",
+      toastFailedLoad: "Không thể tải",
+      toastUnsubFailed: "Hủy đăng ký thất bại.",
+      toastSubFailed: "Đăng ký thất bại.",
+      toastNotEnoughCoins: "Không đủ xu. Phí:",
+      toastMaxStacks: "Tất cả slot đã đầy."
+    }
   }
 };

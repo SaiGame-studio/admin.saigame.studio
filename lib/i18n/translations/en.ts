@@ -210,7 +210,8 @@ export const en = {
     limitReached: "Limit reached",
     items: "Items",
     teamsDesc: "Teams assigned to this game",
-    noTeamsAssigned: "No teams assigned to this game."
+    noTeamsAssigned: "No teams assigned to this game.",
+    plugins: "Materia"
   },
   userProfiles: {
     title: "User Profiles",
@@ -273,7 +274,11 @@ export const en = {
     created: "Created",
     lastUpdated: "Last Updated",
     studiosCount: "Studios",
-    gamesJoined: "Games Joined"
+    gamesJoined: "Games Joined",
+    timezone: "Timezone",
+    timezonePlaceholder: "e.g. Asia/Ho_Chi_Minh",
+    timezoneSave: "Save",
+    timezoneCancel: "Cancel"
   },
   itemProfile: {
     title: "Item Profiles",
@@ -764,6 +769,51 @@ export const en = {
     durationPermanent: "0 = permanent",
     // Misc
     free: "Free",
-    maxLabel: "Max"
+    maxLabel: "Max",
+    // Materia game plugins page
+    materia: {
+      breadcrumb: "Materia",
+      equipment: "Equipment",
+      socketDesc: "Socket Materia to expand capacity",
+      monthly: "Monthly",
+      availableMateria: "Available Materia",
+      perStack: "Per stack",
+      costSubtitle: "/ stack · month",
+      slotsFilled: "slots filled",
+      expiring: "expiring",
+      allSlotsFilled: "All Slots Filled",
+      noCoins: "No Coins",
+      addSocket: "Add Socket",
+      remove: "Remove",
+      afterExpiry: "after expiry",
+      statusCancelled: "Cancelled",
+      statusRevoked: "Revoked",
+      statusExpired: "Expired",
+      labelId: "ID",
+      labelActivated: "Activated",
+      labelCancelledAt: "Cancelled",
+      labelCcu: "CCU",
+      labelProfiles: "Profiles",
+      labelItems: "Items",
+      labelShops: "Shops",
+      willNotRenew: "Will not renew",
+      daysLeft: "d left",
+      customBadge: "Custom",
+      removeConfirmTitle: "Materia?",
+      removeConfirmDescPart1: "All stacks of",
+      removeConfirmDescPart2: "will be removed from this game. The subscription will be cancelled and capacity reduced immediately. This cannot be undone.",
+      removeAction: "Remove",
+      socketConfirmTitle: "Materia?",
+      socketConfirmCost: "coins for 1 month.",
+      socketNow: "✨ Socket Now",
+      topUp: "Top up",
+      toastRemoved: "materia removed.",
+      toastSocketed: "Materia socketed!",
+      toastFailedLoad: "Failed to load",
+      toastUnsubFailed: "Unsubscribe failed.",
+      toastSubFailed: "Subscription failed.",
+      toastNotEnoughCoins: "Not enough coins. Cost:",
+      toastMaxStacks: "All slots are filled for this materia."
+    }
   }
 }; 

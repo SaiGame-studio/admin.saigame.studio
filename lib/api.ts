@@ -1,4 +1,5 @@
 import { api } from "@/lib/api-client"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
 /**
  * Fetches user profile data from the API
@@ -6,6 +7,13 @@ import { api } from "@/lib/api-client"
  */
 export async function fetchUserProfile() {
   return await api.get("/api/v1/auth/me")
+}
+
+/**
+ * Updates the current user's timezone
+ */
+export async function updateUserTimezone(timezone: string) {
+  return await api.patch("/api/v1/me/timezone", { timezone })
 }
 
 /**
@@ -17,14 +25,14 @@ export async function fetchUserProfiles() {
 }
 
 /**
- * Formats a timestamp to a readable date
- * @param timestamp Unix timestamp
- * @returns Formatted date string
+ * Formats a millisecond timestamp to a readable date in the user's timezone
  */
 export function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  const tz = getUserTimezone()
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    timeZone: tz,
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   })
 }
