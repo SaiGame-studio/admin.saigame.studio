@@ -133,7 +133,7 @@ export function getRemainingStacks(
   subscriptions: GamePluginsResult["subscriptions"]
 ): number {
   const totalStacks = subscriptions
-    .filter((s) => s.plugin.id === plugin.id)
+    .filter((s) => s.plugin.id === plugin.id && !s.subscription.is_revoked)
     .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
   return plugin.max_stacks - totalStacks
 }

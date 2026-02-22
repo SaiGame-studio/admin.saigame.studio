@@ -131,11 +131,15 @@ function ExpiryBadge({ expiresAt }: { expiresAt?: string | null }) {
   const d = new Date(expiresAt)
   const now = new Date()
   const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  const color = daysLeft <= 7 ? "text-destructive" : daysLeft <= 30 ? "text-yellow-500" : "text-muted-foreground"
+  const isExpired = daysLeft <= 0
+  const color = isExpired ? "text-destructive" : daysLeft <= 7 ? "text-destructive" : daysLeft <= 30 ? "text-yellow-500" : "text-muted-foreground"
+  const daysAgo = isExpired ? Math.abs(daysLeft) : 0
   return (
     <span className={`text-xs ${color}`}>
       {d.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}
-      {daysLeft > 0 && ` (${daysLeft}${t('plugins.materia.daysLeft')})`}
+      {isExpired
+        ? ` (${daysAgo === 0 ? t('plugins.materia.today') : `${daysAgo}d ago`})`
+        : ` (${daysLeft}${t('plugins.materia.daysLeft')})`}
     </span>
   )
 }
@@ -300,7 +304,8 @@ export default function GamePluginsPage() {
   const lim = gamePlugins?.effective_limits
   const pending = gamePlugins?.pending_limits
   const subs = gamePlugins?.subscriptions ?? []
-  const activeSubs_ = subs.filter((s) => !s.is_cancelled)
+  const activeSubs_ = subs.filter((s) => !s.subscription.is_revoked)
+  const historySubs = subs.filter((s) => s.subscription.is_revoked)
   const totalMonthlyCost = activeSubs_.reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
   activeSubs_.forEach(({ subscription, plugin }) => {
@@ -374,7 +379,7 @@ export default function GamePluginsPage() {
                 const remaining = getRemainingStacks(plugin, subs)
                 const owned = plugin.max_stacks - remaining
                 const cancelledOwned2 = subs
-                  .filter((s) => s.plugin.id === plugin.id && s.is_cancelled)
+                  .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
                   .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
                 const activeOwned2 = owned - cancelledOwned2
                 return (
@@ -405,7 +410,7 @@ export default function GamePluginsPage() {
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
-                const hasCancelled = subs.some((s) => s.is_cancelled)
+                const hasCancelled = subs.some((s) => s.is_cancelled && !s.subscription.is_revoked)
                 const hasPending = hasCancelled && row.pending != null && row.pending !== row.max
                 return (
                   <div key={row.label} className="rounded-xl bg-muted/40 px-3 py-2">
@@ -457,7 +462,7 @@ export default function GamePluginsPage() {
               const remaining = gamePlugins ? getRemainingStacks(plugin, subs) : plugin.max_stacks
               const owned = plugin.max_stacks - remaining
               const cancelledOwned = subs
-                .filter((s) => s.plugin.id === plugin.id && s.is_cancelled)
+                .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
                 .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
               const activeOwned = owned - cancelledOwned
               const cost = plugin.cost_coins
@@ -603,7 +608,7 @@ export default function GamePluginsPage() {
             <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full">{t('plugins.materia.customBadge')}</span>
                     <span className="font-medium text-sm">{plugin.display_name}</span>
                   </div>
-                  {subscription.note && <p className="text-xs text-muted-foreground mt-0.5">{subscription.note}</p>}
+                  {subscription.note?.trim() && <p className="text-xs text-muted-foreground mt-0.5">{subscription.note}</p>}
                   <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
                     {plugin.ccu_grant > 0 && <span>+{formatNumber(plugin.ccu_grant)} CCU</span>}
                     {plugin.profiles_grant > 0 && <span>+{formatNumber(plugin.profiles_grant)} profiles</span>}
@@ -621,16 +626,16 @@ export default function GamePluginsPage() {
       {/* ──────────────────────────────────────────
           ACTIVE SUBSCRIPTIONS LIST
          ────────────────────────────────────────── */}
-      {subs.length > 0 && (
+      {activeSubs_.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.activeSubscriptions')}</span>
             <div className="flex-1 h-px bg-border" />
-            <span className="text-[10px] text-muted-foreground">{subs.length} {t('plugins.activeSubscriptions').toLowerCase()}</span>
+            <span className="text-[10px] text-muted-foreground">{activeSubs_.length} {t('plugins.activeSubscriptions').toLowerCase()}</span>
           </div>
           <div className="space-y-2">
-            {subs.map(({ subscription, plugin, is_cancelled }, i) => {
+            {activeSubs_.map(({ subscription, plugin, is_cancelled }, i) => {
               const isExpired = subscription.expires_at ? new Date(subscription.expires_at) < new Date() : false
               const isRevoked = subscription.is_revoked
               const isCancelled = is_cancelled
@@ -645,9 +650,7 @@ export default function GamePluginsPage() {
                 <div
                   key={subscription.id}
                   className={`flex items-center justify-between rounded-xl border px-4 py-3 gap-4 ${
-                    isCancelled || isRevoked || isExpired
-                      ? "bg-muted/20 opacity-60"
-                      : "bg-card"
+                    isCancelled ? "bg-orange-500/5 border-orange-500/20" : isExpired ? "bg-muted/20 opacity-60" : "bg-card"
                   }`}
                 >
                   {/* Left: index + plugin name */}
@@ -659,10 +662,7 @@ export default function GamePluginsPage() {
                         {isCancelled && (
                           <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
                         )}
-                        {!isCancelled && isRevoked && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
-                        )}
-                        {!isCancelled && !isRevoked && isExpired && (
+                        {!isCancelled && isExpired && (
                           <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>
                         )}
                         {subscription.coins_per_month > 0 && (
@@ -673,7 +673,7 @@ export default function GamePluginsPage() {
                         <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
                         <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
-                        {subscription.note && <span className="italic">{subscription.note}</span>}
+                        {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
                       </div>
                     </div>
                   </div>
@@ -685,12 +685,75 @@ export default function GamePluginsPage() {
                     ) : expiresAt ? (
                       <>
                         <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
-                          {isExpired ? t('plugins.materia.statusExpired') : `${daysLeft}${t('plugins.materia.daysLeft')}`}
+                          {isExpired
+                            ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
+                            : `${daysLeft}${t('plugins.materia.daysLeft')}`}
                         </p>
                         <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                       </>
                     ) : (
                       <p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────
+          SUBSCRIPTION HISTORY (cancelled / revoked)
+         ────────────────────────────────────────── */}
+      {historySubs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.history') ?? 'History'}</span>
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[10px] text-muted-foreground">{historySubs.length}</span>
+          </div>
+          <div className="space-y-2">
+            {historySubs.map(({ subscription, plugin, is_cancelled }, i) => {
+              const isRevoked = subscription.is_revoked
+              const isCancelled = is_cancelled
+              const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
+              const activatedAt = new Date(subscription.activated_at)
+              const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
+
+              return (
+                <div
+                  key={subscription.id}
+                  className="flex items-center justify-between rounded-xl border px-4 py-3 gap-4 bg-muted/10 opacity-50 hover:opacity-80 transition-opacity"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-muted-foreground">{plugin.display_name}</span>
+                        {isCancelled && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
+                        )}
+                        {isRevoked && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
+                        )}
+                        {subscription.coins_per_month > 0 && (
+                          <span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                        {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {expiresAt ? (
+                      <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}</p>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">{t('plugins.permanent')}</p>
                     )}
                   </div>
                 </div>

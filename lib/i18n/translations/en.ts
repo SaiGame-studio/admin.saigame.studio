@@ -728,6 +728,7 @@ export const en = {
     shops: "Shops",
     // Active subscriptions
     activeSubscriptions: "Active Subscriptions",
+    history: "Subscription History",
     noSubscriptions: "No active subscriptions yet.",
     adminGrants: "Admin Grants",
     adminGrantsDesc: "Custom plugins granted by an administrator.",
@@ -798,6 +799,7 @@ export const en = {
       labelShops: "Shops",
       willNotRenew: "Will not renew",
       daysLeft: "d left",
+      today: "today",
       customBadge: "Custom",
       removeConfirmTitle: "Materia?",
       removeConfirmDescPart1: "All stacks of",
