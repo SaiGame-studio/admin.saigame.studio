@@ -25,6 +25,7 @@ export interface Studio {
   user_profile_id: string
   owner_user_id: string
   is_active: boolean
+  activated_at?: string | null   // null = not activated; set = plugin-ready
   updated_at: number
   created_at: number
   limits?: StudioLimits

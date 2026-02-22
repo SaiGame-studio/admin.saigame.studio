@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -110,6 +111,15 @@ function formatDate(iso: string) {
 export default function PaymentPage() {
   const { toast } = useToast()
   const { t } = useTranslation()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab = (searchParams.get("tab") === "transactions" ? "transactions" : "payment")
+
+  function handleTabChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", value)
+    router.replace(`/payment?${params.toString()}`, { scroll: false })
+  }
 
   const getTypeLabel = (type: string) =>
     ({
@@ -195,7 +205,7 @@ export default function PaymentPage() {
         </div>
 
         <div className="mx-auto w-full max-w-2xl">
-          <Tabs defaultValue="payment">
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
               <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
@@ -323,7 +333,7 @@ export default function PaymentPage() {
                     </Button>
                   </CardContent>
                 </Card>
-              ) : txData?.transactions.length === 0 ? (
+              ) : txData?.transactions?.length === 0 ? (
                 <Card>
                   <CardContent className="py-10 text-center text-sm text-muted-foreground">
                     {t('payment.noTransactions')}
@@ -331,7 +341,7 @@ export default function PaymentPage() {
                 </Card>
               ) : (
                 <div className="space-y-2">
-                  {txData?.transactions.map((tx) => {
+                  {txData?.transactions?.map((tx) => {
                     const isCredit = tx.amount > 0
                     return (
                       <Card key={tx.id}>

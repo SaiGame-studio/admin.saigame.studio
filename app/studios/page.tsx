@@ -27,6 +27,8 @@ export default function StudiosPage() {
   const maxStudios = user?.limits?.max_studios ?? null
   const usedStudios = user?.usage?.studios ?? 0
   const atLimit = maxStudios !== null && usedStudios >= maxStudios
+  const STUDIO_COST = 50
+  const isFirstStudio = usedStudios === 0
 
   useEffect(() => {
     async function loadStudios() {
@@ -60,6 +62,7 @@ export default function StudiosPage() {
       const studio = await createStudio({ name: newStudioName.trim() });
       setStudios(prev => [studio, ...prev]);
       setNewStudioName("");
+      window.dispatchEvent(new Event("wallet:refresh"));
     } catch (err: any) {
       setCreateError(err.message || "Failed to create studio");
     } finally {
@@ -84,27 +87,34 @@ export default function StudiosPage() {
               {atLimit && <Lock className="h-3.5 w-3.5 text-destructive" />}
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <Input
-              value={newStudioName}
-              onChange={e => setNewStudioName(e.target.value)}
-              placeholder={t('studio.newName')}
-              className="w-48"
-              disabled={creating || atLimit}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !creating && !atLimit) {
-                  handleCreateStudio();
-                }
-              }}
-            />
-            <Button
-              onClick={handleCreateStudio}
-              disabled={creating || atLimit}
-              variant="default"
-              title={atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
-            >
-              {creating ? t('common.loading') : t('studio.create')}
-            </Button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <Input
+                value={newStudioName}
+                onChange={e => setNewStudioName(e.target.value)}
+                placeholder={t('studio.newName')}
+                className="w-48"
+                disabled={creating || atLimit}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !creating && !atLimit) {
+                    handleCreateStudio();
+                  }
+                }}
+              />
+              <Button
+                onClick={handleCreateStudio}
+                disabled={creating || atLimit}
+                variant="default"
+                title={atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
+              >
+                {creating ? t('common.loading') : t('studio.create')}
+              </Button>
+            </div>
+            {!atLimit && (
+              <p className="text-xs text-muted-foreground">
+                {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
+              </p>
+            )}
           </div>
         </div>
       </div>

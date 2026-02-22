@@ -25,6 +25,7 @@ import {
   Wallet,
   Gift,
   ReceiptText,
+  Puzzle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -242,6 +243,12 @@ export function SideNav() {
                   <Link href="/admin/gift-codes">
                     <ReceiptText className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.transactions')}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/plugins">
+                    <Puzzle className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{t('common.allPlugins') || 'Plugins'}</span>
                   </Link>
                 </Button>
               </div>

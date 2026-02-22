@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2 } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Puzzle } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -206,6 +206,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         <Link href={`/games/${game.id}/item-profiles`}>
                             <Package className="h-4 w-4" />
                             {t('game.itemProfiles')}
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/plugins`}>
+                            <Puzzle className="h-4 w-4" />
+                            {t('game.plugins') || 'Plugins'}
                         </Link>
                     </Button>
                     <DeleteGameDialog game={game} />
