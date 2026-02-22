@@ -9,7 +9,7 @@ import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, User, Trophy, Coins, Star } from "lucide-react";
+import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -95,14 +95,19 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {t('gameUsers.players')}{game ? ` - ${game.name}` : ""}
-          </h1>
-          <p className="text-muted-foreground">
-            {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
-            {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
-          </p>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" asChild>
+            <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {t('gameUsers.players')}{game ? ` - ${game.name}` : ""}
+            </h1>
+            <p className="text-muted-foreground">
+              {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
+              {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
+            </p>
+          </div>
         </div>
         <Button
           variant="outline"

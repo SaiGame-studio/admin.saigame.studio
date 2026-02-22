@@ -25,6 +25,8 @@ import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api"
 
+const fmt = (n: number) => n.toLocaleString()
+
 const GEM_TIERS_MINI = [
   { image: "/materias/common.png",    label: "Uncommon",  text: "text-green-400"  },
   { image: "/materias/rare.png",      label: "Rare",      text: "text-blue-400"   },
@@ -432,7 +434,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">{t('game.onlineUsers')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
-                                            {game.usage?.concurrent_users ?? 0} / {game.limits?.max_concurrent_users ?? '∞'}
+                                            {fmt(game.usage?.concurrent_users ?? 0)} / {game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞'}
                                             {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
@@ -451,7 +453,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? 'text-destructive font-semibold' : ''}`}>
-                                            {game.usage?.player_profiles ?? 0} / {game.limits?.max_player_profiles ?? '∞'}
+                                            {fmt(game.usage?.player_profiles ?? 0)} / {game.limits?.max_player_profiles != null ? fmt(game.limits.max_player_profiles) : '∞'}
                                             {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
@@ -467,7 +469,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">{t('game.items')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
-                                            {game.usage?.items ?? 0} / {game.limits?.max_items ?? '∞'}
+                                            {fmt(game.usage?.items ?? 0)} / {game.limits?.max_items != null ? fmt(game.limits.max_items) : '∞'}
                                             {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
@@ -483,7 +485,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <div className="flex justify-between text-sm">
                                         <span className="font-medium">{t('game.shops')}</span>
                                         <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
-                                            {game.usage?.shops ?? 0} / {game.limits?.max_shops ?? '∞'}
+                                            {fmt(game.usage?.shops ?? 0)} / {game.limits?.max_shops != null ? fmt(game.limits.max_shops) : '∞'}
                                             {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>

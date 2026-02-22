@@ -395,17 +395,18 @@ export default function GamePluginsPage() {
           )}
 
           {/* Stats row */}
-          {lim && (
+          {game && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-border/50">
               {([
-                { label: t('plugins.ccu'), max: lim.max_concurrent_users, pending: pending?.max_concurrent_users, used: game?.usage?.concurrent_users, icon: "👥" },
-                { label: t('plugins.profiles'), max: lim.max_profiles, pending: pending?.max_profiles, used: game?.usage?.player_profiles, icon: "👤" },
-                { label: t('plugins.items'), max: lim.max_items, pending: pending?.max_items, used: game?.usage?.items, icon: "📦" },
-                { label: t('plugins.shops'), max: lim.max_shops, pending: pending?.max_shops, used: game?.usage?.shops, icon: "🏪" },
-              ] as { label: string; max: number; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
-                const pct = (row.used != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
+                { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, pending: pending?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
+                { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
+                { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
+                { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
+              ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
+                const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
-                const hasPending = row.pending != null && row.pending !== row.max
+                const hasCancelled = subs.some((s) => s.is_cancelled)
+                const hasPending = hasCancelled && row.pending != null && row.pending !== row.max
                 return (
                   <div key={row.label} className="rounded-xl bg-muted/40 px-3 py-2">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -414,14 +415,12 @@ export default function GamePluginsPage() {
                     </div>
                     <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
                       {row.used != null ? (
-                        <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {formatNumber(row.max)}</span></>
-                      ) : formatNumber(row.max)}
+                        <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
+                      ) : (row.max != null ? formatNumber(row.max) : '∞')}
+                      {hasPending && (
+                        <span className="text-[10px] text-orange-400 font-normal ml-2">→ {formatNumber(row.pending!)} {t('plugins.materia.afterExpiry')}</span>
+                      )}
                     </p>
-                    {hasPending && (
-                      <p className="text-[10px] text-orange-400 mt-0.5">
-                        → {formatNumber(row.pending!)} {t('plugins.materia.afterExpiry')}
-                      </p>
-                    )}
                     {pct != null && (
                       <div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
                         <div
