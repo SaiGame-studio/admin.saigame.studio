@@ -52,6 +52,18 @@ export interface CreateItemRequest {
   metadata?: Record<string, unknown>
 }
 
+export interface UpdateItemRequest {
+  name?: string
+  category?: ItemCategory
+  rarity?: ItemRarity
+  is_stackable?: boolean
+  max_stack_size?: number | null
+  grid_width?: number
+  grid_height?: number
+  base_stats?: Record<string, number>
+  metadata?: Record<string, unknown>
+}
+
 export interface GachaPoolEntry {
   item_definition_id: string
   weight: number
@@ -70,6 +82,26 @@ export interface GachaPack {
   cost: number
   item_pool: GachaPoolEntry[]
   is_enabled: boolean
+  created_at?: string | number
+  updated_at?: string | number
+}
+
+export interface CreateGachaPackRequest {
+  name: string
+  pack_type: string
+  currency_item_definition_id: string
+  cost: number
+  is_enabled?: boolean
+  item_pool: GachaPoolEntry[]
+}
+
+export interface UpdateGachaPackRequest {
+  name?: string
+  pack_type?: string
+  currency_item_definition_id?: string
+  cost?: number
+  is_enabled?: boolean
+  item_pool?: GachaPoolEntry[]
 }
 
 export interface GrantedItem {

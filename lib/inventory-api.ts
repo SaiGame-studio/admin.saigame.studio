@@ -11,8 +11,12 @@ import { api } from '@/lib/api-client'
 import type {
   ItemDefinition,
   CreateItemRequest,
+  UpdateItemRequest,
   GachaPack,
+  GachaPoolEntry,
   GachaPackResult,
+  CreateGachaPackRequest,
+  UpdateGachaPackRequest,
   InventoryTransaction,
   Paginated,
   ItemCategory,
@@ -68,11 +72,79 @@ export async function getItemDefinition(
   return api.get(`/api/v1/games/${ctx.gameId}/items/${itemId}`)
 }
 
-// ─── Studio Owner — Gacha Packs (read-only until admin API ships) ────────────
+/** PATCH /api/v1/games/:gameId/items/:itemId — Update an item definition */
+export async function updateItemDefinition(
+  ctx: TenantCtx,
+  itemId: string,
+  body: UpdateItemRequest,
+): Promise<{ item: ItemDefinition }> {
+  return api.patch(`/api/v1/games/${ctx.gameId}/items/${itemId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/items/:itemId — Delete an item definition */
+export async function deleteItemDefinition(
+  ctx: TenantCtx,
+  itemId: string,
+): Promise<{ message: string }> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/items/${itemId}`)
+}
+
+// ─── Studio Owner — Gacha Packs (Admin) ─────────────────────────────────────
+
+/** GET /api/v1/games/:gameId/gacha/packs — List all gacha packs */
+export async function listGachaPacks(
+  ctx: TenantCtx,
+): Promise<{ packs: GachaPack[] }> {
+  return api.get(`/api/v1/games/${ctx.gameId}/gacha/packs`)
+}
+
+/** GET /api/v1/games/:gameId/gacha/packs/:packId — Get a single gacha pack */
+export async function getGachaPack(
+  ctx: TenantCtx,
+  packId: string,
+): Promise<{ pack: GachaPack }> {
+  return api.get(`/api/v1/games/${ctx.gameId}/gacha/packs/${packId}`)
+}
+
+/** POST /api/v1/games/:gameId/gacha/packs — Create a gacha pack */
+export async function createGachaPack(
+  ctx: TenantCtx,
+  body: CreateGachaPackRequest,
+): Promise<{ pack: GachaPack }> {
+  return api.post(`/api/v1/games/${ctx.gameId}/gacha/packs`, body)
+}
+
+/** PATCH /api/v1/games/:gameId/gacha/packs/:packId — Update a gacha pack */
+export async function updateGachaPack(
+  ctx: TenantCtx,
+  packId: string,
+  body: UpdateGachaPackRequest,
+): Promise<{ pack: GachaPack }> {
+  return api.patch(`/api/v1/games/${ctx.gameId}/gacha/packs/${packId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/gacha/packs/:packId — Delete a gacha pack */
+export async function deleteGachaPack(
+  ctx: TenantCtx,
+  packId: string,
+): Promise<{ message: string }> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/gacha/packs/${packId}`)
+}
+
+/** PATCH /api/v1/games/:gameId/gacha/packs/:packId/enabled — Toggle pack enabled */
+export async function setGachaPackEnabled(
+  ctx: TenantCtx,
+  packId: string,
+  isEnabled: boolean,
+): Promise<{ is_enabled: boolean }> {
+  return api.patch(
+    `/api/v1/games/${ctx.gameId}/gacha/packs/${packId}/enabled`,
+    { is_enabled: isEnabled },
+  )
+}
 
 /**
- * There is no HTTP admin API for gacha packs yet.
- * This helper fetches currency items to display pack cost info in the dashboard.
+ * Helper: fetch currency items for pack cost selectors
  */
 export async function listCurrencyItems(
   ctx: TenantCtx,
@@ -106,4 +178,16 @@ export async function listTransactions(
 
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/transactions${query ? `?${query}` : ''}`)
+}
+
+/** GET /api/v1/items/categories — List available item categories */
+export async function fetchItemCategories(): Promise<ItemCategory[]> {
+  const res: any = await api.get('/api/v1/items/categories')
+  return Array.isArray(res) ? res : (res.categories ?? [])
+}
+
+/** GET /api/v1/items/rarities — List available item rarities */
+export async function fetchItemRarities(): Promise<ItemRarity[]> {
+  const res: any = await api.get('/api/v1/items/rarities')
+  return Array.isArray(res) ? res : (res.rarities ?? [])
 }

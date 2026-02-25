@@ -199,7 +199,7 @@ export const ja = {
     studioName: "スタジオ名",
     shopCount: "ショップ数",
     totalPlayer: "総プレイヤー数",
-    itemProfileCount: "アイテムプロフィール数",
+    itemProfileCount: "アイテム定義",
     createdAt: "作成日時",
     updatedAt: "最終更新",
     loadError: "ゲーム詳細の読み込みに問題が発生しました",

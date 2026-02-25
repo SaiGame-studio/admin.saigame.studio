@@ -199,7 +199,7 @@ export const vi = {
     studioName: "Tên Studio",
     shopCount: "Số cửa hàng",
     totalPlayer: "Tổng người chơi",
-    itemProfileCount: "Số hồ sơ vật phẩm",
+    itemProfileCount: "Định nghĩa vật phẩm",
     createdAt: "Ngày tạo",
     updatedAt: "Ngày cập nhật",
     loadError: "Đã xảy ra sự cố khi tải thông tin game",

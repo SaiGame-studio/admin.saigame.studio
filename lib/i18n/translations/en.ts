@@ -199,7 +199,7 @@ export const en = {
     studioName: "Studio Name",
     shopCount: "Shop Count",
     totalPlayer: "Total Players",
-    itemProfileCount: "Item Profile Count",
+    itemProfileCount: "Item Definitions",
     createdAt: "Created At",
     updatedAt: "Last Updated",
     loadError: "There was a problem loading the game details",

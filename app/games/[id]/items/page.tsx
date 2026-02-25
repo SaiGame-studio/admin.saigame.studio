@@ -47,6 +47,8 @@ import { ApiError } from "@/lib/api-client"
 import {
   listItemDefinitions,
   createItemDefinition,
+  fetchItemCategories,
+  fetchItemRarities,
   type ListItemsParams,
 } from "@/lib/inventory-api"
 import type {
@@ -56,12 +58,7 @@ import type {
   CreateItemRequest,
 } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
-
-const ALL_CATEGORIES: ItemCategory[] = [
-  "weapon", "armor", "consumable", "currency",
-  "material", "card", "container", "decoration", "other",
-]
-const ALL_RARITIES: ItemRarity[] = ["common", "rare", "epic", "legendary"]
+import { GameNavButtons } from "@/components/GameNavButtons"
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
@@ -140,17 +137,22 @@ function CreateItemDialog({
   gameId,
   onCreated,
   onClose,
+  categories,
+  rarities,
 }: {
   open: boolean
   studioId: string
   gameId: string
   onCreated: () => void
   onClose: () => void
+  categories: ItemCategory[]
+  rarities: ItemRarity[]
 }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState("")
+  const [itemCode, setItemCode] = useState("")
   const [category, setCategory] = useState<ItemCategory>("weapon")
   const [rarity, setRarity] = useState<ItemRarity>("common")
   const [isStackable, setIsStackable] = useState(false)
@@ -163,6 +165,7 @@ function CreateItemDialog({
 
   function resetForm() {
     setName("")
+    setItemCode("")
     setCategory("weapon")
     setRarity("common")
     setIsStackable(false)
@@ -200,6 +203,7 @@ function CreateItemDialog({
       })
 
       const body: CreateItemRequest = {
+        ...(itemCode.trim() && { item_code: itemCode.trim() }),
         name: name.trim(),
         category,
         rarity,
@@ -262,6 +266,18 @@ function CreateItemDialog({
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
+          {/* Item Code */}
+          <div className="space-y-1">
+            <Label htmlFor="item-code">Item Code <span className="text-muted-foreground text-xs">(optional, e.g. iron_sword)</span></Label>
+            <Input
+              id="item-code"
+              placeholder="e.g. iron_sword"
+              value={itemCode}
+              onChange={(e) => setItemCode(e.target.value)}
+              className="font-mono"
+            />
+          </div>
+
           {/* Category + Rarity */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -271,7 +287,7 @@ function CreateItemDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
                   ))}
                 </SelectContent>
@@ -284,7 +300,7 @@ function CreateItemDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_RARITIES.map((r) => (
+                  {rarities.map((r) => (
                     <SelectItem key={r} value={r}><RarityBadge rarity={r} /></SelectItem>
                   ))}
                 </SelectContent>
@@ -396,12 +412,21 @@ export default function GameItemsPage() {
 
   // modal
   const [showCreate, setShowCreate] = useState(false)
+  const [categories, setCategories] = useState<ItemCategory[]>([])
+  const [rarities, setRarities] = useState<ItemRarity[]>([])
 
   // debounce name filter
   useEffect(() => {
     const t = setTimeout(() => setDebouncedName(searchName), 300)
     return () => clearTimeout(t)
   }, [searchName])
+
+  // fetch categories & rarities from API
+  useEffect(() => {
+    Promise.all([fetchItemCategories(), fetchItemRarities()])
+      .then(([cats, rars]) => { setCategories(cats); setRarities(rars) })
+      .catch(() => {})
+  }, [])
 
   // load game info once
   useEffect(() => {
@@ -476,22 +501,21 @@ export default function GameItemsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Package className="h-6 w-6" />
+            <h1 className="text-3xl font-bold tracking-tight">
               Item Catalogue
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground">
               {total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
           <Button variant="outline" size="icon" onClick={fetchItems} title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -499,6 +523,8 @@ export default function GameItemsPage() {
             <Plus className="h-4 w-4 mr-2" />
             New Item
           </Button>
+          <div className="w-px h-6 bg-border self-center" />
+          <GameNavButtons gameId={gameId} active="items" />
         </div>
       </div>
 
@@ -524,7 +550,7 @@ export default function GameItemsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
-                {ALL_CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
                 ))}
               </SelectContent>
@@ -538,7 +564,7 @@ export default function GameItemsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All rarities</SelectItem>
-                {ALL_RARITIES.map((r) => (
+                {rarities.map((r) => (
                   <SelectItem key={r} value={r}><RarityBadge rarity={r} /></SelectItem>
                 ))}
               </SelectContent>
@@ -678,6 +704,8 @@ export default function GameItemsPage() {
           gameId={gameId}
           onCreated={fetchItems}
           onClose={() => setShowCreate(false)}
+          categories={categories}
+          rarities={rarities}
         />
       )}
     </div>

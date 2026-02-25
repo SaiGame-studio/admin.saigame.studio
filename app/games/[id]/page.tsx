@@ -20,6 +20,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
+import { GameNavButtons } from "@/components/GameNavButtons"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -203,50 +204,27 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             </div>
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div className="group">
-                    <GameNameEditable
-                        game={game}
-                        gameId={game.id}
-                        onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
-                    />
-                    <GameDescriptionEditable
-                        game={game}
-                        gameId={game.id}
-                        onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}
-                    />
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="icon" onClick={() => router.back()}>
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="group">
+                        <GameNameEditable
+                            game={game}
+                            gameId={game.id}
+                            onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
+                        />
+                        <GameDescriptionEditable
+                            game={game}
+                            gameId={game.id}
+                            onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}
+                        />
+                    </div>
                 </div>
-                <div className="flex gap-2 mt-4 md:mt-0">
-                    <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/shops`}>
-                            <Store className="h-4 w-4" />
-                            {t('game.shops')}
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/users`}>
-                            <Users className="h-4 w-4" />
-                            {t('game.users')}
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/items`}>
-                            <BookOpen className="h-4 w-4" />
-                            Items
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/gacha`}>
-                            <Dices className="h-4 w-4" />
-                            Gacha
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/transactions`}>
-                            <ScrollText className="h-4 w-4" />
-                            Transactions
-                        </Link>
-                    </Button>
+                <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
                     <DeleteGameDialog game={game} />
+                    <div className="w-px h-6 bg-border self-center" />
+                    <GameNavButtons gameId={game.id} />
                 </div>
             </div>
 
@@ -361,7 +339,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                     <h3 className="text-sm font-medium ">{t('game.itemProfileCount')}</h3>
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/items`} className="text-primary hover:text-primary/80 flex items-center gap-1">
-                                            {game.item_profile_count ?? 0}
+                                            {game.usage?.items ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
                                     </p>

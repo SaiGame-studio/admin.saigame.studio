@@ -14,7 +14,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
-
+import { GameNavButtons } from "@/components/GameNavButtons"
 export default function GameUserProfilesPage({ params }: { params: { id: string } }) {
   const gameId = params.id;
   const { locale } = useLanguage();
@@ -109,15 +109,18 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => loadData(searchQuery || undefined)}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          {t('gameUsers.refresh')}
-        </Button>
+        <div className="flex gap-2 items-center flex-wrap">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => loadData(searchQuery || undefined)}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <div className="w-px h-6 bg-border" />
+          <GameNavButtons gameId={gameId} active="users" />
+        </div>
       </div>
 
       {/* Search */}
