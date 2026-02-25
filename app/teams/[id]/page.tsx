@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { fetchTeamDetails, fetchTeamMembers, fetchTeamGames } from "@/lib/team-api"
-import { fetchStudioWithCache } from "@/lib/studio-api"
+import { fetchStudio } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Team, TeamMember } from "@/types/team"
 import type { Studio } from "@/types/studio"
@@ -52,7 +52,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         // Load studio data with cache if studio_id exists
         if (data.studio_id) {
           try {
-            const studioData = await fetchStudioWithCache(data.studio_id)
+            const studioData = await fetchStudio(data.studio_id)
             setStudio(studioData)
           } catch (err) {
             console.error("Failed to load studio:", err)
