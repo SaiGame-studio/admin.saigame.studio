@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { fetchStudio, fetchStudioGames, fetchStudioTeams, fetchStudioMembers, removeStudioMember, type StudioMember } from "@/lib/studio-api"
-import { formatTimestamp } from "@/lib/utils/date-utils"
+import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import type { Studio } from "@/types/studio"
 import type { Game } from "@/types/game"
 import type { Team } from "@/types/team"
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CopyButton } from "@/components/CopyButton"
 
 export default function StudioDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params)
@@ -123,13 +124,13 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
     else if (activeTab === 'members') loadMembers()
   }, [activeTab, loadGames, loadMembers])
 
-  async function handleRemoveMember(memberId: string) {
+  async function handleRemoveMember(userId: string) {
     if (!studio) return
-    setRemovingMemberId(memberId)
+    setRemovingMemberId(userId)
     try {
-      await removeStudioMember(studio.id, memberId)
+      await removeStudioMember(studio.id, userId)
       setMembers(prev => {
-        const updated = prev.filter(m => m.id !== memberId)
+        const updated = prev.filter(m => m.user_id !== userId)
         setStudio(s => s ? {
           ...s,
           usage: s.usage ? { ...s.usage, total_members: updated.length } : s.usage
@@ -218,7 +219,7 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium">ID</p>
-                  <p className="text-sm ">{studio.id}</p>
+                  <p className="text-sm flex items-center">{studio.id}<CopyButton text={studio.id} /></p>
                 </div>
                 {studio.slug && (
                   <div>
@@ -232,7 +233,7 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div>
                   <p className="text-sm font-medium">{t('studio.ownerUserId')}</p>
-                  <p className="text-sm ">{studio.owner_user_id}</p>
+                  <p className="text-sm flex items-center">{studio.owner_user_id}<CopyButton text={studio.owner_user_id} /></p>
                 </div>
               </CardContent>
             </Card>
@@ -527,10 +528,9 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>User ID</TableHead>
+                          <TableHead>User</TableHead>
                           <TableHead>{t('studio.memberEmail')}</TableHead>
-                          <TableHead>Display Name</TableHead>
-                          <TableHead>{t('studio.memberRole')}</TableHead>
+                          <TableHead>Teams</TableHead>
                           <TableHead>{t('studio.memberJoinedAt')}</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
@@ -538,14 +538,33 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                       <TableBody>
                         {members.map((member) => (
                           <TableRow key={member.id}>
-                            <TableCell className="font-mono text-xs text-muted-foreground">{member.user_id}</TableCell>
-                            <TableCell className="font-mono text-sm">{member.email ?? '-'}</TableCell>
-                            <TableCell>{member.display_name ?? '-'}</TableCell>
                             <TableCell>
-                              <Badge variant="outline">{member.role_name}</Badge>
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1 font-medium text-sm">
+                                  {member.display_name ?? '-'}
+                                  {member.is_owner && <Badge variant="secondary" className="ml-1">Owner</Badge>}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-mono text-xs text-muted-foreground">{member.user_id}</span>
+                                  <CopyButton text={member.user_id} />
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{member.email ?? '-'}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {member.teams && member.teams.length > 0 ? member.teams.map(team => (
+                                  <Link key={team.id} href={`/teams/${team.id}`}>
+                                    <Button variant="outline" size="sm" className="h-6 px-2 text-xs gap-1">
+                                      <span className="truncate max-w-[120px]">{team.name}</span>
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </Button>
+                                  </Link>
+                                )) : <span className="text-xs text-muted-foreground">-</span>}
+                              </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {formatTimestamp(member.joined_at)}
+                              {formatISODate(member.joined_at)}
                             </TableCell>
                             <TableCell>
                               <AlertDialog>
@@ -554,7 +573,7 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    disabled={removingMemberId === member.id}
+                                    disabled={removingMemberId === member.user_id}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -570,7 +589,7 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      onClick={() => handleRemoveMember(member.id)}
+                                      onClick={() => handleRemoveMember(member.user_id)}
                                     >
                                       {t('studio.removeMember')}
                                     </AlertDialogAction>

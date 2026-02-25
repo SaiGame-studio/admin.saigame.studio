@@ -4,18 +4,18 @@ import type {Team} from "@/types/team"
 
 export interface StudioMember {
     id: string
-    team_id: string
+    studio_id: string
     user_id: string
-    role_id: string
-    role_name: string
-    invited_by?: string
-    invited_at?: number
-    joined_at?: number
+    is_owner: boolean
     is_active: boolean
-    created_at: number
-    updated_at: number
+    invited_by?: string
+    invited_at?: string
+    joined_at?: string
+    created_at: string
+    updated_at: string
     email?: string
     display_name?: string
+    teams?: { id: string; name: string }[]
 }
 import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils"
 import { api } from "@/lib/api-client"
@@ -143,6 +143,6 @@ export async function fetchStudioMembers(studioId: string): Promise<StudioMember
 /**
  * Removes a member from a studio
  */
-export async function removeStudioMember(studioId: string, memberId: string): Promise<void> {
-    await api.delete(`/api/v1/studios/${studioId}/members/${memberId}`)
+export async function removeStudioMember(studioId: string, userId: string): Promise<void> {
+    await api.delete(`/api/v1/studios/${studioId}/members/${userId}`)
 }

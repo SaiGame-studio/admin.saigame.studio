@@ -319,7 +319,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-medium text-lg">
-                            {member.email || member.display_name || "-"}
+                            {member.display_name || member.email || "-"}
                           </p>
                           {member.username && (
                             <p className="text-sm text-muted-foreground">@{member.username}</p>
