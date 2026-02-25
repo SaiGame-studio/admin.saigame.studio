@@ -211,7 +211,7 @@ export function SideNav() {
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/documentation">
+                  <Link href="/doc">
                     <FileText className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.documentation')}</span>
                   </Link>

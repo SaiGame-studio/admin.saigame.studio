@@ -7,11 +7,13 @@ export enum Tier {
 
 export interface StudioLimits {
   max_games: number
+  max_teams: number
   max_total_members: number
 }
 
 export interface StudioUsage {
   games: number
+  teams: number
   total_members: number
 }
 

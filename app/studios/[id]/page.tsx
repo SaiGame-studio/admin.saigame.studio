@@ -211,7 +211,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   {/* Games */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -231,6 +231,30 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                         : 0}
                       className={`h-2 ${
                         studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
+                    />
+                  </div>
+                  {/* Teams */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{t('studio.teams')}</span>
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
+                        {studio.usage?.teams ?? 0} / {studio.limits?.max_teams ?? '∞'}
+                        {studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams && ` (${t('studio.limitReached')})`}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_teams
+                        ? Math.min(((studio.usage?.teams ?? 0) / studio.limits.max_teams) * 100, 100)
+                        : 0}
+                      className={`h-2 ${
+                        studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams
                           ? '[&>div]:bg-destructive'
                           : ''
                       }`}
@@ -274,8 +298,13 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               </div>
               <CreateTeamDialog
                 studioId={studio.id}
+                existingTeamCount={studio.usage?.teams ?? teams.length}
                 onTeamCreated={(newTeam) => {
                   setTeams([...teams, newTeam])
+                  setStudio(prev => prev ? {
+                    ...prev,
+                    usage: prev.usage ? { ...prev.usage, teams: (prev.usage.teams ?? 0) + 1 } : prev.usage
+                  } : prev)
                 }}
               />
             </CardHeader>
