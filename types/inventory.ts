@@ -1,0 +1,140 @@
+// Inventory & Gacha System Types
+// Matches the backend API defined in INVENTORY_GACHA_FRONTEND_GUIDE.md
+
+export type ItemCategory =
+  | 'weapon'
+  | 'armor'
+  | 'consumable'
+  | 'currency'
+  | 'material'
+  | 'card'
+  | 'container'
+  | 'decoration'
+  | 'other'
+
+export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary'
+
+export type TxType =
+  | 'GACHA_OPEN'
+  | 'ITEM_ADD'
+  | 'ITEM_REMOVE'
+  | 'ITEM_EQUIP'
+  | 'ITEM_TRADE'
+
+export interface ItemDefinition {
+  id: string
+  studio_id: string
+  game_id: string
+  item_code: string
+  name: string
+  category: ItemCategory
+  rarity: ItemRarity
+  is_stackable: boolean
+  max_stack_size: number | null
+  grid_width: number
+  grid_height: number
+  base_stats: Record<string, number>
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateItemRequest {
+  item_code?: string
+  name: string
+  category: ItemCategory
+  rarity: ItemRarity
+  is_stackable?: boolean
+  max_stack_size?: number | null
+  grid_width?: number
+  grid_height?: number
+  base_stats?: Record<string, number>
+  metadata?: Record<string, unknown>
+}
+
+export interface GachaPoolEntry {
+  item_definition_id: string
+  weight: number
+  rarity: ItemRarity
+  quantity_min: number
+  quantity_max: number
+}
+
+export interface GachaPack {
+  id: string
+  studio_id: string
+  game_id: string
+  name: string
+  pack_type: string
+  currency_item_definition_id: string
+  cost: number
+  item_pool: GachaPoolEntry[]
+  is_enabled: boolean
+}
+
+export interface GrantedItem {
+  item_definition_id: string
+  name: string
+  rarity: ItemRarity
+  category: ItemCategory
+  quantity: number
+  inventory_item_id: string
+}
+
+export interface GachaPackResult {
+  transaction_id: string
+  is_duplicate: boolean
+  items_granted: GrantedItem[]
+}
+
+export interface TransactionItem {
+  item_definition_id: string
+  name: string
+  quantity: number
+  rarity: ItemRarity
+  category: ItemCategory
+}
+
+export interface InventoryTransaction {
+  id: string
+  user_id: string
+  studio_id: string
+  game_id: string
+  transaction_type: TxType
+  items: TransactionItem[]
+  metadata: Record<string, unknown> | null
+  reference_id: string | null
+  created_at: string
+}
+
+export interface Paginated<T> {
+  items?: T[]
+  transactions?: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/** Suggested rarity colour mapping */
+export const RARITY_COLORS: Record<ItemRarity, { text: string; border: string; bg: string }> = {
+  common: {
+    text: 'text-gray-400',
+    border: 'border-gray-400',
+    bg: 'bg-gray-400/10',
+  },
+  rare: {
+    text: 'text-blue-500',
+    border: 'border-blue-500',
+    bg: 'bg-blue-500/10',
+  },
+  epic: {
+    text: 'text-purple-500',
+    border: 'border-purple-500',
+    bg: 'bg-purple-500/10',
+  },
+  legendary: {
+    text: 'text-amber-500',
+    border: 'border-amber-500',
+    bg: 'bg-amber-500/10',
+  },
+}

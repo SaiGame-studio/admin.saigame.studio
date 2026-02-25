@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -229,15 +229,21 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/item-profiles`}>
-                            <Package className="h-4 w-4" />
-                            {t('game.itemProfiles')}
+                        <Link href={`/games/${game.id}/items`}>
+                            <BookOpen className="h-4 w-4" />
+                            Items
                         </Link>
                     </Button>
                     <Button asChild variant="outline" className="flex items-center gap-2">
-                        <Link href={`/games/${game.id}/plugins`}>
-                            <Hammer className="h-4 w-4" />
-                            {t('game.plugins')}
+                        <Link href={`/games/${game.id}/gacha`}>
+                            <Dices className="h-4 w-4" />
+                            Gacha
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="flex items-center gap-2">
+                        <Link href={`/games/${game.id}/transactions`}>
+                            <ScrollText className="h-4 w-4" />
+                            Transactions
                         </Link>
                     </Button>
                     <DeleteGameDialog game={game} />
@@ -354,7 +360,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.itemProfileCount')}</h3>
                                     <p className="text-lg">
-                                        <Link href={`/games/${game.id}/item-profiles`} className="text-primary hover:text-primary/80 flex items-center gap-1">
+                                        <Link href={`/games/${game.id}/items`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.item_profile_count ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
@@ -412,6 +418,12 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                             )
                                         })}
                                     </div>
+                                    <Button asChild variant="outline" size="sm" className="mt-4 w-full flex items-center gap-2">
+                                        <Link href={`/games/${game.id}/plugins`}>
+                                            <Hammer className="h-4 w-4" />
+                                            Upgrade This Game
+                                        </Link>
+                                    </Button>
                                 </div>
                             )}
                         </div>
