@@ -12,6 +12,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,6 +33,7 @@ import { Label } from "@/components/ui/label"
 import { fetchRoles, addMemberToTeam } from "@/lib/team-api"
 import type { Role } from "@/types/role"
 import { Plus, Loader2, Users } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 
 interface AddMemberDialogProps {
@@ -39,7 +50,9 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(false)
   const [rolesLoading, setRolesLoading] = useState(false)
+  const [showCoinConfirm, setShowCoinConfirm] = useState(false)
   const { toast } = useToast()
+  const isAtLimit = studioMembersLimit != null && studioMembersUsage != null && studioMembersUsage >= studioMembersLimit
 
   useEffect(() => {
     if (open) {
@@ -78,6 +91,16 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
       return
     }
 
+    // If at limit, show coin cost confirmation first
+    if (isAtLimit) {
+      setShowCoinConfirm(true)
+      return
+    }
+
+    await doAddMember()
+  }
+
+  async function doAddMember() {
     try {
       setLoading(true)
       await addMemberToTeam(teamId, userId.trim(), roleId)
@@ -87,6 +110,9 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
         description: "Member added successfully.",
       })
       
+      // Refresh coin balance display (triggers float animation)
+      window.dispatchEvent(new Event("wallet:refresh"))
+
       setOpen(false)
       setUserId("")
       setRoleId("")
@@ -109,7 +135,31 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <>
+      <AlertDialog open={showCoinConfirm} onOpenChange={setShowCoinConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm coin charge</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your studio has reached its member limit. Adding this member will cost{" "}
+              <span className="font-semibold text-foreground">50 🪙 coins</span>. Do you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowCoinConfirm(false)
+                await doAddMember()
+              }}
+            >
+              Confirm & Pay 50 coins
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -124,19 +174,34 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
               Enter the user ID and select a role to add a new member to this team.
             </DialogDescription>
             {studioMembersLimit != null && studioMembersUsage != null && (
-              <div className={`flex items-center gap-1.5 text-xs rounded-md px-3 py-2 mt-1 border ${
-                studioMembersUsage >= studioMembersLimit
-                  ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-                  : "text-muted-foreground bg-muted/40 border-border"
-              }`}>
-                <Users className="h-3.5 w-3.5 shrink-0" />
-                <span>
-                  Studio member slots: <span className="font-semibold">{studioMembersUsage} / {studioMembersLimit}</span>
-                  {studioMembersUsage >= studioMembersLimit && (
-                    <span className="ml-1 font-medium">&mdash; limit reached</span>
-                  )}
-                </span>
-                <span className="ml-auto text-[10px] uppercase tracking-wide opacity-60">studio level</span>
+              <div className="mt-2 space-y-1.5 rounded-md border border-border bg-muted/40 px-3 py-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                    <Users className="h-3.5 w-3.5 shrink-0" />
+                    Studio member slots
+                  </span>
+                  <span className={`font-semibold ${
+                    studioMembersUsage >= studioMembersLimit
+                      ? 'text-destructive'
+                      : 'text-foreground'
+                  }`}>
+                    {studioMembersUsage} / {studioMembersLimit}
+                    {studioMembersUsage >= studioMembersLimit && (
+                      <span className="ml-1 font-normal">(limit reached)</span>
+                    )}
+                  </span>
+                </div>
+                <Progress
+                  value={Math.min((studioMembersUsage / studioMembersLimit) * 100, 100)}
+                  className={`h-1.5 ${
+                    studioMembersUsage >= studioMembersLimit
+                      ? '[&>div]:bg-destructive'
+                      : ''
+                  }`}
+                />
+                <p className="text-[11px] text-muted-foreground pt-0.5">
+                  💡 Adding a member beyond the limit costs <span className="font-semibold text-foreground">50 coins</span> per slot.
+                </p>
               </div>
             )}
           </DialogHeader>
@@ -189,5 +254,6 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
         </form>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

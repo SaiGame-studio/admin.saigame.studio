@@ -120,6 +120,7 @@ export const ja = {
     createCostHintPt1: "最初のスタジオは",
     createCostHintFree: "無料",
     createCostHintPt2: "、2つ目以降は ",
+    createCostHint: "スタジオの作成には ",
     noStudios: "まだスタジオがありません",
     details: "スタジオ詳細",
     gamesCount: "ゲーム数",
