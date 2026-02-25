@@ -143,15 +143,6 @@ export async function setGachaPackEnabled(
   )
 }
 
-/**
- * Helper: fetch currency items for pack cost selectors
- */
-export async function listCurrencyItems(
-  ctx: TenantCtx,
-): Promise<ItemDefinition[]> {
-  const result = await listItemDefinitions(ctx, { category: 'currency', limit: 50 })
-  return result.items ?? []
-}
 
 /** POST /api/v1/games/:gameId/gacha/open — Open a gacha pack (requires idempotency key) */
 export async function openGachaPack(

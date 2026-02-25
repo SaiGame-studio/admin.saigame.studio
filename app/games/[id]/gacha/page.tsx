@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, Dices, Package, Plus, Pencil, Trash2, Save, X,
-  ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Loader2, ExternalLink, RefreshCw, Hammer,
+  ArrowLeft, Dices, Plus, Pencil, Trash2, Save, X,
+  ChevronDown, ChevronUp, Loader2, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,10 +32,10 @@ import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import {
   listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled,
-  listCurrencyItems, listItemDefinitions,
+  listItemDefinitions,
 } from "@/lib/inventory-api"
-import type { GachaPack, ItemDefinition, GachaPoolEntry } from "@/types/inventory"
-import type { GameLimits, GameUsage } from "@/types/game"
+import type { GachaPack, ItemDefinition, GachaPoolEntry, KeyRequirement } from "@/types/inventory"
+import type { GameLimits } from "@/types/game"
 import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -78,13 +78,22 @@ const EMPTY_ROW = (): PoolRow => ({
   quantity_max: "1",
 })
 
+interface KeyReqRow {
+  item_definition_id: string
+  quantity: string
+}
+
+const EMPTY_KEY_ROW = (): KeyReqRow => ({
+  item_definition_id: "",
+  quantity: "1",
+})
+
 function emptyForm() {
   return {
     name: "",
-    currency_item_definition_id: "",
-    cost: "100",
     is_enabled: true,
     pool: [EMPTY_ROW()],
+    keyReqs: [EMPTY_KEY_ROW()],
   }
 }
 
@@ -98,10 +107,7 @@ export default function GameGachaPage() {
 
   const [gameName, setGameName] = useState("")
   const [gameLimits, setGameLimits] = useState<GameLimits | null>(null)
-  const [gameUsage, setGameUsage] = useState<GameUsage | null>(null)
   const [packs, setPacks] = useState<GachaPack[]>([])
-  const [currencies, setCurrencies] = useState<ItemDefinition[]>([])
-  const [currenciesRefreshing, setCurrenciesRefreshing] = useState(false)
   const [allItems, setAllItems] = useState<ItemDefinition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -131,15 +137,12 @@ export default function GameGachaPage() {
       const game = await getGame(gameId)
       setGameName(game.name)
       setGameLimits(game.limits ?? null)
-      setGameUsage(game.usage ?? null)
       const ctx = { gameId }
-      const [packsRes, curRes, itemsRes] = await Promise.all([
+      const [packsRes, itemsRes] = await Promise.all([
         listGachaPacks(ctx),
-        listCurrencyItems(ctx),
         listItemDefinitions(ctx, { limit: 200 }),
       ])
       setPacks(packsRes.packs ?? [])
-      setCurrencies(curRes)
       setAllItems(itemsRes.items ?? [])
     } catch (err: any) {
       setError(err?.message ?? "Failed to load")
@@ -149,15 +152,6 @@ export default function GameGachaPage() {
   }, [gameId])
 
   useEffect(() => { loadAll() }, [loadAll])
-
-  const refreshCurrencies = useCallback(async () => {
-    setCurrenciesRefreshing(true)
-    try {
-      const res = await listCurrencyItems({ gameId })
-      setCurrencies(res)
-    } catch {}
-    finally { setCurrenciesRefreshing(false) }
-  }, [gameId])
 
   // ── sheet helpers ──────────────────────────────────────────────────────────
 
@@ -171,8 +165,6 @@ export default function GameGachaPage() {
     setEditingPack(pack)
     setForm({
       name: pack.name,
-      currency_item_definition_id: pack.currency_item_definition_id,
-      cost: String(pack.cost),
       is_enabled: pack.is_enabled,
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
@@ -182,8 +174,26 @@ export default function GameGachaPage() {
             quantity_max: String(e.quantity_max),
           }))
         : [EMPTY_ROW()],
+      keyReqs: (pack.key_requirements ?? []).length > 0
+        ? pack.key_requirements.map((r) => ({
+            item_definition_id: r.item_definition_id,
+            quantity: String(r.quantity),
+          }))
+        : [EMPTY_KEY_ROW()],
     })
     setSheetOpen(true)
+  }
+
+  function updateKeyReqRow(index: number, patch: Partial<KeyReqRow>) {
+    setForm((f) => ({ ...f, keyReqs: f.keyReqs.map((r, i) => i === index ? { ...r, ...patch } : r) }))
+  }
+
+  function addKeyReqRow() {
+    setForm((f) => ({ ...f, keyReqs: [...f.keyReqs, EMPTY_KEY_ROW()] }))
+  }
+
+  function removeKeyReqRow(index: number) {
+    setForm((f) => ({ ...f, keyReqs: f.keyReqs.filter((_, i) => i !== index) }))
   }
 
   function updatePoolRow(index: number, patch: Partial<PoolRow>) {
@@ -202,9 +212,6 @@ export default function GameGachaPage() {
 
   async function handleSave() {
     if (!form.name.trim()) { toast({ variant: "destructive", title: "Name is required" }); return }
-    if (!form.currency_item_definition_id) { toast({ variant: "destructive", title: "Select a currency item" }); return }
-    const costNum = Number(form.cost)
-    if (!costNum || costNum <= 0) { toast({ variant: "destructive", title: "Cost must be > 0" }); return }
 
     const item_pool: GachaPoolEntry[] = form.pool
       .filter((r) => r.item_definition_id.trim())
@@ -215,26 +222,31 @@ export default function GameGachaPage() {
         quantity_max: Math.max(Number(r.quantity_min) || 1, Number(r.quantity_max) || 1),
       }))
 
+    const key_requirements: KeyRequirement[] = form.keyReqs
+      .filter((r) => r.item_definition_id.trim())
+      .map((r) => ({
+        item_definition_id: r.item_definition_id.trim(),
+        quantity: Math.max(1, Number(r.quantity) || 1),
+      }))
+
     setFormSaving(true)
     try {
       const ctx = { gameId }
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: form.name.trim(),
-          currency_item_definition_id: form.currency_item_definition_id,
-          cost: costNum,
           is_enabled: form.is_enabled,
           item_pool,
+          key_requirements,
         })
         setPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
         toast({ title: "Pack updated" })
       } else {
         const res = await createGachaPack(ctx, {
           name: form.name.trim(),
-          currency_item_definition_id: form.currency_item_definition_id,
-          cost: costNum,
           is_enabled: form.is_enabled,
           item_pool,
+          key_requirements,
         })
         setPacks((prev) => [res.pack, ...prev])
         toast({ title: "Pack created" })
@@ -290,8 +302,9 @@ export default function GameGachaPage() {
     return <span>{it.name} <span className="text-muted-foreground text-xs">({it.item_code || it.id.slice(0, 6)})</span></span>
   }
 
-  function currencyName(id: string) {
-    return currencies.find((c) => c.id === id)?.name ?? id.slice(0, 8) + "…"
+  function itemShortName(id: string) {
+    const it = allItems.find((i) => i.id === id)
+    return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "…"
   }
 
   // ── render ─────────────────────────────────────────────────────────────────
@@ -328,7 +341,7 @@ export default function GameGachaPage() {
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}`}>{gameName || gameId}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem><span>Loot Box Packs</span></BreadcrumbItem>
+            <BreadcrumbItem><span>Gacha Packs</span></BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
@@ -341,32 +354,41 @@ export default function GameGachaPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Loot Box Packs
+              Gacha Packs
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground flex items-center gap-2">
               {gameLimits?.max_loot_boxes != null
-                ? `${packs.length} / ${gameLimits.max_loot_boxes} packs`
-                : `${packs.length} pack${packs.length !== 1 ? "s" : ""} configured`}
+                ? <>
+                    <span className={packs.length >= gameLimits.max_loot_boxes ? "text-destructive font-medium" : ""}>
+                      {packs.length} / {gameLimits.max_loot_boxes} packs
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          packs.length >= gameLimits.max_loot_boxes ? "bg-destructive" : packs.length / gameLimits.max_loot_boxes >= 0.8 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min((packs.length / gameLimits.max_loot_boxes) * 100, 100)}%` }}
+                      />
+                    </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
+                : `${packs.length} pack${packs.length !== 1 ? "s" : ""} configured`
+              }
             </p>
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          {(() => {
-            const lootBoxLimitReached = !!(gameLimits?.max_loot_boxes != null && packs.length >= gameLimits.max_loot_boxes)
-            return lootBoxLimitReached ? (
-              <span className="text-sm text-destructive font-medium flex items-center gap-1.5">
-                Limit reached ({packs.length}/{gameLimits!.max_loot_boxes})
-                <a href={`/games/${gameId}/plugins`} target="_blank" rel="noopener noreferrer" title="Manage limits">
-                  <Hammer className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                </a>
-              </span>
-            ) : (
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                New Pack
-              </Button>
-            )
-          })()}
+          <Button size="sm" onClick={openCreate} disabled={!!(gameLimits?.max_loot_boxes != null && packs.length >= gameLimits.max_loot_boxes)}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Pack
+          </Button>
           <div className="w-px h-6 bg-border" />
           <GameNavButtons gameId={gameId} active="gacha" />
         </div>
@@ -377,7 +399,7 @@ export default function GameGachaPage() {
         <Card className="border-dashed">
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
             <Dices className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No loot box packs yet</p>
+            <p className="text-muted-foreground">No gacha packs yet</p>
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Create first pack</Button>
           </CardContent>
         </Card>
@@ -425,7 +447,16 @@ export default function GameGachaPage() {
 
                 {/* Summary row */}
                 <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                  <span>💰 Cost: <strong className="text-foreground">{pack.cost.toLocaleString()}</strong> {currencyName(pack.currency_item_definition_id)}</span>
+                  {(pack.key_requirements ?? []).length > 0 ? (
+                    <span>🔑 Keys: {pack.key_requirements.map((kr, i) => (
+                      <span key={i}>
+                        {i > 0 && <span className="mx-1">+</span>}
+                        <strong className="text-foreground">{kr.quantity}×</strong> {itemShortName(kr.item_definition_id)}
+                      </span>
+                    ))}</span>
+                  ) : (
+                    <span className="italic text-xs">No key required</span>
+                  )}
                   <span>🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""} in pool</span>
                   {totalWeight > 0 && (
                     <span className="text-xs">total weight {totalWeight.toLocaleString()}</span>
@@ -479,9 +510,9 @@ export default function GameGachaPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader className="mb-4">
-            <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : "New Loot Box Pack"}</SheetTitle>
+            <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : "New Gacha Pack"}</SheetTitle>
             <SheetDescription className="text-xs">
-              Configure pack name, cost currency, and item drop pool weights.
+              Configure pack name, key requirements (items consumed on open), and item drop pool weights.
             </SheetDescription>
           </SheetHeader>
 
@@ -497,60 +528,69 @@ export default function GameGachaPage() {
               />
             </div>
 
-            {/* Currency + Cost */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label>Currency Item <span className="text-destructive">*</span></Label>
-                  <button
-                    type="button"
-                    onClick={refreshCurrencies}
-                    disabled={currenciesRefreshing || formSaving}
-                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                    title="Refresh currency list"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${currenciesRefreshing ? "animate-spin" : ""}`} />
-                  </button>
+            {/* Key Requirements */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base">Key Requirements</Label>
+                  <p className="text-xs text-muted-foreground">Items consumed when opening this pack. Leave empty for a free pack.</p>
                 </div>
-                <Select
-                  value={form.currency_item_definition_id}
-                  onValueChange={(v) => setForm((f) => ({ ...f, currency_item_definition_id: v }))}
-                  disabled={formSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.length === 0 ? (
-                      <SelectItem value="__none" disabled>No currency items found</SelectItem>
-                    ) : (
-                      currencies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <Link
-                  href={`/games/${gameId}/items?create=1&category=currency`}
-                  target="_blank"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Create new currency item
-                </Link>
+                <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add key
+                </Button>
               </div>
-              <div className="space-y-1.5">
-                <Label>Cost <span className="text-destructive">*</span></Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="100"
-                  className="font-mono"
-                  value={form.cost ? Number(form.cost).toLocaleString() : ""}
-                  onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value.replace(/[^0-9]/g, "") }))}
-                  disabled={formSaving}
-                />
+
+              {form.keyReqs.length > 0 && (
+                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_80px_32px] gap-1.5 px-1 font-medium">
+                  <span>Item</span>
+                  <span>Quantity</span>
+                  <span />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {form.keyReqs.map((row, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_80px_32px] gap-1.5 items-center">
+                    <Select
+                      value={row.item_definition_id}
+                      onValueChange={(v) => updateKeyReqRow(i, { item_definition_id: v })}
+                      disabled={formSaving}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select item…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allItems.map((it) => (
+                          <SelectItem key={it.id} value={it.id} className="text-xs">
+                            {it.name}{it.item_code && <span className="text-muted-foreground"> ({it.item_code})</span>}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="h-8 text-xs text-center font-mono"
+                      value={row.quantity}
+                      onChange={(e) => updateKeyReqRow(i, { quantity: e.target.value })}
+                      disabled={formSaving}
+                    />
+                    <Button
+                      size="icon" variant="ghost"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => removeKeyReqRow(i)}
+                      disabled={formSaving}
+                      type="button"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
               </div>
+
+              {form.keyReqs.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No key items — pack is free to open.</p>
+              )}
             </div>
 
             {/* Enabled */}
