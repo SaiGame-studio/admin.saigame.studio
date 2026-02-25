@@ -486,23 +486,23 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                         className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
-                                {/* Loot Boxes */}
+                                {/* Gacha Packs */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/gacha`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
-                                            Loot Boxes
+                                            Gacha Packs
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
-                                        <span className={`text-muted-foreground ${game.limits?.max_loot_boxes != null && (game.usage?.loot_boxes ?? 0) >= game.limits.max_loot_boxes ? 'text-destructive font-semibold' : ''}`}>
-                                            {fmt(game.usage?.loot_boxes ?? 0)} / {game.limits?.max_loot_boxes != null ? fmt(game.limits.max_loot_boxes) : '∞'}
-                                            {game.limits?.max_loot_boxes != null && (game.usage?.loot_boxes ?? 0) >= game.limits.max_loot_boxes && ` (${t('game.limitReached')})`}
+                                        <span className={`text-muted-foreground ${game.limits?.max_gacha_packs != null && (game.usage?.gacha_packs ?? 0) >= game.limits.max_gacha_packs ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(game.usage?.gacha_packs ?? 0)} / {game.limits?.max_gacha_packs != null ? fmt(game.limits.max_gacha_packs) : '∞'}
+                                            {game.limits?.max_gacha_packs != null && (game.usage?.gacha_packs ?? 0) >= game.limits.max_gacha_packs && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
-                                        value={game.limits?.max_loot_boxes
-                                            ? Math.min(((game.usage?.loot_boxes ?? 0) / game.limits.max_loot_boxes) * 100, 100)
+                                        value={game.limits?.max_gacha_packs
+                                            ? Math.min(((game.usage?.gacha_packs ?? 0) / game.limits.max_gacha_packs) * 100, 100)
                                             : 0}
-                                        className={`h-2 ${game.limits?.max_loot_boxes != null && (game.usage?.loot_boxes ?? 0) >= game.limits.max_loot_boxes ? '[&>div]:bg-destructive' : ''}`}
+                                        className={`h-2 ${game.limits?.max_gacha_packs != null && (game.usage?.gacha_packs ?? 0) >= game.limits.max_gacha_packs ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                             </div>

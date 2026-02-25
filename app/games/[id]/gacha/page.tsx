@@ -357,17 +357,17 @@ export default function GameGachaPage() {
               Gacha Packs
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
-              {gameLimits?.max_loot_boxes != null
+              {gameLimits?.max_gacha_packs != null
                 ? <>
-                    <span className={packs.length >= gameLimits.max_loot_boxes ? "text-destructive font-medium" : ""}>
-                      {packs.length} / {gameLimits.max_loot_boxes} packs
+                    <span className={packs.length >= gameLimits.max_gacha_packs ? "text-destructive font-medium" : ""}>
+                      {packs.length} / {gameLimits.max_gacha_packs} packs
                     </span>
                     <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                       <span
                         className={`block h-full rounded-full transition-all ${
-                          packs.length >= gameLimits.max_loot_boxes ? "bg-destructive" : packs.length / gameLimits.max_loot_boxes >= 0.8 ? "bg-amber-500" : "bg-primary"
+                          packs.length >= gameLimits.max_gacha_packs ? "bg-destructive" : packs.length / gameLimits.max_gacha_packs >= 0.8 ? "bg-amber-500" : "bg-primary"
                         }`}
-                        style={{ width: `${Math.min((packs.length / gameLimits.max_loot_boxes) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((packs.length / gameLimits.max_gacha_packs) * 100, 100)}%` }}
                       />
                     </span>
                     <Link
@@ -385,7 +385,7 @@ export default function GameGachaPage() {
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <Button size="sm" onClick={openCreate} disabled={!!(gameLimits?.max_loot_boxes != null && packs.length >= gameLimits.max_loot_boxes)}>
+          <Button size="sm" onClick={openCreate} disabled={!!(gameLimits?.max_gacha_packs != null && packs.length >= gameLimits.max_gacha_packs)}>
             <Plus className="h-4 w-4 mr-1.5" />
             New Pack
           </Button>

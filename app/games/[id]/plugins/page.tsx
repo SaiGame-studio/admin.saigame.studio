@@ -407,7 +407,7 @@ export default function GamePluginsPage() {
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
-                { label: "Loot Boxes", max: game.limits?.max_loot_boxes ?? null, pending: undefined, used: game.usage?.loot_boxes, icon: "🎲" },
+                { label: "Gacha Packs", max: game.limits?.max_gacha_packs ?? null, pending: undefined, used: game.usage?.gacha_packs, icon: "🎲" },
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""

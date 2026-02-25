@@ -46,7 +46,7 @@ export function AdminGameLimitsDialog({ game }: Props) {
   const [maxConcurrent, setMaxConcurrent] = useState("")
   const [maxItems, setMaxItems] = useState("")
   const [maxShops, setMaxShops] = useState("")
-  const [maxLootBoxes, setMaxLootBoxes] = useState("")
+  const [maxGachaPacks, setMaxGachaPacks] = useState("")
 
   const load = async () => {
     setLoading(true)
@@ -57,7 +57,7 @@ export function AdminGameLimitsDialog({ game }: Props) {
       setMaxConcurrent(res.limits?.max_concurrent_users != null ? String(res.limits.max_concurrent_users) : "")
       setMaxItems(res.limits?.max_items != null ? String(res.limits.max_items) : "")
       setMaxShops(res.limits?.max_shops != null ? String(res.limits.max_shops) : "")
-      setMaxLootBoxes(res.limits?.max_loot_boxes != null ? String(res.limits.max_loot_boxes) : "")
+      setMaxGachaPacks(res.limits?.max_gacha_packs != null ? String(res.limits.max_gacha_packs) : "")
     } catch {
       setDetail(null)
     } finally {
@@ -88,8 +88,8 @@ export function AdminGameLimitsDialog({ game }: Props) {
     if (itemsVal === "error") return
     const shopsVal = parseLimit(maxShops, "Max Shops")
     if (shopsVal === "error") return
-    const lootBoxesVal = parseLimit(maxLootBoxes, "Max Loot Boxes")
-    if (lootBoxesVal === "error") return
+    const gachaPacksVal = parseLimit(maxGachaPacks, "Max Gacha Packs")
+    if (gachaPacksVal === "error") return
 
     setSaving(true)
     try {
@@ -98,7 +98,7 @@ export function AdminGameLimitsDialog({ game }: Props) {
         max_concurrent_users: concurrentVal,
         max_items: itemsVal,
         max_shops: shopsVal,
-        max_loot_boxes: lootBoxesVal,
+        max_gacha_packs: gachaPacksVal,
       })
       toast({ title: "Saved", description: `Limits updated for "${game.name}".` })
       await load()
@@ -117,7 +117,7 @@ export function AdminGameLimitsDialog({ game }: Props) {
     { key: "max_concurrent_users", label: "Concurrent Users", usage: u?.concurrent_users ?? 0, limit: l?.max_concurrent_users, value: maxConcurrent, setter: setMaxConcurrent },
     { key: "max_items", label: "Items", usage: u?.items ?? 0, limit: l?.max_items, value: maxItems, setter: setMaxItems },
     { key: "max_shops", label: "Shops", usage: u?.shops ?? 0, limit: l?.max_shops, value: maxShops, setter: setMaxShops },
-    { key: "max_loot_boxes", label: "Loot Boxes", usage: u?.loot_boxes ?? 0, limit: l?.max_loot_boxes, value: maxLootBoxes, setter: setMaxLootBoxes },
+    { key: "max_gacha_packs", label: "Gacha Packs", usage: u?.gacha_packs ?? 0, limit: l?.max_gacha_packs, value: maxGachaPacks, setter: setMaxGachaPacks },
   ]
 
   return (

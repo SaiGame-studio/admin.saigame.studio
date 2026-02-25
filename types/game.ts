@@ -1,7 +1,7 @@
 export interface GameLimits {
   max_concurrent_users: number
   max_items: number
-  max_loot_boxes: number
+  max_gacha_packs: number
   max_player_profiles: number
   max_shops: number
 }
@@ -9,7 +9,7 @@ export interface GameLimits {
 export interface GameUsage {
   concurrent_users: number
   items: number
-  loot_boxes: number
+  gacha_packs: number
   player_profiles: number
   shops: number
 }
@@ -71,7 +71,7 @@ export enum ItemType {
   Inventories = "inventories",
   Currencies = "currencies",
   Misc = "misc",
-  LootBox = "loot_box"
+  GachaPack = "gacha_pack"
 }
 
 export enum ItemProfileStatus {
