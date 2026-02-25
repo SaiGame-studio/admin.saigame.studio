@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -139,6 +139,7 @@ function CreateItemDialog({
   onClose,
   categories,
   rarities,
+  initialCategory,
 }: {
   open: boolean
   studioId: string
@@ -147,13 +148,14 @@ function CreateItemDialog({
   onClose: () => void
   categories: ItemCategory[]
   rarities: ItemRarity[]
+  initialCategory?: ItemCategory
 }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState("")
   const [itemCode, setItemCode] = useState("")
-  const [category, setCategory] = useState<ItemCategory>("weapon")
+  const [category, setCategory] = useState<ItemCategory>(initialCategory ?? "weapon")
   const [rarity, setRarity] = useState<ItemRarity>("common")
   const [isStackable, setIsStackable] = useState(false)
   const [maxStack, setMaxStack] = useState<string>("")
@@ -166,7 +168,7 @@ function CreateItemDialog({
   function resetForm() {
     setName("")
     setItemCode("")
-    setCategory("weapon")
+    setCategory(initialCategory ?? "weapon")
     setRarity("common")
     setIsStackable(false)
     setMaxStack("")
@@ -176,6 +178,11 @@ function CreateItemDialog({
     setMeta([])
     setErrors({})
   }
+
+  // reset category when dialog opens with a fresh initialCategory
+  useEffect(() => {
+    if (open && initialCategory) setCategory(initialCategory)
+  }, [open, initialCategory])
 
   function validate(): boolean {
     const e: Record<string, string> = {}
@@ -390,6 +397,7 @@ function CreateItemDialog({
 export default function GameItemsPage() {
   const params = useParams() as { id: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const gameId = params.id
 
@@ -414,6 +422,7 @@ export default function GameItemsPage() {
 
   // modal
   const [showCreate, setShowCreate] = useState(false)
+  const [createInitCategory, setCreateInitCategory] = useState<ItemCategory | undefined>(undefined)
   const [categories, setCategories] = useState<ItemCategory[]>([])
   const [rarities, setRarities] = useState<ItemRarity[]>([])
 
@@ -422,6 +431,15 @@ export default function GameItemsPage() {
     const t = setTimeout(() => setDebouncedName(searchName), 300)
     return () => clearTimeout(t)
   }, [searchName])
+
+  // auto-open create dialog from query params e.g. ?create=1&category=currency
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      const cat = searchParams.get("category") as ItemCategory | null
+      setCreateInitCategory(cat ?? undefined)
+      setShowCreate(true)
+    }
+  }, [searchParams])
 
   // fetch categories & rarities from API
   useEffect(() => {
@@ -527,6 +545,14 @@ export default function GameItemsPage() {
                         style={{ width: `${Math.min((total / maxItems) * 100, 100)}%` }}
                       />
                     </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
                   </>
                 : total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"
               }
@@ -726,6 +752,7 @@ export default function GameItemsPage() {
           onClose={() => setShowCreate(false)}
           categories={categories}
           rarities={rarities}
+          initialCategory={createInitCategory}
         />
       )}
     </div>

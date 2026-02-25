@@ -45,6 +45,7 @@ export interface EffectiveLimits {
   max_concurrent_users: number
   max_profiles: number
   max_items: number
+  max_loot_boxes: number
   max_shops: number
 }
 

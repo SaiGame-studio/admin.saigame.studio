@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft, Dices, Package, Plus, Pencil, Trash2, Save, X,
-  ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Loader2,
+  ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Loader2, ExternalLink, RefreshCw, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +35,7 @@ import {
   listCurrencyItems, listItemDefinitions,
 } from "@/lib/inventory-api"
 import type { GachaPack, ItemDefinition, GachaPoolEntry } from "@/types/inventory"
+import type { GameLimits, GameUsage } from "@/types/game"
 import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -96,8 +97,11 @@ export default function GameGachaPage() {
   const gameId = params.id
 
   const [gameName, setGameName] = useState("")
+  const [gameLimits, setGameLimits] = useState<GameLimits | null>(null)
+  const [gameUsage, setGameUsage] = useState<GameUsage | null>(null)
   const [packs, setPacks] = useState<GachaPack[]>([])
   const [currencies, setCurrencies] = useState<ItemDefinition[]>([])
+  const [currenciesRefreshing, setCurrenciesRefreshing] = useState(false)
   const [allItems, setAllItems] = useState<ItemDefinition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +130,8 @@ export default function GameGachaPage() {
       setError(null)
       const game = await getGame(gameId)
       setGameName(game.name)
+      setGameLimits(game.limits ?? null)
+      setGameUsage(game.usage ?? null)
       const ctx = { gameId }
       const [packsRes, curRes, itemsRes] = await Promise.all([
         listGachaPacks(ctx),
@@ -143,6 +149,15 @@ export default function GameGachaPage() {
   }, [gameId])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  const refreshCurrencies = useCallback(async () => {
+    setCurrenciesRefreshing(true)
+    try {
+      const res = await listCurrencyItems({ gameId })
+      setCurrencies(res)
+    } catch {}
+    finally { setCurrenciesRefreshing(false) }
+  }, [gameId])
 
   // ── sheet helpers ──────────────────────────────────────────────────────────
 
@@ -328,14 +343,30 @@ export default function GameGachaPage() {
             <h1 className="text-3xl font-bold tracking-tight">
               Loot Box Packs
             </h1>
-            <p className="text-muted-foreground">{packs.length} pack{packs.length !== 1 ? "s" : ""} configured</p>
+            <p className="text-muted-foreground">
+              {gameLimits?.max_loot_boxes != null
+                ? `${packs.length} / ${gameLimits.max_loot_boxes} packs`
+                : `${packs.length} pack${packs.length !== 1 ? "s" : ""} configured`}
+            </p>
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            New Pack
-          </Button>
+          {(() => {
+            const lootBoxLimitReached = !!(gameLimits?.max_loot_boxes != null && packs.length >= gameLimits.max_loot_boxes)
+            return lootBoxLimitReached ? (
+              <span className="text-sm text-destructive font-medium flex items-center gap-1.5">
+                Limit reached ({packs.length}/{gameLimits!.max_loot_boxes})
+                <a href={`/games/${gameId}/plugins`} target="_blank" rel="noopener noreferrer" title="Manage limits">
+                  <Hammer className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </a>
+              </span>
+            ) : (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                New Pack
+              </Button>
+            )
+          })()}
           <div className="w-px h-6 bg-border" />
           <GameNavButtons gameId={gameId} active="gacha" />
         </div>
@@ -469,7 +500,18 @@ export default function GameGachaPage() {
             {/* Currency + Cost */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Currency Item <span className="text-destructive">*</span></Label>
+                <div className="flex items-center gap-1.5">
+                  <Label>Currency Item <span className="text-destructive">*</span></Label>
+                  <button
+                    type="button"
+                    onClick={refreshCurrencies}
+                    disabled={currenciesRefreshing || formSaving}
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                    title="Refresh currency list"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${currenciesRefreshing ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
                 <Select
                   value={form.currency_item_definition_id}
                   onValueChange={(v) => setForm((f) => ({ ...f, currency_item_definition_id: v }))}
@@ -488,6 +530,14 @@ export default function GameGachaPage() {
                     )}
                   </SelectContent>
                 </Select>
+                <Link
+                  href={`/games/${gameId}/items?create=1&category=currency`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Create new currency item
+                </Link>
               </div>
               <div className="space-y-1.5">
                 <Label>Cost <span className="text-destructive">*</span></Label>

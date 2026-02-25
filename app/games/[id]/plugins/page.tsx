@@ -401,12 +401,13 @@ export default function GamePluginsPage() {
 
           {/* Stats row */}
           {game && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-border/50">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
               {([
                 { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, pending: pending?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
+                { label: "Loot Boxes", max: game.limits?.max_loot_boxes ?? null, pending: undefined, used: game.usage?.loot_boxes, icon: "🎲" },
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""

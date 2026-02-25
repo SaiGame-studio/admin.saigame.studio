@@ -9,7 +9,7 @@ import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft } from "lucide-react";
+import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft, Hammer } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -103,9 +103,38 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
             <h1 className="text-3xl font-bold tracking-tight">
               {t('gameUsers.players')}{game ? ` - ${game.name}` : ""}
             </h1>
-            <p className="text-muted-foreground">
-              {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
-              {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
+            <p className="text-muted-foreground flex items-center gap-2">
+              {game?.limits?.max_player_profiles != null
+                ? (() => {
+                    const used = totalCount
+                    const max = game.limits.max_player_profiles
+                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                    return (
+                      <>
+                        <span className={used >= max ? "text-destructive font-medium" : ""}>
+                          {used.toLocaleString()} / {max.toLocaleString()} players
+                        </span>
+                        <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                          <span
+                            className={`block h-full rounded-full transition-all ${
+                              used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <Link
+                          href={`/games/${gameId}/plugins`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          title="Manage plugins / raise limits"
+                        >
+                          <Hammer className="h-3.5 w-3.5" />
+                        </Link>
+                      </>
+                    )
+                  })()
+                : <span>{totalCount.toLocaleString()} players registered</span>
+              }
             </p>
           </div>
         </div>
@@ -188,7 +217,12 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           </CardHeader>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <>
+          <p className="text-sm text-muted-foreground mb-3">
+            {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
+            {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {progressList.map((item) => {
             const identity = playerIdentityMap[item.user_id];
             return (
@@ -245,7 +279,8 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
             </Card>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

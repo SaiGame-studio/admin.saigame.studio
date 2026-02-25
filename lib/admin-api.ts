@@ -151,6 +151,7 @@ export interface GameLimits {
   max_player_profiles?: number | null
   max_concurrent_users?: number | null
   max_items?: number | null
+  max_loot_boxes?: number | null
   max_shops?: number | null
 }
 
