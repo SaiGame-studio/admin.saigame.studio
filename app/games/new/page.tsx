@@ -10,11 +10,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Loader2, Gamepad2 } from "lucide-react"
+import { ArrowLeft, Loader2, Gamepad2, Coins } from "lucide-react"
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+
+const GAME_COST = 5
 
 function NewGameForm() {
   const router = useRouter()
@@ -96,15 +98,13 @@ function NewGameForm() {
       setError("Please select a studio")
       return
     }
-    if (studioLimitReached) {
-      setError(`Game limit reached for this studio (${selectedStudio?.usage?.games ?? 0}/${selectedStudio?.limits?.max_games}). Upgrade your plan to create more games.`)
-      return
-    }
     try {
       setSubmitting(true)
       setError(null)
       const token = localStorage.getItem("token") || ""
       const newGame = await createGame(studioId, { name, status: "development" }, token)
+      // Refresh coin balance so the float text shows the deduction (if any)
+      window.dispatchEvent(new Event("wallet:refresh"))
       if (newGame && newGame.id) {
         router.push(`/games/${newGame.id}`)
       } else {
@@ -158,10 +158,17 @@ function NewGameForm() {
               className={`h-1.5 ${studioLimitReached ? "[&>div]:bg-destructive" : (selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games >= 0.8 ? "[&>div]:bg-yellow-500" : ""}`}
             />
           )}
-          {studioLimitReached && (
-            <p className="text-xs text-destructive">
-              This studio has reached its game limit. Upgrade your plan to create more games.
+          {/* Coin cost hint */}
+          {!studioDetailLoading && (
+            <p className="text-xs text-muted-foreground">
+              The first game is <span className="text-green-500 font-medium">free</span>, additional games cost <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
             </p>
+          )}
+          {!studioDetailLoading && (selectedStudio?.usage?.games ?? 0) >= 1 && (
+            <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2">
+              <Coins className="h-3.5 w-3.5 shrink-0" />
+              <span>🪙 {GAME_COST} coins will be charged for this game</span>
+            </div>
           )}
         </div>
       )}
@@ -206,7 +213,7 @@ function NewGameForm() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={submitting || loading || studios.length === 0 || studioLimitReached}>
+            <Button type="submit" disabled={submitting || loading || studios.length === 0}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('game.create')}
             </Button>
