@@ -9,7 +9,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 
 export function TokenExpirationWarning() {
-  const { timeUntilExpiration, logout } = useAuth()
+  const { timeUntilExpiration, logout, renewSession } = useAuth()
   const [showWarning, setShowWarning] = useState(false)
   const [timeLeft, setTimeLeft] = useState<string>("")
   const { locale } = useLanguage()
@@ -64,10 +64,7 @@ export function TokenExpirationWarning() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              // Redirect to login to refresh session
-              logout()
-            }}
+            onClick={() => renewSession()}
             className="ml-4 border-yellow-300 text-yellow-800 hover:bg-yellow-100 dark:border-yellow-600 dark:text-yellow-200 dark:hover:bg-yellow-800"
           >
             {t('auth.renewSession')}

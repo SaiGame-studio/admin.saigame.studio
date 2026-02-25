@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, ScrollText, RefreshCw } from "lucide-react"
+import { GameNavButtons } from "@/components/GameNavButtons"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -104,7 +105,7 @@ export default function GameTransactionsPage() {
   // Only re-fetch on filter change, not on transactions.length change
 
   return (
-    <div className="container mx-auto py-6 max-w-3xl">
+    <div className="container mx-auto py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb>
@@ -121,7 +122,7 @@ export default function GameTransactionsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
@@ -136,9 +137,13 @@ export default function GameTransactionsPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="icon" onClick={() => fetchTx(true)} title="Refresh">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
+          <Button variant="outline" size="icon" onClick={() => fetchTx(true)} title="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <div className="w-px h-6 bg-border self-center" />
+          <GameNavButtons gameId={gameId} active="transactions" />
+        </div>
       </div>
 
       {/* Filter tabs */}

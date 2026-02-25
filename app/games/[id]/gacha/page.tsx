@@ -32,32 +32,30 @@ import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import {
   listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled,
-  listCurrencyItems, listItemDefinitions, fetchItemRarities,
+  listCurrencyItems, listItemDefinitions,
 } from "@/lib/inventory-api"
-import type { GachaPack, ItemDefinition, ItemRarity, GachaPoolEntry } from "@/types/inventory"
-import { RARITY_COLORS } from "@/types/inventory"
+import type { GachaPack, ItemDefinition, GachaPoolEntry } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function RarityBadge({ rarity }: { rarity: ItemRarity }) {
-  const c = RARITY_COLORS[rarity]
-  return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}>
-      {rarity}
-    </span>
-  )
+function formatPct(pct: number): string {
+  if (pct === 0) return "0%"
+  if (pct >= 1) return pct.toFixed(2) + "%"
+  if (pct >= 0.01) return pct.toFixed(4) + "%"
+  if (pct >= 0.0001) return pct.toFixed(6) + "%"
+  return pct.toExponential(2) + "%"
 }
 
 function DropBar({ weight, total }: { weight: number; total: number }) {
   const pct = total > 0 ? Math.min((weight / total) * 100, 100) : 0
   return (
-    <div className="flex items-center gap-1.5 min-w-[90px]">
+    <div className="flex items-center gap-1.5 min-w-[110px]">
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">
-        {pct < 0.01 ? "<0.01" : pct < 1 ? pct.toFixed(2) : pct.toFixed(1)}%
+      <span className="text-xs text-muted-foreground tabular-nums w-16 text-right">
+        {formatPct(pct)}
       </span>
     </div>
   )
@@ -67,7 +65,6 @@ function DropBar({ weight, total }: { weight: number; total: number }) {
 
 interface PoolRow {
   item_definition_id: string
-  rarity: ItemRarity
   weight: string
   quantity_min: string
   quantity_max: string
@@ -75,7 +72,6 @@ interface PoolRow {
 
 const EMPTY_ROW = (): PoolRow => ({
   item_definition_id: "",
-  rarity: "common",
   weight: "700000",
   quantity_min: "1",
   quantity_max: "1",
@@ -84,7 +80,6 @@ const EMPTY_ROW = (): PoolRow => ({
 function emptyForm() {
   return {
     name: "",
-    pack_type: "",
     currency_item_definition_id: "",
     cost: "100",
     is_enabled: true,
@@ -104,7 +99,6 @@ export default function GameGachaPage() {
   const [packs, setPacks] = useState<GachaPack[]>([])
   const [currencies, setCurrencies] = useState<ItemDefinition[]>([])
   const [allItems, setAllItems] = useState<ItemDefinition[]>([])
-  const [rarities, setRarities] = useState<ItemRarity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -133,16 +127,14 @@ export default function GameGachaPage() {
       const game = await getGame(gameId)
       setGameName(game.name)
       const ctx = { gameId }
-      const [packsRes, curRes, itemsRes, rarsRes] = await Promise.all([
+      const [packsRes, curRes, itemsRes] = await Promise.all([
         listGachaPacks(ctx),
         listCurrencyItems(ctx),
         listItemDefinitions(ctx, { limit: 200 }),
-        fetchItemRarities(),
       ])
       setPacks(packsRes.packs ?? [])
       setCurrencies(curRes)
       setAllItems(itemsRes.items ?? [])
-      setRarities(rarsRes)
     } catch (err: any) {
       setError(err?.message ?? "Failed to load")
     } finally {
@@ -164,14 +156,12 @@ export default function GameGachaPage() {
     setEditingPack(pack)
     setForm({
       name: pack.name,
-      pack_type: pack.pack_type,
       currency_item_definition_id: pack.currency_item_definition_id,
       cost: String(pack.cost),
       is_enabled: pack.is_enabled,
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
             item_definition_id: e.item_definition_id,
-            rarity: e.rarity,
             weight: String(e.weight),
             quantity_min: String(e.quantity_min),
             quantity_max: String(e.quantity_max),
@@ -197,7 +187,6 @@ export default function GameGachaPage() {
 
   async function handleSave() {
     if (!form.name.trim()) { toast({ variant: "destructive", title: "Name is required" }); return }
-    if (!form.pack_type.trim()) { toast({ variant: "destructive", title: "Pack type is required" }); return }
     if (!form.currency_item_definition_id) { toast({ variant: "destructive", title: "Select a currency item" }); return }
     const costNum = Number(form.cost)
     if (!costNum || costNum <= 0) { toast({ variant: "destructive", title: "Cost must be > 0" }); return }
@@ -206,7 +195,6 @@ export default function GameGachaPage() {
       .filter((r) => r.item_definition_id.trim())
       .map((r) => ({
         item_definition_id: r.item_definition_id.trim(),
-        rarity: r.rarity,
         weight: Math.max(1, Number(r.weight) || 1),
         quantity_min: Math.max(1, Number(r.quantity_min) || 1),
         quantity_max: Math.max(Number(r.quantity_min) || 1, Number(r.quantity_max) || 1),
@@ -218,7 +206,6 @@ export default function GameGachaPage() {
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: form.name.trim(),
-          pack_type: form.pack_type.trim(),
           currency_item_definition_id: form.currency_item_definition_id,
           cost: costNum,
           is_enabled: form.is_enabled,
@@ -229,7 +216,6 @@ export default function GameGachaPage() {
       } else {
         const res = await createGachaPack(ctx, {
           name: form.name.trim(),
-          pack_type: form.pack_type.trim(),
           currency_item_definition_id: form.currency_item_definition_id,
           cost: costNum,
           is_enabled: form.is_enabled,
@@ -377,7 +363,6 @@ export default function GameGachaPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <CardTitle className="text-base truncate">{pack.name}</CardTitle>
-                    <Badge variant="outline" className="text-xs font-mono shrink-0">{pack.pack_type}</Badge>
                     <Badge
                       variant={pack.is_enabled ? "default" : "secondary"}
                       className="text-xs shrink-0"
@@ -431,8 +416,7 @@ export default function GameGachaPage() {
                     </button>
                     {isExpanded && (
                       <div className="space-y-1.5">
-                        <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-x-3 text-xs text-muted-foreground font-medium pb-1 border-b">
-                          <span>Rarity</span>
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-x-3 text-xs text-muted-foreground font-medium pb-1 border-b">
                           <span>Item</span>
                           <span>Drop rate</span>
                           <span className="text-right">Qty</span>
@@ -440,8 +424,7 @@ export default function GameGachaPage() {
                         {[...pack.item_pool]
                           .sort((a, b) => b.weight - a.weight)
                           .map((entry, i) => (
-                            <div key={i} className="grid grid-cols-[auto_1fr_1fr_auto] gap-x-3 items-center text-sm">
-                              <RarityBadge rarity={entry.rarity} />
+                            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-x-3 items-center text-sm">
                               <span className="truncate text-xs">{itemName(entry.item_definition_id)}</span>
                               <DropBar weight={entry.weight} total={totalWeight} />
                               <span className="text-xs text-muted-foreground text-right tabular-nums">
@@ -463,7 +446,7 @@ export default function GameGachaPage() {
 
       {/* ── Create / Edit Sheet ──────────────────────────────────────────────── */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : "New Loot Box Pack"}</SheetTitle>
             <SheetDescription className="text-xs">
@@ -481,21 +464,6 @@ export default function GameGachaPage() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 disabled={formSaving}
               />
-            </div>
-
-            {/* Pack type */}
-            <div className="space-y-1.5">
-              <Label>Pack Type <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="standard"
-                value={form.pack_type}
-                onChange={(e) => setForm((f) => ({ ...f, pack_type: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
-                disabled={formSaving || !!editingPack}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Identifier used by players when calling the open endpoint. Cannot be changed after creation.
-              </p>
             </div>
 
             {/* Currency + Cost */}
@@ -524,11 +492,12 @@ export default function GameGachaPage() {
               <div className="space-y-1.5">
                 <Label>Cost <span className="text-destructive">*</span></Label>
                 <Input
-                  type="number"
-                  min={1}
+                  type="text"
+                  inputMode="numeric"
                   placeholder="100"
-                  value={form.cost}
-                  onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))}
+                  className="font-mono"
+                  value={form.cost ? Number(form.cost).toLocaleString() : ""}
+                  onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value.replace(/[^0-9]/g, "") }))}
                   disabled={formSaving}
                 />
               </div>
@@ -567,9 +536,8 @@ export default function GameGachaPage() {
 
               {/* Header row */}
               {form.pool.length > 0 && (
-                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_80px_80px_60px_60px_32px] gap-1.5 px-1 font-medium">
+                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 px-1 font-medium">
                   <span>Item</span>
-                  <span>Rarity</span>
                   <span>Weight</span>
                   <span>Min</span>
                   <span>Max</span>
@@ -581,7 +549,7 @@ export default function GameGachaPage() {
                 {form.pool.map((row, i) => {
                   const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0
                   return (
-                    <div key={i} className="grid grid-cols-[1fr_80px_80px_60px_60px_32px] gap-1.5 items-center">
+                    <div key={i} className="grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 items-center">
                       {/* Item select */}
                       <Select
                         value={row.item_definition_id}
@@ -599,31 +567,16 @@ export default function GameGachaPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {/* Rarity */}
-                      <Select
-                        value={row.rarity}
-                        onValueChange={(v) => updatePoolRow(i, { rarity: v as ItemRarity })}
-                        disabled={formSaving}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rarities.map((r) => (
-                            <SelectItem key={r} value={r} className="text-xs capitalize">{r}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       {/* Weight */}
                       <div className="relative">
                         <Input
-                          type="number"
-                          min={1}
-                          className="h-8 text-xs pr-1"
-                          value={row.weight}
-                          onChange={(e) => updatePoolRow(i, { weight: e.target.value })}
+                          type="text"
+                          inputMode="numeric"
+                          className="h-8 text-xs pr-1 font-mono"
+                          value={row.weight ? Number(row.weight).toLocaleString() : ""}
+                          onChange={(e) => updatePoolRow(i, { weight: e.target.value.replace(/[^0-9]/g, "") })}
                           disabled={formSaving}
-                          title={pct > 0 ? `≈ ${pct < 0.01 ? "<0.01" : pct.toFixed(2)}%` : ""}
+                          title={pct > 0 ? `≈ ${formatPct(pct)}` : ""}
                         />
                       </div>
                       {/* Qty min */}
@@ -670,7 +623,6 @@ export default function GameGachaPage() {
                       const item = allItems.find((it) => it.id === row.item_definition_id)
                       return (
                         <div key={i} className="flex items-center gap-2 text-xs">
-                          <RarityBadge rarity={row.rarity} />
                           <span className="flex-1 truncate">{item?.name ?? row.item_definition_id.slice(0, 8)}</span>
                           <DropBar weight={Number(row.weight) || 0} total={formTotalWeight} />
                         </div>

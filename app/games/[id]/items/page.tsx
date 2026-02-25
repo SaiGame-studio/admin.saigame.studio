@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -395,10 +395,12 @@ export default function GameItemsPage() {
 
   const [gameName, setGameName] = useState("")
   const [studioId, setStudioId] = useState("")
+  const [maxItems, setMaxItems] = useState<number | null>(null)
   const [items, setItems] = useState<ItemDefinition[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
@@ -434,6 +436,7 @@ export default function GameItemsPage() {
       .then((g) => {
         setGameName(g.name)
         setStudioId(g.studio_id ?? "")
+        setMaxItems(g.limits?.max_items ?? null)
       })
       .catch(() => {
         // game failed to load — stop the skeleton
@@ -510,8 +513,23 @@ export default function GameItemsPage() {
             <h1 className="text-3xl font-bold tracking-tight">
               Item Catalogue
             </h1>
-            <p className="text-muted-foreground">
-              {total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
+            <p className="text-muted-foreground flex items-center gap-2">
+              {maxItems != null
+                ? <>
+                    <span className={total >= maxItems ? "text-destructive font-medium" : ""}>
+                      {total.toLocaleString()} / {maxItems.toLocaleString()} items
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          total >= maxItems ? "bg-destructive" : total / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min((total / maxItems) * 100, 100)}%` }}
+                      />
+                    </span>
+                  </>
+                : total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"
+              }
             </p>
           </div>
         </div>
@@ -603,7 +621,6 @@ export default function GameItemsPage() {
                   <TableHead>Rarity</TableHead>
                   <TableHead>Stackable</TableHead>
                   <TableHead>Grid</TableHead>
-                  <TableHead>Base Stats</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -618,7 +635,23 @@ export default function GameItemsPage() {
                         {item.name}
                       </Link>
                       {item.item_code && (
-                        <div className="text-xs font-mono text-muted-foreground mt-0.5">{item.item_code}</div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Copy item code"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.item_code!)
+                              setCopiedId(item.id)
+                              setTimeout(() => setCopiedId(null), 1500)
+                            }}
+                          >
+                            {copiedId === item.id
+                              ? <Check className="h-3 w-3 text-green-500" />
+                              : <Copy className="h-3 w-3" />}
+                          </button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -640,19 +673,6 @@ export default function GameItemsPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {item.grid_width}×{item.grid_height}
-                    </TableCell>
-                    <TableCell>
-                      {Object.keys(item.base_stats ?? {}).length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(item.base_stats).map(([k, v]) => (
-                            <Badge key={k} variant="secondary" className="text-xs">
-                              {k}: {v}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild>
