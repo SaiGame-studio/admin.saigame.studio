@@ -790,6 +790,7 @@ export const vi = {
       labelProfiles: "Hồ sơ",
       labelItems: "Vật phẩm",
       labelShops: "Cửa hàng",
+      labelGacha: "Gacha",
       willNotRenew: "Sẽ không gia hạn",
       daysLeft: "ngày còn lại",
       today: "hôm nay",

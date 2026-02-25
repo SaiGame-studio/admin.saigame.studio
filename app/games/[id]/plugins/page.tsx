@@ -408,7 +408,7 @@ export default function GamePluginsPage() {
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
-                { label: "Gacha Packs", max: game.limits?.max_gacha_packs ?? null, pending: undefined, used: game.usage?.gacha_packs, icon: "🎲" },
+                { label: "Gacha Packs", max: game.limits?.max_gacha_packs ?? null, pending: pending?.max_gacha_packs, used: game.usage?.gacha_packs, icon: "🎲" },
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -537,6 +537,7 @@ export default function GamePluginsPage() {
                         { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
                         { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                        { icon: "🎲", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>

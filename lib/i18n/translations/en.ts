@@ -797,6 +797,7 @@ export const en = {
       labelProfiles: "Profiles",
       labelItems: "Items",
       labelShops: "Shops",
+      labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",
       today: "today",

@@ -186,25 +186,24 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Back</span>
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold md:text-2xl">{t('payment.title')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t('payment.subtitle')}
-            </p>
-          </div>
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-xl font-semibold md:text-2xl">{t('payment.title')}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t('payment.subtitle')}
+          </p>
         </div>
+      </div>
 
-        <div className="mx-auto w-full max-w-2xl">
+      <div className="w-full">
           <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
@@ -406,8 +405,7 @@ export default function PaymentPage() {
               )}
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
+      </div>
     </div>
   )
 }

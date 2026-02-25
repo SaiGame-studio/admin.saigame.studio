@@ -779,6 +779,7 @@ export const ja = {
       labelProfiles: "プロフィール",
       labelItems: "アイテム",
       labelShops: "ショップ",
+      labelGacha: "ガチャ",
       willNotRenew: "更新されません",
       daysLeft: "日残り",
       today: "今日",

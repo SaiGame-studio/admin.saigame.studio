@@ -214,7 +214,6 @@ export default function GiftCodeDetailPage() {
                 <CopyButton text={gc.code} />
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
               </div>
-              <p className="text-sm text-muted-foreground">ID: {gc.id} <CopyButton text={gc.id} /></p>
             </div>
           </div>
           <AlertDialog>

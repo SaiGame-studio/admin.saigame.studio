@@ -14,6 +14,7 @@ export interface Plugin {
   profiles_grant: number
   items_grant: number
   shops_grant: number
+  gacha_grant: number
   cost_coins: number
   max_stacks: number
   sort_order: number
@@ -47,6 +48,7 @@ export interface EffectiveLimits {
   max_items: number
   max_loot_boxes: number
   max_shops: number
+  max_gacha_packs?: number
 }
 
 export interface GamePluginsResult {

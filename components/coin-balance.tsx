@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Plus, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
@@ -21,11 +21,21 @@ interface WalletData {
   updated_at: string
 }
 
+interface FloatItem {
+  id: number
+  delta: number
+}
+
+let floatIdCounter = 0
+
 export function CoinBalance() {
   const [wallet, setWallet] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [visible, setVisible] = useState(true)
+  const [floats, setFloats] = useState<FloatItem[]>([])
+  const prevBalanceRef = useRef<number | null>(null)
+  const isFirstLoad = useRef(true)
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -46,7 +56,19 @@ export function CoinBalance() {
     setError(false)
     try {
       const data = await api.get("/api/v1/coins/wallet")
-      setWallet(data)
+      setWallet(prev => {
+        const prevBal = prevBalanceRef.current
+        const newBal: number = data?.balance ?? 0
+        if (!isFirstLoad.current && prevBal !== null && newBal !== prevBal) {
+          const delta = newBal - prevBal
+          const id = ++floatIdCounter
+          setFloats(f => [...f, { id, delta }])
+          setTimeout(() => setFloats(f => f.filter(x => x.id !== id)), 5000)
+        }
+        isFirstLoad.current = false
+        prevBalanceRef.current = newBal
+        return data
+      })
     } catch {
       setError(true)
     } finally {
@@ -66,7 +88,27 @@ export function CoinBalance() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
+      <style>{`
+        @keyframes coin-float-down {
+          0%   { opacity: 1; transform: translateY(0) scale(1); }
+          15%  { opacity: 1; transform: translateY(10px) scale(1.1); }
+          75%  { opacity: 1; transform: translateY(36px) scale(1.05); }
+          100% { opacity: 0; transform: translateY(52px) scale(0.9); }
+        }
+        .coin-float { animation: coin-float-down 5s ease-out forwards; pointer-events: none; }
+      `}</style>
+      <div className="relative flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
+        {/* Float texts */}
+        {floats.map(({ id, delta }) => (
+          <span
+            key={id}
+            className="coin-float absolute top-full mt-1 left-1/2 -translate-x-1/2 text-sm font-bold tabular-nums whitespace-nowrap select-none z-50"
+            style={{ color: delta > 0 ? "#22c55e" : "#ef4444", textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000" }}
+          >
+            {delta > 0 ? `🪙 +${delta.toLocaleString()}` : `🪙 ${delta.toLocaleString()}`}
+          </span>
+        ))}
+
         {/* Coin icon + balance — click to toggle */}
         <button
           onClick={toggleVisible}
