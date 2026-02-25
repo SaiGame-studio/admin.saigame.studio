@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { LogOut, Menu, Server, User } from "lucide-react"
+import Image from "next/image"
+import { LogOut, Menu, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -27,7 +28,7 @@ export function TopNav() {
         </SheetContent>
       </Sheet>
       <div className="flex items-center gap-2 lg:hidden">
-        <Server className="h-6 w-6" />
+        <Image src="/logo.png" alt="Logo" width={24} height={24} />
         <Link href="/" className="font-semibold">
           Sai's Admin
         </Link>

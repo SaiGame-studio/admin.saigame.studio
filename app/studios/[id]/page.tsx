@@ -137,7 +137,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       ) : studio ? (
         <>
           <div className="flex justify-between items-start mb-6">
-            <div className="group">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => router.push("/studios")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="group">
               <StudioNameEditable
                 studio={studio}
                 studioId={studio.id}
@@ -148,7 +152,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 studioId={studio.id}
                 onDescriptionUpdate={newDescription => setStudio(prev => prev ? { ...prev, description: newDescription } : prev)}
               />
-              <Badge className="mt-2">{studio.tier}</Badge>
+              </div>
             </div>
           </div>
 
@@ -283,20 +287,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <Skeleton className="h-8 w-24" />
                 </div>
               ) : teams.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {teams.map((team, index) => (
-                    <React.Fragment key={team.id}>
-                      <Link 
-                        href={`/teams/${team.id}`}
-                        className="inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
-                      >
-                        {team.name}
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                      {index < teams.length - 1 && (
-                        <span className="text-muted-foreground">•</span>
-                      )}
-                    </React.Fragment>
+                <div className="flex flex-wrap gap-2">
+                  {teams.map((team) => (
+                    <Link key={team.id} href={`/teams/${team.id}`}>
+                      <Button variant="outline" size="sm" className="gap-1.5 max-w-[180px]">
+                        <span className="truncate">{team.name}</span>
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      </Button>
+                    </Link>
                   ))}
                 </div>
               ) : (
