@@ -8,6 +8,7 @@ import type { UserProfile } from "@/types/user-profile"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { CopyButton } from "@/components/CopyButton"
 
 export default function UsersPage() {
   const [profiles, setProfiles] = useState<UserProfile[]>([])
@@ -66,7 +67,7 @@ export default function UsersPage() {
             <Card key={profile.id || idx} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl font-mono">{profile.id || '-'}</CardTitle>
+                  <CardTitle className="text-xl font-mono flex items-center">{profile.id || '-'}{profile.id && <CopyButton text={profile.id} />}</CardTitle>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-xs"></span>
                   </div>

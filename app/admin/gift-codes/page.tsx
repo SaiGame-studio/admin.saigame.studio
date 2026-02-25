@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
-  Check,
-  Copy,
   Gift,
   Loader2,
   BadgeDollarSign,
@@ -19,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
+import { CopyButton } from "@/components/CopyButton"
 import {
   GiftCode,
   listGiftCodes,
@@ -112,34 +111,6 @@ function usesLabel(max_uses: number, unlimitedLabel = "\u221e Unlimited", single
   if (max_uses === -1) return unlimitedLabel
   if (max_uses === 1) return singleLabel
   return String(max_uses)
-}
-
-// ---------------------------------------------------------------------------
-// Copy button
-// ---------------------------------------------------------------------------
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-  function copy() {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(value)
-    } else {
-      const ta = document.createElement("textarea")
-      ta.value = value
-      ta.style.position = "fixed"
-      ta.style.opacity = "0"
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand("copy")
-      document.body.removeChild(ta)
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <button onClick={copy} className="ml-1 text-muted-foreground hover:text-foreground transition-colors">
-      {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-    </button>
-  )
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +252,7 @@ function GiftCodesTab() {
                       <TableCell>
                         <span className="flex items-center font-mono text-sm">
                           {gc.code}
-                          <CopyButton value={gc.code} />
+                          <CopyButton text={gc.code} />
                         </span>
                       </TableCell>
                       <TableCell>🪙 {gc.coins_amount.toLocaleString()} coins</TableCell>
@@ -476,12 +447,12 @@ function CoinTopUpTab() {
           <CardContent className="space-y-2 text-sm">
             <div className="flex items-start justify-between">
               <span className="text-muted-foreground">{t('adminGiftCodes.resultTxId')}</span>
-              <span className="font-mono text-right break-all max-w-xs">{result.id}</span>
+              <span className="font-mono text-right break-all max-w-xs">{result.id}<CopyButton text={result.id} /></span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t('adminGiftCodes.resultUser')}</span>
-              <span className="font-mono">{result.user_id}</span>
+              <span className="font-mono">{result.user_id}<CopyButton text={result.user_id} /></span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">

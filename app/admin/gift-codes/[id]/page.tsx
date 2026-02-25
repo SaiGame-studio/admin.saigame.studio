@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Check, Copy, Loader2, ShieldAlert, Trash2, Save } from "lucide-react"
+import { ArrowLeft, Loader2, ShieldAlert, Trash2, Save } from "lucide-react"
+import { CopyButton } from "@/components/CopyButton"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
 import {
@@ -60,32 +61,6 @@ function getStatus(gc: GiftCode) {
   if (expiresTs && expiresTs < now) return { label: "Expired", className: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" }
   if (gc.max_uses !== -1 && gc.used_count >= gc.max_uses) return { label: "Exhausted", className: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" }
   return { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" }
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  function handleCopy() {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => fallback())
-    } else {
-      fallback()
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  function fallback() {
-    const el = document.createElement("textarea")
-    el.value = text
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand("copy")
-    document.body.removeChild(el)
-  }
-  return (
-    <button onClick={handleCopy} className="ml-1 text-muted-foreground hover:text-foreground transition-colors" title="Copy">
-      {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  )
 }
 
 export default function GiftCodeDetailPage() {

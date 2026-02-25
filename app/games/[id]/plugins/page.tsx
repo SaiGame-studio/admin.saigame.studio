@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
+import { CopyButton } from "@/components/CopyButton"
 
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
@@ -671,7 +672,7 @@ export default function GamePluginsPage() {
                         )}
                       </div>
                       <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
                         <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                         {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
@@ -743,7 +744,7 @@ export default function GamePluginsPage() {
                         )}
                       </div>
                       <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
                         <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                         {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}

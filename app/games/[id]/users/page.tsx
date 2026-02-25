@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { CopyButton } from "@/components/CopyButton"
 export default function GameUserProfilesPage({ params }: { params: { id: string } }) {
   const gameId = params.id;
   const { locale } = useLanguage();
@@ -236,8 +237,8 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">{identity?.masked_email || "***@saigame.studio"}</p>
                     <p className="text-xs text-muted-foreground">{t('gameUsers.gamer')}: {identity?.gamer_name || "-"}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{t('gameUsers.userId')}: {item.user_id}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{t('gameUsers.progressId')}: {item.id}</p>
+                    <p className="text-xs text-muted-foreground font-mono flex items-center">{t('gameUsers.userId')}: {item.user_id}<CopyButton text={item.user_id} /></p>
+                    <p className="text-xs text-muted-foreground font-mono flex items-center">{t('gameUsers.progressId')}: {item.id}<CopyButton text={item.id} /></p>
                   </div>
                   <div className="flex items-center gap-2">
                     {item.banned_at && <Badge variant="destructive">{t('gameUsers.banned')}</Badge>}
