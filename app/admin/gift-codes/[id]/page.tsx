@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +39,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
@@ -226,7 +224,7 @@ export default function GiftCodeDetailPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 max-w-[1600px] w-full mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -269,7 +267,9 @@ export default function GiftCodeDetailPage() {
           </AlertDialog>
         </div>
 
-        <div className="mx-auto w-full max-w-3xl space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.2fr] gap-6 items-start">
+          {/* ── Left: Overview + Edit ─────────────────────────────────── */}
+          <div className="space-y-6">
           {/* Read-only info */}
           <Card>
             <CardHeader>
@@ -384,10 +384,9 @@ export default function GiftCodeDetailPage() {
               </form>
             </CardContent>
           </Card>
+          </div>
 
-          <Separator />
-
-          {/* Redemptions */}
+          {/* ── Right: Redemptions ────────────────────────────────────── */}
           <div className="space-y-3">
             <h2 className="text-lg font-semibold">{t('adminGiftCodes.redemptionsTitle')} ({redemptionsTotal})</h2>
             <Card>

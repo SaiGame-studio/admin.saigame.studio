@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, RefreshCw, Save, Sliders } from "lucide-react"
+import { Check, Loader2, Pencil, RefreshCw, Sliders, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { AdminGame, updateGameLimits } from "@/lib/admin-api"
@@ -27,9 +26,9 @@ function UsageBar({ value, limit }: { value: number; limit: number | null | unde
   if (limit == null || limit <= 0) return null
   const pct = Math.min(100, Math.round((value / limit) * 100))
   return (
-    <div className="w-full h-2 rounded-full bg-border overflow-hidden">
+    <div className="w-full h-1.5 rounded-full bg-border overflow-hidden">
       <div
-        className={`h-full rounded-full transition-all ${pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"}`}
+        className={`h-full rounded-full transition-all ${pct >= 100 ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`}
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -41,23 +40,19 @@ export function AdminGameLimitsDialog({ game }: Props) {
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<Game | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // which field key is currently being edited
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  // draft value for the currently edited field
+  const [draftValue, setDraftValue] = useState("")
   const [saving, setSaving] = useState(false)
-  const [maxProfiles, setMaxProfiles] = useState("")
-  const [maxConcurrent, setMaxConcurrent] = useState("")
-  const [maxItems, setMaxItems] = useState("")
-  const [maxShops, setMaxShops] = useState("")
-  const [maxGachaPacks, setMaxGachaPacks] = useState("")
 
   const load = async () => {
     setLoading(true)
+    setEditingKey(null)
     try {
       const res = await getGame(game.id)
       setDetail(res)
-      setMaxProfiles(res.limits?.max_player_profiles != null ? String(res.limits.max_player_profiles) : "")
-      setMaxConcurrent(res.limits?.max_concurrent_users != null ? String(res.limits.max_concurrent_users) : "")
-      setMaxItems(res.limits?.max_items != null ? String(res.limits.max_items) : "")
-      setMaxShops(res.limits?.max_shops != null ? String(res.limits.max_shops) : "")
-      setMaxGachaPacks(res.limits?.max_gacha_packs != null ? String(res.limits.max_gacha_packs) : "")
     } catch {
       setDetail(null)
     } finally {
@@ -69,56 +64,52 @@ export function AdminGameLimitsDialog({ game }: Props) {
     if (open) load()
   }, [open])
 
-  const parseLimit = (val: string, label: string): number | null | "error" => {
-    if (val.trim() === "") return null
-    const n = parseInt(val, 10)
-    if (isNaN(n) || n < 0) {
-      toast({ title: "Invalid value", description: `${label} must be a non-negative integer.`, variant: "destructive" })
-      return "error"
-    }
-    return n
+  const u = detail?.usage
+  const l = detail?.limits
+
+  const fields: { key: string; label: string; usage: number; limit?: number | null }[] = [
+    { key: "max_player_profiles", label: "Player Profiles", usage: u?.player_profiles ?? 0, limit: l?.max_player_profiles },
+    { key: "max_concurrent_users", label: "Concurrent Users", usage: u?.concurrent_users ?? 0, limit: l?.max_concurrent_users },
+    { key: "max_items", label: "Items", usage: u?.items ?? 0, limit: l?.max_items },
+    { key: "max_shops", label: "Shops", usage: u?.shops ?? 0, limit: l?.max_shops },
+    { key: "max_gacha_packs", label: "Gacha Packs", usage: u?.gacha_packs ?? 0, limit: l?.max_gacha_packs },
+  ]
+
+  function startEdit(key: string, currentLimit: number | null | undefined) {
+    setEditingKey(key)
+    setDraftValue(currentLimit != null ? String(currentLimit) : "")
   }
 
-  const handleSave = async () => {
-    const profileVal = parseLimit(maxProfiles, "Max Player Profiles")
-    if (profileVal === "error") return
-    const concurrentVal = parseLimit(maxConcurrent, "Max Concurrent Users")
-    if (concurrentVal === "error") return
-    const itemsVal = parseLimit(maxItems, "Max Items")
-    if (itemsVal === "error") return
-    const shopsVal = parseLimit(maxShops, "Max Shops")
-    if (shopsVal === "error") return
-    const gachaPacksVal = parseLimit(maxGachaPacks, "Max Gacha Packs")
-    if (gachaPacksVal === "error") return
+  function cancelEdit() {
+    setEditingKey(null)
+    setDraftValue("")
+  }
+
+  async function saveField(key: string, label: string) {
+    const raw = draftValue.trim()
+    let newVal: number | null
+    if (raw === "") {
+      newVal = null
+    } else {
+      const n = parseInt(raw, 10)
+      if (isNaN(n) || n < 0) {
+        toast({ title: "Invalid value", description: `${label} must be a non-negative integer.`, variant: "destructive" })
+        return
+      }
+      newVal = n
+    }
 
     setSaving(true)
     try {
-      await updateGameLimits(game.id, {
-        max_player_profiles: profileVal,
-        max_concurrent_users: concurrentVal,
-        max_items: itemsVal,
-        max_shops: shopsVal,
-        max_gacha_packs: gachaPacksVal,
-      })
-      toast({ title: "Saved", description: `Limits updated for "${game.name}".` })
+      await updateGameLimits(game.id, { [key]: newVal })
+      toast({ title: "Saved", description: `${label} limit updated.` })
       await load()
     } catch (err: any) {
-      toast({ title: "Failed", description: err?.message || "Could not update limits.", variant: "destructive" })
+      toast({ title: "Failed", description: err?.message || "Could not update limit.", variant: "destructive" })
     } finally {
       setSaving(false)
     }
   }
-
-  const u = detail?.usage
-  const l = detail?.limits
-
-  const fields: { key: string; label: string; usage: number; limit?: number | null; value: string; setter: (v: string) => void }[] = [
-    { key: "max_player_profiles", label: "Player Profiles", usage: u?.player_profiles ?? 0, limit: l?.max_player_profiles, value: maxProfiles, setter: setMaxProfiles },
-    { key: "max_concurrent_users", label: "Concurrent Users", usage: u?.concurrent_users ?? 0, limit: l?.max_concurrent_users, value: maxConcurrent, setter: setMaxConcurrent },
-    { key: "max_items", label: "Items", usage: u?.items ?? 0, limit: l?.max_items, value: maxItems, setter: setMaxItems },
-    { key: "max_shops", label: "Shops", usage: u?.shops ?? 0, limit: l?.max_shops, value: maxShops, setter: setMaxShops },
-    { key: "max_gacha_packs", label: "Gacha Packs", usage: u?.gacha_packs ?? 0, limit: l?.max_gacha_packs, value: maxGachaPacks, setter: setMaxGachaPacks },
-  ]
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,7 +119,7 @@ export function AdminGameLimitsDialog({ game }: Props) {
           Limits
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sliders className="h-4 w-4" />
@@ -139,68 +130,87 @@ export function AdminGameLimitsDialog({ game }: Props) {
 
         {loading ? (
           <div className="space-y-3 py-2">
-            <Skeleton className="h-28 w-full" />
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
           </div>
         ) : (
-          <div className="space-y-5 py-2">
-            {/* Usage summary */}
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Usage</p>
-              {fields.map((f) => (
-                <div key={f.key} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{f.label}</span>
-                    <span className="font-semibold">
-                      {f.usage}
-                      {f.limit != null ? (
-                        <span className="text-muted-foreground font-normal"> / {f.limit}</span>
-                      ) : (
-                        <span className="text-muted-foreground font-normal"> / ∞</span>
-                      )}
-                    </span>
+          <div className="py-1">
+            <div className="space-y-1">
+              {fields.map((f) => {
+                const isEditing = editingKey === f.key
+                const atLimit = f.limit != null && f.usage >= f.limit
+                return (
+                  <div key={f.key} className="group rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-muted-foreground">{f.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold tabular-nums ${atLimit ? "text-destructive" : ""}`}>
+                          {f.usage}
+                          <span className={`font-normal ${atLimit ? "text-destructive/70" : "text-muted-foreground"}`}>
+                            {" / "}{f.limit != null ? f.limit : "∞"}
+                          </span>
+                        </span>
+                        {!isEditing && (
+                          <button
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                            title={`Edit ${f.label} limit`}
+                            onClick={() => startEdit(f.key, f.limit)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <UsageBar value={f.usage} limit={f.limit} />
+
+                    {isEditing && (
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <Input
+                          autoFocus
+                          type="number"
+                          min={0}
+                          placeholder="unlimited"
+                          className="h-8 text-sm flex-1"
+                          value={draftValue}
+                          onChange={(e) => setDraftValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveField(f.key, f.label)
+                            if (e.key === "Escape") cancelEdit()
+                          }}
+                          disabled={saving}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-green-500 hover:text-green-400 hover:bg-green-500/10 shrink-0"
+                          onClick={() => saveField(f.key, f.label)}
+                          disabled={saving}
+                          title="Save"
+                        >
+                          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={cancelEdit}
+                          disabled={saving}
+                          title="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <UsageBar value={f.usage} limit={f.limit} />
-                </div>
-              ))}
+                )
+              })}
             </div>
 
-            {/* Edit limits */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Edit Limits</p>
-              {fields.map((f) => (
-                <div key={f.key} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={f.key}>Max {f.label}</Label>
-                    <span className="text-xs text-muted-foreground">
-                      Current usage: <span className="font-semibold text-foreground">{f.usage}</span>
-                    </span>
-                  </div>
-                  <Input
-                    id={f.key}
-                    type="number"
-                    min={0}
-                    placeholder="unlimited"
-                    value={f.value}
-                    onChange={(e) => f.setter(e.target.value)}
-                  />
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground">Leave empty to remove the limit.</p>
-            </div>
-
-            <div className="flex justify-between items-center pt-1">
-              <Button variant="ghost" size="sm" onClick={load} disabled={loading || saving}>
+            <div className="mt-3 pt-3 border-t flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Click <Pencil className="inline h-3 w-3 mx-0.5" /> to edit a limit. Leave blank to remove it.</p>
+              <Button variant="ghost" size="sm" onClick={load} disabled={loading || saving} className="shrink-0">
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 Reload
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save
               </Button>
             </div>
           </div>
@@ -209,3 +219,4 @@ export function AdminGameLimitsDialog({ game }: Props) {
     </Dialog>
   )
 }
+
