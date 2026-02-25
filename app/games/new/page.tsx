@@ -10,11 +10,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Loader2, Gamepad2, Coins } from "lucide-react"
+import { ArrowLeft, Loader2, Gamepad2 } from "lucide-react"
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const GAME_COST = 5
 
@@ -29,6 +39,7 @@ function NewGameForm() {
   const [submitting, setSubmitting] = useState(false)
   const [studioDetail, setStudioDetail] = useState<Studio | null>(null)
   const [studioDetailLoading, setStudioDetailLoading] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -98,6 +109,14 @@ function NewGameForm() {
       setError("Please select a studio")
       return
     }
+    if (studioLimitReached) {
+      setShowConfirm(true)
+      return
+    }
+    await doCreateGame()
+  }
+
+  async function doCreateGame() {
     try {
       setSubmitting(true)
       setError(null)
@@ -118,6 +137,25 @@ function NewGameForm() {
   }
 
   return (
+    <>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm game creation</AlertDialogTitle>
+          <AlertDialogDescription>
+            This studio has reached its game limit. Creating{" "}
+            <span className="font-semibold text-foreground">&ldquo;{name}&rdquo;</span> will cost an extra{" "}
+            <span className="font-semibold text-foreground">🪙 {GAME_COST} coins</span>. Do you want to proceed?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => { setShowConfirm(false); await doCreateGame() }}>
+            Confirm & Pay {GAME_COST} coins
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <div className="container mx-auto py-6">
       <div className="mb-6">
         <Button variant="outline" size="sm" onClick={() => router.back()}>
@@ -163,12 +201,6 @@ function NewGameForm() {
             <p className="text-xs text-muted-foreground">
               The first game is <span className="text-green-500 font-medium">free</span>, additional games cost <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
             </p>
-          )}
-          {!studioDetailLoading && (selectedStudio?.usage?.games ?? 0) >= 1 && (
-            <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2">
-              <Coins className="h-3.5 w-3.5 shrink-0" />
-              <span>🪙 {GAME_COST} coins will be charged for this game</span>
-            </div>
           )}
         </div>
       )}
@@ -221,6 +253,7 @@ function NewGameForm() {
         </form>
       </Card>
     </div>
+    </>
   )
 }
 

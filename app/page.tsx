@@ -121,15 +121,12 @@ function StudioCard({ studio }: { studio: Studio }) {
             {studio.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <Link href={`/studios/${studio.id}`} className="text-base font-bold hover:text-primary transition-colors truncate block">
+            <Link href={`/studios/${studio.id}`} className="text-base font-bold hover:text-primary transition-colors truncate flex items-center gap-1">
               {studio.name}
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" />
             </Link>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{studio.tier}</span>
-              {studio.is_active
-                ? <span className="rounded-full bg-green-500/15 text-green-500 text-[10px] font-semibold px-2 py-0.5">Active</span>
-                : <span className="rounded-full bg-muted text-muted-foreground text-[10px] font-semibold px-2 py-0.5">Inactive</span>
-              }
             </div>
           </div>
         </div>

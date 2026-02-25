@@ -205,7 +205,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="icon" onClick={() => router.back()}>
+                    <Button variant="outline" size="icon" onClick={() => game.studio_id ? router.push(`/studios/${game.studio_id}`) : router.back()}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div className="group">
