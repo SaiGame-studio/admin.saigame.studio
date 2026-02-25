@@ -344,17 +344,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 <CardTitle>{t('common.games')}</CardTitle>
                 <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
               </div>
-              {studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games ? (
-                <Button disabled title={`Game limit reached (${studio.usage?.games ?? 0}/${studio.limits.max_games})`}>
+              <Button asChild>
+                <a href={`/games/new?studio=${studio.id}`}>
                   <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
-                </Button>
-              ) : (
-                <Button asChild>
-                  <a href={`/games/new?studio=${studio.id}`}>
-                    <Plus className="mr-2 h-4 w-4" /> {t('studio.createGame')}
-                  </a>
-                </Button>
-              )}
+                </a>
+              </Button>
             </CardHeader>
             <CardContent>
               {gamesLoading ? (

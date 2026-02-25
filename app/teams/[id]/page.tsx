@@ -1,16 +1,18 @@
 "use client"
 
 import React, { useEffect, useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { fetchTeamDetails, fetchTeamMembers, fetchTeamGames } from "@/lib/team-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import type { Team, TeamMember } from "@/types/team"
 import type { Studio } from "@/types/studio"
 import type { Game } from "@/types/game"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, ExternalLink } from "lucide-react"
+import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
@@ -24,6 +26,7 @@ import { CopyButton } from "@/components/CopyButton"
 import { DeleteTeamDialog } from "@/components/DeleteTeamDialog"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
   const [team, setTeam] = useState<Team | null>(null)
   const [studio, setStudio] = useState<Studio | null>(null)
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -171,21 +174,23 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         </Card>
       ) : team ? (
         <>
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <TeamNameEditable
-                team={team}
-                teamId={team.id}
-                onNameUpdate={newName => setTeam(prev => prev ? { ...prev, name: newName } : prev)}
-              />
-              <TeamDescriptionEditable
-                team={team}
-                teamId={team.id}
-                onDescriptionUpdate={newDescription => setTeam(prev => prev ? { ...prev, description: newDescription } : prev)}
-              />
-              <Badge variant={team.is_active ? "default" : "secondary"} className="mt-2">
-                {team.is_active ? "Active" : "Inactive"}
-              </Badge>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => team?.studio_id ? router.push(`/studios/${team.studio_id}`) : router.back()}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <TeamNameEditable
+                  team={team}
+                  teamId={team.id}
+                  onNameUpdate={newName => setTeam(prev => prev ? { ...prev, name: newName } : prev)}
+                />
+                <TeamDescriptionEditable
+                  team={team}
+                  teamId={team.id}
+                  onDescriptionUpdate={newDescription => setTeam(prev => prev ? { ...prev, description: newDescription } : prev)}
+                />
+              </div>
             </div>
             <DeleteTeamDialog team={team} />
           </div>
@@ -293,7 +298,12 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 <CardTitle>Members</CardTitle>
                 <CardDescription>Members in this team</CardDescription>
               </div>
-              <AddMemberDialog teamId={team.id} onMemberAdded={handleMemberAdded} />
+              <AddMemberDialog
+                teamId={team.id}
+                onMemberAdded={handleMemberAdded}
+                studioMembersUsage={studio?.usage?.total_members}
+                studioMembersLimit={studio?.limits?.max_total_members}
+              />
             </CardHeader>
             <CardContent>
               {membersLoading ? (

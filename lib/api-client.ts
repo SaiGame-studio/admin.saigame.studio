@@ -113,7 +113,7 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     // Handle non-success responses
     if (!response.ok) {
       throw new ApiError(
-        data?.message || `Request failed: ${response.status}`,
+        data?.message || data?.error || `Request failed: ${response.status}`,
         response.status,
         data
       )
