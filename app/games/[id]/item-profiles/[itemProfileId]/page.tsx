@@ -25,6 +25,7 @@ import { RngLootBoxTab } from "@/components/ui/rng-lootbox-tab"
 import { PropertiesTab } from "@/components/ui/properties-tab"
 import { getItemProfileUrl, parseTabFromUrl, ItemProfileTab, getInventoryTabUrl, isLootboxType, isRngLootboxType } from "@/lib/utils/item-profile-utils"
 import { getItemTypeOptions, getItemTypeLabel } from "@/lib/utils/item-type-utils"
+import { CopyButton } from "@/components/CopyButton"
 
 // Available item type options for editing
 const itemTypeOptions = getItemTypeOptions()
@@ -345,7 +346,7 @@ export default function ItemProfileDetailPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Normal Properties */}
                 <div className="space-y-4">
-                  <div className="mb-2">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code></div>
+                  <div className="mb-2 flex items-center gap-1">{t('itemProfile.profileId')}: <code className="font-mono text-sm bg-muted px-2 py-1 rounded">{itemProfile.id}</code><CopyButton text={itemProfile.id} /></div>
 
                   <div>
                     <ItemProfileCodeNameEditable

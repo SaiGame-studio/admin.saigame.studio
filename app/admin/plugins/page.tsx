@@ -74,6 +74,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter } from "next/navigation"
+import { CopyButton } from "@/components/CopyButton"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -368,7 +369,7 @@ export default function AdminPluginsPage() {
                     <TableRow key={plugin.id}>
                       <TableCell className="font-medium">
                         <div>{plugin.display_name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{plugin.id}</div>
+                        <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
                       </TableCell>
                       <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
                       <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>

@@ -20,6 +20,8 @@ import { RemoveMemberDialog } from "@/components/RemoveMemberDialog"
 import { AddGameToTeamDialog } from "@/components/AddGameToTeamDialog"
 import { RemoveGameFromTeamDialog } from "@/components/RemoveGameFromTeamDialog"
 import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamNameEditable"
+import { CopyButton } from "@/components/CopyButton"
+import { DeleteTeamDialog } from "@/components/DeleteTeamDialog"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
@@ -185,6 +187,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 {team.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
+            <DeleteTeamDialog team={team} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -195,7 +198,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium">ID</p>
-                  <p className="text-sm text-muted-foreground">{team.id}</p>
+                  <p className="text-sm text-muted-foreground flex items-center">{team.id}<CopyButton text={team.id} /></p>
                 </div>
                 {team.slug && (
                   <div>
@@ -343,8 +346,8 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                         </div>
                         <div className="col-span-2">
                           <p className="text-sm font-medium">User ID</p>
-                          <p className="text-sm text-muted-foreground font-mono truncate" title={member.user_id}>
-                            {member.user_id}
+                          <p className="text-sm text-muted-foreground font-mono truncate flex items-center" title={member.user_id}>
+                            {member.user_id}<CopyButton text={member.user_id} />
                           </p>
                         </div>
                         {member.joined_at && (

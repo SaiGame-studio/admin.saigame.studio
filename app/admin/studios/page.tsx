@@ -14,6 +14,7 @@ import Link from "next/link"
 import { getAllStudiosAdmin, AdminStudio } from "@/lib/admin-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { AdminStudioLimitsDialog } from "@/components/AdminStudioLimitsDialog"
+import { CopyButton } from "@/components/CopyButton"
 
 export default function AllStudiosPage() {
   const router = useRouter()
@@ -195,7 +196,7 @@ export default function AllStudiosPage() {
                     <TableRow key={studio.id}>
                       <TableCell>
                         <div className="font-medium">{studio.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{studio.id}</div>
+                        <div className="text-xs text-muted-foreground font-mono flex items-center">{studio.id}<CopyButton text={studio.id} /></div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground max-w-md truncate">

@@ -112,3 +112,10 @@ export async function unassignGameFromTeam(
 ): Promise<void> {
     await api.delete(`/api/v1/teams/${teamId}/games/${gameId}`)
 }
+
+/**
+ * Deletes a team permanently
+ */
+export async function deleteTeam(teamId: string): Promise<void> {
+    await api.delete(`/api/v1/teams/${teamId}`)
+}

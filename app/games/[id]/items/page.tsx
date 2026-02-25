@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -139,6 +139,7 @@ function CreateItemDialog({
   onClose,
   categories,
   rarities,
+  initialCategory,
 }: {
   open: boolean
   studioId: string
@@ -147,13 +148,14 @@ function CreateItemDialog({
   onClose: () => void
   categories: ItemCategory[]
   rarities: ItemRarity[]
+  initialCategory?: ItemCategory
 }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState("")
   const [itemCode, setItemCode] = useState("")
-  const [category, setCategory] = useState<ItemCategory>("weapon")
+  const [category, setCategory] = useState<ItemCategory>(initialCategory ?? "weapon")
   const [rarity, setRarity] = useState<ItemRarity>("common")
   const [isStackable, setIsStackable] = useState(false)
   const [maxStack, setMaxStack] = useState<string>("")
@@ -166,7 +168,7 @@ function CreateItemDialog({
   function resetForm() {
     setName("")
     setItemCode("")
-    setCategory("weapon")
+    setCategory(initialCategory ?? "weapon")
     setRarity("common")
     setIsStackable(false)
     setMaxStack("")
@@ -176,6 +178,11 @@ function CreateItemDialog({
     setMeta([])
     setErrors({})
   }
+
+  // reset category when dialog opens with a fresh initialCategory
+  useEffect(() => {
+    if (open && initialCategory) setCategory(initialCategory)
+  }, [open, initialCategory])
 
   function validate(): boolean {
     const e: Record<string, string> = {}
@@ -390,15 +397,18 @@ function CreateItemDialog({
 export default function GameItemsPage() {
   const params = useParams() as { id: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const gameId = params.id
 
   const [gameName, setGameName] = useState("")
   const [studioId, setStudioId] = useState("")
+  const [maxItems, setMaxItems] = useState<number | null>(null)
   const [items, setItems] = useState<ItemDefinition[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
@@ -412,6 +422,7 @@ export default function GameItemsPage() {
 
   // modal
   const [showCreate, setShowCreate] = useState(false)
+  const [createInitCategory, setCreateInitCategory] = useState<ItemCategory | undefined>(undefined)
   const [categories, setCategories] = useState<ItemCategory[]>([])
   const [rarities, setRarities] = useState<ItemRarity[]>([])
 
@@ -420,6 +431,15 @@ export default function GameItemsPage() {
     const t = setTimeout(() => setDebouncedName(searchName), 300)
     return () => clearTimeout(t)
   }, [searchName])
+
+  // auto-open create dialog from query params e.g. ?create=1&category=currency
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      const cat = searchParams.get("category") as ItemCategory | null
+      setCreateInitCategory(cat ?? undefined)
+      setShowCreate(true)
+    }
+  }, [searchParams])
 
   // fetch categories & rarities from API
   useEffect(() => {
@@ -434,6 +454,7 @@ export default function GameItemsPage() {
       .then((g) => {
         setGameName(g.name)
         setStudioId(g.studio_id ?? "")
+        setMaxItems(g.limits?.max_items ?? null)
       })
       .catch(() => {
         // game failed to load — stop the skeleton
@@ -510,8 +531,31 @@ export default function GameItemsPage() {
             <h1 className="text-3xl font-bold tracking-tight">
               Item Catalogue
             </h1>
-            <p className="text-muted-foreground">
-              {total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
+            <p className="text-muted-foreground flex items-center gap-2">
+              {maxItems != null
+                ? <>
+                    <span className={total >= maxItems ? "text-destructive font-medium" : ""}>
+                      {total.toLocaleString()} / {maxItems.toLocaleString()} items
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          total >= maxItems ? "bg-destructive" : total / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min((total / maxItems) * 100, 100)}%` }}
+                      />
+                    </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
+                : total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"
+              }
             </p>
           </div>
         </div>
@@ -603,7 +647,6 @@ export default function GameItemsPage() {
                   <TableHead>Rarity</TableHead>
                   <TableHead>Stackable</TableHead>
                   <TableHead>Grid</TableHead>
-                  <TableHead>Base Stats</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -618,7 +661,23 @@ export default function GameItemsPage() {
                         {item.name}
                       </Link>
                       {item.item_code && (
-                        <div className="text-xs font-mono text-muted-foreground mt-0.5">{item.item_code}</div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Copy item code"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.item_code!)
+                              setCopiedId(item.id)
+                              setTimeout(() => setCopiedId(null), 1500)
+                            }}
+                          >
+                            {copiedId === item.id
+                              ? <Check className="h-3 w-3 text-green-500" />
+                              : <Copy className="h-3 w-3" />}
+                          </button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -640,19 +699,6 @@ export default function GameItemsPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {item.grid_width}×{item.grid_height}
-                    </TableCell>
-                    <TableCell>
-                      {Object.keys(item.base_stats ?? {}).length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(item.base_stats).map(([k, v]) => (
-                            <Badge key={k} variant="secondary" className="text-xs">
-                              {k}: {v}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild>
@@ -706,6 +752,7 @@ export default function GameItemsPage() {
           onClose={() => setShowCreate(false)}
           categories={categories}
           rarities={rarities}
+          initialCategory={createInitCategory}
         />
       )}
     </div>

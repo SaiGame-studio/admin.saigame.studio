@@ -67,9 +67,14 @@ export interface UpdateItemRequest {
 export interface GachaPoolEntry {
   item_definition_id: string
   weight: number
-  rarity: ItemRarity
+  rarity?: ItemRarity
   quantity_min: number
   quantity_max: number
+}
+
+export interface KeyRequirement {
+  item_definition_id: string
+  quantity: number
 }
 
 export interface GachaPack {
@@ -77,10 +82,8 @@ export interface GachaPack {
   studio_id: string
   game_id: string
   name: string
-  pack_type: string
-  currency_item_definition_id: string
-  cost: number
   item_pool: GachaPoolEntry[]
+  key_requirements: KeyRequirement[]
   is_enabled: boolean
   created_at?: string | number
   updated_at?: string | number
@@ -88,20 +91,16 @@ export interface GachaPack {
 
 export interface CreateGachaPackRequest {
   name: string
-  pack_type: string
-  currency_item_definition_id: string
-  cost: number
   is_enabled?: boolean
   item_pool: GachaPoolEntry[]
+  key_requirements: KeyRequirement[]
 }
 
 export interface UpdateGachaPackRequest {
   name?: string
-  pack_type?: string
-  currency_item_definition_id?: string
-  cost?: number
   is_enabled?: boolean
   item_pool?: GachaPoolEntry[]
+  key_requirements?: KeyRequirement[]
 }
 
 export interface GrantedItem {

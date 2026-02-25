@@ -16,7 +16,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: SITE_NAME,
   description: `${SITE_NAME} dashboard for managing Game Server`,
-  generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   BarChart3,
   Clock,
@@ -10,7 +11,6 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
-  Server,
   Shield,
   ShieldCheck,
   Terminal,
@@ -139,13 +139,13 @@ export function SideNav() {
         <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
           {!isCollapsed && (
             <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
-              <Server className="h-5 w-5 flex-shrink-0" />
+              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" />
               <span>{SITE_NAME}</span>
             </Link>
           )}
           {isCollapsed && (
             <div className="flex justify-center w-full">
-              <Server className="h-5 w-5 flex-shrink-0" />
+              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" />
             </div>
           )}
           <Button
@@ -211,7 +211,7 @@ export function SideNav() {
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/documentation">
+                  <Link href="/doc">
                     <FileText className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.documentation')}</span>
                   </Link>

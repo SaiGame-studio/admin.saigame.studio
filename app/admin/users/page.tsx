@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { getAllUsersAdmin, AdminUser } from "@/lib/admin-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
+import { CopyButton } from "@/components/CopyButton"
 import { AdminUserLimitsDialog } from "@/components/AdminUserLimitsDialog"
 
 export default function AllUsersPage() {
@@ -226,6 +227,7 @@ export default function AllUsersPage() {
                         <div>
                           <div className="font-medium">{user.display_name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{user.username}</div>
+                          <div className="text-xs text-muted-foreground font-mono flex items-center">{user.id}<CopyButton text={user.id} /></div>
                         </div>
                       </TableCell>
                       <TableCell>

@@ -23,6 +23,7 @@ import Link from "next/link"
 import { getAllGamesAdmin, AdminGame } from "@/lib/admin-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog"
+import { CopyButton } from "@/components/CopyButton"
 
 export default function AllGamesPage() {
   const router = useRouter()
@@ -201,7 +202,7 @@ export default function AllGamesPage() {
                     <TableRow key={game.id}>
                       <TableCell>
                         <div className="font-medium">{game.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{game.id}</div>
+                        <div className="text-xs text-muted-foreground font-mono flex items-center">{game.id}<CopyButton text={game.id} /></div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-muted-foreground max-w-xs truncate">

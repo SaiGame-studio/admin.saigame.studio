@@ -14,17 +14,20 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Coins } from "lucide-react"
 import { createTeam } from "@/lib/team-api"
 import type { Team } from "@/types/team"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
+const TEAM_COST = 10
+
 interface CreateTeamDialogProps {
   studioId: string
+  existingTeamCount?: number
   onTeamCreated: (team: Team) => void
 }
 
-export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeamDialogProps) {
+export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTeamCreated }: CreateTeamDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
@@ -47,6 +50,8 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
         name: name.trim(),
         description: description.trim() || undefined,
       })
+      // Refresh coin balance so the float text shows the deduction
+      window.dispatchEvent(new Event("wallet:refresh"))
       onTeamCreated(newTeam)
       setOpen(false)
       setName("")
@@ -85,6 +90,15 @@ export default function CreateTeamDialog({ studioId, onTeamCreated }: CreateTeam
             <DialogDescription>
               {t('team.createDesc')}
             </DialogDescription>
+            <p className="text-xs text-muted-foreground pt-1">
+              {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {TEAM_COST} coins</span>
+            </p>
+            {existingTeamCount >= 1 && (
+              <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2 mt-1">
+                <Coins className="h-3.5 w-3.5 shrink-0" />
+                <span>🪙 {TEAM_COST} coins {t('team.createCostCharge')}</span>
+              </div>
+            )}
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">

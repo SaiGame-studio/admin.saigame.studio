@@ -137,7 +137,11 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
       ) : studio ? (
         <>
           <div className="flex justify-between items-start mb-6">
-            <div className="group">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => router.push("/studios")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="group">
               <StudioNameEditable
                 studio={studio}
                 studioId={studio.id}
@@ -148,7 +152,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 studioId={studio.id}
                 onDescriptionUpdate={newDescription => setStudio(prev => prev ? { ...prev, description: newDescription } : prev)}
               />
-              <Badge className="mt-2">{studio.tier}</Badge>
+              </div>
             </div>
           </div>
 
@@ -207,7 +211,7 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   {/* Games */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -227,6 +231,30 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                         : 0}
                       className={`h-2 ${
                         studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
+                    />
+                  </div>
+                  {/* Teams */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{t('studio.teams')}</span>
+                      <span className={`text-muted-foreground ${
+                        studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams
+                          ? 'text-destructive font-semibold'
+                          : ''
+                      }`}>
+                        {studio.usage?.teams ?? 0} / {studio.limits?.max_teams ?? '∞'}
+                        {studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams && ` (${t('studio.limitReached')})`}
+                      </span>
+                    </div>
+                    <Progress
+                      value={studio.limits?.max_teams
+                        ? Math.min(((studio.usage?.teams ?? 0) / studio.limits.max_teams) * 100, 100)
+                        : 0}
+                      className={`h-2 ${
+                        studio.limits?.max_teams != null && (studio.usage?.teams ?? 0) >= studio.limits.max_teams
                           ? '[&>div]:bg-destructive'
                           : ''
                       }`}
@@ -270,8 +298,19 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
               </div>
               <CreateTeamDialog
                 studioId={studio.id}
+                existingTeamCount={studio.usage?.teams ?? teams.length}
                 onTeamCreated={(newTeam) => {
-                  setTeams([...teams, newTeam])
+                  setTeams(prev => [...prev, newTeam])
+                  // Re-fetch studio to get accurate usage/limits from API
+                  fetchStudio(params.id)
+                    .then(updated => setStudio(updated))
+                    .catch(() => {
+                      // Fallback: update locally if fetch fails
+                      setStudio(prev => prev ? {
+                        ...prev,
+                        usage: prev.usage ? { ...prev.usage, teams: (prev.usage.teams ?? 0) + 1 } : prev.usage
+                      } : prev)
+                    })
                 }}
               />
             </CardHeader>
@@ -283,20 +322,14 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                   <Skeleton className="h-8 w-24" />
                 </div>
               ) : teams.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {teams.map((team, index) => (
-                    <React.Fragment key={team.id}>
-                      <Link 
-                        href={`/teams/${team.id}`}
-                        className="inline-flex items-center gap-1 font-medium hover:text-primary transition-colors"
-                      >
-                        {team.name}
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                      {index < teams.length - 1 && (
-                        <span className="text-muted-foreground">•</span>
-                      )}
-                    </React.Fragment>
+                <div className="flex flex-wrap gap-2">
+                  {teams.map((team) => (
+                    <Link key={team.id} href={`/teams/${team.id}`}>
+                      <Button variant="outline" size="sm" className="gap-1.5 max-w-[180px]">
+                        <span className="truncate">{team.name}</span>
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      </Button>
+                    </Link>
                   ))}
                 </div>
               ) : (

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Check, Copy, Loader2, ShieldAlert, Trash2, Save } from "lucide-react"
+import { ArrowLeft, Loader2, ShieldAlert, Trash2, Save } from "lucide-react"
+import { CopyButton } from "@/components/CopyButton"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
 import {
@@ -20,7 +21,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +40,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
@@ -62,32 +61,6 @@ function getStatus(gc: GiftCode) {
   if (expiresTs && expiresTs < now) return { label: "Expired", className: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" }
   if (gc.max_uses !== -1 && gc.used_count >= gc.max_uses) return { label: "Exhausted", className: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" }
   return { label: "Active", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" }
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  function handleCopy() {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => fallback())
-    } else {
-      fallback()
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  function fallback() {
-    const el = document.createElement("textarea")
-    el.value = text
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand("copy")
-    document.body.removeChild(el)
-  }
-  return (
-    <button onClick={handleCopy} className="ml-1 text-muted-foreground hover:text-foreground transition-colors" title="Copy">
-      {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  )
 }
 
 export default function GiftCodeDetailPage() {
@@ -226,7 +199,7 @@ export default function GiftCodeDetailPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 max-w-[1600px] w-full mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -241,7 +214,6 @@ export default function GiftCodeDetailPage() {
                 <CopyButton text={gc.code} />
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
               </div>
-              <p className="text-sm text-muted-foreground">ID: {gc.id} <CopyButton text={gc.id} /></p>
             </div>
           </div>
           <AlertDialog>
@@ -269,7 +241,9 @@ export default function GiftCodeDetailPage() {
           </AlertDialog>
         </div>
 
-        <div className="mx-auto w-full max-w-3xl space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.2fr] gap-6 items-start">
+          {/* ── Left: Overview + Edit ─────────────────────────────────── */}
+          <div className="space-y-6">
           {/* Read-only info */}
           <Card>
             <CardHeader>
@@ -384,10 +358,9 @@ export default function GiftCodeDetailPage() {
               </form>
             </CardContent>
           </Card>
+          </div>
 
-          <Separator />
-
-          {/* Redemptions */}
+          {/* ── Right: Redemptions ────────────────────────────────────── */}
           <div className="space-y-3">
             <h2 className="text-lg font-semibold">{t('adminGiftCodes.redemptionsTitle')} ({redemptionsTotal})</h2>
             <Card>

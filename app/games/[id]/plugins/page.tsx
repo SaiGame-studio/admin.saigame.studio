@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
+import { CopyButton } from "@/components/CopyButton"
 
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
@@ -401,12 +402,13 @@ export default function GamePluginsPage() {
 
           {/* Stats row */}
           {game && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-border/50">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
               {([
                 { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, pending: pending?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
+                { label: "Gacha Packs", max: game.limits?.max_gacha_packs ?? null, pending: pending?.max_gacha_packs, used: game.usage?.gacha_packs, icon: "🎲" },
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -535,6 +537,7 @@ export default function GamePluginsPage() {
                         { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
                         { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                        { icon: "🎲", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -670,7 +673,7 @@ export default function GamePluginsPage() {
                         )}
                       </div>
                       <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
                         <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                         {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
@@ -742,7 +745,7 @@ export default function GamePluginsPage() {
                         )}
                       </div>
                       <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span></span>
+                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
                         <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                         {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}

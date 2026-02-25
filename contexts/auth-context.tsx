@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { getValidToken, saveToken, clearToken, isTokenExpired, getTimeUntilExpiration, refreshAccessToken } from "@/lib/auth-utils"
 import { fetchUserProfile } from "@/lib/api"
 import { safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
+import { toast } from "@/hooks/use-toast"
 
 export interface UserCapabilities {
   is_super_admin: boolean
@@ -42,6 +43,7 @@ interface AuthContextType {
   user: User | null
   login: (token: string, refreshToken?: string) => void
   logout: () => void
+  renewSession: () => Promise<boolean>
   isLoading: boolean
   timeUntilExpiration: number | null
   refreshUser: () => Promise<void>
@@ -115,6 +117,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Manually renew session using refresh token
+  const renewSession = async (): Promise<boolean> => {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      toast({
+        title: '🔄 Session renewed',
+        description: 'Your session has been successfully renewed.',
+        duration: 3000,
+      })
+      await checkAuth()
+      return true
+    }
+    toast({
+      title: 'Session expired',
+      description: 'Unable to renew session. Please log in again.',
+      variant: 'destructive',
+      duration: 4000,
+    })
+    logout()
+    return false
+  }
+
   useEffect(() => {
     // Check if user is authenticated on initial load
     checkAuth().finally(() => setIsLoading(false))
@@ -133,10 +157,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (newToken) {
             console.log('Token refreshed successfully')
+            toast({
+              title: '🔄 Session renewed',
+              description: 'Your session has been automatically renewed.',
+              duration: 3000,
+            })
             // Update authentication state
             await checkAuth()
           } else {
             console.log('Refresh token expired or invalid, logging out user')
+            toast({
+              title: 'Session expired',
+              description: 'Your session has expired. Please log in again.',
+              variant: 'destructive',
+              duration: 4000,
+            })
             logout()
           }
         } else {
@@ -177,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login")
   }
 
-  return <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, timeUntilExpiration, refreshUser }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ isAuthenticated, user, login, logout, renewSession, isLoading, timeUntilExpiration, refreshUser }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

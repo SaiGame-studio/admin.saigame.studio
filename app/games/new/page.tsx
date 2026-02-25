@@ -3,15 +3,20 @@
 import React, { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createGame } from "@/lib/game-api"
-import { fetchUserStudios } from "@/lib/studio-api"
+import { fetchUserStudios, fetchStudio } from "@/lib/studio-api"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Gamepad2, Coins } from "lucide-react"
 import { useTranslation } from '@/lib/i18n/use-translation'
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const GAME_COST = 5
 
 function NewGameForm() {
   const router = useRouter()
@@ -22,6 +27,8 @@ function NewGameForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [studioDetail, setStudioDetail] = useState<Studio | null>(null)
+  const [studioDetailLoading, setStudioDetailLoading] = useState(false)
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -63,7 +70,22 @@ function NewGameForm() {
     }
   }, [studios, searchParams])
 
-  const selectedStudio = studios.find(s => s.id === studioId)
+  // Fetch studio detail when studioId changes to get accurate limits/usage
+  useEffect(() => {
+    if (!studioId) {
+      setStudioDetail(null)
+      return
+    }
+    let cancelled = false
+    setStudioDetailLoading(true)
+    fetchStudio(studioId)
+      .then(data => { if (!cancelled) setStudioDetail(data) })
+      .catch(() => { if (!cancelled) setStudioDetail(null) })
+      .finally(() => { if (!cancelled) setStudioDetailLoading(false) })
+    return () => { cancelled = true }
+  }, [studioId])
+
+  const selectedStudio = studioDetail ?? studios.find(s => s.id === studioId)
   const studioLimitReached = !!(selectedStudio?.limits?.max_games != null && (selectedStudio.usage?.games ?? 0) >= selectedStudio.limits.max_games)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,15 +98,13 @@ function NewGameForm() {
       setError("Please select a studio")
       return
     }
-    if (studioLimitReached) {
-      setError(`Game limit reached for this studio (${selectedStudio?.usage?.games ?? 0}/${selectedStudio?.limits?.max_games}). Upgrade your plan to create more games.`)
-      return
-    }
     try {
       setSubmitting(true)
       setError(null)
       const token = localStorage.getItem("token") || ""
       const newGame = await createGame(studioId, { name, status: "development" }, token)
+      // Refresh coin balance so the float text shows the deduction (if any)
+      window.dispatchEvent(new Event("wallet:refresh"))
       if (newGame && newGame.id) {
         router.push(`/games/${newGame.id}`)
       } else {
@@ -105,12 +125,53 @@ function NewGameForm() {
           {t('common.back')}
         </Button>
       </div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('game.createNew')}</h1>
           <p className="">{t('game.addToStudio')}</p>
         </div>
       </div>
+
+      {/* Game limit / usage indicator */}
+      {(selectedStudio || studioDetailLoading) && studioId && (
+        <div className="max-w-2xl mx-auto mb-6 rounded-md border p-3 bg-muted/30 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Gamepad2 className="h-3.5 w-3.5" />
+              Games usage
+            </span>
+            {studioDetailLoading ? (
+              <Skeleton className="h-5 w-16" />
+            ) : selectedStudio?.limits?.max_games != null ? (
+              <Badge variant={studioLimitReached ? "destructive" : (selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games >= 0.8 ? "secondary" : "outline"}>
+                {selectedStudio.usage?.games ?? 0} / {selectedStudio.limits.max_games}
+              </Badge>
+            ) : (
+              <Badge variant="outline">{selectedStudio?.usage?.games ?? 0} / ∞</Badge>
+            )}
+          </div>
+          {studioDetailLoading ? (
+            <Skeleton className="h-1.5 w-full" />
+          ) : selectedStudio?.limits?.max_games != null && (
+            <Progress
+              value={Math.min(((selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games) * 100, 100)}
+              className={`h-1.5 ${studioLimitReached ? "[&>div]:bg-destructive" : (selectedStudio.usage?.games ?? 0) / selectedStudio.limits.max_games >= 0.8 ? "[&>div]:bg-yellow-500" : ""}`}
+            />
+          )}
+          {/* Coin cost hint */}
+          {!studioDetailLoading && (
+            <p className="text-xs text-muted-foreground">
+              The first game is <span className="text-green-500 font-medium">free</span>, additional games cost <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
+            </p>
+          )}
+          {!studioDetailLoading && (selectedStudio?.usage?.games ?? 0) >= 1 && (
+            <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2">
+              <Coins className="h-3.5 w-3.5 shrink-0" />
+              <span>🪙 {GAME_COST} coins will be charged for this game</span>
+            </div>
+          )}
+        </div>
+      )}
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>{t('game.details')}</CardTitle>
@@ -119,11 +180,6 @@ function NewGameForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{error}</div>}
-            {studioLimitReached && (
-              <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-                This studio has reached its game limit ({selectedStudio?.usage?.games ?? 0}/{selectedStudio?.limits?.max_games}). Upgrade your plan to create more games.
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="studio">{t('common.studio')}</Label>
               <Select value={studioId} onValueChange={setStudioId} disabled={loading || studios.length === 0}>
@@ -134,8 +190,8 @@ function NewGameForm() {
                   {studios.map((studio) => {
                     const atLimit = studio.limits?.max_games != null && (studio.usage?.games ?? 0) >= studio.limits.max_games
                     return (
-                      <SelectItem key={studio.id} value={studio.id}>
-                        {studio.name}{atLimit ? ` (limit reached: ${studio.usage?.games}/${studio.limits?.max_games})` : studio.limits?.max_games != null ? ` (${studio.usage?.games ?? 0}/${studio.limits.max_games})` : ''}
+                      <SelectItem key={studio.id} value={studio.id} disabled={atLimit}>
+                        {studio.name}{atLimit ? ` (limit reached)` : studio.limits?.max_games != null ? ` (${studio.usage?.games ?? 0}/${studio.limits.max_games})` : ''}
                       </SelectItem>
                     )
                   })}
@@ -157,7 +213,7 @@ function NewGameForm() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={submitting || loading || studios.length === 0 || studioLimitReached}>
+            <Button type="submit" disabled={submitting || loading || studios.length === 0}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('game.create')}
             </Button>

@@ -85,8 +85,7 @@ export function getValidToken(): string | null {
       
       // Check if token is expired
       if (Date.now() >= tokenData.expiresAt) {
-        console.log('Token has expired')
-        clearToken()
+        console.log('Token has expired, refresh token preserved for renewal')
         return null
       }
       
@@ -99,8 +98,7 @@ export function getValidToken(): string | null {
       // Try to check JWT expiration
       const expiresAt = getTokenExpiration(token)
       if (expiresAt && Date.now() >= expiresAt) {
-        console.log('Legacy token has expired')
-        clearToken()
+        console.log('Legacy token has expired, refresh token preserved for renewal')
         return null
       }
       
