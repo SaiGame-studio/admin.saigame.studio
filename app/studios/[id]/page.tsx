@@ -300,11 +300,17 @@ export default function StudioDetailsPage({ params }: { params: { id: string } }
                 studioId={studio.id}
                 existingTeamCount={studio.usage?.teams ?? teams.length}
                 onTeamCreated={(newTeam) => {
-                  setTeams([...teams, newTeam])
-                  setStudio(prev => prev ? {
-                    ...prev,
-                    usage: prev.usage ? { ...prev.usage, teams: (prev.usage.teams ?? 0) + 1 } : prev.usage
-                  } : prev)
+                  setTeams(prev => [...prev, newTeam])
+                  // Re-fetch studio to get accurate usage/limits from API
+                  fetchStudio(params.id)
+                    .then(updated => setStudio(updated))
+                    .catch(() => {
+                      // Fallback: update locally if fetch fails
+                      setStudio(prev => prev ? {
+                        ...prev,
+                        usage: prev.usage ? { ...prev.usage, teams: (prev.usage.teams ?? 0) + 1 } : prev.usage
+                      } : prev)
+                    })
                 }}
               />
             </CardHeader>

@@ -50,6 +50,8 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
         name: name.trim(),
         description: description.trim() || undefined,
       })
+      // Refresh coin balance so the float text shows the deduction
+      window.dispatchEvent(new Event("wallet:refresh"))
       onTeamCreated(newTeam)
       setOpen(false)
       setName("")

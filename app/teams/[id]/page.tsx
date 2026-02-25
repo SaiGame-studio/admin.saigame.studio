@@ -21,6 +21,7 @@ import { AddGameToTeamDialog } from "@/components/AddGameToTeamDialog"
 import { RemoveGameFromTeamDialog } from "@/components/RemoveGameFromTeamDialog"
 import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamNameEditable"
 import { CopyButton } from "@/components/CopyButton"
+import { DeleteTeamDialog } from "@/components/DeleteTeamDialog"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const [team, setTeam] = useState<Team | null>(null)
@@ -186,6 +187,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 {team.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
+            <DeleteTeamDialog team={team} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
