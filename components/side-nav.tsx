@@ -115,25 +115,16 @@ export function SideNav() {
   }
 
   return (
-    <>
-      <style jsx global>{`
-        main {
-          margin-left: var(--sidebar-width);
-          transition: margin-left 0.2s ease-in-out;
-        }
-        .sidebar-container {
-          height: 100vh;
-          min-height: 100vh;
-          max-height: 100vh;
-          position: sticky;
-          top: 0;
-        }
-      `}</style>
-      <div
+    <div
         ref={sidebarRef}
-        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col sidebar-container"
+        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col"
         style={{ 
-          width: `${sidebarWidth}px`
+          width: `${sidebarWidth}px`,
+          height: "100vh",
+          minHeight: "100vh",
+          maxHeight: "100vh",
+          position: "sticky",
+          top: 0,
         }}
       >
         <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
@@ -299,7 +290,6 @@ export function SideNav() {
             aria-hidden="true"
           />
         )}
-      </div>
-    </>
+    </div>
   )
 }

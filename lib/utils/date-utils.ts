@@ -15,9 +15,30 @@ export function getUserTimezone(): string {
 /**
  * Formats a Unix timestamp (seconds) to DD/MM/YYYY HH:mm:ss in the user's timezone.
  */
-export function formatTimestamp(timestamp: number, timeZone?: string): string {
+export function formatTimestamp(timestamp: number | null | undefined, timeZone?: string): string {
+  if (timestamp == null || !Number.isFinite(timestamp) || timestamp <= 0) return '-'
   const tz = timeZone ?? getUserTimezone()
   const date = new Date(timestamp * 1000)
+  if (isNaN(date.getTime())) return '-'
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  const p: Record<string, string> = {}
+  for (const { type, value } of parts) p[type] = value
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`
+}
+
+/**
+ * Formats an ISO date string to DD/MM/YYYY HH:mm:ss in the user's timezone.
+ */
+export function formatISODate(iso: string | null | undefined, timeZone?: string): string {
+  if (!iso) return '-'
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return '-'
+  const tz = timeZone ?? getUserTimezone()
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: tz,
     day: '2-digit', month: '2-digit', year: 'numeric',

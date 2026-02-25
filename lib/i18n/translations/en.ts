@@ -30,6 +30,7 @@ export const en = {
     previous: "Previous",
     submit: "Submit",
     reset: "Reset",
+    refresh: "Refresh",
     confirm: "Confirm",
     success: "Success",
     warning: "Warning",
@@ -144,7 +145,17 @@ export const en = {
     noGamesInStudio: "No games found for this studio.",
     createFirstGame: "Create Your First Game",
     notFound: "Not Found",
-    notFoundDesc: "The requested studio could not be found."
+    notFoundDesc: "The requested studio could not be found.",
+    members: "Members",
+    membersInStudio: "Members belonging to this studio",
+    noMembers: "No members found for this studio.",
+    removeMember: "Remove Member",
+    removeMemberConfirm: "Are you sure you want to remove this member from the studio?",
+    removeMemberSuccess: "Member removed successfully.",
+    removeMemberError: "Failed to remove member.",
+    memberEmail: "Email",
+    memberRole: "Role",
+    memberJoinedAt: "Joined At"
   },
   games: {
     title: "Games",

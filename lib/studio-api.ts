@@ -1,6 +1,22 @@
 import type {ApiResponse, Studio} from "@/types/studio"
 import type {Game} from "@/types/game"
 import type {Team} from "@/types/team"
+
+export interface StudioMember {
+    id: string
+    studio_id: string
+    user_id: string
+    is_owner: boolean
+    is_active: boolean
+    invited_by?: string
+    invited_at?: string
+    joined_at?: string
+    created_at: string
+    updated_at: string
+    email?: string
+    display_name?: string
+    teams?: { id: string; name: string }[]
+}
 import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils"
 import { api } from "@/lib/api-client"
 
@@ -114,4 +130,19 @@ export async function fetchStudioGames(studioId: string): Promise<Game[]> {
 export async function fetchStudioTeams(studioId: string): Promise<Team[]> {
     const data = await api.get(`/api/v1/studios/${studioId}/teams`)
     return Array.isArray(data) ? data : []
+}
+
+/**
+ * Fetches all members of a specific studio
+ */
+export async function fetchStudioMembers(studioId: string): Promise<StudioMember[]> {
+    const data = await api.get(`/api/v1/studios/${studioId}/members`)
+    return Array.isArray(data) ? data : []
+}
+
+/**
+ * Removes a member from a studio
+ */
+export async function removeStudioMember(studioId: string, userId: string): Promise<void> {
+    await api.delete(`/api/v1/studios/${studioId}/members/${userId}`)
 }
