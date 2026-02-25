@@ -9,6 +9,16 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle, Plus, X, ExternalLink, Lock } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { useAuth } from "@/contexts/auth-context"
@@ -21,6 +31,7 @@ export default function StudiosPage() {
   const [newStudioName, setNewStudioName] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
   const { t } = useTranslation()
   const { user } = useAuth()
 
@@ -47,7 +58,7 @@ export default function StudiosPage() {
     loadStudios()
   }, [])
 
-  async function handleCreateStudio() {
+  function handleCreateStudio() {
     if (!newStudioName.trim()) {
       setCreateError("Please enter a studio name");
       return;
@@ -56,6 +67,11 @@ export default function StudiosPage() {
       setCreateError(`You have reached your studio limit (${usedStudios} / ${maxStudios}).`);
       return;
     }
+    setCreateError(null);
+    setShowConfirm(true);
+  }
+
+  async function doCreateStudio() {
     setCreating(true);
     setCreateError(null);
     try {
@@ -71,6 +87,24 @@ export default function StudiosPage() {
   }
 
   return (
+    <>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm studio creation</AlertDialogTitle>
+          <AlertDialogDescription>
+            Creating studio <span className="font-semibold text-foreground">&ldquo;{newStudioName}&rdquo;</span> will cost{" "}
+            <span className="font-semibold text-foreground">🪙 {STUDIO_COST} coins</span>. Do you want to proceed?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={doCreateStudio}>
+            Confirm & Pay {STUDIO_COST} coins
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -112,7 +146,7 @@ export default function StudiosPage() {
             </div>
             {!atLimit && (
               <p className="text-xs text-muted-foreground">
-                {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
+                {t('studio.createCostHint')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
               </p>
             )}
           </div>
@@ -220,5 +254,6 @@ export default function StudiosPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

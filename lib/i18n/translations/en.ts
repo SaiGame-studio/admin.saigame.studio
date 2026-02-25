@@ -120,6 +120,7 @@ export const en = {
     createCostHintPt1: "1st studio is ",
     createCostHintFree: "free",
     createCostHintPt2: ", additional studios cost ",
+    createCostHint: "Creating a studio costs ",
     noStudios: "You don't have any studios yet",
     details: "Studio Details",
     gamesCount: "Games Count",

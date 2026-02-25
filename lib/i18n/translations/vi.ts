@@ -120,6 +120,7 @@ export const vi = {
     createCostHintPt1: "Studio đầu tiên ",
     createCostHintFree: "miễn phí",
     createCostHintPt2: ", từ studio thứ 2 trở đi mất ",
+    createCostHint: "Tạo studio tốn ",
     noStudios: "Bạn chưa có Studio nào",
     details: "Chi tiết Studio",
     gamesCount: "Số lượng game",

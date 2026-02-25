@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Progress } from "@/components/ui/progress"
 import { AlertCircle, ArrowLeft, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
@@ -103,6 +104,12 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     fetchTeamMembers(params.id)
       .then(data => setMembers(data))
       .catch(err => console.error("Failed to reload members:", err))
+    // Refresh studio usage so slot counter stays accurate
+    if (team?.studio_id) {
+      fetchStudio(team.studio_id)
+        .then(data => setStudio(data))
+        .catch(err => console.error("Failed to refresh studio:", err))
+    }
   }
 
   const handleGamesAdded = () => {
@@ -298,12 +305,36 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 <CardTitle>Members</CardTitle>
                 <CardDescription>Members in this team</CardDescription>
               </div>
-              <AddMemberDialog
-                teamId={team.id}
-                onMemberAdded={handleMemberAdded}
-                studioMembersUsage={studio?.usage?.total_members}
-                studioMembersLimit={studio?.limits?.max_total_members}
-              />
+              <div className="flex items-center gap-3">
+                {studio?.limits?.max_total_members != null && studio?.usage?.total_members != null && (
+                  <div className="w-44 space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Studio slots</span>
+                      <span className={`font-semibold ${
+                        studio.usage.total_members >= studio.limits.max_total_members
+                          ? 'text-destructive'
+                          : ''
+                      }`}>
+                        {studio.usage.total_members} / {studio.limits.max_total_members}
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min((studio.usage.total_members / studio.limits.max_total_members) * 100, 100)}
+                      className={`h-1.5 ${
+                        studio.usage.total_members >= studio.limits.max_total_members
+                          ? '[&>div]:bg-destructive'
+                          : ''
+                      }`}
+                    />
+                  </div>
+                )}
+                <AddMemberDialog
+                  teamId={team.id}
+                  onMemberAdded={handleMemberAdded}
+                  studioMembersUsage={studio?.usage?.total_members}
+                  studioMembersLimit={studio?.limits?.max_total_members}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               {membersLoading ? (
