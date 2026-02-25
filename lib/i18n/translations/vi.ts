@@ -28,6 +28,7 @@ export const vi = {
     previous: "Trước đó",
     submit: "Gửi",
     reset: "Đặt lại",
+    refresh: "Làm mới",
     confirm: "Xác nhận",
     success: "Thành công",
     warning: "Cảnh báo",
@@ -144,7 +145,17 @@ export const vi = {
     noGamesInStudio: "Không tìm thấy game nào trong Studio này.",
     createFirstGame: "Tạo game đầu tiên",
     notFound: "Không tìm thấy",
-    notFoundDesc: "Không tìm thấy Studio được yêu cầu."
+    notFoundDesc: "Không tìm thấy Studio được yêu cầu.",
+    members: "Thành Viên",
+    membersInStudio: "Thành viên thuộc Studio này",
+    noMembers: "Không tìm thấy thành viên nào trong Studio này.",
+    removeMember: "Xóa Thành Viên",
+    removeMemberConfirm: "Bạn có chắc muốn xóa thành viên này khỏi Studio không?",
+    removeMemberSuccess: "Đã xóa thành viên thành công.",
+    removeMemberError: "Không thể xóa thành viên.",
+    memberEmail: "Email",
+    memberRole: "Vai Trò",
+    memberJoinedAt: "Ngày Tham Gia"
   },
   games: {
     title: "Game",

@@ -30,6 +30,7 @@ export const ja = {
     previous: "前",
     submit: "送信",
     reset: "リセット",
+    refresh: "更新",
     confirm: "確認",
     success: "成功",
     warning: "警告",
@@ -144,7 +145,17 @@ export const ja = {
     noGamesInStudio: "このスタジオにゲームが見つかりません。",
     createFirstGame: "最初のゲームを作成",
     notFound: "見つかりません",
-    notFoundDesc: "リクエストされたスタジオが見つかりませんでした。"
+    notFoundDesc: "リクエストされたスタジオが見つかりませんでした。",
+    members: "メンバー",
+    membersInStudio: "このスタジオのメンバー",
+    noMembers: "このスタジオにメンバーが見つかりません。",
+    removeMember: "メンバーを削除",
+    removeMemberConfirm: "このメンバーをスタジオから削除してもよろしいですか？",
+    removeMemberSuccess: "メンバーを正常に削除しました。",
+    removeMemberError: "メンバーの削除に失敗しました。",
+    memberEmail: "メール",
+    memberRole: "ロール",
+    memberJoinedAt: "参加日"
   },
   games: {
     title: "ゲーム",

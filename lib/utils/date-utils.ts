@@ -15,9 +15,11 @@ export function getUserTimezone(): string {
 /**
  * Formats a Unix timestamp (seconds) to DD/MM/YYYY HH:mm:ss in the user's timezone.
  */
-export function formatTimestamp(timestamp: number, timeZone?: string): string {
+export function formatTimestamp(timestamp: number | null | undefined, timeZone?: string): string {
+  if (timestamp == null || !Number.isFinite(timestamp) || timestamp <= 0) return '-'
   const tz = timeZone ?? getUserTimezone()
   const date = new Date(timestamp * 1000)
+  if (isNaN(date.getTime())) return '-'
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: tz,
     day: '2-digit', month: '2-digit', year: 'numeric',
