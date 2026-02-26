@@ -42,7 +42,7 @@ export function GameNavButtons({ gameId, active }: GameNavButtonsProps) {
       <Button asChild variant={btn("gacha")} className="flex items-center gap-2">
         <Link href={`/games/${gameId}/gacha`}>
           <Dices className="h-4 w-4" />
-          Loot Box
+          Gacha
         </Link>
       </Button>
       <Button asChild variant={btn("mailbox")} className="flex items-center gap-2">

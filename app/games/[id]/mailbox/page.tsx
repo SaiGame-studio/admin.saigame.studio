@@ -16,7 +16,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, Breadc
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
-import { fetchGameItemProfiles } from "@/lib/item-profile-api"
+import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
@@ -60,10 +60,11 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       }
     ]
   })
-  const [itemProfiles, setItemProfiles] = useState<any[]>([])
-  const [itemProfilesLoading, setItemProfilesLoading] = useState(false)
   const [openItemDropdown, setOpenItemDropdown] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Use the caching hook for item profiles
+  const { itemProfiles, loading: itemProfilesLoading, error, loadItemProfiles, clearCache } = useItemProfilesCache(gameId)
 
   // Check for userId in URL parameters and auto-fill the form
   useEffect(() => {
@@ -76,27 +77,10 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     }
   }, [searchParams, form.receiver_id])
 
-  // Fetch item profiles for the game
-  const loadItemProfiles = async (name?: string) => {
-    setItemProfilesLoading(true)
-    try {
-      const profiles = await fetchGameItemProfiles(gameId, name)
-      setItemProfiles(profiles)
-    } catch (error) {
-      console.error("Failed to fetch item profiles:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load item profiles",
-        variant: "destructive"
-      })
-    } finally {
-      setItemProfilesLoading(false)
-    }
-  }
-
+  // Clear cache when component mounts (user re-enters the page)
   useEffect(() => {
-    loadItemProfiles()
-  }, [gameId, toast])
+    clearCache()
+  }, [gameId, clearCache])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -275,6 +259,16 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                 />
               </div>
             </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="space-y-2">
+                <Label className="text-red-600">Error Loading Items</Label>
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
 
             {/* Attachments */}
             <div className="space-y-4">
