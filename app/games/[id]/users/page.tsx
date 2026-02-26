@@ -1,4 +1,5 @@
-"use client"
+
+"use client";
 
 import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { formatTimestamp } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft, Hammer } from "lucide-react";
+import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft, Hammer, Eye, Mail } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -271,8 +272,15 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                     <span>{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/games/${gameId}/users/${item.id}`}>{t('common.viewDetails')}</Link>
+                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
+                      <Link href={`/games/${gameId}/users/${item.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
+                      <Link href={`/games/${gameId}/mailbox?userId=${item.user_id}`}>
+                        <Mail className="h-4 w-4" />
+                      </Link>
                     </Button>
                   </div>
                 </div>

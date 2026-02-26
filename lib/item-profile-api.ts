@@ -22,7 +22,7 @@ export interface ItemProfile {
   created_at: number
 }
 
-export async function fetchGameItemProfiles(gameId: string): Promise<ItemProfile[]> {
+export async function fetchGameItemProfiles(gameId: string, name?: string): Promise<ItemProfile[]> {
   const token = localStorage.getItem("token")
 
   if (!token) {
@@ -30,15 +30,27 @@ export async function fetchGameItemProfiles(gameId: string): Promise<ItemProfile
   }
 
   if (!API_URL) throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
-  const res = await fetch(`${API_URL}/api/games/${gameId}/item-profiles`, {
+  
+  // Build query parameters
+  const params = new URLSearchParams({
+    limit: '50',
+    offset: '0'
+  })
+  
+  if (name && name.trim()) {
+    params.set('name', name.trim())
+  }
+  
+  const res = await fetch(`${API_URL}/api/v1/games/${gameId}/items?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
   })
   if (!res.ok) throw new Error("Failed to fetch item profiles")
-  const data: ApiResponse<ItemProfile[]> = await res.json()
-  return data.data || []
+  const data = await res.json()
+  // Transform the response to match ItemProfile interface
+  return data.items || []
 }
 
 export async function createItemProfile(gameId: string, profileData: { name: string; code_name?: string; type?: string; level_start?: number; level_max?: number; stack_limit?: number; custom_data?: Record<string, any> }) {

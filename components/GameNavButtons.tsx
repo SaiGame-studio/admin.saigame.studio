@@ -1,11 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { Store, Users, BookOpen, Dices } from "lucide-react"
+import { Store, Users, BookOpen, Dices, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 
-type GameNavSection = "shops" | "users" | "items" | "gacha"
+type GameNavSection = "shops" | "users" | "items" | "gacha" | "mailbox"
 
 interface GameNavButtonsProps {
   gameId: string
@@ -43,6 +43,12 @@ export function GameNavButtons({ gameId, active }: GameNavButtonsProps) {
         <Link href={`/games/${gameId}/gacha`}>
           <Dices className="h-4 w-4" />
           Loot Box
+        </Link>
+      </Button>
+      <Button asChild variant={btn("mailbox")} className="flex items-center gap-2">
+        <Link href={`/games/${gameId}/mailbox`}>
+          <Mail className="h-4 w-4" />
+          Mailbox
         </Link>
       </Button>
     </div>
