@@ -39,7 +39,7 @@ export default function StudiosPage() {
   const usedStudios = user?.usage?.studios ?? 0
   const atLimit = maxStudios !== null && usedStudios >= maxStudios
   const STUDIO_COST = 50
-  const isFirstStudio = usedStudios === 0
+  const isFirstStudio = studios.length === 0
 
   useEffect(() => {
     async function loadStudios() {
@@ -58,7 +58,7 @@ export default function StudiosPage() {
     loadStudios()
   }, [])
 
-  function handleCreateStudio() {
+  async function handleCreateStudio() {
     if (!newStudioName.trim()) {
       setCreateError("Please enter a studio name");
       return;
@@ -68,6 +68,10 @@ export default function StudiosPage() {
       return;
     }
     setCreateError(null);
+    if (isFirstStudio) {
+      await doCreateStudio();
+      return;
+    }
     setShowConfirm(true);
   }
 
@@ -146,7 +150,7 @@ export default function StudiosPage() {
             </div>
             {!atLimit && (
               <p className="text-xs text-muted-foreground">
-                {t('studio.createCostHint')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
+                {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
               </p>
             )}
           </div>

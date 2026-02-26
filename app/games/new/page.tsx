@@ -109,7 +109,7 @@ function NewGameForm() {
       setError("Please select a studio")
       return
     }
-    if (studioLimitReached) {
+    if ((selectedStudio?.usage?.games ?? 0) >= 1) {
       setShowConfirm(true)
       return
     }
@@ -143,8 +143,8 @@ function NewGameForm() {
         <AlertDialogHeader>
           <AlertDialogTitle>Confirm game creation</AlertDialogTitle>
           <AlertDialogDescription>
-            This studio has reached its game limit. Creating{" "}
-            <span className="font-semibold text-foreground">&ldquo;{name}&rdquo;</span> will cost an extra{" "}
+            Creating{" "}
+            <span className="font-semibold text-foreground">&ldquo;{name}&rdquo;</span> will cost{" "}
             <span className="font-semibold text-foreground">🪙 {GAME_COST} coins</span>. Do you want to proceed?
           </AlertDialogDescription>
         </AlertDialogHeader>
