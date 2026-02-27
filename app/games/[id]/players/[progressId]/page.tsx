@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, Box, Coins, Loader2, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
+import { ArrowLeft, Archive, Box, Coins, Eye, Loader2, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -56,7 +56,6 @@ export default function GameUserProgressDetailPage({
   const [containersHasMore, setContainersHasMore] = useState(false)
   const [containersOffset, setContainersOffset] = useState(0)
   const [containersType, setContainersType] = useState<"" | "inventory" | "shulker_box">("")
-  const [containersIncludeDeleted, setContainersIncludeDeleted] = useState(false)
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
 
@@ -123,11 +122,9 @@ export default function GameUserProgressDetailPage({
         limit: CONTAINERS_LIMIT,
         offset: containersOffset,
         type: containersType || undefined,
-        include_deleted: containersIncludeDeleted || undefined,
       })
       setContainers(res.containers ?? [])
       setContainersHasMore(res.has_more ?? false)
-      // API doesn't return total_count; derive from offset + current page
       setContainersTotal(
         res.has_more
           ? containersOffset + (res.containers?.length ?? 0) + 1
@@ -138,7 +135,7 @@ export default function GameUserProgressDetailPage({
     } finally {
       setContainersLoading(false)
     }
-  }, [progressId, containersOffset, containersType, containersIncludeDeleted])
+  }, [progressId, containersOffset, containersType])
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -521,19 +518,6 @@ export default function GameUserProgressDetailPage({
                 <option value="inventory">inventory</option>
                 <option value="shulker_box">shulker_box</option>
               </select>
-              {/* Include deleted toggle */}
-              <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  className="accent-primary"
-                  checked={containersIncludeDeleted}
-                  onChange={(e) => {
-                    setContainersIncludeDeleted(e.target.checked)
-                    setContainersOffset(0)
-                  }}
-                />
-                Show deleted
-              </label>
               <Button variant="outline" size="icon" onClick={loadContainers} disabled={containersLoading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${containersLoading ? "animate-spin" : ""}`} />
               </Button>
@@ -566,45 +550,63 @@ export default function GameUserProgressDetailPage({
                       <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Slots</TableHead>
-                      <TableHead className="text-right">Items</TableHead>
+                      <TableHead className="text-right">Grid</TableHead>
+                      <TableHead>Portable</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Updated</TableHead>
-                      <TableHead>Deleted</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {containers.map((c) => (
-                      <TableRow key={c.id} className={c.deleted_at ? "opacity-50" : ""}>
+                      <TableRow key={c.id}>
                         <TableCell className="font-mono text-xs">
                           <span className="flex items-center gap-0.5">
                             {c.id.slice(0, 8)}…
                             <CopyButton text={c.id} size="h-3 w-3" />
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm">{c.name || "—"}</TableCell>
+                        <TableCell className="text-sm">{c.definition?.name || "—"}</TableCell>
                         <TableCell>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${
-                            c.type === "inventory"
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize ${
+                            c.container_type === "inventory"
                               ? "bg-blue-500/10 text-blue-400 border-blue-400/30"
-                              : c.type === "shulker_box"
+                              : c.container_type === "shulker_box"
                               ? "bg-purple-500/10 text-purple-400 border-purple-400/30"
                               : "bg-muted text-muted-foreground border-border"
                           }`}>
-                            <Archive className="h-3 w-3" />
-                            {c.type}
+                            <Archive className="h-3 w-3 shrink-0" />
+                            {c.container_type || "—"}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right text-sm">{c.slot_count ?? "—"}</TableCell>
-                        <TableCell className="text-right text-sm">{c.items_count ?? "—"}</TableCell>
+                        <TableCell className="text-right text-sm font-mono">
+                          {c.definition ? `${c.definition.grid_cols}×${c.definition.grid_rows}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {c.definition == null ? "—" : c.definition.is_portable
+                            ? <span className="text-green-500">Yes</span>
+                            : <span className="text-muted-foreground">No</span>}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.created_at ? formatISODate(c.created_at) : "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.updated_at ? formatISODate(c.updated_at) : "—"}</TableCell>
-                        <TableCell className="text-sm">
-                          {c.deleted_at ? (
-                            <span className="text-destructive text-xs">{formatISODate(c.deleted_at)}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              const q = new URLSearchParams()
+                              if (c.definition?.name) q.set("def_name", c.definition.name)
+                              if (c.definition?.grid_cols) q.set("def_cols", String(c.definition.grid_cols))
+                              if (c.definition?.grid_rows) q.set("def_rows", String(c.definition.grid_rows))
+                              if (c.definition?.is_portable != null) q.set("def_portable", c.definition.is_portable ? "1" : "0")
+                              if (c.container_type) q.set("ctype", c.container_type)
+                              const qs = q.toString()
+                              router.push(`/games/${gameId}/players/${progressId}/containers/${c.id}${qs ? `?${qs}` : ""}`)
+                            }}
+                            title="View items"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
