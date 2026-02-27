@@ -673,6 +673,7 @@ export default function GameItemsPage() {
   const [gameName, setGameName] = useState("")
   const [studioId, setStudioId] = useState("")
   const [maxItems, setMaxItems] = useState<number | null>(null)
+  const [itemUsage, setItemUsage] = useState<number | null>(null)
   const [items, setItems] = useState<ItemDefinition[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -748,19 +749,23 @@ export default function GameItemsPage() {
       .catch(() => {})
   }, [])
 
-  // load game info once
-  useEffect(() => {
-    getGame(gameId)
-      .then((g) => {
-        setGameName(g.name)
-        setStudioId(g.studio_id ?? "")
-        setMaxItems(g.limits?.max_items ?? null)
-      })
-      .catch(() => {
-        // game failed to load — stop the skeleton
-        setLoading(false)
-      })
+  // load game info — also used to refresh usage after mutations
+  const loadGameInfo = useCallback(async () => {
+    try {
+      const g = await getGame(gameId)
+      setGameName(g.name)
+      setStudioId(g.studio_id ?? "")
+      setMaxItems(g.limits?.max_items ?? null)
+      setItemUsage(g.usage?.items ?? null)
+    } catch {
+      // game failed to load — stop the skeleton
+      setLoading(false)
+    }
   }, [gameId])
+
+  useEffect(() => {
+    loadGameInfo()
+  }, [loadGameInfo])
 
   const fetchItems = useCallback(async () => {
     if (!studioId) return
@@ -830,6 +835,7 @@ export default function GameItemsPage() {
       toast({ title: "Container definition deleted" })
       setDeletingContainer(null)
       fetchContainerDefs()
+      loadGameInfo()
     } catch (err: any) {
       if (err?.status === 403) {
         toast({ variant: "destructive", title: "Cannot delete", description: "System inventory containers cannot be deleted." })
@@ -882,16 +888,18 @@ export default function GameItemsPage() {
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               {maxItems != null
-                ? <>
-                    <span className={total >= maxItems ? "text-destructive font-medium" : ""}>
-                      {total.toLocaleString()} / {maxItems.toLocaleString()} items
+                ? (() => {
+                    const used = itemUsage ?? total
+                    return <>
+                    <span className={used >= maxItems ? "text-destructive font-medium" : ""}>
+                      {used.toLocaleString()} / {maxItems.toLocaleString()} items
                     </span>
                     <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                       <span
                         className={`block h-full rounded-full transition-all ${
-                          total >= maxItems ? "bg-destructive" : total / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
+                          used >= maxItems ? "bg-destructive" : used / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
                         }`}
-                        style={{ width: `${Math.min((total / maxItems) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((used / maxItems) * 100, 100)}%` }}
                       />
                     </span>
                     <Link
@@ -903,6 +911,7 @@ export default function GameItemsPage() {
                       <Hammer className="h-3.5 w-3.5" />
                     </Link>
                   </>
+                  })()
                 : total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"
               }
             </p>
@@ -921,8 +930,27 @@ export default function GameItemsPage() {
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Item Definitions</h2>
+              <p className="text-sm text-muted-foreground">
+                {total > 0 ? `${total.toLocaleString()} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="icon" onClick={fetchItems} title="Refresh">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => setShowCreate(true)} disabled={!studioId}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Item
+              </Button>
+            </div>
+          </div>
+
           {/* Filter bar */}
-          <Card className="mb-4">
+          <Card>
             <CardContent className="pt-4 pb-3">
               <div className="flex flex-wrap gap-3 items-center">
                 <div className="relative flex-1 min-w-[180px]">
@@ -962,16 +990,6 @@ export default function GameItemsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="ml-auto flex gap-2 items-center">
-                  <div className="w-px h-6 bg-border" />
-                  <Button variant="outline" size="icon" onClick={fetchItems} title="Refresh">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button onClick={() => setShowCreate(true)} disabled={!studioId}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Item
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -1260,7 +1278,7 @@ export default function GameItemsPage() {
       <CreateContainerDefinitionDialog
         open={showCreateContainer}
         gameId={gameId}
-        onCreated={fetchContainerDefs}
+        onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
         onClose={() => setShowCreateContainer(false)}
       />
 
