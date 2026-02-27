@@ -864,7 +864,7 @@ export default function GameItemsPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span>Item Catalogue</span>
+              <span>Items - Containers</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -915,10 +915,10 @@ export default function GameItemsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="catalogue">Item Catalogue</TabsTrigger>
-          <TabsTrigger value="containers">Containers</TabsTrigger>
-        </TabsList>
+          <TabsList>
+            <TabsTrigger value="catalogue">Items</TabsTrigger>
+            <TabsTrigger value="containers">Containers</TabsTrigger>
+          </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
           {/* Filter bar */}
@@ -928,7 +928,7 @@ export default function GameItemsPage() {
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    className="pl-8"
+                    className="pl-8 border-none"
                     placeholder="Search name…"
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
