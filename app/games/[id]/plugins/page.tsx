@@ -307,7 +307,7 @@ export default function GamePluginsPage() {
   const subs = gamePlugins?.subscriptions ?? []
   const activeSubs_ = subs.filter((s) => !s.subscription.is_revoked)
   const historySubs = subs.filter((s) => s.subscription.is_revoked)
-  const totalMonthlyCost = activeSubs_.reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
+  const totalMonthlyCost = activeSubs_.filter((s) => !s.is_cancelled).reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
   activeSubs_.forEach(({ subscription, plugin }) => {
     if (!subsByPluginId[plugin.id]) subsByPluginId[plugin.id] = []
@@ -408,7 +408,6 @@ export default function GamePluginsPage() {
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
-                { label: "Gacha Packs", max: game.limits?.max_gacha_packs ?? null, pending: pending?.max_gacha_packs, used: game.usage?.gacha_packs, icon: "🎲" },
               ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -425,7 +424,7 @@ export default function GamePluginsPage() {
                         <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
                       ) : (row.max != null ? formatNumber(row.max) : '∞')}
                       {hasPending && (
-                        <span className="text-[10px] text-orange-400 font-normal ml-2">→ {formatNumber(row.pending!)} {t('plugins.materia.afterExpiry')}</span>
+                        <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - row.pending!)} {t('plugins.materia.afterExpiry')}</span>
                       )}
                     </p>
                     {pct != null && (
@@ -537,7 +536,6 @@ export default function GamePluginsPage() {
                         { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
                         { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
-                        { icon: "🎲", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
