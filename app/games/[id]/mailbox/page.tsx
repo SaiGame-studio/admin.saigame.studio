@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ScrollText, Send, User, Mail, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown } from "lucide-react"
+import { ScrollText, Send, User, Mail, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -118,6 +118,14 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const [mailboxError, setMailboxError] = useState<string | null>(null)
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const playerIdRef = useRef<HTMLInputElement>(null)
+  const [highlightPlayerId, setHighlightPlayerId] = useState(false)
+
+  const handleFocusPlayerId = () => {
+    playerIdRef.current?.focus()
+    setHighlightPlayerId(true)
+    setTimeout(() => setHighlightPlayerId(false), 1500)
+  }
 
   const fetchPlayerMailbox = useCallback(async (progressId: string) => {
     if (!progressId || !isValidUUID(progressId)) {
@@ -303,11 +311,12 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                 </Label>
                 <div className="relative">
                   <Input
+                    ref={playerIdRef}
                     id="receiver_id"
                     placeholder={t('mailbox.placeholderPlayerId')}
                     value={form.receiver_id}
                     onChange={(e) => handleReceiverIdChange(e.target.value)}
-                    className={form.receiver_id ? "pr-8" : ""}
+                    className={`transition-all duration-300 ${form.receiver_id ? "pr-8" : ""} ${highlightPlayerId ? "ring-2 ring-primary border-primary" : ""}`}
                     required
                   />
                   {form.receiver_id && (
@@ -527,7 +536,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       </Card>
 
         {/* Column 2: Player Mailbox */}
-        <Card>
+        <Card className="group">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -546,7 +555,19 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                     )
                     : form.receiver_id && isValidUUID(form.receiver_id)
                     ? t('mailbox.inboxLoading')
-                    : t('mailbox.inboxEnterPlayer')}
+                    : (
+                      <span className="inline-flex items-center gap-1">
+                        {t('mailbox.inboxEnterPlayer')}
+                        <button
+                          type="button"
+                          onClick={handleFocusPlayerId}
+                          title="Enter Player ID"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground inline-flex items-center"
+                        >
+                          <CornerDownLeft className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    )}
                 </CardDescription>
               </div>
               {form.receiver_id && isValidUUID(form.receiver_id) && (
