@@ -273,7 +273,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                   </div>
                   <div className="flex items-center gap-2">
                     <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
-                      <Link href={`/games/${gameId}/mailbox?userId=${item.user_id}`}>
+                      <Link href={`/games/${gameId}/mailbox?userId=${item.id}`}>
                         <Mail className="h-4 w-4" />
                       </Link>
                     </Button>
