@@ -39,6 +39,7 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
   const cols = container.definition?.grid_cols ?? 1
   const rows = container.definition?.grid_rows ?? 1
   const [hovered, setHovered] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<string | null>(null)
 
   const totalUsed = items.reduce((acc, i) => acc + (i.definition?.grid_width ?? 1) * (i.definition?.grid_height ?? 1), 0)
 
@@ -54,7 +55,7 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
       </div>
 
       {/* Grid */}
-      <div className="overflow-auto pb-2">
+      <div className="overflow-auto pb-2 w-[90%] max-h-[50vh]">
         <div
           className="relative border border-border rounded-md bg-muted/10 p-px"
           style={{
@@ -85,10 +86,11 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
             const rarity = item.definition?.rarity ?? "common"
             const s = RARITY_STYLE[rarity] ?? RARITY_STYLE.common
             const isHov = hovered === item.id
+            const isPinned = pinned === item.id
             return (
               <div
                 key={item.id}
-                className={`absolute rounded border-2 flex flex-col items-center justify-center p-1 cursor-default transition-shadow select-none ${s.cell} ${isHov ? "ring-2 ring-primary ring-offset-background ring-offset-1 z-20 shadow-lg" : "z-10"}`}
+                className={`absolute rounded border-2 flex flex-col items-center justify-center p-1 cursor-pointer transition-shadow select-none ${s.cell} ${isPinned ? "ring-2 ring-amber-400 ring-offset-background ring-offset-1 z-30 shadow-xl" : isHov ? "ring-2 ring-primary ring-offset-background ring-offset-1 z-20 shadow-lg" : "z-10"}`}
                 style={{
                   left: item.grid_x * (CELL_PX + 1),
                   top: item.grid_y * (CELL_PX + 1),
@@ -97,6 +99,7 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
                 }}
                 onMouseEnter={() => setHovered(item.id)}
                 onMouseLeave={() => setHovered(null)}
+                onClick={() => setPinned(prev => prev === item.id ? null : item.id)}
               >
                 <span className="text-[10px] font-semibold text-center leading-tight line-clamp-3 break-words w-full text-center px-0.5">
                   {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
@@ -122,13 +125,14 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
         ))}
       </div>
 
-      {/* Hover detail card */}
-      {hovered && (() => {
-        const item = items.find(i => i.id === hovered)
+      {/* Hover / Pinned detail card */}
+      {(pinned ?? hovered) && (() => {
+        const activeId = pinned ?? hovered
+        const item = items.find(i => i.id === activeId)
         if (!item) return null
         const rarity = item.definition?.rarity
         return (
-          <Card>
+          <Card className={pinned ? "border-amber-400/50" : ""}>
             <CardHeader className="py-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 {item.definition?.name ?? "Item"}
@@ -136,6 +140,9 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border capitalize ${(RARITY_STYLE[rarity] ?? RARITY_STYLE.common).badge}`}>
                     {rarity}
                   </span>
+                )}
+                {pinned === item.id && (
+                  <span className="ml-auto text-xs text-amber-400 font-normal">&#x1F4CC; Pinned — click item to unpin</span>
                 )}
               </CardTitle>
             </CardHeader>
