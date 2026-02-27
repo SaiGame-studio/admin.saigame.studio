@@ -427,6 +427,25 @@ export default function GameItemsPage() {
   const [categories, setCategories] = useState<ItemCategory[]>([])
   const [rarities, setRarities] = useState<ItemRarity[]>([])
 
+  // tab state management
+  const [activeTab, setActiveTab] = useState<string>("catalogue")
+
+  // initialize tab from URL params
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "containers" || tab === "catalogue") {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
+  // update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("tab", value)
+    router.push(`${window.location.pathname}?${newParams.toString()}`)
+  }
+
   // debounce name filter
   useEffect(() => {
     const t = setTimeout(() => setDebouncedName(searchName), 300)
@@ -574,7 +593,7 @@ export default function GameItemsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="catalogue" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="catalogue">Item Catalogue</TabsTrigger>
           <TabsTrigger value="containers">Containers</TabsTrigger>
