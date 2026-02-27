@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ScrollText, Send, User, Mail, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft } from "lucide-react"
+import { ScrollText, Send, User, Mail, MailOpen, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -81,11 +81,29 @@ function StatusBadge({ status }: { status: string }) {
   const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     claimed: "default",
     unclaimed: "secondary",
+    unread: "secondary",
     expired: "destructive",
+  }
+  const labels: Record<string, string> = {
+    unclaimed: "unclaim",
+    unread: "unclaim",
   }
   return (
     <Badge variant={variants[status] ?? "outline"} className="text-xs capitalize">
-      {status}
+      {labels[status] ?? status}
+    </Badge>
+  )
+}
+
+function ReadBadge({ readAt }: { readAt: string | null }) {
+  const isRead = readAt !== null
+  return (
+    <Badge
+      variant={isRead ? "outline" : "secondary"}
+      className={`text-xs flex items-center gap-1 shrink-0 ${isRead ? "text-muted-foreground" : "border-blue-400 text-blue-600 dark:text-blue-400"}`}
+    >
+      {isRead ? <MailOpen className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
+      {isRead ? "read" : "unread"}
     </Badge>
   )
 }
@@ -728,6 +746,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                             {msg.attachments.length}
                           </span>
                         )}
+                        <ReadBadge readAt={msg.read_at} />
                         <StatusBadge status={msg.status} />
                       </button>
 
@@ -748,6 +767,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                             {msg.expires_at && (
                               <span>{t('mailbox.detailExpires')}: <span className="font-medium text-foreground">{formatDate(msg.expires_at)}</span></span>
                             )}
+                            <span>Read: <span className="font-medium text-foreground">{msg.read_at ? formatDate(msg.read_at) : "—"}</span></span>
                             {msg.claimed_at && (
                               <span>{t('mailbox.detailClaimed')}: <span className="font-medium text-foreground">{formatDate(msg.claimed_at)}</span></span>
                             )}
