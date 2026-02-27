@@ -1,25 +1,56 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ScrollText, Send, User, Mail, Gift, Coins, ArrowLeft } from "lucide-react"
+import { ScrollText, Send, User, Mail, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
+import { CopyButton } from "@/components/CopyButton"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
+
+interface MailboxAttachment {
+  type: string
+  definition_id?: string
+  quantity: number
+}
+
+interface MailboxMessage {
+  id: string
+  sender_id: string | null
+  subject: string
+  body: string
+  message_type: string
+  status: string
+  attachments: MailboxAttachment[]
+  expires_at: string | null
+  read_at: string | null
+  claimed_at: string | null
+  created_at: string
+}
+
+interface MailboxResponse {
+  limit: number
+  messages: MailboxMessage[]
+  offset: number
+  profile_id: string
+  total: number
+  user_id: string
+}
 
 interface SystemMailForm {
   receiver_id: string
@@ -33,6 +64,28 @@ interface SystemMailForm {
     definition_id?: string
     quantity: number
   }>
+}
+
+function isValidUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—"
+  return new Date(dateStr).toLocaleString()
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    claimed: "default",
+    unclaimed: "secondary",
+    expired: "destructive",
+  }
+  return (
+    <Badge variant={variants[status] ?? "outline"} className="text-xs capitalize">
+      {status}
+    </Badge>
+  )
 }
 
 export default function MailboxPage({ params }: { params: { id: string } }) {
@@ -52,16 +105,47 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     message_type: "system_reward",
     idempotency_key: "",
     expires_in_days: 30,
-    attachments: [
-      {
-        type: "item",
-        definition_id: "",
-        quantity: 5
-      }
-    ]
+    attachments: []
   })
   const [openItemDropdown, setOpenItemDropdown] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Mailbox list state
+  const [mailboxData, setMailboxData] = useState<MailboxResponse | null>(null)
+  const [mailboxLoading, setMailboxLoading] = useState(false)
+  const [mailboxError, setMailboxError] = useState<string | null>(null)
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const fetchPlayerMailbox = useCallback(async (progressId: string) => {
+    if (!progressId || !isValidUUID(progressId)) {
+      setMailboxData(null)
+      setMailboxError(null)
+      return
+    }
+    setMailboxLoading(true)
+    setMailboxError(null)
+    try {
+      const data = await api.get(`/api/v1/gamer-progress/${progressId}/mailbox?limit=50`)
+      setMailboxData(data)
+    } catch (err: any) {
+      setMailboxError(err?.message || "Failed to load mailbox")
+      setMailboxData(null)
+    } finally {
+      setMailboxLoading(false)
+    }
+  }, [])
+
+  // Debounced fetch when receiver_id changes
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      fetchPlayerMailbox(form.receiver_id)
+    }, 600)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [form.receiver_id, fetchPlayerMailbox])
 
   // Use the caching hook for item profiles
   const { itemProfiles, loading: itemProfilesLoading, error, loadItemProfiles, clearCache } = useItemProfilesCache(gameId)
@@ -82,6 +166,17 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     clearCache()
   }, [gameId, clearCache])
 
+  const handleReceiverIdChange = (value: string) => {
+    setForm(prev => ({ ...prev, receiver_id: value }))
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) {
+      params.set('userId', value)
+    } else {
+      params.delete('userId')
+    }
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -100,21 +195,21 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
         description: "System mail sent successfully!"
       })
       
-      // Reset form
+      // Refresh mailbox list for current player
+      const sentToId = form.receiver_id
+      if (sentToId && isValidUUID(sentToId)) {
+        fetchPlayerMailbox(sentToId)
+      }
+
+      // Reset form (keep receiver_id so mailbox stays visible)
       setForm({
-        receiver_id: "",
+        receiver_id: sentToId,
         subject: "Welcome Gift",
         body: "Thank you for playing! Here's a welcome gift from our team.",
         message_type: "system_reward",
         idempotency_key: "",
         expires_in_days: 30,
-        attachments: [
-          {
-            type: "item",
-            definition_id: "",
-            quantity: 5
-          }
-        ]
+        attachments: []
       })
     } catch (error: any) {
       console.error("Failed to send system mail:", error)
@@ -181,7 +276,9 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <Card>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        {/* Column 1: Send System Mail */}
+        <Card>
         <CardHeader>
           <CardTitle>Send System Mail</CardTitle>
           <CardDescription>
@@ -197,13 +294,26 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                   <User className="inline h-4 w-4 mr-1" />
                   Player ID
                 </Label>
-                <Input
-                  id="receiver_id"
-                  placeholder="Enter player ID"
-                  value={form.receiver_id}
-                  onChange={(e) => setForm({ ...form, receiver_id: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="receiver_id"
+                    placeholder="Enter player ID"
+                    value={form.receiver_id}
+                    onChange={(e) => handleReceiverIdChange(e.target.value)}
+                    className={form.receiver_id ? "pr-8" : ""}
+                    required
+                  />
+                  {form.receiver_id && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => handleReceiverIdChange("")}
+                      title="Clear player ID"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="subject">
@@ -367,7 +477,6 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                       variant="destructive"
                       size="sm"
                       onClick={() => removeAttachment(index)}
-                      disabled={form.attachments.length === 1}
                     >
                       Remove
                     </Button>
@@ -385,6 +494,150 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
           </form>
         </CardContent>
       </Card>
+
+        {/* Column 2: Player Mailbox */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Inbox className="h-5 w-5" />
+                  Player Mailbox
+                </CardTitle>
+                <CardDescription>
+                  {mailboxData
+                    ? (
+                      <span className="flex items-center gap-1 flex-wrap">
+                        <span>{mailboxData.total} message{mailboxData.total !== 1 ? "s" : ""} — profile ID:</span>
+                        <span className="font-mono">{mailboxData.profile_id}</span>
+                        <CopyButton text={mailboxData.profile_id} />
+                      </span>
+                    )
+                    : form.receiver_id && isValidUUID(form.receiver_id)
+                    ? "Loading messages…"
+                    : "Enter a valid player ID to view their mailbox"}
+                </CardDescription>
+              </div>
+              {form.receiver_id && isValidUUID(form.receiver_id) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fetchPlayerMailbox(form.receiver_id)}
+                  disabled={mailboxLoading}
+                  title="Refresh"
+                >
+                  <RefreshCw className={`h-4 w-4 ${mailboxLoading ? "animate-spin" : ""}`} />
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {mailboxError && (
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md mb-4">
+                <p className="text-destructive text-sm">{mailboxError}</p>
+              </div>
+            )}
+
+            {mailboxLoading && !mailboxData && (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                Loading mailbox…
+              </div>
+            )}
+
+            {!mailboxLoading && !mailboxData && !mailboxError && (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                <Inbox className="h-10 w-10 opacity-30" />
+                <p className="text-sm">No mailbox loaded</p>
+              </div>
+            )}
+
+            {mailboxData && mailboxData.messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                <Inbox className="h-10 w-10 opacity-30" />
+                <p className="text-sm">No messages found</p>
+              </div>
+            )}
+
+            {mailboxData && mailboxData.messages.length > 0 && (
+              <div className="space-y-2 max-h-[680px] overflow-y-auto pr-1">
+                {mailboxData.messages.map((msg) => {
+                  const isExpanded = expandedMessages.has(msg.id)
+                  const toggle = () => setExpandedMessages(prev => {
+                    const next = new Set(prev)
+                    next.has(msg.id) ? next.delete(msg.id) : next.add(msg.id)
+                    return next
+                  })
+                  return (
+                    <div key={msg.id} className="border rounded-lg text-sm overflow-hidden">
+                      {/* Collapsed row — always visible */}
+                      <button
+                        type="button"
+                        onClick={toggle}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        <span className="flex-1 font-medium truncate">{msg.subject}</span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{formatDate(msg.created_at)}</span>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground shrink-0">
+                            <Package className="h-3 w-3" />
+                            {msg.attachments.length}
+                          </span>
+                        )}
+                        <StatusBadge status={msg.status} />
+                      </button>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 space-y-2 border-t">
+                          <p className="text-muted-foreground">{msg.body}</p>
+
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span>Type: <span className="font-medium text-foreground">{msg.message_type}</span></span>
+                            <span>Sent: <span className="font-medium text-foreground">{formatDate(msg.created_at)}</span></span>
+                            {msg.expires_at && (
+                              <span>Expires: <span className="font-medium text-foreground">{formatDate(msg.expires_at)}</span></span>
+                            )}
+                            {msg.claimed_at && (
+                              <span>Claimed: <span className="font-medium text-foreground">{formatDate(msg.claimed_at)}</span></span>
+                            )}
+                          </div>
+
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="pt-1">
+                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                                <Package className="h-3 w-3" />
+                                Attachments ({msg.attachments.length})
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {msg.attachments.map((att, i) => (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center gap-1 bg-muted rounded px-2 py-0.5 text-xs"
+                                  >
+                                    <span className="capitalize">{att.type}</span>
+                                    {att.definition_id && (
+                                      <span className="text-muted-foreground truncate max-w-[120px]" title={att.definition_id}>
+                                        {att.definition_id.slice(0, 8)}…
+                                      </span>
+                                    )}
+                                    <span className="font-medium">×{att.quantity}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
