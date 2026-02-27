@@ -41,6 +41,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
@@ -572,175 +573,210 @@ export default function GameItemsPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
-      <Card className="mb-4">
-        <CardContent className="pt-4 pb-3">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder="Search name…"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-            </div>
-            <Select
-              value={filterCategory}
-              onValueChange={(v) => setFilterCategory(v)}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filterRarity}
-              onValueChange={(v) => setFilterRarity(v)}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Rarity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All rarities</SelectItem>
-                {rarities.map((r) => (
-                  <SelectItem key={r} value={r}><RarityBadge rarity={r} /></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs */}
+      <Tabs defaultValue="catalogue" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="catalogue">Item Catalogue</TabsTrigger>
+          <TabsTrigger value="containers">Containers</TabsTrigger>
+        </TabsList>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : error ? (
-            <div className="p-6 text-center text-destructive">{error}</div>
-          ) : items.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">No items found</p>
-              <p className="text-sm mt-1">
-                {(filterCategory !== "all" || filterRarity !== "all" || debouncedName)
-                  ? "Try clearing your filters."
-                  : "Click \"New Item\" to add the first item definition."}
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Rarity</TableHead>
-                  <TableHead>Stackable</TableHead>
-                  <TableHead>Grid</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/40">
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/games/${gameId}/items/${item.id}`}
-                        className="hover:text-primary hover:underline"
-                      >
-                        {item.name}
-                      </Link>
-                      {item.item_code && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Copy item code"
-                            onClick={() => {
-                              navigator.clipboard.writeText(item.item_code!)
-                              setCopiedId(item.id)
-                              setTimeout(() => setCopiedId(null), 1500)
-                            }}
+        <TabsContent value="catalogue" className="space-y-4">
+          {/* Filter bar */}
+          <Card className="mb-4">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Search name…"
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                  />
+                </div>
+                <Select
+                  value={filterCategory}
+                  onValueChange={(v) => setFilterCategory(v)}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterRarity}
+                  onValueChange={(v) => setFilterRarity(v)}
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Rarity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All rarities</SelectItem>
+                    {rarities.map((r) => (
+                      <SelectItem key={r} value={r}><RarityBadge rarity={r} /></SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Table */}
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="p-6 text-center text-destructive">{error}</div>
+              ) : items.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No items found</p>
+                  <p className="text-sm mt-1">
+                    {(filterCategory !== "all" || filterRarity !== "all" || debouncedName)
+                      ? "Try clearing your filters."
+                      : "Click \"New Item\" to add the first item definition."}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Rarity</TableHead>
+                      <TableHead>Stackable</TableHead>
+                      <TableHead>Grid</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-muted/40">
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/games/${gameId}/items/${item.id}`}
+                            className="hover:text-primary hover:underline"
                           >
-                            {copiedId === item.id
-                              ? <Check className="h-3 w-3 text-green-500" />
-                              : <Copy className="h-3 w-3" />}
-                          </button>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize text-xs">
-                        {item.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <RarityBadge rarity={item.rarity} />
-                    </TableCell>
-                    <TableCell>
-                      {item.is_stackable ? (
-                        <span className="text-green-500 text-sm font-medium">
-                          ✓ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">✗</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.grid_width}×{item.grid_height}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/games/${gameId}/items/${item.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                            {item.name}
+                          </Link>
+                          {item.item_code && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title="Copy item code"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(item.item_code!)
+                                  setCopiedId(item.id)
+                                  setTimeout(() => setCopiedId(null), 1500)
+                                }}
+                              >
+                                {copiedId === item.id
+                                  ? <Check className="h-3 w-3 text-green-500" />
+                                  : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {item.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <RarityBadge rarity={item.rarity} />
+                        </TableCell>
+                        <TableCell>
+                          {item.is_stackable ? (
+                            <span className="text-green-500 text-sm font-medium">
+                              ✓ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">✗</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {item.grid_width}×{item.grid_height}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" asChild>
+                            <Link href={`/games/${gameId}/items/${item.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-          <span>
-            Page {currentPage} of {totalPages} — {total} items
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - LIMIT))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={offset + LIMIT >= total}
-              onClick={() => setOffset(offset + LIMIT)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+              <span>
+                Page {currentPage} of {totalPages} — {total} items
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={offset === 0}
+                  onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={offset + LIMIT >= total}
+                  onClick={() => setOffset(offset + LIMIT)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="containers" className="space-y-4">
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-muted rounded-full mx-auto">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-semibold">Containers</h3>
+                <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                  Container management functionality is coming soon. This feature will allow you to create and manage 
+                  loot boxes, crates, and other container types for your game.
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" disabled>
+                    Coming Soon
+                  </Button>
+                  <Button variant="outline" disabled>
+                    Feature Preview
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Create Item Modal */}
       {studioId && (
