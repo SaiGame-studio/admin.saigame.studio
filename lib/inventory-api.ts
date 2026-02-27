@@ -22,6 +22,10 @@ import type {
   ItemCategory,
   ItemRarity,
   TxType,
+  ContainerDefinition,
+  ContainerType,
+  CreateContainerDefinitionRequest,
+  UpdateContainerDefinitionRequest,
 } from '@/types/inventory'
 
 /** Tenant context required by every call to the inventory/gacha service */
@@ -181,4 +185,58 @@ export async function fetchItemCategories(): Promise<ItemCategory[]> {
 export async function fetchItemRarities(): Promise<ItemRarity[]> {
   const res: any = await api.get('/api/v1/items/rarities')
   return Array.isArray(res) ? res : (res.rarities ?? [])
+}
+
+// ─── Container Definitions ────────────────────────────────────────────────────
+
+export interface ListContainerDefsParams {
+  limit?: number
+  offset?: number
+  container_type?: ContainerType
+}
+
+/** GET /api/v1/games/:gameId/container-definitions */
+export async function listContainerDefinitions(
+  ctx: TenantCtx,
+  params: ListContainerDefsParams = {},
+): Promise<{ container_definitions: ContainerDefinition[]; total: number; limit: number; offset: number }> {
+  const qs = new URLSearchParams()
+  if (params.limit        != null) qs.set('limit',          String(params.limit))
+  if (params.offset       != null) qs.set('offset',         String(params.offset))
+  if (params.container_type)       qs.set('container_type', params.container_type)
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${ctx.gameId}/container-definitions${query ? `?${query}` : ''}`)
+}
+
+/** POST /api/v1/games/:gameId/container-definitions */
+export async function createContainerDefinition(
+  ctx: TenantCtx,
+  body: CreateContainerDefinitionRequest,
+): Promise<{ container_definition: ContainerDefinition }> {
+  return api.post(`/api/v1/games/${ctx.gameId}/container-definitions`, body)
+}
+
+/** GET /api/v1/games/:gameId/container-definitions/:definitionId */
+export async function getContainerDefinition(
+  ctx: TenantCtx,
+  definitionId: string,
+): Promise<{ container_definition: ContainerDefinition }> {
+  return api.get(`/api/v1/games/${ctx.gameId}/container-definitions/${definitionId}`)
+}
+
+/** PATCH /api/v1/games/:gameId/container-definitions/:definitionId */
+export async function updateContainerDefinition(
+  ctx: TenantCtx,
+  definitionId: string,
+  body: UpdateContainerDefinitionRequest,
+): Promise<{ container_definition: ContainerDefinition }> {
+  return api.patch(`/api/v1/games/${ctx.gameId}/container-definitions/${definitionId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/container-definitions/:definitionId */
+export async function deleteContainerDefinition(
+  ctx: TenantCtx,
+  definitionId: string,
+): Promise<{ message: string }> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/container-definitions/${definitionId}`)
 }
