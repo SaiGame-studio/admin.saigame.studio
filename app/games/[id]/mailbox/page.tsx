@@ -20,6 +20,7 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { CopyButton } from "@/components/CopyButton"
 import { getGame } from "@/lib/game-api"
+import { getGameProgressList, GameProgress } from "@/lib/game-user-api"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
@@ -112,6 +113,14 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const [openItemDropdown, setOpenItemDropdown] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Player search state
+  const [playerSearchOpen, setPlayerSearchOpen] = useState(false)
+  const [playerSearchQuery, setPlayerSearchQuery] = useState("")
+  const [playerSearchResults, setPlayerSearchResults] = useState<GameProgress[]>([])
+  const [playerSearchLoading, setPlayerSearchLoading] = useState(false)
+  const [selectedPlayerName, setSelectedPlayerName] = useState("")
+  const playerSearchDebounceRef = useRef<NodeJS.Timeout | null>(null)
+
   // Mailbox list state
   const [mailboxData, setMailboxData] = useState<MailboxResponse | null>(null)
   const [mailboxLoading, setMailboxLoading] = useState(false)
@@ -156,6 +165,36 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [form.receiver_id, fetchPlayerMailbox])
+
+  // Debounced player search
+  useEffect(() => {
+    if (playerSearchDebounceRef.current) clearTimeout(playerSearchDebounceRef.current)
+    if (!playerSearchQuery.trim()) {
+      setPlayerSearchResults([])
+      return
+    }
+    playerSearchDebounceRef.current = setTimeout(async () => {
+      setPlayerSearchLoading(true)
+      try {
+        const result = await getGameProgressList(gameId, { display_name: playerSearchQuery })
+        setPlayerSearchResults(result.progress)
+      } catch {
+        setPlayerSearchResults([])
+      } finally {
+        setPlayerSearchLoading(false)
+      }
+    }, 400)
+    return () => {
+      if (playerSearchDebounceRef.current) clearTimeout(playerSearchDebounceRef.current)
+    }
+  }, [playerSearchQuery, gameId])
+
+  const handleSelectPlayer = (player: GameProgress) => {
+    handleReceiverIdChange(player.id)
+    setSelectedPlayerName(player.user_display_name || player.user_email || player.id)
+    setPlayerSearchOpen(false)
+    setPlayerSearchQuery("")
+  }
 
   // Use the caching hook for item profiles
   const { itemProfiles, loading: itemProfilesLoading, error, loadItemProfiles, clearCache } = useItemProfilesCache(gameId)
@@ -305,31 +344,83 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="receiver_id">
+                <Label>
                   <User className="inline h-4 w-4 mr-1" />
                   {t('mailbox.labelPlayerId')}
                 </Label>
-                <div className="relative">
-                  <Input
-                    ref={playerIdRef}
-                    id="receiver_id"
-                    placeholder={t('mailbox.placeholderPlayerId')}
-                    value={form.receiver_id}
-                    onChange={(e) => handleReceiverIdChange(e.target.value)}
-                    className={`transition-all duration-300 ${form.receiver_id ? "pr-8" : ""} ${highlightPlayerId ? "ring-2 ring-primary border-primary" : ""}`}
-                    required
-                  />
-                  {form.receiver_id && (
-                    <button
+                <Popover open={playerSearchOpen} onOpenChange={setPlayerSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      ref={playerIdRef as any}
                       type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => handleReceiverIdChange("")}
-                      title={t('mailbox.clearPlayerId')}
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={playerSearchOpen}
+                      className={`w-full justify-between font-normal transition-all duration-300 ${highlightPlayerId ? "ring-2 ring-primary border-primary" : ""}`}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
+                      <span className="truncate text-left">
+                        {selectedPlayerName
+                          ? selectedPlayerName
+                          : form.receiver_id
+                            ? form.receiver_id
+                            : <span className="text-muted-foreground">{t('mailbox.placeholderPlayerId')}</span>}
+                      </span>
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        {form.receiver_id && (
+                          <span
+                            role="button"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReceiverIdChange("")
+                              setSelectedPlayerName("")
+                              setPlayerSearchResults([])
+                              setPlayerSearchQuery("")
+                            }}
+                            title={t('mailbox.clearPlayerId')}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                      </div>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search player by name..."
+                        value={playerSearchQuery}
+                        onValueChange={setPlayerSearchQuery}
+                      />
+                      <CommandList>
+                        {playerSearchLoading ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
+                        ) : playerSearchResults.length === 0 && playerSearchQuery.trim() ? (
+                          <CommandEmpty>No players found.</CommandEmpty>
+                        ) : playerSearchResults.length === 0 ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">Type a name to search players.</div>
+                        ) : (
+                          <CommandGroup>
+                            {playerSearchResults.map((player) => (
+                              <CommandItem
+                                key={player.id}
+                                value={player.id}
+                                onSelect={() => handleSelectPlayer(player)}
+                              >
+                                <Check className={`mr-2 h-4 w-4 shrink-0 ${form.receiver_id === player.id ? "opacity-100" : "opacity-0"}`} />
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{player.user_display_name || player.user_email}</div>
+                                  <div className="text-xs text-muted-foreground font-mono truncate">{player.id}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="subject">
