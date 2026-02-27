@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, Box, Coins, Eye, Loader2, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
+import { ArrowLeft, Archive, Box, Coins, Eye, Loader2, Mail, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -232,6 +232,15 @@ export default function GameUserProgressDetailPage({
           <TabsTrigger value="info">Player Info</TabsTrigger>
           <TabsTrigger value="items">Items {itemsTotal > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{itemsTotal}</span>}</TabsTrigger>
           <TabsTrigger value="containers">Containers {containers.length > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{containers.length}{containersHasMore ? "+" : ""}</span>}</TabsTrigger>
+          <a
+            href={`/games/${gameId}/mailbox?userId=${progressId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted hover:text-foreground text-muted-foreground"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Mail
+          </a>
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">

@@ -598,6 +598,12 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                       {/* Expanded detail */}
                       {isExpanded && (
                         <div className="px-4 pb-4 pt-1 space-y-2 border-t">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                            <span className="shrink-0">ID:</span>
+                            <span>{msg.id}</span>
+                            <CopyButton text={msg.id} />
+                          </div>
+
                           <p className="text-muted-foreground">{msg.body}</p>
 
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
