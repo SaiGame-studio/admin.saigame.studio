@@ -19,6 +19,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { CopyButton } from "@/components/CopyButton"
+import { getGame } from "@/lib/game-api"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
@@ -98,6 +99,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const { t } = useTranslation(locale)
   
   const [loading, setLoading] = useState(false)
+  const [game, setGame] = useState<{ id: string; name: string } | null>(null)
   const [form, setForm] = useState<SystemMailForm>({
     receiver_id: "",
     subject: "Welcome Gift",
@@ -166,6 +168,11 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     clearCache()
   }, [gameId, clearCache])
 
+  // Fetch game info for breadcrumb
+  useEffect(() => {
+    getGame(gameId).then(setGame).catch(() => {})
+  }, [gameId])
+
   const handleReceiverIdChange = (value: string) => {
     setForm(prev => ({ ...prev, receiver_id: value }))
     const params = new URLSearchParams(searchParams.toString())
@@ -191,8 +198,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       await api.post(`/api/v1/games/${gameId}/mailbox/system-mail`, payload)
       
       toast({
-        title: "Success",
-        description: "System mail sent successfully!"
+        title: t('mailbox.toastSuccessTitle'),
+        description: t('mailbox.toastSuccessDesc')
       })
       
       // Refresh mailbox list for current player
@@ -214,8 +221,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     } catch (error: any) {
       console.error("Failed to send system mail:", error)
       toast({
-        title: "Error",
-        description: error.message || "Failed to send system mail",
+        title: t('mailbox.toastErrorTitle'),
+        description: error.message || t('mailbox.toastErrorDesc'),
         variant: "destructive"
       })
     } finally {
@@ -251,7 +258,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${gameId}`}>{t('common.game')}</BreadcrumbLink>
+              <BreadcrumbLink href={`/games/${gameId}`}>{game?.name || t('common.game')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -267,8 +274,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="group">
-            <h1 className="text-2xl font-bold">System Mail</h1>
-            <p className="text-muted-foreground">Send system messages to players in your game</p>
+            <h1 className="text-2xl font-bold">{t('mailbox.pageTitle')}</h1>
+            <p className="text-muted-foreground">{t('mailbox.pageSubtitle')}</p>
           </div>
         </div>
         <div className="mt-4 md:mt-0">
@@ -280,9 +287,9 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
         {/* Column 1: Send System Mail */}
         <Card>
         <CardHeader>
-          <CardTitle>Send System Mail</CardTitle>
+          <CardTitle>{t('mailbox.sendCardTitle')}</CardTitle>
           <CardDescription>
-            Send a system message with optional rewards to a specific player
+            {t('mailbox.sendCardDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -292,12 +299,12 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
               <div className="space-y-2">
                 <Label htmlFor="receiver_id">
                   <User className="inline h-4 w-4 mr-1" />
-                  Player ID
+                  {t('mailbox.labelPlayerId')}
                 </Label>
                 <div className="relative">
                   <Input
                     id="receiver_id"
-                    placeholder="Enter player ID"
+                    placeholder={t('mailbox.placeholderPlayerId')}
                     value={form.receiver_id}
                     onChange={(e) => handleReceiverIdChange(e.target.value)}
                     className={form.receiver_id ? "pr-8" : ""}
@@ -308,7 +315,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                       type="button"
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => handleReceiverIdChange("")}
-                      title="Clear player ID"
+                      title={t('mailbox.clearPlayerId')}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -318,11 +325,11 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
               <div className="space-y-2">
                 <Label htmlFor="subject">
                   <Mail className="inline h-4 w-4 mr-1" />
-                  Subject
+                  {t('mailbox.labelSubject')}
                 </Label>
                 <Input
                   id="subject"
-                  placeholder="Enter subject"
+                  placeholder={t('mailbox.placeholderSubject')}
                   value={form.subject}
                   onChange={(e) => setForm({ ...form, subject: e.target.value })}
                   required
@@ -333,11 +340,11 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             <div className="space-y-2">
               <Label htmlFor="body">
                 <Mail className="inline h-4 w-4 mr-1" />
-                Message Body
+                {t('mailbox.labelBody')}
               </Label>
               <Textarea
                 id="body"
-                placeholder="Enter your message to the player"
+                placeholder={t('mailbox.placeholderBody')}
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
                 rows={4}
@@ -348,7 +355,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             {/* Expiration */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="expires_in_days">Expiration (days)</Label>
+                <Label htmlFor="expires_in_days">{t('mailbox.labelExpiration')}</Label>
                 <Input
                   id="expires_in_days"
                   type="number"
@@ -360,10 +367,10 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="idempotency_key">Idempotency Key (optional)</Label>
+                <Label htmlFor="idempotency_key">{t('mailbox.labelIdempotencyKey')}</Label>
                 <Input
                   id="idempotency_key"
-                  placeholder="Optional: unique key to prevent duplicates"
+                  placeholder={t('mailbox.placeholderIdempotencyKey')}
                   value={form.idempotency_key}
                   onChange={(e) => setForm({ ...form, idempotency_key: e.target.value })}
                 />
@@ -373,7 +380,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             {/* Error Display */}
             {error && (
               <div className="space-y-2">
-                <Label className="text-red-600">Error Loading Items</Label>
+                <Label className="text-red-600">{t('mailbox.errorLoadingItems')}</Label>
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-red-600 text-sm">{error}</p>
                 </div>
@@ -385,32 +392,32 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
               <div className="flex items-center justify-between">
                 <Label className="flex items-center">
                   <Gift className="inline h-4 w-4 mr-1" />
-                  Attachments (Rewards)
+                  {t('mailbox.labelAttachments')}
                 </Label>
                 <Button type="button" variant="outline" size="sm" onClick={addAttachment}>
-                  Add Attachment
+                  {t('mailbox.addAttachment')}
                 </Button>
               </div>
               
               {form.attachments.map((attachment, index) => (
                 <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
                   <div className="space-y-2">
-                    <Label>Type</Label>
+                    <Label>{t('mailbox.labelType')}</Label>
                     <Select
                       value="item"
                       disabled
                     >
                       <SelectTrigger>
-                        <SelectValue>Item</SelectValue>
+                        <SelectValue>{t('mailbox.typeItem')}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="item">Item</SelectItem>
+                        <SelectItem value="item">{t('mailbox.typeItem')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>Item Definition</Label>
+                    <Label>{t('mailbox.labelItemDefinition')}</Label>
                     <Popover open={openItemDropdown === index} onOpenChange={(open) => setOpenItemDropdown(open ? index : null)}>
                       <PopoverTrigger asChild>
                         <Button
@@ -420,22 +427,22 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                           className="w-full justify-between"
                         >
                           {attachment.definition_id 
-                            ? itemProfiles.find((item) => item.id === attachment.definition_id)?.name || "Select item..."
-                            : "Select item..."}
+                            ? itemProfiles.find((item) => item.id === attachment.definition_id)?.name || t('mailbox.selectItem')
+                            : t('mailbox.selectItem')}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[300px] p-0">
                         <Command>
                           <CommandInput 
-                            placeholder="Search items..." 
+                            placeholder={t('mailbox.searchItems')}
                             onValueChange={(value) => {
                               setSearchQuery(value)
                               loadItemProfiles(value)
                             }}
                           />
                           <CommandList>
-                            <CommandEmpty>No items found.</CommandEmpty>
+                            <CommandEmpty>{t('mailbox.noItemsFound')}</CommandEmpty>
                             <CommandGroup>
                               {itemProfiles.map((item) => (
                                 <CommandItem
@@ -461,7 +468,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                   <div className="space-y-2">
                     <Label>
                       <Coins className="inline h-4 w-4 mr-1" />
-                      Quantity
+                      {t('mailbox.labelQuantity')}
                     </Label>
                     <Input
                       type="number"
@@ -478,7 +485,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                       size="sm"
                       onClick={() => removeAttachment(index)}
                     >
-                      Remove
+                      {t('mailbox.remove')}
                     </Button>
                   </div>
                 </div>
@@ -488,7 +495,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             <div className="flex justify-end">
               <Button type="submit" disabled={loading}>
                 <Send className="mr-2 h-4 w-4" />
-                {loading ? "Sending..." : "Send System Mail"}
+                {loading ? t('mailbox.sending') : t('mailbox.sendButton')}
               </Button>
             </div>
           </form>
@@ -502,20 +509,20 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Inbox className="h-5 w-5" />
-                  Player Mailbox
+                  {t('mailbox.inboxTitle')}
                 </CardTitle>
                 <CardDescription>
                   {mailboxData
                     ? (
                       <span className="flex items-center gap-1 flex-wrap">
-                        <span>{mailboxData.total} message{mailboxData.total !== 1 ? "s" : ""} — profile ID:</span>
+                        <span>{mailboxData.total} {mailboxData.total !== 1 ? t('mailbox.inboxMessagesPlural') : t('mailbox.inboxMessages')} — {t('mailbox.inboxProfileId')}</span>
                         <span className="font-mono">{mailboxData.profile_id}</span>
                         <CopyButton text={mailboxData.profile_id} />
                       </span>
                     )
                     : form.receiver_id && isValidUUID(form.receiver_id)
-                    ? "Loading messages…"
-                    : "Enter a valid player ID to view their mailbox"}
+                    ? t('mailbox.inboxLoading')
+                    : t('mailbox.inboxEnterPlayer')}
                 </CardDescription>
               </div>
               {form.receiver_id && isValidUUID(form.receiver_id) && (
@@ -524,7 +531,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                   size="icon"
                   onClick={() => fetchPlayerMailbox(form.receiver_id)}
                   disabled={mailboxLoading}
-                  title="Refresh"
+                  title={t('common.refresh')}
                 >
                   <RefreshCw className={`h-4 w-4 ${mailboxLoading ? "animate-spin" : ""}`} />
                 </Button>
@@ -541,21 +548,21 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             {mailboxLoading && !mailboxData && (
               <div className="flex items-center justify-center py-12 text-muted-foreground">
                 <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-                Loading mailbox…
+                {t('mailbox.inboxLoadingMailbox')}
               </div>
             )}
 
             {!mailboxLoading && !mailboxData && !mailboxError && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
                 <Inbox className="h-10 w-10 opacity-30" />
-                <p className="text-sm">No mailbox loaded</p>
+                <p className="text-sm">{t('mailbox.inboxNoMailbox')}</p>
               </div>
             )}
 
             {mailboxData && mailboxData.messages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
                 <Inbox className="h-10 w-10 opacity-30" />
-                <p className="text-sm">No messages found</p>
+                <p className="text-sm">{t('mailbox.inboxNoMessages')}</p>
               </div>
             )}
 
@@ -594,13 +601,13 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                           <p className="text-muted-foreground">{msg.body}</p>
 
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>Type: <span className="font-medium text-foreground">{msg.message_type}</span></span>
-                            <span>Sent: <span className="font-medium text-foreground">{formatDate(msg.created_at)}</span></span>
+                            <span>{t('mailbox.detailType')}: <span className="font-medium text-foreground">{msg.message_type}</span></span>
+                            <span>{t('mailbox.detailSent')}: <span className="font-medium text-foreground">{formatDate(msg.created_at)}</span></span>
                             {msg.expires_at && (
-                              <span>Expires: <span className="font-medium text-foreground">{formatDate(msg.expires_at)}</span></span>
+                              <span>{t('mailbox.detailExpires')}: <span className="font-medium text-foreground">{formatDate(msg.expires_at)}</span></span>
                             )}
                             {msg.claimed_at && (
-                              <span>Claimed: <span className="font-medium text-foreground">{formatDate(msg.claimed_at)}</span></span>
+                              <span>{t('mailbox.detailClaimed')}: <span className="font-medium text-foreground">{formatDate(msg.claimed_at)}</span></span>
                             )}
                           </div>
 
@@ -608,7 +615,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                             <div className="pt-1">
                               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
                                 <Package className="h-3 w-3" />
-                                Attachments ({msg.attachments.length})
+                                {t('mailbox.detailAttachments')} ({msg.attachments.length})
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {msg.attachments.map((att, i) => (
