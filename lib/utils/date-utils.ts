@@ -49,3 +49,68 @@ export function formatISODate(iso: string | null | undefined, timeZone?: string)
   for (const { type, value } of parts) p[type] = value
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`
 }
+
+/**
+ * Converts a UTC ISO string to a datetime-local input value (yyyy-MM-ddTHH:mm)
+ * in the user's timezone.
+ */
+export function toUserDatetime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return ''
+  const tz = getUserTimezone()
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date)
+  const p: Record<string, string> = {}
+  for (const { type, value } of parts) p[type] = value
+  const h = p.hour === '24' ? '00' : p.hour
+  return `${p.year}-${p.month}-${p.day}T${h}:${p.minute}`
+}
+
+/**
+ * Converts a datetime-local input value (interpreted as user's timezone) back to
+ * a UTC ISO string for storage.
+ */
+export function fromUserDatetime(localDt: string): string {
+  if (!localDt) return ''
+  const tz = getUserTimezone()
+  const [datePart, timePart = '00:00'] = localDt.split('T')
+  const [y, mo, d] = datePart.split('-').map(Number)
+  const [h, m] = timePart.split(':').map(Number)
+  // Start with initial UTC guess
+  let utcMs = Date.UTC(y, mo - 1, d, h, m)
+  // Iteratively correct for timezone offset (converges in 1-2 iterations)
+  for (let i = 0; i < 3; i++) {
+    const probe = new Date(utcMs)
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(probe)
+    const p: Record<string, string> = {}
+    for (const { type, value } of parts) p[type] = value
+    const localH = p.hour === '24' ? 0 : parseInt(p.hour)
+    const localM = parseInt(p.minute)
+    const probeLocal = Date.UTC(parseInt(p.year), parseInt(p.month) - 1, parseInt(p.day), localH, localM)
+    const target = Date.UTC(y, mo - 1, d, h, m)
+    const diff = target - probeLocal
+    if (diff === 0) break
+    utcMs += diff
+  }
+  return new Date(utcMs).toISOString()
+}
+
+/**
+ * Returns the current hour (0-23) in the user's timezone.
+ */
+export function getUserLocalHour(): number {
+  const tz = getUserTimezone()
+  const h = parseInt(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(new Date()),
+    10
+  )
+  return h % 24
+}

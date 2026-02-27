@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
 // Mock data for server performance
 const generateMockData = () => {
@@ -11,7 +12,7 @@ const generateMockData = () => {
   for (let i = 12; i >= 0; i--) {
     const time = new Date(now.getTime() - i * 5 * 60000)
     data.push({
-      time: time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: time.toLocaleTimeString([], { timeZone: getUserTimezone(), hour: "2-digit", minute: "2-digit" }),
       cpu: Math.floor(Math.random() * 30) + 20,
       memory: Math.floor(Math.random() * 40) + 30,
       players: Math.floor(Math.random() * 50) + 70,
@@ -31,7 +32,7 @@ export function ServerStats() {
         const newData = [...prevData.slice(1)]
         const now = new Date()
         newData.push({
-          time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: now.toLocaleTimeString([], { timeZone: getUserTimezone(), hour: "2-digit", minute: "2-digit" }),
           cpu: Math.floor(Math.random() * 30) + 20,
           memory: Math.floor(Math.random() * 40) + 30,
           players: Math.floor(Math.random() * 50) + 70,

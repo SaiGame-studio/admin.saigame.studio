@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { getAllUsersAdmin, AdminUser } from "@/lib/admin-api"
-import { formatTimestamp } from "@/lib/utils/date-utils"
+import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { AdminUserLimitsDialog } from "@/components/AdminUserLimitsDialog"
 
@@ -260,7 +260,7 @@ export default function AllUsersPage() {
                       <TableCell>
                         <div className="text-sm flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "Never"}
+                          {user.last_login_at ? formatISODate(user.last_login_at) : "Never"}
                         </div>
                       </TableCell>
                       <TableCell>

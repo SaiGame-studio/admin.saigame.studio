@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Box, Coins, Loader2, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ArrowLeft, Archive, Box, Coins, Eye, Loader2, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { formatTimestamp } from "@/lib/utils/date-utils"
+import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, GameProgressDetail, PlayerItem, PlayerItemsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
+import { CopyButton } from "@/components/CopyButton"
 
 export default function GameUserProgressDetailPage({
   params,
@@ -25,6 +26,7 @@ export default function GameUserProgressDetailPage({
   const gameId = params.id
   const progressId = params.progressId
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
 
@@ -37,12 +39,25 @@ export default function GameUserProgressDetailPage({
 
   // Items tab
   const ITEMS_LIMIT = 50
-  const [activeTab, setActiveTab] = useState("info")
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
+    return tab === "items" || tab === "containers" ? tab : "info"
+  })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [itemsTotal, setItemsTotal] = useState(0)
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [itemsError, setItemsError] = useState<string | null>(null)
+
+  // Containers tab
+  const CONTAINERS_LIMIT = 50
+  const [containers, setContainers] = useState<PlayerContainer[]>([])
+  const [containersTotal, setContainersTotal] = useState(0)
+  const [containersHasMore, setContainersHasMore] = useState(false)
+  const [containersOffset, setContainersOffset] = useState(0)
+  const [containersType, setContainersType] = useState<"" | "inventory" | "shulker_box">("")
+  const [containersLoading, setContainersLoading] = useState(false)
+  const [containersError, setContainersError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -99,9 +114,48 @@ export default function GameUserProgressDetailPage({
     }
   }, [progressId, itemsOffset])
 
+  const loadContainers = useCallback(async () => {
+    setContainersLoading(true)
+    setContainersError(null)
+    try {
+      const res = await getProgressContainers(progressId, {
+        limit: CONTAINERS_LIMIT,
+        offset: containersOffset,
+        type: containersType || undefined,
+      })
+      setContainers(res.containers ?? [])
+      setContainersHasMore(res.has_more ?? false)
+      setContainersTotal(
+        res.has_more
+          ? containersOffset + (res.containers?.length ?? 0) + 1
+          : containersOffset + (res.containers?.length ?? 0)
+      )
+    } catch (err: any) {
+      setContainersError(err?.message ?? "Failed to load containers")
+    } finally {
+      setContainersLoading(false)
+    }
+  }, [progressId, containersOffset, containersType])
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    if (tab === "info") {
+      params.delete("tab")
+    } else {
+      params.set("tab", tab)
+    }
+    const qs = params.toString()
+    router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false })
+  }
+
   useEffect(() => {
     if (activeTab === "items") loadItems()
   }, [activeTab, loadItems])
+
+  useEffect(() => {
+    if (activeTab === "containers") loadContainers()
+  }, [activeTab, loadContainers])
 
   const RARITY_STYLE: Record<string, string> = {
     common:    "bg-gray-500/15 text-gray-400 border-gray-400/40",
@@ -111,10 +165,13 @@ export default function GameUserProgressDetailPage({
     legendary: "bg-yellow-500/15 text-yellow-500 border-yellow-400/40",
   }
 
-  const renderMetaRow = (label: string, value?: string | number | null) => (
+  const renderMetaRow = (label: string, value?: string | number | null, copyable?: boolean) => (
     <div className="flex items-start justify-between gap-4 border-b pb-2 text-sm last:border-0">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right break-all">{value ?? "-"}</span>
+      <span className="text-right break-all flex items-center justify-end font-mono">
+        {value ?? "-"}
+        {copyable && value && typeof value === "string" && <CopyButton text={value} />}
+      </span>
     </div>
   )
 
@@ -168,21 +225,21 @@ export default function GameUserProgressDetailPage({
             )}
           </div>
         </div>
-        <div className="flex gap-2 mt-4 md:mt-0 items-center">
-          <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="info">Player Info</TabsTrigger>
           <TabsTrigger value="items">Items {itemsTotal > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{itemsTotal}</span>}</TabsTrigger>
+          <TabsTrigger value="containers">Containers {containers.length > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{containers.length}{containersHasMore ? "+" : ""}</span>}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="info">
+        <TabsContent value="info" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="icon" onClick={loadData} disabled={loading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
           {loading ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="lg:col-span-2">
@@ -293,14 +350,14 @@ export default function GameUserProgressDetailPage({
             </CardHeader>
             <CardContent className="space-y-3">
               {renderMetaRow("Gamer Name", identity?.gamer_name || "-")}
-              {renderMetaRow("Progress ID", detail.id)}
-              {renderMetaRow("User ID", detail.user_id)}
-              {renderMetaRow("Game ID", detail.game_id)}
+              {renderMetaRow("Progress ID", detail.id, true)}
+              {renderMetaRow("User ID", detail.user_id, true)}
+              {renderMetaRow("Game ID", detail.game_id, true)}
               {renderMetaRow("User Created", detail.user_created_at ? formatTimestamp(detail.user_created_at) : "-")}
               {renderMetaRow("Created", formatTimestamp(detail.created_at))}
               {renderMetaRow("Updated", formatTimestamp(detail.updated_at))}
-              {renderMetaRow("Banned At", detail.banned_at || "-")}
-              {renderMetaRow("Banned By", detail.banned_by || "-")}
+              {renderMetaRow("Banned At", detail.banned_at ? formatISODate(detail.banned_at) : "-")}
+              {renderMetaRow("Banned By", detail.banned_by || "-", !!detail.banned_by)}
             </CardContent>
           </Card>
 
@@ -412,7 +469,7 @@ export default function GameUserProgressDetailPage({
                           </span>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {item.acquired_at ? new Date(item.acquired_at).toLocaleDateString() : "—"}
+                          {item.acquired_at ? formatISODate(item.acquired_at) : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -429,6 +486,154 @@ export default function GameUserProgressDetailPage({
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={itemsOffset === 0} onClick={() => setItemsOffset(Math.max(0, itemsOffset - ITEMS_LIMIT))}>Previous</Button>
                 <Button variant="outline" size="sm" disabled={itemsOffset + ITEMS_LIMIT >= itemsTotal} onClick={() => setItemsOffset(itemsOffset + ITEMS_LIMIT)}>Next</Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="containers" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Player Containers</h2>
+              <p className="text-sm text-muted-foreground">
+                {containersLoading
+                  ? "Loading…"
+                  : containers.length > 0
+                  ? `${containersOffset + containers.length}${containersHasMore ? "+" : ""} container${containers.length !== 1 ? "s" : ""}`
+                  : "No containers found"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Type filter */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                value={containersType}
+                onChange={(e) => {
+                  setContainersType(e.target.value as "" | "inventory" | "shulker_box")
+                  setContainersOffset(0)
+                }}
+              >
+                <option value="">All types</option>
+                <option value="inventory">inventory</option>
+                <option value="shulker_box">shulker_box</option>
+              </select>
+              <Button variant="outline" size="icon" onClick={loadContainers} disabled={containersLoading} title="Refresh">
+                <RefreshCw className={`h-4 w-4 ${containersLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {containersLoading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : containersError ? (
+                <div className="p-6 text-center">
+                  <p className="text-destructive text-sm mb-3">{containersError}</p>
+                  <Button variant="outline" size="sm" onClick={loadContainers}>Try Again</Button>
+                </div>
+              ) : containers.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <Archive className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No containers</p>
+                  <p className="text-sm mt-1">This player has no containers{containersType ? ` of type "${containersType}"` : ""}.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Grid</TableHead>
+                      <TableHead>Portable</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Updated</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {containers.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-mono text-xs">
+                          <span className="flex items-center gap-0.5">
+                            {c.id.slice(0, 8)}…
+                            <CopyButton text={c.id} size="h-3 w-3" />
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm">{c.definition?.name || "—"}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize ${
+                            c.container_type === "inventory"
+                              ? "bg-blue-500/10 text-blue-400 border-blue-400/30"
+                              : c.container_type === "shulker_box"
+                              ? "bg-purple-500/10 text-purple-400 border-purple-400/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}>
+                            <Archive className="h-3 w-3 shrink-0" />
+                            {c.container_type || "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-mono">
+                          {c.definition ? `${c.definition.grid_cols}×${c.definition.grid_rows}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {c.definition == null ? "—" : c.definition.is_portable
+                            ? <span className="text-green-500">Yes</span>
+                            : <span className="text-muted-foreground">No</span>}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.created_at ? formatISODate(c.created_at) : "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.updated_at ? formatISODate(c.updated_at) : "—"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              const q = new URLSearchParams()
+                              if (c.definition?.name) q.set("def_name", c.definition.name)
+                              if (c.definition?.grid_cols) q.set("def_cols", String(c.definition.grid_cols))
+                              if (c.definition?.grid_rows) q.set("def_rows", String(c.definition.grid_rows))
+                              if (c.definition?.is_portable != null) q.set("def_portable", c.definition.is_portable ? "1" : "0")
+                              if (c.container_type) q.set("ctype", c.container_type)
+                              const qs = q.toString()
+                              router.push(`/games/${gameId}/players/${progressId}/containers/${c.id}${qs ? `?${qs}` : ""}`)
+                            }}
+                            title="View items"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Pagination */}
+          {(containersOffset > 0 || containersHasMore) && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>
+                Showing {containersOffset + 1}–{containersOffset + containers.length}
+                {containersHasMore ? "+" : ""}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline" size="sm"
+                  disabled={containersOffset === 0}
+                  onClick={() => setContainersOffset(Math.max(0, containersOffset - CONTAINERS_LIMIT))}
+                >Previous</Button>
+                <Button
+                  variant="outline" size="sm"
+                  disabled={!containersHasMore}
+                  onClick={() => setContainersOffset(containersOffset + CONTAINERS_LIMIT)}
+                >Next</Button>
               </div>
             </div>
           )}

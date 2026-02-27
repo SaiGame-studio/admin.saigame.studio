@@ -245,4 +245,83 @@ export async function getProgressItems(
   if (params?.offset != null) qs.set("offset", String(params.offset))
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/items${query ? `?${query}` : ""}`)
-} 
+}
+
+// ─── Player Containers ────────────────────────────────────────────────────────
+
+export interface PlayerContainerDefinition {
+  id: string
+  studio_id: string
+  game_id: string
+  name: string
+  container_type: string
+  grid_cols: number
+  grid_rows: number
+  is_portable: boolean
+  metadata?: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PlayerContainer {
+  id: string
+  studio_id?: string
+  game_id?: string
+  owner_user_id?: string
+  item_container_definition_id?: string
+  container_type: string
+  position_data?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+  definition?: PlayerContainerDefinition
+}
+
+export interface PlayerContainersResult {
+  containers: PlayerContainer[]
+  limit: number
+  offset: number
+  has_more: boolean
+  profile_id: string
+  user_id: string
+}
+
+export async function getProgressContainers(
+  progressId: string,
+  params?: { limit?: number; offset?: number; type?: string; include_deleted?: boolean },
+): Promise<PlayerContainersResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit         != null) qs.set("limit",           String(params.limit))
+  if (params?.offset        != null) qs.set("offset",          String(params.offset))
+  if (params?.type)                  qs.set("type",            params.type)
+  if (params?.include_deleted)       qs.set("include_deleted", "true")
+  const query = qs.toString()
+  return api.get(`/api/v1/gamer-progress/${progressId}/containers${query ? `?${query}` : ""}`)
+}
+
+export async function getProgressContainer(
+  progressId: string,
+  containerId: string,
+): Promise<PlayerContainer> {
+  return api.get(`/api/v1/gamer-progress/${progressId}/containers/${containerId}`)
+}
+
+export interface ContainerItemsResult {
+  container_id: string
+  items: PlayerItem[]
+  profile_id: string
+  user_id: string
+}
+
+export async function getContainerItems(
+  progressId: string,
+  containerId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<ContainerItemsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/gamer-progress/${progressId}/containers/${containerId}/items${query ? `?${query}` : ""}`)
+}

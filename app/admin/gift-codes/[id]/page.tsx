@@ -42,15 +42,9 @@ import {
 } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { formatISODate, toUserDatetime, fromUserDatetime } from "@/lib/utils/date-utils"
 
 const LIMIT = 20
-
-function toLocalDatetime(iso: string | null | undefined): string {
-  if (!iso) return ""
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 function getStatus(gc: GiftCode) {
   const now = Date.now()
@@ -100,9 +94,9 @@ export default function GiftCodeDetailPage() {
         setGc(data)
         setDescription(data.description ?? "")
         setMaxUses(data.max_uses === -1 ? "-1" : String(data.max_uses))
-        setActiveAt(toLocalDatetime(data.active_at))
+        setActiveAt(toUserDatetime(data.active_at))
         if (data.expires_at) {
-          setExpiresAt(toLocalDatetime(data.expires_at))
+          setExpiresAt(toUserDatetime(data.expires_at))
           setNeverExpires(false)
         } else {
           setExpiresAt("")
@@ -142,8 +136,8 @@ export default function GiftCodeDetailPage() {
       const body: any = {
         description: description.trim(),
         max_uses: parseInt(maxUses, 10),
-        active_at: activeAt ? new Date(activeAt).toISOString() : null,
-        expires_at: neverExpires || !expiresAt ? null : new Date(expiresAt).toISOString(),
+        active_at: activeAt ? fromUserDatetime(activeAt) : null,
+        expires_at: neverExpires || !expiresAt ? null : fromUserDatetime(expiresAt),
       }
       const updated = await updateGiftCode(gc.id, body)
       setGc(updated)
@@ -262,7 +256,7 @@ export default function GiftCodeDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t('adminGiftCodes.createdAt')}</p>
-                <p className="text-sm">{gc.created_at ? new Date(gc.created_at).toLocaleString() : "—"}</p>
+                <p className="text-sm">{gc.created_at ? formatISODate(gc.created_at) : "—"}</p>
               </div>
               {gc.created_by && (
                 <div className="col-span-2 sm:col-span-3">
@@ -318,7 +312,7 @@ export default function GiftCodeDetailPage() {
                       onChange={(e) => setActiveAt(e.target.value)}
                       className="flex-1"
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={() => setActiveAt(toLocalDatetime(new Date().toISOString()))}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setActiveAt(toUserDatetime(new Date().toISOString()))}>
                       {t('adminGiftCodes.btnNow')}
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={() => setActiveAt("")}>
@@ -387,7 +381,7 @@ export default function GiftCodeDetailPage() {
                             <CopyButton text={r.user_id} />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {r.redeemed_at ? new Date(r.redeemed_at).toLocaleString() : "—"}
+                            {r.redeemed_at ? formatISODate(r.redeemed_at) : "—"}
                           </TableCell>
                         </TableRow>
                       ))}

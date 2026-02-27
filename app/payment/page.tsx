@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -97,6 +98,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
+    timeZone: getUserTimezone(),
     year: "numeric",
     month: "short",
     day: "numeric",

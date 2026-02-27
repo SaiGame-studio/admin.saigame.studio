@@ -272,14 +272,14 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                     <span>{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
-                      <Link href={`/games/${gameId}/players/${item.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
                     <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
                       <Link href={`/games/${gameId}/mailbox?userId=${item.user_id}`}>
                         <Mail className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="icon" title={t('common.viewDetails')}>
+                      <Link href={`/games/${gameId}/players/${item.id}`}>
+                        <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
                   </div>
