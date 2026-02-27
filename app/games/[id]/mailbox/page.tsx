@@ -102,8 +102,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const [game, setGame] = useState<{ id: string; name: string } | null>(null)
   const [form, setForm] = useState<SystemMailForm>({
     receiver_id: "",
-    subject: "Welcome Gift",
-    body: "Thank you for playing! Here's a welcome gift from our team.",
+    subject: "Thank You",
+    body: "Thank you for playing with us!",
     message_type: "system_reward",
     idempotency_key: "",
     expires_in_days: 30,
@@ -155,13 +155,13 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   // Check for userId in URL parameters and auto-fill the form
   useEffect(() => {
     const userId = searchParams.get('userId')
-    if (userId && userId !== form.receiver_id) {
+    if (userId) {
       setForm(prevForm => ({
         ...prevForm,
         receiver_id: userId
       }))
     }
-  }, [searchParams, form.receiver_id])
+  }, [searchParams])
 
   // Clear cache when component mounts (user re-enters the page)
   useEffect(() => {
@@ -211,8 +211,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       // Reset form (keep receiver_id so mailbox stays visible)
       setForm({
         receiver_id: sentToId,
-        subject: "Welcome Gift",
-        body: "Thank you for playing! Here's a welcome gift from our team.",
+        subject: "Thank You",
+        body: "Thank you for playing with us!",
         message_type: "system_reward",
         idempotency_key: "",
         expires_in_days: 30,
@@ -327,13 +327,21 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                   <Mail className="inline h-4 w-4 mr-1" />
                   {t('mailbox.labelSubject')}
                 </Label>
-                <Input
-                  id="subject"
-                  placeholder={t('mailbox.placeholderSubject')}
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="subject"
+                    placeholder={t('mailbox.placeholderSubject')}
+                    value={form.subject}
+                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    className={form.subject ? "pr-8" : ""}
+                    required
+                  />
+                  {form.subject && (
+                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setForm({ ...form, subject: "" })}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -342,14 +350,22 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                 <Mail className="inline h-4 w-4 mr-1" />
                 {t('mailbox.labelBody')}
               </Label>
-              <Textarea
-                id="body"
-                placeholder={t('mailbox.placeholderBody')}
-                value={form.body}
-                onChange={(e) => setForm({ ...form, body: e.target.value })}
-                rows={4}
-                required
-              />
+              <div className="relative">
+                <Textarea
+                  id="body"
+                  placeholder={t('mailbox.placeholderBody')}
+                  value={form.body}
+                  onChange={(e) => setForm({ ...form, body: e.target.value })}
+                  rows={4}
+                  className={form.body ? "pr-8" : ""}
+                  required
+                />
+                {form.body && (
+                  <button type="button" className="absolute right-2 top-2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setForm({ ...form, body: "" })}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Expiration */}
@@ -368,12 +384,20 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="idempotency_key">{t('mailbox.labelIdempotencyKey')}</Label>
-                <Input
-                  id="idempotency_key"
-                  placeholder={t('mailbox.placeholderIdempotencyKey')}
-                  value={form.idempotency_key}
-                  onChange={(e) => setForm({ ...form, idempotency_key: e.target.value })}
-                />
+                <div className="relative">
+                  <Input
+                    id="idempotency_key"
+                    placeholder={t('mailbox.placeholderIdempotencyKey')}
+                    value={form.idempotency_key}
+                    onChange={(e) => setForm({ ...form, idempotency_key: e.target.value })}
+                    className={form.idempotency_key ? "pr-8" : ""}
+                  />
+                  {form.idempotency_key && (
+                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setForm({ ...form, idempotency_key: "" })}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
