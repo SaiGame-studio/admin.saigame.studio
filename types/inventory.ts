@@ -146,6 +146,40 @@ export interface Paginated<T> {
   offset: number
 }
 
+// ─── Container Definitions ────────────────────────────────────────────────────
+
+export type ContainerType = 'inventory' | 'chest' | 'bag' | 'vault' | 'shulker_box'
+
+export interface ContainerDefinition {
+  id: string
+  game_id: string
+  name: string
+  container_type: ContainerType
+  grid_cols: number
+  grid_rows: number
+  is_portable: boolean
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface CreateContainerDefinitionRequest {
+  name: string
+  container_type: ContainerType
+  grid_cols: number
+  grid_rows: number
+  is_portable: boolean
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateContainerDefinitionRequest {
+  name?: string
+  grid_cols?: number
+  grid_rows?: number
+  metadata?: Record<string, unknown>
+}
+
 /** Suggested rarity colour mapping */
 export const RARITY_COLORS: Record<ItemRarity, { text: string; border: string; bg: string }> = {
   common: {

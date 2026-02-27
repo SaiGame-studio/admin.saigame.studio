@@ -186,4 +186,63 @@ export async function banProgress(progressId: string): Promise<void> {
 // Unban a player progress
 export async function unbanProgress(progressId: string): Promise<void> {
   await api.post(`/api/v1/gamer-progress/${progressId}/unban`, {})
+}
+
+// ─── Player Items ─────────────────────────────────────────────────────────────
+
+export interface PlayerItemDefinition {
+  id: string
+  studio_id: string
+  game_id: string
+  item_code: string
+  name: string
+  category: string
+  rarity: string
+  base_stats: Record<string, number>
+  metadata: Record<string, unknown>
+  is_stackable: boolean
+  max_stack_size: number | null
+  grid_width: number
+  grid_height: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PlayerItem {
+  id: string
+  studio_id: string
+  game_id: string
+  user_id: string
+  item_definition_id: string
+  item_container_id: string
+  grid_x: number
+  grid_y: number
+  quantity: number
+  level: number
+  custom_properties: Record<string, unknown> | null
+  acquired_at: string
+  last_modified_at: string
+  version: number
+  definition: PlayerItemDefinition
+}
+
+export interface PlayerItemsResult {
+  items: PlayerItem[]
+  limit: number
+  offset: number
+  profile_id: string
+  total: number
+  user_id: string
+}
+
+export async function getProgressItems(
+  progressId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<PlayerItemsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/gamer-progress/${progressId}/items${query ? `?${query}` : ""}`)
 } 

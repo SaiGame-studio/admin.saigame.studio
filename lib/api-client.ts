@@ -1,4 +1,5 @@
 import { getValidToken, clearToken, refreshAccessToken } from './auth-utils'
+import { toast } from '@/hooks/use-toast'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -16,6 +17,17 @@ export class ApiError extends Error {
     this.status = status
     this.data = data
   }
+}
+
+function getErrorTitle(status: number): string {
+  if (status === 400) return 'Bad Request'
+  if (status === 403) return 'Forbidden'
+  if (status === 404) return 'Not Found'
+  if (status === 409) return 'Conflict'
+  if (status === 422) return 'Validation Error'
+  if (status === 429) return 'Too Many Requests'
+  if (status >= 500) return 'Server Error'
+  return `Error ${status}`
 }
 
 interface RequestOptions {
@@ -112,11 +124,18 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
 
     // Handle non-success responses
     if (!response.ok) {
-      throw new ApiError(
-        data?.message || data?.error || `Request failed: ${response.status}`,
-        response.status,
-        data
-      )
+      const errorMessage = data?.message || data?.error || `Request failed: ${response.status}`
+
+      // Show toast for all 4xx/5xx errors except 401 (auth-context handles login redirect)
+      if (response.status !== 401) {
+        toast({
+          variant: 'destructive',
+          title: getErrorTitle(response.status),
+          description: errorMessage,
+        })
+      }
+
+      throw new ApiError(errorMessage, response.status, data)
     }
 
     return data
