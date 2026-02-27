@@ -5,7 +5,7 @@ import { Store, Users, BookOpen, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 
-type GameNavSection = "shops" | "users" | "items" | "mailbox"
+type GameNavSection = "shops" | "players" | "users" | "items" | "mailbox"
 
 interface GameNavButtonsProps {
   gameId: string
@@ -27,8 +27,8 @@ export function GameNavButtons({ gameId, active }: GameNavButtonsProps) {
           {t("game.shops")}
         </Link>
       </Button>
-      <Button asChild variant={btn("users")} className="flex items-center gap-2">
-        <Link href={`/games/${gameId}/users`}>
+      <Button asChild variant={btn("players")} className="flex items-center gap-2">
+        <Link href={`/games/${gameId}/players`}>
           <Users className="h-4 w-4" />
           {t("game.users")}
         </Link>

@@ -329,7 +329,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.totalPlayer')}</h3>
                                     <p className="text-lg">
-                                        <Link href={`/games/${game.id}/users`} className="text-primary hover:text-primary/80 flex items-center gap-1">
+                                        <Link href={`/games/${game.id}/players`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.usage?.player_profiles ?? game.player_count ?? 0}
                                             <ExternalLink className="inline-block h-4 w-4 ml-1" />
                                         </Link>
@@ -438,7 +438,7 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Player Profiles (Total Players) */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <Link href={`/games/${game.id}/users`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                        <Link href={`/games/${game.id}/players`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.totalPlayer')}
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>

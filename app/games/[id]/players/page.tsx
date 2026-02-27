@@ -150,7 +150,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <div className="w-px h-6 bg-border" />
-          <GameNavButtons gameId={gameId} active="users" />
+          <GameNavButtons gameId={gameId} active="players" />
         </div>
       </div>
 

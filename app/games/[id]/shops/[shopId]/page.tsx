@@ -244,7 +244,7 @@ export default function ShopDetailPage() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/studios/${shop?.game?.studio?.id}`}>{shop?.game?.studio?.name || t('common.studio')}</BreadcrumbLink>
+              <BreadcrumbLink href="/studios">{shop?.game?.studio?.name || t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
