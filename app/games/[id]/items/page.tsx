@@ -1679,7 +1679,7 @@ export default function GameItemsPage() {
           open={showCreate}
           studioId={studioId}
           gameId={gameId}
-          onCreated={fetchItems}
+          onCreated={() => { fetchItems(); loadGameInfo() }}
           onClose={() => setShowCreate(false)}
           categories={categories}
           rarities={rarities}
