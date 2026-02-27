@@ -29,6 +29,7 @@ import type { Studio } from "@/types/studio"
 import type { Game } from "@/types/game"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getUserLocalHour } from "@/lib/utils/date-utils"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -252,7 +253,7 @@ export default function DashboardPage() {
   const [greeting, setGreeting] = useState({ text: "", icon: null as React.ReactNode })
   useEffect(() => {
     const update = () => {
-      const hour = new Date().getHours()
+      const hour = getUserLocalHour()
       if (hour < 5 || hour >= 22) setGreeting({ text: "Good night", icon: <Moon className="inline h-4 w-4 mb-0.5 text-indigo-400" /> })
       else if (hour < 12) setGreeting({ text: "Good morning", icon: <Sunrise className="inline h-4 w-4 mb-0.5 text-amber-400" /> })
       else if (hour < 18) setGreeting({ text: "Good afternoon", icon: <Sun className="inline h-4 w-4 mb-0.5 text-yellow-400" /> })

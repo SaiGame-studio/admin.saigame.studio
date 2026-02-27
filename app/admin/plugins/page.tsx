@@ -29,6 +29,7 @@ import {
   type AdminGameGrant,
 } from "@/lib/admin-api"
 import type { Plugin } from "@/lib/plugin-api"
+import { formatISODate } from "@/lib/utils/date-utils"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -497,7 +498,7 @@ export default function AdminPluginsPage() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {g.grant.expires_at
-                            ? new Date(g.grant.expires_at).toLocaleDateString()
+                            ? formatISODate(g.grant.expires_at)
                             : "Permanent"}
                         </TableCell>
                         <TableCell className="text-right">

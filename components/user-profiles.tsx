@@ -80,7 +80,7 @@ export function UserProfiles() {
 
 function ProfileCard({ profile }: { profile: UserProfile }) {
   const isDeveloper = profile.profile_type === "developer"
-  const isGames = profile.profile_type === "games"
+  const isGames = profile.profile_type === "gamer"
   const { t } = useTranslation()
 
   return (

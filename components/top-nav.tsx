@@ -10,9 +10,10 @@ import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CoinBalance } from "@/components/coin-balance"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export function TopNav() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
@@ -36,10 +37,16 @@ export function TopNav() {
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
         <CoinBalance />
-        <Button variant="outline" size="icon" asChild>
+        <Button variant="ghost" className="flex items-center gap-2 px-2 h-9" asChild>
           <Link href="/profile">
-            <User className="h-5 w-5" />
-            <span className="sr-only">User Profile</span>
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="text-xs">
+                {(user?.display_name || user?.username)?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium hidden sm:inline-block">
+              {user?.display_name || user?.username}
+            </span>
           </Link>
         </Button>
         <Button variant="outline" size="icon" onClick={logout}>

@@ -82,6 +82,11 @@ export function ProfileContent() {
   return (
     <div className="container mx-auto py-6 space-y-6">
 
+      {/* ── Page title ── */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+      </div>
+
       {/* ── Header card ── */}
       <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none" />
@@ -94,9 +99,9 @@ export function ProfileContent() {
           {/* Name / email */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-extrabold tracking-tight truncate">
+              <h2 className="text-2xl font-extrabold tracking-tight truncate">
                 {user.display_name || user.username}
-              </h1>
+              </h2>
               {user.display_name && user.display_name !== user.username && (
                 <span className="text-sm text-muted-foreground font-normal">@{user.username}</span>
               )}

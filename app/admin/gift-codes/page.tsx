@@ -54,6 +54,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
 const LIMIT = 20
 
@@ -99,6 +100,7 @@ function StatusBadge({ gc }: { gc: GiftCode }) {
 function formatDt(iso: string | null, neverLabel = "Never") {
   if (!iso) return neverLabel
   return new Date(iso).toLocaleString(undefined, {
+    timeZone: getUserTimezone(),
     year: "numeric",
     month: "short",
     day: "numeric",

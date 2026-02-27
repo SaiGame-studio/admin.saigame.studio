@@ -173,12 +173,7 @@ export function SideNav() {
                   {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/users">
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.users')}</span>}
-                </Link>
-              </Button>
+
             </div>
             {!isCollapsed && (
               <div className="space-y-1">
@@ -201,12 +196,7 @@ export function SideNav() {
                     <span className="whitespace-nowrap">{t('common.settings')}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/doc">
-                    <FileText className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">{t('common.documentation')}</span>
-                  </Link>
-                </Button>
+                {/* Documentation link hidden temporarily */}
               </div>
             )}
             {!isCollapsed && capabilities.is_super_admin && (
