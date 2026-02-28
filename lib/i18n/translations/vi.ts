@@ -875,5 +875,18 @@ export const vi = {
     detailExpires: "Hết hạn",
     detailClaimed: "Đã nhận",
     detailAttachments: "Đính Kèm"
+  },
+  tips: {
+    label: "Mẹo",
+    tip1: "Nhấp vào thẻ game để xem chi tiết và thống kê máy chủ.",
+    tip2: "Dùng trang Studio để quản lý tất cả studio của bạn.",
+    tip3: "Lọc game theo trạng thái bằng dropdown trên trang Games.",
+    tip4: "Vào Admin panel để quản lý người dùng, coins và gift codes.",
+    tip5: "Nhấp biểu tượng theme góc trên phải để đổi giao diện.",
+    tip6: "Dùng Gift Code để tặng coins hoặc vật phẩm cho người chơi.",
+    tip7: "Xem người dùng trực tuyến theo thời gian thực trên Dashboard.",
+    tip8: "Đổi ngôn ngữ giao diện bằng bộ chọn trong thanh bên.",
+    tip9: "Hộp thư giúp gửi tin nhắn trực tiếp đến bất kỳ người chơi nào.",
+    tip10: "Kiểm tra tab Plugins để bật hoặc tắt tính năng của game."
   }
 };

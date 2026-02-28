@@ -882,5 +882,18 @@ export const en = {
     detailExpires: "Expires",
     detailClaimed: "Claimed",
     detailAttachments: "Attachments"
+  },
+  tips: {
+    label: "Tip",
+    tip1: "If you talk to Sai, he might give you a free gift code.",
+    tip2: "The one-time fee is there to reduce spam, not to make money.",
+    tip3: "If you plan to purchase a lot of sCoin, please talk to Sai first.",
+    tip4: "Visit the Admin panel to manage users, coins, and gift codes.",
+    tip5: "Click the theme toggle in the top-right to change the appearance.",
+    tip6: "Use Gift Codes to reward players with coins or items.",
+    tip7: "Monitor online users in real-time from the Dashboard.",
+    tip8: "Switch interface language using the selector in the sidebar.",
+    tip9: "The Mailbox lets you send messages directly to any player.",
+    tip10: "Check the Plugins tab to enable or disable game features."
   }
 }; 

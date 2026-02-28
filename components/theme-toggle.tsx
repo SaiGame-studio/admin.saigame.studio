@@ -1,53 +1,81 @@
 "use client"
 
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
-import { Moon, Sun } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Moon, Sun, Monitor, Leaf } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+const THEMES = ["light-warm", "dark-green", "light", "dark", "system"] as const
+type Theme = typeof THEMES[number]
+
+const ICONS: Record<Theme, React.ReactNode> = {
+  "light-warm": <Sun className="h-[1.2rem] w-[1.2rem] text-amber-400" />,
+  "dark-green": <Leaf className="h-[1.2rem] w-[1.2rem] text-green-400" />,
+  light:        <Sun className="h-[1.2rem] w-[1.2rem]" />,
+  dark:         <Moon className="h-[1.2rem] w-[1.2rem]" />,
+  system:       <Monitor className="h-[1.2rem] w-[1.2rem]" />,
+}
+
+const LABELS: Record<Theme, string> = {
+  "light-warm": "Warm Light",
+  "dark-green": "Dark Green",
+  light:        "Light",
+  dark:         "Dark",
+  system:       "System",
+}
+
+function resolveTheme(theme: string | undefined): Theme {
+  if (!theme) return "system"
+  if ((THEMES as readonly string[]).includes(theme)) return theme as Theme
+  return "system"
+}
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [showLabel, setShowLabel] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Avoid hydration mismatch by only rendering after mount
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
-  if (!mounted) {
-    return (
-      <Button variant="outline" size="icon" disabled>
-        <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:rotate-90 dark:scale-0" />
-        <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
-      </Button>
-    )
+  const current = resolveTheme(mounted ? theme : undefined)
+
+  const cycle = () => {
+    const idx = THEMES.indexOf(current)
+    setTheme(THEMES[(idx + 1) % THEMES.length])
+
+    setShowLabel(true)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setShowLabel(false), 1400)
   }
 
+  // Also show label when theme changes externally (e.g. from side-nav)
+  const prevThemeRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!mounted) return
+    if (prevThemeRef.current !== undefined && prevThemeRef.current !== theme) {
+      setShowLabel(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setShowLabel(false), 1400)
+    }
+    prevThemeRef.current = theme
+  }, [theme, mounted])
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          <Sun className="mr-2 h-4 w-4" />
-          <span>Light</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          <Moon className="mr-2 h-4 w-4" />
-          <span>Dark</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          <span className="mr-2">💻</span>
-          <span>System</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="relative flex items-center">
+      {/* Floating label flies left */}
+      <span
+        className={`absolute right-full mr-2 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded bg-popover border border-border shadow-sm text-foreground pointer-events-none transition-all duration-300 ${
+          showLabel ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+        }`}
+      >
+        {LABELS[current]}
+      </span>
+
+      <Button variant="outline" size="icon" onClick={mounted ? cycle : undefined} disabled={!mounted}>
+        {ICONS[current]}
+        <span className="sr-only">Toggle theme ({current})</span>
+      </Button>
+    </div>
   )
 }

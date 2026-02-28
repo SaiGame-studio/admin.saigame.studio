@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,12 +11,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Loader2, Coins } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Loader2 } from "lucide-react"
 import { createTeam } from "@/lib/team-api"
+import { fetchStudio } from "@/lib/studio-api"
 import type { Team } from "@/types/team"
+import type { StudioLimits, StudioUsage } from "@/types/studio"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
 const TEAM_COST = 10
@@ -33,16 +46,31 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [usageLimits, setUsageLimits] = useState<{ usage: StudioUsage; limits: StudioLimits } | null>(null)
+  const [usageLoading, setUsageLoading] = useState(false)
   const { t } = useTranslation()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!name.trim()) {
-      setError(t('team.nameRequired'))
-      return
-    }
+  // Fetch fresh studio usage whenever the dialog opens
+  useEffect(() => {
+    if (!open) return
+    setUsageLoading(true)
+    fetchStudio(studioId)
+      .then(s => {
+        if (s.usage && s.limits) {
+          setUsageLimits({ usage: s.usage, limits: s.limits })
+        }
+      })
+      .catch(() => { /* silently fall back to existingTeamCount */ })
+      .finally(() => setUsageLoading(false))
+  }, [open, studioId])
 
+  // Use fetched data if available, otherwise fall back to prop
+  const currentTeamCount = usageLimits?.usage.teams ?? existingTeamCount
+  const maxTeams = usageLimits?.limits.max_teams ?? null
+  const willCharge = maxTeams != null ? currentTeamCount >= maxTeams : currentTeamCount >= 1
+
+  const doCreate = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -50,7 +78,6 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
         name: name.trim(),
         description: description.trim() || undefined,
       })
-      // Refresh coin balance so the float text shows the deduction
       window.dispatchEvent(new Event("wallet:refresh"))
       onTeamCreated(newTeam)
       setOpen(false)
@@ -64,6 +91,22 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!name.trim()) {
+      setError(t('team.nameRequired'))
+      return
+    }
+
+    if (willCharge) {
+      setShowConfirm(true)
+      return
+    }
+
+    await doCreate()
+  }
+
   const handleOpenChange = (newOpen: boolean) => {
     if (!loading) {
       setOpen(newOpen)
@@ -71,11 +114,13 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
         setName("")
         setDescription("")
         setError(null)
+        setUsageLimits(null)
       }
     }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm">
@@ -90,15 +135,28 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
             <DialogDescription>
               {t('team.createDesc')}
             </DialogDescription>
-            <p className="text-xs text-muted-foreground pt-1">
-              {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {TEAM_COST} coins</span>
-            </p>
-            {existingTeamCount >= 1 && (
-              <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md px-3 py-2 mt-1">
-                <Coins className="h-3.5 w-3.5 shrink-0" />
-                <span>🪙 {TEAM_COST} coins {t('team.createCostCharge')}</span>
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-muted-foreground">
+                {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {TEAM_COST} coins</span>
+              </p>
+              {usageLoading ? (
+                <Badge variant="outline" className="text-xs shrink-0 ml-2">
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  Loading...
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={`text-xs shrink-0 ml-2 ${
+                    maxTeams != null && currentTeamCount >= maxTeams
+                      ? "border-red-400 text-red-500"
+                      : "border-muted-foreground/40 text-muted-foreground"
+                  }`}
+                >
+                  Teams: {currentTeamCount}{maxTeams != null ? ` / ${maxTeams}` : ""}
+                </Badge>
+              )}
+            </div>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -146,5 +204,30 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
         </form>
       </DialogContent>
     </Dialog>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Create Team</AlertDialogTitle>
+            <AlertDialogDescription>
+              🪙 <strong>{TEAM_COST} coins</strong> will be charged from your wallet to create this team. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={loading}
+              onClick={async () => {
+                setShowConfirm(false)
+                await doCreate()
+              }}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
