@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CoinBalance } from "@/components/coin-balance"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { TipsBanner } from "@/components/TipsBanner"
 
 export function TopNav() {
   const { logout, user } = useAuth()
@@ -34,6 +35,7 @@ export function TopNav() {
           Sai's Admin
         </Link>
       </div>
+      <TipsBanner />
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
         <CoinBalance />
