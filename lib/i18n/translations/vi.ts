@@ -878,15 +878,15 @@ export const vi = {
   },
   tips: {
     label: "Mẹo",
-    tip1: "Nhấp vào thẻ game để xem chi tiết và thống kê máy chủ.",
-    tip2: "Dùng trang Studio để quản lý tất cả studio của bạn.",
-    tip3: "Lọc game theo trạng thái bằng dropdown trên trang Games.",
-    tip4: "Vào Admin panel để quản lý người dùng, coins và gift codes.",
-    tip5: "Nhấp biểu tượng theme góc trên phải để đổi giao diện.",
-    tip6: "Dùng Gift Code để tặng coins hoặc vật phẩm cho người chơi.",
-    tip7: "Xem người dùng trực tuyến theo thời gian thực trên Dashboard.",
-    tip8: "Đổi ngôn ngữ giao diện bằng bộ chọn trong thanh bên.",
+    tip1: "Nếu bạn nhắn với Sai, anh ấy có thể tặng bạn một gift code miễn phí.",
+    tip2: "Khoản phí một lần là để giảm spam, không phải để kiếm tiền.",
+    tip3: "Nếu bạn định mua nhiều sCoin, hãy nói chuyện với Sai trước.",
+    tip4: "Bạn có thể nhận báo cáo hàng ngày về studio qua một nhóm Telegram.",
+    tip5: "Về mặt kỹ thuật, bạn không thể rút tiền thật từ sCoin.",
+    tip6: "HTTPS CCU và WebSocket CCU không giống nhau. WebSocket CCU dành cho kết nối thời gian thực.",
+    tip7: "Mỗi team studio làm việc trên game của riêng mình.",
+    tip8: "Chúng tôi có thể tạo game Idle, Card PvE, Roguelike, Async PvP và Match-3 mà không cần kết nối thời gian thực.",
     tip9: "Hộp thư giúp gửi tin nhắn trực tiếp đến bất kỳ người chơi nào.",
-    tip10: "Kiểm tra tab Plugins để bật hoặc tắt tính năng của game."
+    tip10: "Vì lý do bảo mật, không ai có thể chỉnh sửa dữ liệu người chơi ngoại trừ chính họ."
   }
 };

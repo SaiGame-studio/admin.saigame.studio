@@ -888,12 +888,12 @@ export const en = {
     tip1: "If you talk to Sai, he might give you a free gift code.",
     tip2: "The one-time fee is there to reduce spam, not to make money.",
     tip3: "If you plan to purchase a lot of sCoin, please talk to Sai first.",
-    tip4: "Visit the Admin panel to manage users, coins, and gift codes.",
-    tip5: "Click the theme toggle in the top-right to change the appearance.",
-    tip6: "Use Gift Codes to reward players with coins or items.",
-    tip7: "Monitor online users in real-time from the Dashboard.",
-    tip8: "Switch interface language using the selector in the sidebar.",
+    tip4: "You can receive daily reports about your studio via a Telegram group.",
+    tip5: "Technically, you cannot withdraw real money from sCoin.",
+    tip6: "HTTPS CCU and WebSocket CCU are not the same. WebSocket CCU is for real-time connections.",
+    tip7: "Every studio team works on its own game.",
+    tip8: "We can create Idle, Card PvE, Roguelike, Async PvP, and Match-3 games without real-time connections.",
     tip9: "The Mailbox lets you send messages directly to any player.",
-    tip10: "Check the Plugins tab to enable or disable game features."
+    tip10: "For security reasons, nobody can edit player data except their own."
   }
 }; 
