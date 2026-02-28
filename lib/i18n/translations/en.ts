@@ -894,6 +894,7 @@ export const en = {
     tip7: "Every studio team works on its own game.",
     tip8: "We can create Idle, Card PvE, Roguelike, Async PvP, and Match-3 games without real-time connections.",
     tip9: "The Mailbox lets you send messages directly to any player.",
-    tip10: "For security reasons, nobody can edit player data except their own."
+    tip10: "For security reasons, nobody can edit player data except their own.",
+    tip11: "You don’t have to use the default item properties, you can design your own system using base stats or metadata instead."
   }
 }; 

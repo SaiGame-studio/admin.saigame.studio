@@ -10,6 +10,7 @@ export type ItemCategory =
   | 'card'
   | 'container'
   | 'decoration'
+  | 'gacha_pack'
   | 'other'
 
 export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary'

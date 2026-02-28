@@ -85,6 +85,7 @@ import type {
 import { RARITY_COLORS } from "@/types/inventory"
 import type { GameLimits } from "@/types/game"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { CopyButton } from "@/components/CopyButton"
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
@@ -967,10 +968,31 @@ export default function GameItemsPage() {
     }
   }, [activeTab, fetchGachaData])
 
+  // auto-open edit sheet when ?editPack=<id> is in the URL (keep param so F5 re-opens)
+  useEffect(() => {
+    const packId = searchParams.get("editPack")
+    if (!packId || gachaLoading || gachaPacks.length === 0) return
+    const pack = gachaPacks.find((p) => p.id === packId)
+    if (pack) {
+      gachaOpenEdit(pack)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gachaPacks, gachaLoading])
+
+  function gachaCloseSheet() {
+    setGachaSheetOpen(false)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.delete("editPack")
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
+  }
+
   function gachaOpenCreate() {
     setEditingPack(null)
     setGachaForm(emptyGachaForm())
     setGachaSheetOpen(true)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.delete("editPack")
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
   }
 
   function gachaOpenEdit(pack: GachaPack) {
@@ -994,6 +1016,9 @@ export default function GameItemsPage() {
         : [EMPTY_KEY_ROW()],
     })
     setGachaSheetOpen(true)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("editPack", pack.id)
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
   }
 
   function updateKeyReqRow(index: number, patch: Partial<KeyReqRow>) {
@@ -1054,7 +1079,7 @@ export default function GameItemsPage() {
         toast({ title: "Pack created" })
         loadGameInfo()
       }
-      setGachaSheetOpen(false)
+      gachaCloseSheet()
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save failed", description: err?.message ?? "Unknown error" })
     } finally {
@@ -1584,14 +1609,20 @@ export default function GameItemsPage() {
                   <Card key={pack.id} className={`transition-all ${!pack.is_enabled ? "opacity-60" : ""}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <CardTitle className="text-base truncate">{pack.name}</CardTitle>
-                          <Badge
-                            variant={pack.is_enabled ? "default" : "secondary"}
-                            className="text-xs shrink-0"
-                          >
-                            {pack.is_enabled ? "Enabled" : "Disabled"}
-                          </Badge>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <CardTitle className="text-base truncate">{pack.name}</CardTitle>
+                            <Badge
+                              variant={pack.is_enabled ? "default" : "secondary"}
+                              className="text-xs shrink-0"
+                            >
+                              {pack.is_enabled ? "Enabled" : "Disabled"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                            <span>ID: {pack.id}</span>
+                            <CopyButton text={pack.id} size="h-3 w-3" />
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Switch
@@ -1738,13 +1769,19 @@ export default function GameItemsPage() {
       )}
 
       {/* ── Gacha Create / Edit Sheet ───────────────────────────────────────── */}
-      <Sheet open={gachaSheetOpen} onOpenChange={setGachaSheetOpen}>
+      <Sheet open={gachaSheetOpen} onOpenChange={(open) => { if (!open) gachaCloseSheet() }}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : "New Gacha Pack"}</SheetTitle>
             <SheetDescription className="text-xs">
               Configure pack name, key requirements (items consumed on open), and item drop pool weights.
             </SheetDescription>
+            {editingPack && (
+              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground pt-1">
+                <span>ID: {editingPack.id}</span>
+                <CopyButton text={editingPack.id} size="h-3 w-3" />
+              </div>
+            )}
           </SheetHeader>
 
           <div className="space-y-5">
@@ -1947,7 +1984,7 @@ export default function GameItemsPage() {
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-6 mt-4 border-t">
-            <Button variant="outline" onClick={() => setGachaSheetOpen(false)} disabled={formSaving}>
+            <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
               Cancel
             </Button>
             <Button onClick={handleGachaSave} disabled={formSaving}>
