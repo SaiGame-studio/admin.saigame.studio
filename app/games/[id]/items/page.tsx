@@ -1357,7 +1357,7 @@ export default function GameItemsPage() {
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" asChild>
                             <Link href={`/games/${gameId}/items/${item.id}`}>
-                              <Eye className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </Link>
                           </Button>
                         </TableCell>
