@@ -695,7 +695,7 @@ export default function DocPage() {
 
         <p className="text-sm text-muted-foreground">
           Global preferences available at{" "}
-          <Link href="/settings" className="text-primary underline underline-offset-2">/settings</Link>.
+          <Link href="/profile?tab=settings" className="text-primary underline underline-offset-2">/profile?tab=settings</Link>.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">

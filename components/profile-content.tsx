@@ -80,7 +80,7 @@ export function ProfileContent() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
 
       {/* ── Page title ── */}
       <div>
@@ -256,7 +256,7 @@ export function ProfileContent() {
 
 function ProfileSkeleton() {
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       <div className="rounded-2xl border bg-card p-6">
         <div className="flex items-center gap-5">
           <Skeleton className="h-20 w-20 rounded-2xl" />
