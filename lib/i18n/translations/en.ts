@@ -898,7 +898,7 @@ export const en = {
     tip11: "You don’t have to use the default item properties, you can design your own system using base stats or metadata instead.",
     tip12: "The only way to add new items to a container is through the mailbox.",
     tip13: "Resizing the grid container will not trigger a layout recalculation; item positions remain fixed.",
-    
+
     tip14: "Setting a gacha_pack_id for the gacha item makes it much easier to test in the game client.",
   }
 }; 

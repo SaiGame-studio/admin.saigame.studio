@@ -1211,7 +1211,6 @@ export default function GameItemsPage() {
                     </span>
                     <Link
                       href={`/games/${gameId}/plugins`}
-                      target="_blank"
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
                       title="Manage plugins / raise limits"
                     >
@@ -1612,7 +1611,6 @@ export default function GameItemsPage() {
                       </span>
                       <Link
                         href={`/games/${gameId}/plugins`}
-                        target="_blank"
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
                         title="Manage plugins / raise limits"
                       >

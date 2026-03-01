@@ -311,8 +311,6 @@ export default function GameUserProgressDetailPage({
           <TabsTrigger value="transactions">Transactions {gachaTxnsTotal > 0 && activeTab === "transactions" && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{gachaTxnsTotal}</span>}</TabsTrigger>
           <a
             href={`/games/${gameId}/mailbox?userId=${progressId}`}
-            target="_blank"
-            rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted hover:text-foreground text-muted-foreground"
           >
             <Mail className="h-3.5 w-3.5" />
@@ -599,8 +597,6 @@ export default function GameUserProgressDetailPage({
                             {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
                             <a
                               href={`/games/${gameId}/items/${item.item_definition_id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                               title="Open item definition"
                               onClick={(e) => e.stopPropagation()}
@@ -923,8 +919,6 @@ export default function GameUserProgressDetailPage({
                             {c.item_container_definition_id && (
                               <a
                                 href={`/games/${gameId}/items?tab=containers&q=${c.item_container_definition_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                                 title="Open container definition"
                                 onClick={(e) => e.stopPropagation()}

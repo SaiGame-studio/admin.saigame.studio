@@ -795,8 +795,6 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                                     {att.type === "item" && att.definition_id && (
                                       <a
                                         href={`/games/${gameId}/items/${att.definition_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
                                         className="text-muted-foreground hover:text-foreground transition-colors"
                                         title="Open item page"
                                         onClick={(e) => e.stopPropagation()}

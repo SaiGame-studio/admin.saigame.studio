@@ -425,8 +425,6 @@ export default function ContainerItemsPage({
                                 {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
                                 <a
                                   href={`/games/${gameId}/items/${item.item_definition_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
                                   className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                                   title="Open item definition"
                                   onClick={(e) => e.stopPropagation()}
