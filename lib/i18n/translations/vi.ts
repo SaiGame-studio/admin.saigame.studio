@@ -887,6 +887,9 @@ export const vi = {
     tip7: "Mỗi team studio làm việc trên game của riêng mình.",
     tip8: "Chúng tôi có thể tạo game Idle, Card PvE, Roguelike, Async PvP và Match-3 mà không cần kết nối thời gian thực.",
     tip9: "Hộp thư giúp gửi tin nhắn trực tiếp đến bất kỳ người chơi nào.",
-    tip10: "Vì lý do bảo mật, không ai có thể chỉnh sửa dữ liệu người chơi ngoại trừ chính họ."
+    tip10: "Vì lý do bảo mật, không ai có thể chỉnh sửa dữ liệu người chơi ngoại trừ chính họ.",
+    tip11: "Bạn không bắt buộc dùng thuộc tính item mặc định, có thể tự thiết kế hệ thống riêng bằng base stats hoặc metadata.",
+    tip12: "Cách duy nhất để thêm item mới vào container là qua hộp thư.",
+    tip13: "Thay đổi kích thước grid container sẽ không tính toán lại bố cục; vị trí của các item vẫn giữ nguyên."
   }
 };

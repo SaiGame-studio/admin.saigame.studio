@@ -895,6 +895,8 @@ export const en = {
     tip8: "We can create Idle, Card PvE, Roguelike, Async PvP, and Match-3 games without real-time connections.",
     tip9: "The Mailbox lets you send messages directly to any player.",
     tip10: "For security reasons, nobody can edit player data except their own.",
-    tip11: "You don’t have to use the default item properties, you can design your own system using base stats or metadata instead."
+    tip11: "You don’t have to use the default item properties, you can design your own system using base stats or metadata instead.",
+    tip12: "The only way to add new items to a container is through the mailbox.",
+    tip13: "Resizing the grid container will not trigger a layout recalculation; item positions remain fixed.",
   }
 }; 
