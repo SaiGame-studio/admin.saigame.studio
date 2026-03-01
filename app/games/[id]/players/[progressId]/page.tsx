@@ -109,6 +109,9 @@ export default function GameUserProgressDetailPage({
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
 
+  // Container map used in the Items tab (id → container)
+  const [containerMapForItems, setContainerMapForItems] = useState<Record<string, PlayerContainer>>({})
+
   const [idempotencyHelpOpen, setIdempotencyHelpOpen] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -156,15 +159,21 @@ export default function GameUserProgressDetailPage({
     setItemsLoading(true)
     setItemsError(null)
     try {
-      const res = await getProgressItems(progressId, {
-        limit: ITEMS_LIMIT,
-        offset: itemsOffset,
-        name:     itemFilterNameDebounced || undefined,
-        category: itemFilterCategory      || undefined,
-        rarity:   itemFilterRarity        || undefined,
-      })
+      const [res, containersRes] = await Promise.all([
+        getProgressItems(progressId, {
+          limit: ITEMS_LIMIT,
+          offset: itemsOffset,
+          name:     itemFilterNameDebounced || undefined,
+          category: itemFilterCategory      || undefined,
+          rarity:   itemFilterRarity        || undefined,
+        }),
+        getProgressContainers(progressId, { limit: 500 }),
+      ])
       setPlayerItems(res.items ?? [])
       setItemsTotal(res.total ?? 0)
+      const map: Record<string, PlayerContainer> = {}
+      for (const c of containersRes.containers ?? []) map[c.id] = c
+      setContainerMapForItems(map)
     } catch (err: any) {
       setItemsError(err?.message ?? "Failed to load items")
     } finally {
@@ -585,6 +594,7 @@ export default function GameUserProgressDetailPage({
                       <TableHead>Rarity</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Level</TableHead>
+                      <TableHead>Container</TableHead>
                       <TableHead>Position</TableHead>
                       <TableHead>Acquired</TableHead>
                     </TableRow>
@@ -618,6 +628,23 @@ export default function GameUserProgressDetailPage({
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">{item.quantity}</TableCell>
                         <TableCell className="text-right text-sm">{item.level}</TableCell>
+                        <TableCell className="text-sm">
+                          {(() => {
+                            const c = containerMapForItems[item.item_container_id]
+                            if (!c) return <span className="text-muted-foreground font-mono text-xs">{item.item_container_id?.slice(0, 8) ?? "—"}</span>
+                            return (
+                              <a
+                                href={`/games/${gameId}/players/${progressId}/containers/${c.id}?def_name=${encodeURIComponent(c.definition?.name ?? '')}&def_cols=${c.definition?.grid_cols ?? ''}&def_rows=${c.definition?.grid_rows ?? ''}&def_portable=${c.definition?.is_portable ? '1' : '0'}&ctype=${encodeURIComponent(c.container_type)}`}
+                                className="inline-flex items-center gap-1 hover:text-primary transition-colors max-w-[160px]"
+                                title={c.id}
+                              >
+                                <Archive className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="font-medium truncate">{c.definition?.name ?? c.container_type}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              </a>
+                            )
+                          })()}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Box className="h-3.5 w-3.5" />

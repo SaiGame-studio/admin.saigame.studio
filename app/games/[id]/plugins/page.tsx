@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -213,6 +213,7 @@ export default function GamePluginsPage() {
   const [confirmPlugin, setConfirmPlugin] = useState<Plugin | null>(null)
   const [confirmPluginIdx, setConfirmPluginIdx] = useState(0)
   const [confirmStacks, setConfirmStacks] = useState(1)
+  const savedScrollY = useRef(0)
 
   const [unsubTarget, setUnsubTarget] = useState<{ plugin: Plugin; idx: number } | null>(null)
   const [unsubbing, setUnsubbing] = useState<string | null>(null)
@@ -303,11 +304,29 @@ export default function GamePluginsPage() {
   }
 
   const lim = gamePlugins?.effective_limits
-  const pending = gamePlugins?.pending_limits
   const subs = gamePlugins?.subscriptions ?? []
   const activeSubs_ = subs.filter((s) => !s.subscription.is_revoked)
   const historySubs = subs.filter((s) => s.subscription.is_revoked)
   const totalMonthlyCost = activeSubs_.filter((s) => !s.is_cancelled).reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
+
+  // Compute how much each metric will be reduced when cancelled subs expire.
+  // This is derived from the frontend subscription data so it's always accurate,
+  // regardless of whether the API's pending_limits field is correct.
+  const cancelledSubs = activeSubs_.filter((s) => s.is_cancelled)
+  const pendingReduction = cancelledSubs.length > 0
+    ? cancelledSubs.reduce(
+        (acc, { subscription, plugin }) => {
+          const n = subscription.stack_count ?? 0
+          return {
+            max_concurrent_users: acc.max_concurrent_users + plugin.ccu_grant * n,
+            max_profiles: acc.max_profiles + plugin.profiles_grant * n,
+            max_items: acc.max_items + plugin.items_grant * n,
+            max_shops: acc.max_shops + plugin.shops_grant * n,
+          }
+        },
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0 }
+      )
+    : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
   activeSubs_.forEach(({ subscription, plugin }) => {
     if (!subsByPluginId[plugin.id]) subsByPluginId[plugin.id] = []
@@ -404,15 +423,14 @@ export default function GamePluginsPage() {
           {game && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
               {([
-                { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, pending: pending?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
-                { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, pending: pending?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
-                { label: t('plugins.items'), max: game.limits?.max_items ?? null, pending: pending?.max_items, used: game.usage?.items, icon: "📦" },
-                { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, pending: pending?.max_shops, used: game.usage?.shops, icon: "🏪" },
-              ] as { label: string; max: number | null; pending?: number; used: number | undefined; icon: string }[]).map((row) => {
+                { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
+                { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
+                { label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦" },
+                { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪" },
+              ] as { label: string; max: number | null; reduction?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
-                const hasCancelled = subs.some((s) => s.is_cancelled && !s.subscription.is_revoked)
-                const hasPending = hasCancelled && row.pending != null && row.pending !== row.max
+                const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
                 return (
                   <div key={row.label} className="rounded-xl bg-muted/40 px-3 py-2">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -424,7 +442,7 @@ export default function GamePluginsPage() {
                         <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
                       ) : (row.max != null ? formatNumber(row.max) : '∞')}
                       {hasPending && (
-                        <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - row.pending!)} {t('plugins.materia.afterExpiry')}</span>
+                        <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - (row.reduction ?? 0))} {t('plugins.materia.afterExpiry')}</span>
                       )}
                     </p>
                     {pct != null && (
@@ -554,7 +572,7 @@ export default function GamePluginsPage() {
                     ) : (
                       <button
                         disabled={isSpinning || !canAfford}
-                        onClick={() => { setConfirmPlugin(plugin); setConfirmPluginIdx(idx); setConfirmStacks(1) }}
+                        onClick={() => { savedScrollY.current = window.scrollY; setConfirmPlugin(plugin); setConfirmPluginIdx(idx); setConfirmStacks(1) }}
                         className={`flex-1 py-2 px-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5
                           ${!canAfford || isSpinning
                             ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border border-border"
@@ -813,7 +831,7 @@ export default function GamePluginsPage() {
       {/* ──────────────────────────────────────────
           SOCKET CONFIRMATION DIALOG
          ────────────────────────────────────────── */}
-      <AlertDialog open={!!confirmPlugin} onOpenChange={(o) => !o && setConfirmPlugin(null)}>
+      <AlertDialog open={!!confirmPlugin} onOpenChange={(o) => { if (!o) { setConfirmPlugin(null); const y = savedScrollY.current; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: 'instant' })) } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">

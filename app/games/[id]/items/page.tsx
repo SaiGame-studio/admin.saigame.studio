@@ -1543,15 +1543,17 @@ export default function GameItemsPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Delete"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setDeletingContainer(def)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {def.container_type !== 'inventory' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Delete"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setDeletingContainer(def)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

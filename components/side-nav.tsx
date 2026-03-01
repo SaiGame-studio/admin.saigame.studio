@@ -6,7 +6,7 @@ import Image from "next/image"
 import {
   BarChart3,
   Clock,
-  Cog,
+  MessageCircle,
   Database,
   FileText,
   LayoutDashboard,
@@ -191,10 +191,10 @@ export function SideNav() {
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/settings">
-                    <Cog className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">{t('common.settings')}</span>
-                  </Link>
+                  <a href="https://discord.gg/tr7MxpMAH4" target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Discord Support</span>
+                  </a>
                 </Button>
                 {/* Documentation link hidden temporarily */}
               </div>
