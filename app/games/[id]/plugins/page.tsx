@@ -682,7 +682,19 @@ export default function GamePluginsPage() {
                   {/* Right: expiry info */}
                   <div className="text-right shrink-0">
                     {isCancelled ? (
-                      <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
+                      <>
+                        <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
+                        {expiresAt && (
+                          <>
+                            <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                              {isExpired
+                                ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
+                                : `${daysLeft}${t('plugins.materia.daysLeft')}`}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                          </>
+                        )}
+                      </>
                     ) : expiresAt ? (
                       <>
                         <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>

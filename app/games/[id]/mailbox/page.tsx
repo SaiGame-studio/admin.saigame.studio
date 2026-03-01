@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ScrollText, Send, User, Mail, MailOpen, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft } from "lucide-react"
+import { ScrollText, Send, User, Mail, MailOpen, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -792,6 +792,16 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                                       </span>
                                     )}
                                     <span className="font-medium">×{att.quantity}</span>
+                                    {att.type === "item" && att.definition_id && (
+                                      <a
+                                        href={`/games/${gameId}/items/${att.definition_id}`}
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                        title="Open item page"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    )}
                                   </span>
                                 ))}
                               </div>

@@ -1,12 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Box, Grid2x2, List, Package, RefreshCw } from "lucide-react"
+import { ArrowLeft, Box, ExternalLink, Grid2x2, List, Package, RefreshCw, Search, X } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -193,6 +194,19 @@ export default function ContainerItemsPage({
   const [items, setItems] = useState<PlayerItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filterText, setFilterText] = useState("")
+
+  const filteredItems = useMemo(() => {
+    const q = filterText.trim().toLowerCase()
+    if (!q) return items
+    return items.filter((item) =>
+      (item.definition?.name ?? "").toLowerCase().includes(q) ||
+      (item.definition?.item_code ?? "").toLowerCase().includes(q) ||
+      (item.definition?.category ?? "").toLowerCase().includes(q) ||
+      (item.definition?.rarity ?? "").toLowerCase().includes(q) ||
+      item.item_definition_id.toLowerCase().includes(q)
+    )
+  }, [items, filterText])
 
   // Build container from URL params passed by the containers list page.
   // useEffect so it runs client-side only after hydration (same as items page tab sync).
@@ -353,6 +367,31 @@ export default function ContainerItemsPage({
               </div>
             ) : (
               <Card>
+                {/* Filter bar */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b">
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Filter by name, code, category, rarity…"
+                      value={filterText}
+                      onChange={(e) => setFilterText(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                    {filterText && (
+                      <button
+                        onClick={() => setFilterText("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {filterText && (
+                    <span className="text-xs text-muted-foreground">
+                      {filteredItems.length} / {items.length} items
+                    </span>
+                  )}
+                </div>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
@@ -370,14 +409,28 @@ export default function ContainerItemsPage({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.map((item) => {
+                      {filteredItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-10 text-muted-foreground text-sm">
+                            No items match &quot;{filterText}&quot;
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredItems.map((item) => {
                         const rarity = item.definition?.rarity
                         const badgeStyle = rarity ? (RARITY_STYLE[rarity]?.badge ?? "") : ""
                         return (
                           <TableRow key={item.id}>
                             <TableCell>
-                              <div className="font-medium whitespace-nowrap">
+                              <div className="font-medium whitespace-nowrap flex items-center gap-1">
                                 {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
+                                <a
+                                  href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Open item definition"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
                               </div>
                               {item.definition?.item_code && (
                                 <div className="text-xs text-muted-foreground font-mono">{item.definition.item_code}</div>

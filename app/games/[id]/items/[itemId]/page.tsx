@@ -671,7 +671,6 @@ export default function ItemDefinitionDetailPage() {
                 {linkedPackId && (
                   <Link
                     href={`/games/${gameId}/items?tab=gacha&editPack=${linkedPackId}`}
-                    target="_blank"
                     title="Open gacha pack editor"
                     className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors"
                   >
