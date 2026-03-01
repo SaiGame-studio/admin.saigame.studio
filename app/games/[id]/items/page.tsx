@@ -785,6 +785,8 @@ export default function GameItemsPage() {
   const [editingContainer, setEditingContainer] = useState<ContainerDefinition | null>(null)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
+  const [containerSearch, setContainerSearch] = useState("")
+  const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
 
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
@@ -807,7 +809,10 @@ export default function GameItemsPage() {
     if (tab === "containers" || tab === "catalogue" || tab === "gacha") {
       setActiveTab(tab)
     }
-  }, [searchParams])
+    // initialize container search from URL `q` param
+    const q = searchParams.get("q")
+    if (q) setContainerSearch(q)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -822,6 +827,23 @@ export default function GameItemsPage() {
     const t = setTimeout(() => setDebouncedName(searchName), 300)
     return () => clearTimeout(t)
   }, [searchName])
+
+  // debounce container search
+  useEffect(() => {
+    const t = setTimeout(() => setContainerSearchDebounced(containerSearch), 250)
+    return () => clearTimeout(t)
+  }, [containerSearch])
+
+  // sync container search to URL
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams.toString())
+    if (containerSearchDebounced) {
+      newParams.set("q", containerSearchDebounced)
+    } else {
+      newParams.delete("q")
+    }
+    router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
+  }, [containerSearchDebounced]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // auto-open create dialog from query params e.g. ?create=1&category=currency
   useEffect(() => {
@@ -942,6 +964,15 @@ export default function GameItemsPage() {
 
   const containerTotalPages = Math.ceil(containerTotal / CONTAINER_LIMIT)
   const containerCurrentPage = Math.floor(containerOffset / CONTAINER_LIMIT) + 1
+
+  // client-side filter by name or id
+  const filteredContainerDefs = containerSearchDebounced
+    ? containerDefs.filter(
+        (d) =>
+          d.name.toLowerCase().includes(containerSearchDebounced.toLowerCase()) ||
+          d.id.toLowerCase().includes(containerSearchDebounced.toLowerCase()),
+      )
+    : containerDefs
 
   // ─── Gacha ───────────────────────────────────────────────────────────────────
   const fetchGachaData = useCallback(async () => {
@@ -1404,11 +1435,29 @@ export default function GameItemsPage() {
               <h2 className="text-lg font-semibold">Container Definitions</h2>
               <p className="text-sm text-muted-foreground">
                 {containerTotal > 0
-                  ? `${containerTotal} definition${containerTotal !== 1 ? "s" : ""}`
+                  ? `${containerSearchDebounced ? `${filteredContainerDefs.length} of ` : ""}${containerTotal} definition${containerTotal !== 1 ? "s" : ""}`
                   : "No container definitions yet"}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search by name or ID…"
+                  value={containerSearch}
+                  onChange={(e) => setContainerSearch(e.target.value)}
+                  className="pl-8 h-8 w-56 text-sm"
+                />
+                {containerSearch && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setContainerSearch("")}
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               <Button variant="outline" size="icon" onClick={fetchContainerDefs} title="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -1430,11 +1479,17 @@ export default function GameItemsPage() {
                 </div>
               ) : containerError ? (
                 <div className="p-6 text-center text-destructive">{containerError}</div>
-              ) : containerDefs.length === 0 ? (
+              ) : filteredContainerDefs.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No container definitions</p>
-                  <p className="text-sm mt-1">Click "New Container" to create the first container definition.</p>
+                  <p className="text-lg font-medium">
+                    {containerSearchDebounced ? "No matching containers" : "No container definitions"}
+                  </p>
+                  <p className="text-sm mt-1">
+                    {containerSearchDebounced
+                      ? `No containers match "${containerSearchDebounced}". Try a different keyword.`
+                      : `Click "New Container" to create the first container definition.`}
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -1449,7 +1504,7 @@ export default function GameItemsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {containerDefs.map((def) => (
+                    {filteredContainerDefs.map((def) => (
                       <TableRow key={def.id} className="hover:bg-muted/40">
                         <TableCell className="font-medium">
                           {def.name}

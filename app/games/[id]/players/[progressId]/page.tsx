@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, Box, Coins, Eye, Loader2, Mail, Package, RefreshCw, ShieldBan, ShieldCheck, Star, Trophy, User } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Mail, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, GachaTransaction, GachaTransactionsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { fetchItemCategories, fetchItemRarities } from "@/lib/inventory-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
@@ -39,15 +41,63 @@ export default function GameUserProgressDetailPage({
 
   // Items tab
   const ITEMS_LIMIT = 50
+  const [itemFilterName, setItemFilterName] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_q") ?? "" : ""
+  )
+  const [itemFilterCategory, setItemFilterCategory] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_cat") ?? "" : ""
+  )
+  const [itemFilterRarity, setItemFilterRarity] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_rar") ?? "" : ""
+  )
+  const [itemFilterNameDebounced, setItemFilterNameDebounced] = useState(itemFilterName)
+  const [itemCategories, setItemCategories] = useState<string[]>([])
+  const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [itemsTotal, setItemsTotal] = useState(0)
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [itemsError, setItemsError] = useState<string | null>(null)
+
+  // debounce item name filter
+  useEffect(() => {
+    const t = setTimeout(() => setItemFilterNameDebounced(itemFilterName), 400)
+    return () => clearTimeout(t)
+  }, [itemFilterName])
+
+  // reset offset when any filter changes
+  useEffect(() => {
+    setItemsOffset(0)
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity])
+
+  // sync item filters to URL
+  useEffect(() => {
+    const newParams = new URLSearchParams(window.location.search)
+    itemFilterNameDebounced ? newParams.set("item_q", itemFilterNameDebounced) : newParams.delete("item_q")
+    itemFilterCategory      ? newParams.set("item_cat", itemFilterCategory)    : newParams.delete("item_cat")
+    itemFilterRarity        ? newParams.set("item_rar", itemFilterRarity)      : newParams.delete("item_rar")
+    router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // load categories & rarities once
+  useEffect(() => {
+    Promise.all([fetchItemCategories(), fetchItemRarities()])
+      .then(([cats, rars]) => { setItemCategories(cats); setItemRarities(rars) })
+      .catch(() => {})
+  }, [])
+
+  // Transactions tab
+  const GACHA_TXN_LIMIT = 50
+  const [gachaTxns, setGachaTxns] = useState<GachaTransaction[]>([])
+  const [gachaTxnsTotal, setGachaTxnsTotal] = useState(0)
+  const [gachaTxnsOffset, setGachaTxnsOffset] = useState(0)
+  const [gachaTxnsLoading, setGachaTxnsLoading] = useState(false)
+  const [gachaTxnsError, setGachaTxnsError] = useState<string | null>(null)
+  const [txnSubTab, setTxnSubTab] = useState<"gacha" | "shopping">("gacha")
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
@@ -58,6 +108,8 @@ export default function GameUserProgressDetailPage({
   const [containersType, setContainersType] = useState<"" | "inventory" | "shulker_box">("")
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
+
+  const [idempotencyHelpOpen, setIdempotencyHelpOpen] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -104,7 +156,13 @@ export default function GameUserProgressDetailPage({
     setItemsLoading(true)
     setItemsError(null)
     try {
-      const res = await getProgressItems(progressId, { limit: ITEMS_LIMIT, offset: itemsOffset })
+      const res = await getProgressItems(progressId, {
+        limit: ITEMS_LIMIT,
+        offset: itemsOffset,
+        name:     itemFilterNameDebounced || undefined,
+        category: itemFilterCategory      || undefined,
+        rarity:   itemFilterRarity        || undefined,
+      })
       setPlayerItems(res.items ?? [])
       setItemsTotal(res.total ?? 0)
     } catch (err: any) {
@@ -112,7 +170,21 @@ export default function GameUserProgressDetailPage({
     } finally {
       setItemsLoading(false)
     }
-  }, [progressId, itemsOffset])
+  }, [progressId, itemsOffset, itemFilterNameDebounced, itemFilterCategory, itemFilterRarity])
+
+  const loadGachaTransactions = useCallback(async () => {
+    setGachaTxnsLoading(true)
+    setGachaTxnsError(null)
+    try {
+      const res = await getGachaTransactions(progressId, { limit: GACHA_TXN_LIMIT, offset: gachaTxnsOffset })
+      setGachaTxns(res.transactions ?? [])
+      setGachaTxnsTotal(res.total ?? 0)
+    } catch (err: any) {
+      setGachaTxnsError(err?.message ?? "Failed to load gacha transactions")
+    } finally {
+      setGachaTxnsLoading(false)
+    }
+  }, [progressId, gachaTxnsOffset])
 
   const loadContainers = useCallback(async () => {
     setContainersLoading(true)
@@ -152,6 +224,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "items") loadItems()
   }, [activeTab, loadItems])
+
+  useEffect(() => {
+    if (activeTab === "transactions" && txnSubTab === "gacha") loadGachaTransactions()
+  }, [activeTab, txnSubTab, loadGachaTransactions])
 
   useEffect(() => {
     if (activeTab === "containers") loadContainers()
@@ -232,6 +308,7 @@ export default function GameUserProgressDetailPage({
           <TabsTrigger value="info">Player Info</TabsTrigger>
           <TabsTrigger value="items">Items {itemsTotal > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{itemsTotal}</span>}</TabsTrigger>
           <TabsTrigger value="containers">Containers {containers.length > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{containers.length}{containersHasMore ? "+" : ""}</span>}</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions {gachaTxnsTotal > 0 && activeTab === "transactions" && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{gachaTxnsTotal}</span>}</TabsTrigger>
           <a
             href={`/games/${gameId}/mailbox?userId=${progressId}`}
             target="_blank"
@@ -412,12 +489,68 @@ export default function GameUserProgressDetailPage({
             <div>
               <h2 className="text-lg font-semibold">Player Items</h2>
               <p className="text-sm text-muted-foreground">
-                {itemsLoading ? "Loading…" : itemsTotal > 0 ? `${itemsTotal} item${itemsTotal !== 1 ? "s" : ""} in inventory` : "No items in inventory"}
+                {itemsLoading
+                  ? "Loading…"
+                  : itemsTotal > 0
+                  ? `${itemsTotal} item${itemsTotal !== 1 ? "s" : ""} in inventory`
+                  : "No items in inventory"}
               </p>
             </div>
-            <Button variant="outline" size="icon" onClick={loadItems} disabled={itemsLoading} title="Refresh">
-              <RefreshCw className={`h-4 w-4 ${itemsLoading ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Name search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by name…"
+                  value={itemFilterName}
+                  onChange={(e) => setItemFilterName(e.target.value)}
+                  className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+                {itemFilterName && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setItemFilterName("")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {/* Category */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                value={itemFilterCategory}
+                onChange={(e) => setItemFilterCategory(e.target.value)}
+              >
+                <option value="">All categories</option>
+                {itemCategories.map((c) => (
+                  <option key={c} value={c} className="capitalize">{c}</option>
+                ))}
+              </select>
+              {/* Rarity */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                value={itemFilterRarity}
+                onChange={(e) => setItemFilterRarity(e.target.value)}
+              >
+                <option value="">All rarities</option>
+                {itemRarities.map((r) => (
+                  <option key={r} value={r} className="capitalize">{r}</option>
+                ))}
+              </select>
+              {/* Clear all */}
+              {(itemFilterName || itemFilterCategory || itemFilterRarity) && (
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity("") }}
+                >
+                  Clear
+                </button>
+              )}
+              <Button variant="outline" size="icon" onClick={loadItems} disabled={itemsLoading} title="Refresh">
+                <RefreshCw className={`h-4 w-4 ${itemsLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
 
           <Card>
@@ -436,8 +569,14 @@ export default function GameUserProgressDetailPage({
               ) : playerItems.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No items</p>
-                  <p className="text-sm mt-1">This player has no items in their inventory.</p>
+                  <p className="text-lg font-medium">
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity) ? "No matching items" : "No items"}
+                  </p>
+                  <p className="text-sm mt-1">
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity)
+                      ? "No items match the current filters."
+                      : "This player has no items in their inventory."}
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -456,7 +595,19 @@ export default function GameUserProgressDetailPage({
                     {playerItems.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          <div className="font-medium">{item.definition?.name ?? item.item_definition_id.slice(0, 8)}</div>
+                          <div className="font-medium whitespace-nowrap flex items-center gap-1">
+                            {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
+                            <a
+                              href={`/games/${gameId}/items/${item.item_definition_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                              title="Open item definition"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          </div>
                           {item.definition?.item_code && (
                             <div className="text-xs text-muted-foreground font-mono">{item.definition.item_code}</div>
                           )}
@@ -496,6 +647,197 @@ export default function GameUserProgressDetailPage({
                 <Button variant="outline" size="sm" disabled={itemsOffset === 0} onClick={() => setItemsOffset(Math.max(0, itemsOffset - ITEMS_LIMIT))}>Previous</Button>
                 <Button variant="outline" size="sm" disabled={itemsOffset + ITEMS_LIMIT >= itemsTotal} onClick={() => setItemsOffset(itemsOffset + ITEMS_LIMIT)}>Next</Button>
               </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="transactions" className="space-y-4">
+          {/* Sub-tab navigation */}
+          <div className="flex items-center gap-1 border-b pb-0">
+            <button
+              onClick={() => setTxnSubTab("gacha")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                txnSubTab === "gacha"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Dice6 className="h-3.5 w-3.5" />
+              Gacha
+            </button>
+            <button
+              onClick={() => setTxnSubTab("shopping")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                txnSubTab === "shopping"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              Shopping
+            </button>
+          </div>
+
+          {txnSubTab === "gacha" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold">Gacha Transactions</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {gachaTxnsLoading
+                      ? "Loading…"
+                      : gachaTxnsTotal > 0
+                      ? `${gachaTxnsTotal} transaction${gachaTxnsTotal !== 1 ? "s" : ""}`
+                      : "No gacha transactions found"}
+                  </p>
+                </div>
+                <Button variant="outline" size="icon" onClick={loadGachaTransactions} disabled={gachaTxnsLoading} title="Refresh">
+                  <RefreshCw className={`h-4 w-4 ${gachaTxnsLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+
+              <Card>
+                <CardContent className="p-0">
+                  {gachaTxnsLoading ? (
+                    <div className="p-6 space-y-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : gachaTxnsError ? (
+                    <div className="p-6 text-center">
+                      <p className="text-destructive text-sm mb-3">{gachaTxnsError}</p>
+                      <Button variant="outline" size="sm" onClick={loadGachaTransactions}>Try Again</Button>
+                    </div>
+                  ) : gachaTxns.length === 0 ? (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <Dice6 className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-medium">No gacha transactions</p>
+                      <p className="text-sm mt-1">This player has no gacha transactions yet.</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Pack</TableHead>
+                          <TableHead>Items Granted</TableHead>
+                          <TableHead>Keys Consumed</TableHead>
+                          <TableHead>
+                            <span className="inline-flex items-center gap-1">
+                              Idempotency Key
+                              <button
+                                onClick={() => setIdempotencyHelpOpen(true)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title="What is an Idempotency Key?"
+                              >
+                                <HelpCircle className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          </TableHead>
+                          <TableHead>Client</TableHead>
+                          <TableHead>Created At</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gachaTxns.map((txn) => (
+                          <TableRow key={txn.id}>
+                            <TableCell className="font-mono text-xs">
+                              <span className="flex items-center gap-0.5">
+                                {txn.id.slice(0, 8)}…
+                                <CopyButton text={txn.id} size="h-3 w-3" />
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {txn.pack_definition_id ? (
+                                <a
+                                  href={`/games/${gameId}/items?tab=gacha&editPack=${txn.pack_definition_id}`}
+                                  className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
+                                >
+                                  {txn.pack_name || txn.pack_definition_id.slice(0, 8) + "…"}
+                                  <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <div className="space-y-1">
+                                {txn.items_granted.map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50 capitalize">{item.category}</span>
+                                    <a
+                                      href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                      className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
+                                    >
+                                      {item.name}
+                                      <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+                                    </a>
+                                    <span className="text-xs text-muted-foreground">×{item.quantity}</span>
+                                    <span className="text-xs text-muted-foreground">({item.quantity_min}–{item.quantity_max})</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <div className="space-y-1">
+                                {txn.keys_consumed.map((key, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 font-mono text-xs">
+                                    <a
+                                      href={`/games/${gameId}/items/${key.item_definition_id}`}
+                                      className="inline-flex items-center gap-0.5 text-muted-foreground hover:underline hover:text-foreground"
+                                    >
+                                      {key.item_definition_id.slice(0, 8)}…
+                                      <ArrowUpRight className="h-3 w-3" />
+                                    </a>
+                                    <span>×{key.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{txn.idempotency_key}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              <div>{txn.client_ip}</div>
+                              <div className="text-muted-foreground/60 truncate max-w-[180px]" title={txn.user_agent}>{txn.user_agent}</div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatISODate(txn.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Pagination */}
+              {gachaTxnsTotal > GACHA_TXN_LIMIT && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                    Page {Math.floor(gachaTxnsOffset / GACHA_TXN_LIMIT) + 1} of{" "}
+                    {Math.ceil(gachaTxnsTotal / GACHA_TXN_LIMIT)} — {gachaTxnsTotal} transactions
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline" size="sm"
+                      disabled={gachaTxnsOffset === 0}
+                      onClick={() => setGachaTxnsOffset(Math.max(0, gachaTxnsOffset - GACHA_TXN_LIMIT))}
+                    >Previous</Button>
+                    <Button
+                      variant="outline" size="sm"
+                      disabled={gachaTxnsOffset + GACHA_TXN_LIMIT >= gachaTxnsTotal}
+                      onClick={() => setGachaTxnsOffset(gachaTxnsOffset + GACHA_TXN_LIMIT)}
+                    >Next</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {txnSubTab === "shopping" && (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <ShoppingBag className="h-16 w-16 mb-4 opacity-20" />
+              <p className="text-xl font-semibold">Coming Soon</p>
+              <p className="text-sm mt-1">Shopping transaction history will be available in a future update.</p>
             </div>
           )}
         </TabsContent>
@@ -575,7 +917,23 @@ export default function GameUserProgressDetailPage({
                             <CopyButton text={c.id} size="h-3 w-3" />
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm">{c.definition?.name || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          <div className="flex items-center gap-1">
+                            {c.definition?.name || "—"}
+                            {c.item_container_definition_id && (
+                              <a
+                                href={`/games/${gameId}/items?tab=containers&q=${c.item_container_definition_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                title="Open container definition"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize ${
                             c.container_type === "inventory"
@@ -648,6 +1006,62 @@ export default function GameUserProgressDetailPage({
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Idempotency Key help panel */}
+      <Sheet open={idempotencyHelpOpen} onOpenChange={setIdempotencyHelpOpen}>
+        <SheetContent side="right" className="w-[420px] sm:w-[480px] overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              Idempotency Key
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-5 text-sm">
+            <section className="space-y-2">
+              <h3 className="font-semibold text-base">What is it?</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                An <span className="font-medium text-foreground">Idempotency Key</span> is a unique string sent by the game client with each gacha request. The server uses it to guarantee that even if the same request is sent multiple times (e.g., due to a network retry), it is only processed <span className="font-medium text-foreground">once</span>.
+              </p>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="font-semibold text-base">How it works</h3>
+              <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+                <li>The client generates a unique key before sending the gacha spin request.</li>
+                <li>The server processes the request and stores the result tied to that key.</li>
+                <li>If the same key is sent again, the server returns the stored result instead of spinning again.</li>
+              </ol>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="font-semibold text-base">Common key formats</h3>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">UUID v4</code> — e.g. <code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">7274792-1740…</code></li>
+                <li><code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">timestamp + random</code> — e.g. <code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">spin_1740000000_abc</code></li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="font-semibold text-base">Debugging tips</h3>
+              <ul className="space-y-2 text-muted-foreground">
+                <li className="flex gap-2">
+                  <span className="text-yellow-500 shrink-0">⚠</span>
+                  <span>If two transactions share the same key, only the first was actually executed — the second is a duplicate cached response.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-blue-400 shrink-0">ℹ</span>
+                  <span>You can use this key to match server logs with in-game events and trace exactly which client session triggered the spin.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-500 shrink-0">✓</span>
+                  <span>A missing or empty key means the client did not implement idempotency — repeated retries could result in duplicate spins.</span>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

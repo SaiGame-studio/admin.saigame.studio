@@ -238,11 +238,14 @@ export interface PlayerItemsResult {
 
 export async function getProgressItems(
   progressId: string,
-  params?: { limit?: number; offset?: number },
+  params?: { limit?: number; offset?: number; name?: string; category?: string; rarity?: string },
 ): Promise<PlayerItemsResult> {
   const qs = new URLSearchParams()
-  if (params?.limit  != null) qs.set("limit",  String(params.limit))
-  if (params?.offset != null) qs.set("offset", String(params.offset))
+  if (params?.limit    != null) qs.set("limit",    String(params.limit))
+  if (params?.offset   != null) qs.set("offset",   String(params.offset))
+  if (params?.name)             qs.set("name",     params.name)
+  if (params?.category)         qs.set("category", params.category)
+  if (params?.rarity)           qs.set("rarity",   params.rarity)
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/items${query ? `?${query}` : ""}`)
 }
@@ -324,4 +327,59 @@ export async function getContainerItems(
   if (params?.offset != null) qs.set("offset", String(params.offset))
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/containers/${containerId}/items${query ? `?${query}` : ""}`)
+}
+
+// ─── Gacha Transactions ───────────────────────────────────────────────────────
+
+export interface GachaItemGranted {
+  item_definition_id: string
+  name: string
+  category: string
+  quantity: number
+  quantity_min: number
+  quantity_max: number
+  inventory_item_id: string
+  drop_seed: string
+  qty_seed: string
+}
+
+export interface GachaKeyConsumed {
+  item_definition_id: string
+  quantity: number
+}
+
+export interface GachaTransaction {
+  id: string
+  studio_id: string
+  game_id: string
+  user_id: string
+  idempotency_key: string
+  pack_definition_id?: string
+  pack_name?: string
+  items_granted: GachaItemGranted[]
+  keys_consumed: GachaKeyConsumed[]
+  request_id: string
+  client_ip: string
+  user_agent: string
+  created_at: string
+}
+
+export interface GachaTransactionsResult {
+  limit: number
+  offset: number
+  profile_id: string
+  total: number
+  transactions: GachaTransaction[]
+  user_id: string
+}
+
+export async function getGachaTransactions(
+  progressId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<GachaTransactionsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/gamer-progress/${progressId}/gacha/transactions${query ? `?${query}` : ""}`)
 }
