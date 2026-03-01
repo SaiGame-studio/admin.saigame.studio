@@ -63,21 +63,17 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
             height: `${rows * CELL_PX + (rows - 1)}px`,
           }}
         >
-          {/* Empty cell backgrounds */}
-          {Array.from({ length: rows }).map((_, row) =>
-            Array.from({ length: cols }).map((_, col) => (
-              <div
-                key={`cell-${col}-${row}`}
-                className="absolute border border-border/40 bg-muted/20 rounded-sm"
-                style={{
-                  left: col * (CELL_PX + 1),
-                  top: row * (CELL_PX + 1),
-                  width: CELL_PX,
-                  height: CELL_PX,
-                }}
-              />
-            ))
-          )}
+          {/* Empty cell grid — single CSS background instead of N×M DOM nodes */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: [
+                `linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px)`,
+                `linear-gradient(to right, hsl(var(--border) / 0.4) 1px, hsl(var(--muted) / 0.2) 1px)`,
+              ].join(", "),
+              backgroundSize: `${CELL_PX + 1}px ${CELL_PX + 1}px`,
+            }}
+          />
 
           {/* Items */}
           {items.map((item) => {
