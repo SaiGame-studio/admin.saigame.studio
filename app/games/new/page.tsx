@@ -98,6 +98,8 @@ function NewGameForm() {
 
   const selectedStudio = studioDetail ?? studios.find(s => s.id === studioId)
   const studioLimitReached = !!(selectedStudio?.limits?.max_games != null && (selectedStudio.usage?.games ?? 0) >= selectedStudio.limits.max_games)
+  // First game per studio is free; any game after that costs GAME_COST coins
+  const willCostCoins = !studioDetailLoading && (selectedStudio?.usage?.games ?? 0) >= 1
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -109,7 +111,7 @@ function NewGameForm() {
       setError("Please select a studio")
       return
     }
-    if ((selectedStudio?.usage?.games ?? 0) >= 1) {
+    if (willCostCoins) {
       setShowConfirm(true)
       return
     }
@@ -245,7 +247,7 @@ function NewGameForm() {
             <Button variant="outline" type="button" onClick={() => router.back()}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={submitting || loading || studios.length === 0}>
+            <Button type="submit" disabled={submitting || loading || studios.length === 0 || studioDetailLoading}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('game.create')}
             </Button>
