@@ -82,11 +82,13 @@ function StatusBadge({ status }: { status: string }) {
     claimed: "default",
     unclaimed: "secondary",
     unread: "secondary",
+    read: "secondary",
     expired: "destructive",
   }
   const labels: Record<string, string> = {
     unclaimed: "unclaim",
     unread: "unclaim",
+    read: "unclaim",
   }
   return (
     <Badge variant={variants[status] ?? "outline"} className="text-xs capitalize">
@@ -95,8 +97,9 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function ReadBadge({ readAt }: { readAt: string | null }) {
-  const isRead = readAt !== null
+function ReadBadge({ readAt, claimedAt }: { readAt: string | null; claimedAt: string | null }) {
+  // claimed implies read — if either timestamp is set, the message was read
+  const isRead = readAt !== null || claimedAt !== null
   return (
     <Badge
       variant={isRead ? "outline" : "secondary"}
@@ -757,7 +760,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                             {msg.attachments.length}
                           </span>
                         )}
-                        <ReadBadge readAt={msg.read_at} />
+                        {/* hide ReadBadge when claimed — claimed already implies read */}
+                        {msg.status !== "claimed" && <ReadBadge readAt={msg.read_at} claimedAt={msg.claimed_at} />}
                         <StatusBadge status={msg.status} />
                       </button>
 
