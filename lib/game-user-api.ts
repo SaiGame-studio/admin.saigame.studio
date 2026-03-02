@@ -238,14 +238,15 @@ export interface PlayerItemsResult {
 
 export async function getProgressItems(
   progressId: string,
-  params?: { limit?: number; offset?: number; name?: string; category?: string; rarity?: string },
+  params?: { limit?: number; offset?: number; name?: string; category?: string; rarity?: string; container_id?: string },
 ): Promise<PlayerItemsResult> {
   const qs = new URLSearchParams()
-  if (params?.limit    != null) qs.set("limit",    String(params.limit))
-  if (params?.offset   != null) qs.set("offset",   String(params.offset))
-  if (params?.name)             qs.set("name",     params.name)
-  if (params?.category)         qs.set("category", params.category)
-  if (params?.rarity)           qs.set("rarity",   params.rarity)
+  if (params?.limit        != null) qs.set("limit",        String(params.limit))
+  if (params?.offset       != null) qs.set("offset",       String(params.offset))
+  if (params?.name)                 qs.set("name",         params.name)
+  if (params?.category)             qs.set("category",     params.category)
+  if (params?.rarity)               qs.set("rarity",       params.rarity)
+  if (params?.container_id)         qs.set("container_id", params.container_id)
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/items${query ? `?${query}` : ""}`)
 }

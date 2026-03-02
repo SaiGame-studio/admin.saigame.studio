@@ -140,21 +140,13 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => loadData(searchQuery || undefined)}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
           <div className="w-px h-6 bg-border" />
           <GameNavButtons gameId={gameId} active="players" />
         </div>
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="mb-6 flex gap-2">
+      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -219,10 +211,20 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         </Card>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground mb-3">
-            {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
-            {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-muted-foreground">
+              {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
+              {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
+            </p>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => loadData(searchQuery || undefined)}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {progressList.map((item) => {
             const identity = playerIdentityMap[item.user_id];

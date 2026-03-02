@@ -50,6 +50,9 @@ export default function GameUserProgressDetailPage({
   const [itemFilterRarity, setItemFilterRarity] = useState(() =>
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_rar") ?? "" : ""
   )
+  const [itemFilterContainerId, setItemFilterContainerId] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_cid") ?? "" : ""
+  )
   const [itemFilterNameDebounced, setItemFilterNameDebounced] = useState(itemFilterName)
   const [itemCategories, setItemCategories] = useState<string[]>([])
   const [itemRarities, setItemRarities] = useState<string[]>([])
@@ -72,16 +75,17 @@ export default function GameUserProgressDetailPage({
   // reset offset when any filter changes
   useEffect(() => {
     setItemsOffset(0)
-  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity])
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId])
 
   // sync item filters to URL
   useEffect(() => {
     const newParams = new URLSearchParams(window.location.search)
     itemFilterNameDebounced ? newParams.set("item_q", itemFilterNameDebounced) : newParams.delete("item_q")
-    itemFilterCategory      ? newParams.set("item_cat", itemFilterCategory)    : newParams.delete("item_cat")
-    itemFilterRarity        ? newParams.set("item_rar", itemFilterRarity)      : newParams.delete("item_rar")
+    itemFilterCategory      ? newParams.set("item_cat", itemFilterCategory)       : newParams.delete("item_cat")
+    itemFilterRarity        ? newParams.set("item_rar", itemFilterRarity)         : newParams.delete("item_rar")
+    itemFilterContainerId   ? newParams.set("item_cid", itemFilterContainerId)    : newParams.delete("item_cid")
     router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
-  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // load categories & rarities once
   useEffect(() => {
@@ -164,8 +168,9 @@ export default function GameUserProgressDetailPage({
           limit: ITEMS_LIMIT,
           offset: itemsOffset,
           name:     itemFilterNameDebounced || undefined,
-          category: itemFilterCategory      || undefined,
-          rarity:   itemFilterRarity        || undefined,
+          category:     itemFilterCategory    || undefined,
+          rarity:       itemFilterRarity      || undefined,
+          container_id: itemFilterContainerId || undefined,
         }),
         getProgressContainers(progressId, { limit: 500 }),
       ])
@@ -179,7 +184,7 @@ export default function GameUserProgressDetailPage({
     } finally {
       setItemsLoading(false)
     }
-  }, [progressId, itemsOffset, itemFilterNameDebounced, itemFilterCategory, itemFilterRarity])
+  }, [progressId, itemsOffset, itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId])
 
   const loadGachaTransactions = useCallback(async () => {
     setGachaTxnsLoading(true)
@@ -545,11 +550,26 @@ export default function GameUserProgressDetailPage({
                   <option key={r} value={r} className="capitalize">{r}</option>
                 ))}
               </select>
+              {/* Container */}
+              {Object.keys(containerMapForItems).length > 0 && (
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm max-w-[180px]"
+                  value={itemFilterContainerId}
+                  onChange={(e) => setItemFilterContainerId(e.target.value)}
+                >
+                  <option value="">All containers</option>
+                  {Object.values(containerMapForItems).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.definition?.name ?? c.container_type} ({c.id.slice(0, 8)}…)
+                    </option>
+                  ))}
+                </select>
+              )}
               {/* Clear all */}
-              {(itemFilterName || itemFilterCategory || itemFilterRarity) && (
+              {(itemFilterName || itemFilterCategory || itemFilterRarity || itemFilterContainerId) && (
                 <button
                   className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity("") }}
+                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity(""); setItemFilterContainerId("") }}
                 >
                   Clear
                 </button>
@@ -577,10 +597,10 @@ export default function GameUserProgressDetailPage({
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">
-                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity) ? "No matching items" : "No items"}
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId) ? "No matching items" : "No items"}
                   </p>
                   <p className="text-sm mt-1">
-                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity)
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId)
                       ? "No items match the current filters."
                       : "This player has no items in their inventory."}
                   </p>

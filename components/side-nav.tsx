@@ -26,6 +26,7 @@ import {
   Gift,
   ReceiptText,
   Puzzle,
+  Map,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -171,6 +172,12 @@ export function SideNav() {
                 <Link href="/games">
                   <Gamepad2 className="h-4 w-4 flex-shrink-0" />
                   {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Link href="/roadmap">
+                  <Map className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && <span className="whitespace-nowrap">Roadmap</span>}
                 </Link>
               </Button>
 

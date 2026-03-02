@@ -457,7 +457,10 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Items */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{t('game.items')}</span>
+                                        <Link href={`/games/${game.id}/items`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            {t('game.items')}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.items ?? 0)} / {game.limits?.max_items != null ? fmt(game.limits.max_items) : '∞'}
                                             {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ` (${t('game.limitReached')})`}
@@ -473,7 +476,10 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{t('game.shops')}</span>
+                                        <Link href={`/games/${game.id}/shops`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            {t('game.shops')}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.shops ?? 0)} / {game.limits?.max_shops != null ? fmt(game.limits.max_shops) : '∞'}
                                             {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ` (${t('game.limitReached')})`}
