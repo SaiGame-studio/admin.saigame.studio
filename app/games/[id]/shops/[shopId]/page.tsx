@@ -1,944 +1,1742 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { useEffect, useState, useRef } from "react"
+import { useParams } from "next/navigation"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { ExternalLink, Pencil, Save, X, Trash2, Plus } from "lucide-react"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { ChevronDown } from "lucide-react"
-import { fetchShop, updateShopItemPrice, updateShop, addItemToShop, removeItemFromShop } from "@/lib/shop-api"
-import { fetchGameItemProfiles } from "@/lib/item-profile-api"
-import { getItemTypeLabel } from "@/lib/utils/item-type-utils"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbList,
+} from "@/components/ui/breadcrumb"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Command,
-  CommandInput,
-  CommandList,
   CommandEmpty,
-  CommandItem
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
 } from "@/components/ui/command"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
-import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { useTranslation } from '@/lib/i18n/useTranslation'
+import {
+  Store,
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  AlertCircle,
+  Calendar,
+  Loader2,
+  PackageSearch,
+  Coins,
+  ShoppingCart,
+  RotateCcw,
+  Save,
+  X,
+  ChevronsUpDown,
+  Check,
+  ExternalLink,
+  Wand2,
+  GripVertical,
+} from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
+import { CopyButton } from "@/components/CopyButton"
+import {
+  getShop,
+  listShopItems,
+  addShopItem,
+  updateShop,
+  updateShopItem,
+  deleteShopItem,
+  type ShopDefinition,
+  type ShopItem,
+  type AddShopItemPayload,
+  type UpdateShopItemPayload,
+  type PurchaseLimitType,
+  type RestockSchedule,
+} from "@/lib/shop-admin-api"
+import { listItemDefinitions, getItemDefinition } from "@/lib/inventory-api"
+import { getGame } from "@/lib/game-api"
+import type { ItemDefinition } from "@/types/inventory"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/useTranslation"
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SHOP_TYPE_BADGE: Record<string, string> = {
+  permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  daily: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  weekly: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  seasonal: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  event: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+}
+
+const PURCHASE_LIMIT_LABELS: Record<PurchaseLimitType, string> = {
+  unlimited: "Unlimited",
+  player: "Per Player",
+  global: "Global",
+}
+
+const RESTOCK_LABELS: Record<RestockSchedule, string> = {
+  none: "Never",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+}
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function formatDateInput(iso: string | null | undefined): string {
+  if (!iso) return ""
+  // Convert ISO to datetime-local value (YYYY-MM-DDTHH:mm)
+  return new Date(iso).toISOString().slice(0, 16)
+}
+
+function toDatetimeLocal(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// ─── Default Item Form ────────────────────────────────────────────────────────
+
+type ItemFormState = {
+  item_def_id: string
+  display_name: string
+  description: string
+  price: string
+  currency_item_def_id: string
+  purchase_limit_type: PurchaseLimitType
+  purchase_limit: string
+  restock_schedule: RestockSchedule
+  stock: string
+  sort_order: string
+  is_active: boolean
+  available_from: string
+  available_until: string
+}
+
+const defaultItemForm: ItemFormState = {
+  item_def_id: "",
+  display_name: "",
+  description: "",
+  price: "",
+  currency_item_def_id: "",
+  purchase_limit_type: "unlimited",
+  purchase_limit: "0",
+  restock_schedule: "none",
+  stock: "0",
+  sort_order: "0",
+  is_active: true,
+  available_from: "",
+  available_until: "",
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-  const [shop, setShop] = useState<any>(null)
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
+  const { toast } = useToast()
+
+  const [shop, setShop] = useState<ShopDefinition | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currencyModalOpen, setCurrencyModalOpen] = useState(false)
-  const [currencyOptions, setCurrencyOptions] = useState<any[]>([])
-  const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>(undefined)
-  const [currencyLoading, setCurrencyLoading] = useState(false)
-  const [currencyError, setCurrencyError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showCurrencyOnly, setShowCurrencyOnly] = useState(true)
-  const [editingCurrencyItemId, setEditingCurrencyItemId] = useState<string | null>(null);
-  const [itemCurrencyLoading, setItemCurrencyLoading] = useState(false);
-  const [itemCurrencyError, setItemCurrencyError] = useState<string | null>(null);
-  const [selectedItemCurrency, setSelectedItemCurrency] = useState<string | undefined>(undefined);
-  const [itemSearchTerm, setItemSearchTerm] = useState("");
-  const [itemShowCurrencyOnly, setItemShowCurrencyOnly] = useState(true);
 
-  // Add item modal states
-  const [addItemModalOpen, setAddItemModalOpen] = useState(false);
-  const [availableItemProfiles, setAvailableItemProfiles] = useState<any[]>([]);
-  const [selectedItemProfile, setSelectedItemProfile] = useState<string>("");
-  const [addItemSearchTerm, setAddItemSearchTerm] = useState("");
-  const [currentPrice, setCurrentPrice] = useState<string>("");
-  const [oldPrice, setOldPrice] = useState<string>("");
-  const [addItemLoading, setAddItemLoading] = useState(false);
-  const [addItemError, setAddItemError] = useState<string | null>(null);
+  // Shop items (separate endpoint)
+  const [items, setItems] = useState<ShopItem[]>([])
+  const [itemsLoading, setItemsLoading] = useState(true)
+  const [itemsError, setItemsError] = useState<string | null>(null)
 
-  // Remove item modal states
-  const [removeItemModalOpen, setRemoveItemModalOpen] = useState(false);
-  const [itemToRemove, setItemToRemove] = useState<any>(null);
-  const [removeItemLoading, setRemoveItemLoading] = useState(false);
-  const [removeItemError, setRemoveItemError] = useState<string | null>(null);
+  // Item definitions (for picker)
+  const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
+  const [itemDefsLoading, setItemDefsLoading] = useState(false)
+  const [itemDefsSearch, setItemDefsSearch] = useState("")
+  const itemDefsLoaded = useRef(false)
+
+  // Add item dialog
+  const [addOpen, setAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState<ItemFormState>(defaultItemForm)
+  const [addError, setAddError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+
+  // Edit item dialog
+  const [editOpen, setEditOpen] = useState(false)
+  const [editItem, setEditItem] = useState<ShopItem | null>(null)
+  const [editForm, setEditForm] = useState<ItemFormState>(defaultItemForm)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+
+  // Delete item dialog
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteItem, setDeleteItem] = useState<ShopItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Toggle active confirm
+  const [pendingToggle, setPendingToggle] = useState<boolean | null>(null)
+  const [toggling, setToggling] = useState(false)
+
+  // Inline field editing
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [tmpVal, setTmpVal] = useState("")
+  const [tmpShopType, setTmpShopType] = useState<string>("permanent")
+  const [saving, setSaving] = useState(false)
+
+  // Currency combobox (meta card)
+  const [currencyCbOpen, setCurrencyCbOpen] = useState(false)
+  const [currencyCbSearch, setCurrencyCbSearch] = useState("")
+  const [currencyCbShowAll, setCurrencyCbShowAll] = useState(false)
+
+  // Resolved currency item definition (for display)
+  const [currencyItem, setCurrencyItem] = useState<ItemDefinition | null>(null)
+
+  // Game name for breadcrumb
+  const [gameName, setGameName] = useState<string | null>(null)
+
+  // ── Load data ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    async function loadShop() {
-      try {
-        setLoading(true)
-        const shopData = await fetchShop(params.shopId)
-        setShop(shopData)
-        setError(null)
-      } catch (err: any) {
-        setError(err.message || "Unknown error")
-      } finally {
-        setLoading(false)
-      }
-    }
     loadShop()
-  }, [params.shopId])
+    loadItems()
+    ensureItemDefs()
+    getGame(params.id).then((g) => setGameName(g.name)).catch(() => {})
+  }, [params.id, params.shopId])
 
-  // Fetch currency options when modal opens
-  const fetchCurrencyOptions = async () => {
-    setCurrencyLoading(true)
-    setCurrencyError(null)
+  async function loadShop() {
     try {
-      const token = localStorage.getItem("token")
-      const API_URL = process.env.NEXT_PUBLIC_API_URL
-      const res = await fetch(`${API_URL}/api/games/${params.id}/item-profiles`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      })
-      if (!res.ok) throw new Error("Failed to fetch currencies")
-      const data = await res.json()
-      setCurrencyOptions(data.data || [])
-    } catch (e: any) {
-      setCurrencyError(e.message || "Failed to fetch currencies")
+      setLoading(true)
+      const data = await getShop(params.id, params.shopId)
+      setShop(data)
+      if (data.currency_item_def_id) {
+        getItemDefinition({ gameId: params.id }, data.currency_item_def_id)
+          .then((res) => setCurrencyItem(res.item))
+          .catch(() => {})
+      }
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to load shop")
     } finally {
-      setCurrencyLoading(false)
+      setLoading(false)
     }
   }
 
-  const openCurrencyModal = () => {
-    if (currencyOptions.length === 0) {
-      setSelectedCurrency("no-items")
-    } else {
-      setSelectedCurrency(shop.currency?.id)
-    }
-    setCurrencyModalOpen(true)
-    fetchCurrencyOptions()
-  }
-
-  const handleCurrencySave = async () => {
-    if (!selectedCurrency || selectedCurrency === "no-items") return
-    setCurrencyLoading(true)
-    setCurrencyError(null)
+  async function loadItems() {
     try {
-      await updateShop(params.shopId, { currency_id: selectedCurrency })
-      // Refresh shop data
-      const shopData = await fetchShop(params.shopId)
-      setShop(shopData)
-      setCurrencyModalOpen(false)
-    } catch (e: any) {
-      setCurrencyError(e.message || "Failed to update currency")
+      setItemsLoading(true)
+      setItemsError(null)
+      const resp = await listShopItems(params.id, params.shopId)
+      const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+      setItems(sorted)
+    } catch (err: any) {
+      setItemsError(err?.message ?? "Failed to load items")
     } finally {
-      setCurrencyLoading(false)
+      setItemsLoading(false)
     }
   }
 
-  const filteredOptions = currencyOptions.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (!showCurrencyOnly || item.type === "currency")
-  );
+  const [reordering, setReordering] = useState(false)
 
-  // Fetch currency options when modal opens (cho từng item)
-  useEffect(() => {
-    if (editingCurrencyItemId) {
-      fetchCurrencyOptions();
-    }
-    // eslint-disable-next-line
-  }, [editingCurrencyItemId]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  )
 
-  // Fetch available item profiles for adding to shop
-  const fetchAvailableItemProfiles = async () => {
-    setAddItemLoading(true);
-    setAddItemError(null);
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((i) => i.id === active.id)
+    const newIndex = items.findIndex((i) => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = arrayMove(items, oldIndex, newIndex)
+    setItems(reordered)
+    setReordering(true)
     try {
-      const profiles = await fetchGameItemProfiles(params.id);
-      // Filter out items that are already in the shop
-      const currentItemIds = shop.items_in_shop?.map((item: any) => item.item_profile?.id) || [];
-      const availableProfiles = profiles.filter(profile => !currentItemIds.includes(profile.id));
-      setAvailableItemProfiles(availableProfiles);
-    } catch (e: any) {
-      setAddItemError(e.message || "Failed to fetch item profiles");
+      await Promise.all(
+        reordered.map((item, idx) =>
+          item.sort_order !== idx
+            ? updateShopItem(params.id, params.shopId, item.id, { sort_order: idx })
+            : Promise.resolve()
+        )
+      )
+      // refresh to get server state
+      const resp = await listShopItems(params.id, params.shopId)
+      const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+      setItems(sorted)
+    } catch {
+      // revert on error
+      await loadItems()
     } finally {
-      setAddItemLoading(false);
+      setReordering(false)
     }
-  };
+  }
 
-  const openAddItemModal = () => {
-    setAddItemModalOpen(true);
-    setSelectedItemProfile("");
-    setCurrentPrice("");
-    setOldPrice("");
-    setAddItemSearchTerm("");
-    setAddItemError(null);
-    fetchAvailableItemProfiles();
-  };
-
-  const handleAddItem = async () => {
-    if (!selectedItemProfile || !currentPrice) return;
-
-    setAddItemLoading(true);
-    setAddItemError(null);
+  async function toggleItemActive(item: ShopItem) {
+    const updated = { ...item, is_active: !item.is_active }
+    setItems((prev) => prev.map((i) => i.id === item.id ? updated : i))
     try {
-      await addItemToShop(params.shopId, selectedItemProfile, {
-        price_current: Number(currentPrice),
-        price_old: oldPrice ? Number(oldPrice) : undefined,
-        currency_id: null
-      });
-
-      // Refresh shop data
-      const shopData = await fetchShop(params.shopId);
-      setShop(shopData);
-      setAddItemModalOpen(false);
-
-      // Reset form
-      setSelectedItemProfile("");
-      setCurrentPrice("");
-      setOldPrice("");
-      setAddItemSearchTerm("");
-    } catch (e: any) {
-      setAddItemError(e.message || "Failed to add item to shop");
-    } finally {
-      setAddItemLoading(false);
+      await updateShopItem(params.id, params.shopId, item.id, { is_active: !item.is_active })
+    } catch (err: any) {
+      // revert on error
+      setItems((prev) => prev.map((i) => i.id === item.id ? item : i))
+      toast({ variant: "destructive", title: "Error", description: err?.message ?? "Failed to update" })
     }
-  };
+  }
 
-  const openRemoveItemModal = (item: any) => {
-    setItemToRemove(item);
-    setRemoveItemModalOpen(true);
-    setRemoveItemError(null);
-  };
-
-  const handleRemoveItem = async () => {
-    if (!itemToRemove) return;
-
-    setRemoveItemLoading(true);
-    setRemoveItemError(null);
+  async function ensureItemDefs() {
+    if (itemDefsLoaded.current) return
+    itemDefsLoaded.current = true
+    setItemDefsLoading(true)
     try {
-      await removeItemFromShop(params.shopId, itemToRemove.item_profile.id);
-
-      // Refresh shop data
-      const shopData = await fetchShop(params.shopId);
-      setShop(shopData);
-      setRemoveItemModalOpen(false);
-      setItemToRemove(null);
-    } catch (e: any) {
-      setRemoveItemError(e.message || "Failed to remove item from shop");
+      const resp = await listItemDefinitions({ gameId: params.id }, { limit: 200 })
+      setItemDefs(resp.items ?? [])
+    } catch {
+      // silently fail; user can still type UUID manually
     } finally {
-      setRemoveItemLoading(false);
+      setItemDefsLoading(false)
     }
-  };
+  }
 
-  if (loading) return <div className="container mx-auto py-6">{t('common.loading')}</div>
-  if (error) return (
-    <div className="container mx-auto py-6">
-      <Card className="border-destructive mb-4">
-        <CardHeader>
-          <CardTitle>{t('common.error')}</CardTitle>
-          <CardDescription>{t('shop.loadError')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>{error}</p>
-        </CardContent>
-      </Card>
-    </div>
+  // ── Add item ─────────────────────────────────────────────────────────────────
+
+  function openAdd() {
+    setAddForm(defaultItemForm)
+    setAddError(null)
+    setItemDefsSearch("")
+    setAddOpen(true)
+    ensureItemDefs()
+  }
+
+  function setAddField<K extends keyof ItemFormState>(k: K, v: ItemFormState[K]) {
+    setAddForm((p) => ({ ...p, [k]: v }))
+  }
+
+  function validateItemForm(form: ItemFormState): string | null {
+    if (!form.item_def_id.trim()) return "Item Definition is required."
+    if (!form.display_name.trim()) return "Display name is required."
+    const price = Number(form.price)
+    if (isNaN(price) || price <= 0) return "Price must be a positive number."
+    if (form.purchase_limit_type !== "unlimited") {
+      const limit = Number(form.purchase_limit)
+      if (isNaN(limit) || limit < 0) return "Purchase limit must be >= 0."
+    }
+    const stock = Number(form.stock)
+    if (isNaN(stock) || stock < 0) return "Stock must be >= 0."
+    if (form.available_from && form.available_until) {
+      if (new Date(form.available_until) <= new Date(form.available_from))
+        return "Available until must be after available from."
+    }
+    return null
+  }
+
+  async function handleAdd() {
+    const err = validateItemForm(addForm)
+    if (err) { setAddError(err); return }
+    setAddError(null)
+    setAdding(true)
+    try {
+      const payload: AddShopItemPayload = {
+        item_def_id: addForm.item_def_id.trim(),
+        display_name: addForm.display_name.trim(),
+        description: addForm.description.trim() || undefined,
+        price: Number(addForm.price),
+        purchase_limit_type: addForm.purchase_limit_type,
+        purchase_limit: addForm.purchase_limit_type === "unlimited" ? 0 : Number(addForm.purchase_limit),
+        restock_schedule: addForm.purchase_limit_type === "unlimited" ? "none" : addForm.restock_schedule,
+        stock: Number(addForm.stock),
+        is_active: addForm.is_active,
+      }
+      if (addForm.currency_item_def_id.trim()) payload.currency_item_def_id = addForm.currency_item_def_id.trim()
+      if (addForm.available_from) payload.available_from = new Date(addForm.available_from).toISOString()
+      if (addForm.available_until) payload.available_until = new Date(addForm.available_until).toISOString()
+
+      await addShopItem(params.id, params.shopId, payload)
+      await loadItems()
+      setAddOpen(false)
+    } catch (err: any) {
+      setAddError(err?.message ?? "Failed to add item")
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  // ── Edit item ────────────────────────────────────────────────────────────────
+
+  function openEdit(item: ShopItem) {
+    setEditItem(item)
+    setEditForm({
+      item_def_id: item.item_def_id,
+      display_name: item.display_name,
+      description: item.description ?? "",
+      price: String(item.price),
+      currency_item_def_id: item.currency_item_def_id ?? "",
+      purchase_limit_type: item.purchase_limit_type,
+      purchase_limit: String(item.purchase_limit),
+      restock_schedule: item.restock_schedule,
+      stock: String(item.stock),
+      sort_order: String(item.sort_order),
+      is_active: item.is_active,
+      available_from: formatDateInput(item.available_from),
+      available_until: formatDateInput(item.available_until),
+    })
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  function setEditField<K extends keyof ItemFormState>(k: K, v: ItemFormState[K]) {
+    setEditForm((p) => ({ ...p, [k]: v }))
+  }
+
+  async function handleEdit() {
+    if (!editItem) return
+    const err = validateItemForm(editForm)
+    if (err) { setEditError(err); return }
+    setEditError(null)
+    setEditing(true)
+    try {
+      const payload: UpdateShopItemPayload = {
+        display_name: editForm.display_name.trim(),
+        description: editForm.description.trim() || undefined,
+        price: Number(editForm.price),
+        purchase_limit_type: editForm.purchase_limit_type,
+        purchase_limit: editForm.purchase_limit_type === "unlimited" ? 0 : Number(editForm.purchase_limit),
+        restock_schedule: editForm.purchase_limit_type === "unlimited" ? "none" : editForm.restock_schedule,
+        stock: Number(editForm.stock),
+        is_active: editForm.is_active,
+        // send "" to clear override, or UUID to set it
+        currency_item_def_id: editForm.currency_item_def_id ?? "",
+      }
+      if (editForm.available_from) payload.available_from = new Date(editForm.available_from).toISOString()
+      if (editForm.available_until) payload.available_until = new Date(editForm.available_until).toISOString()
+
+      await updateShopItem(params.id, params.shopId, editItem.id, payload)
+      await loadItems()
+      setEditOpen(false)
+    } catch (err: any) {
+      setEditError(err?.message ?? "Failed to update item")
+    } finally {
+      setEditing(false)
+    }
+  }
+
+  // ── Delete item ───────────────────────────────────────────────────────────────
+
+  function openDelete(item: ShopItem) {
+    setDeleteItem(item)
+    setDeleteError(null)
+    setDeleteOpen(true)
+  }
+
+  async function handleDelete() {
+    if (!deleteItem) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteShopItem(params.id, params.shopId, deleteItem.id)
+      await loadItems()
+      setDeleteOpen(false)
+    } catch (err: any) {
+      setDeleteError(err?.message ?? "Failed to delete item")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function startEdit(field: string, value: string) {
+    setTmpVal(value)
+    if (field === "shop_type") setTmpShopType(value)
+    if (field === "currency") {
+      ensureItemDefs()
+      setCurrencyCbOpen(false)
+      setCurrencyCbSearch("")
+      setCurrencyCbShowAll(false)
+    }
+    setEditingField(field)
+  }
+
+  async function saveField(payload: Record<string, unknown>) {
+    if (!shop) return
+    setSaving(true)
+    try {
+      const updated = await updateShop(params.id, params.shopId, payload as any)
+      setShop(updated)
+      setEditingField(null)
+      // Refresh currency display if it changed
+      if ("currency_item_def_id" in payload) {
+        const newId = payload.currency_item_def_id as string | null
+        if (newId) {
+          getItemDefinition({ gameId: params.id }, newId)
+            .then((res) => setCurrencyItem(res.item))
+            .catch(() => {})
+        } else {
+          setCurrencyItem(null)
+        }
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Server Error", description: err?.message ?? "Failed to save" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function confirmToggleActive() {
+    if (!shop || pendingToggle === null) return
+    setToggling(true)
+    try {
+      const updated = await updateShop(params.id, params.shopId, { is_active: pendingToggle })
+      setShop(updated)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Server Error", description: err?.message ?? "Failed to update shop" })
+    } finally {
+      setToggling(false)
+      setPendingToggle(null)
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-12 px-4 flex items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Loading shop…
+      </div>
+    )
+  }
+
+  if (error || !shop) {
+    return (
+      <div className="container mx-auto py-6 px-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error ?? "Shop not found."}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  const filteredDefs = itemDefs.filter(
+    (d) =>
+      d.name.toLowerCase().includes(itemDefsSearch.toLowerCase()) ||
+      d.item_code.toLowerCase().includes(itemDefsSearch.toLowerCase()),
   )
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="mb-2">
-        <Breadcrumb>
-          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">{shop?.game?.studio?.name || t('common.studios')}</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${params.id}`}>{shop?.game?.name || t('common.game')}</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${params.id}/shops`}>{t('breadcrumb.shops')}</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <span className="">{shop?.name || t('shop.title')}</span>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-      <Card className="mb-6 group">
-        <CardContent className="space-y-4">
-          {/* Shop Name */}
-          <ShopNameEditable
-            shop={shop}
-            shopId={params.shopId}
-            onNameUpdate={newName =>
-              setShop((prev: any) => ({ ...prev, name: newName }))
-            }
-          />
+    <div className="container mx-auto py-6 px-4 space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/games">Games</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/games/${params.id}`}>{gameName ?? params.id}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/games/${params.id}/shops`}>Shops</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink>{shop.name}</BreadcrumbLink>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-          {/* Game */}
-          <div>
-            <span className="text-sm">{t('shop.game')}:</span>{' '}
-            {shop.game?.id && shop.game?.name ? (
-              <Link
-                href={`/games/${shop.game.id}`}
-                className="inline-flex items-center gap-1 hover:text-primary font-semibold"
-              >
-                {shop.game.name}
-                <ExternalLink className="w-4 h-4" />
-              </Link>
+      <div className="group/meta space-y-6">
+
+      {/* Back + Shop info */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href={`/games/${params.id}/shops`}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Store className="h-6 w-6 text-muted-foreground" />
+        <div>
+          <div className="flex items-center gap-2 flex-wrap group">
+            {editingField === "name" ? (
+              <>
+                <Input
+                  className="h-8 text-lg font-bold w-56"
+                  value={tmpVal}
+                  onChange={(e) => setTmpVal(e.target.value)}
+                  disabled={saving}
+                  autoFocus
+                />
+                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                  onClick={() => saveField({ name: tmpVal.trim() })}>
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                  onClick={() => setEditingField(null)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </>
             ) : (
-              <span className="font-semibold">{shop.game?.name}</span>
+              <>
+                <h1 className="text-2xl font-bold">{shop.name}</h1>
+                <Button size="icon" variant="ghost"
+                  className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                  onClick={() => startEdit("name", shop.name)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
+              {shop.shop_type}
+            </span>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={shop.is_active}
+                onCheckedChange={(checked) => setPendingToggle(checked)}
+                title={shop.is_active ? "Deactivate shop" : "Activate shop"}
+              />
+              <span className="text-sm text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 group mt-0.5">
+            {editingField === "shop_key" ? (
+              <>
+                <Input
+                  className="h-7 text-sm font-mono w-52"
+                  value={tmpVal}
+                  onChange={(e) => setTmpVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  disabled={saving}
+                  autoFocus
+                />
+                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                  onClick={() => saveField({ shop_key: tmpVal.trim() })}>
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                  onClick={() => setEditingField(null)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-muted-foreground font-mono">{shop.shop_key}</span>
+                <Button size="icon" variant="ghost"
+                  className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                  onClick={() => startEdit("shop_key", shop.shop_key)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </>
             )}
           </div>
-
-          {/* Code Name */}
-          <ShopCodeNameEditable
-            shop={shop}
-            shopId={params.shopId}
-            onCodeNameUpdate={newCodeName =>
-              setShop((prev: any) => ({ ...prev, code_name: newCodeName }))
-            }
-          />
-
-          {/* Description */}
-          <ShopDescriptionEditable
-            shop={shop}
-            shopId={params.shopId}
-            onDescriptionUpdate={newDescription =>
-              setShop((prev: any) => ({ ...prev, description: newDescription }))
-            }
-          />
-
-          {/* Currency */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{t('shop.currency')}:</span>
-            <span className="font-semibold">
-              {shop.currency ? (
-                <Link
-                  href={`/games/${params.id}/item-profiles/${shop.currency.id}`}
-                  className="inline-flex items-center gap-1 hover:text-primary"
-                >
-                  {shop.currency.name}
-                  <ExternalLink className="w-4 h-4" />
-                </Link>
-              ) : (
-                <span>{t('shop.noCurrencySet')}</span>
-              )}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={openCurrencyModal}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">{t('shop.itemsInShop')}</h2>
-        <Button onClick={openAddItemModal} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          {t('shop.addItem')}
-        </Button>
+        </div>
       </div>
-      {shop.items_in_shop?.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('common.noItemsFound')}</CardTitle>
-            <CardDescription>{t('shop.noShopsDesc')}</CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {shop.items_in_shop?.map((item: any) => (
-            <Card key={item.id} className="group">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle>
-                      <Link href={`/games/${params.id}/item-profiles/${item.item_profile?.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                        {item.item_profile?.name}
-                        <ExternalLink className="w-4 h-4 " />
-                      </Link>
-                    </CardTitle>
-                    <CardDescription>{t('shop.type')}: {item.item_profile?.type}</CardDescription>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => openRemoveItemModal(item)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-2 flex items-center gap-2">
-                  <span>{t('shop.currency')}:</span>
-                  {item.currency && item.currency.name ? (
-                    <span className="font-semibold">{item.currency.name}</span>
-                  ) : (
-                    <span className="">{t('shop.noCurrencySet')}</span>
-                  )}
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    setEditingCurrencyItemId(item.id);
-                    setSelectedItemCurrency(item.currency_id || shop.currency_id || '');
-                  }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  {item.currency_id && (
-                    <Button size="icon" variant="ghost" onClick={async () => {
-                      setItemCurrencyLoading(true);
-                      setItemCurrencyError(null);
-                      try {
-                        await updateShopItemPrice(params.shopId, item.item_profile.id, {
-                          price_current: item.price_current,
-                          price_old: item.price_old,
-                          currency_id: null,
-                        });
-                        setShop((prev: any) => ({
-                          ...prev,
-                          items_in_shop: prev.items_in_shop.map((it: any) =>
-                            it.id === item.id ? { ...it, currency_id: null, currency: null } : it
-                          ),
-                        }));
-                      } catch (e: any) {
-                        setItemCurrencyError(e.message || t('shop.loadError'));
-                      } finally {
-                        setItemCurrencyLoading(false);
-                      }
-                    }} disabled={itemCurrencyLoading} className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10">
-                      <Trash2 className="w-4 h-4" />
+
+      {/* Shop meta */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* LEFT column: Shop Type, dates (event only), Currency */}
+            <div className="space-y-4 text-sm">
+
+              {/* Shop Type */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Shop Type</p>
+                {editingField === "shop_type" ? (
+                  <div className="flex items-center gap-1">
+                    <Select value={tmpShopType} onValueChange={setTmpShopType} disabled={saving}>
+                      <SelectTrigger className="h-7 text-xs w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["permanent", "event"] as const).map((t) => (
+                          <SelectItem key={t} value={t} className="capitalize text-xs">{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => saveField({ shop_type: tmpShopType })}>
+                      <Save className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                </div>
-                <EditablePrice
-                  item={item}
-                  shopId={params.shopId}
-                  onPriceUpdate={(newCurrent, newOld) => {
-                    setShop((prev: any) => ({
-                      ...prev,
-                      items_in_shop: prev.items_in_shop.map((it: any) =>
-                        it.id === item.id ? { ...it, price_current: newCurrent, price_old: newOld } : it
-                      ),
-                    }))
-                  }}
-                />
-                <Dialog open={editingCurrencyItemId === item.id} onOpenChange={(open) => {
-                  if (!open) setEditingCurrencyItemId(null);
-                }}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{t('shop.selectItemCurrency')}</DialogTitle>
-                    </DialogHeader>
-                    {itemCurrencyError && <div className="text-red-500 text-xs mb-2">{itemCurrencyError}</div>}
-                    <div className="mb-2">
-                      <Command>
-                        <CommandInput
-                          placeholder={t('common.search')}
-                          value={itemSearchTerm}
-                          onValueChange={setItemSearchTerm}
-                          disabled={itemCurrencyLoading}
-                        />
-                        <CommandList>
-                          <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
-                          {currencyOptions
-                            .filter(cur =>
-                              cur.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) &&
-                              (!itemShowCurrencyOnly || cur.type === "currency")
-                            )
-                            .map((cur) => (
-                              <CommandItem
-                                key={cur.id}
-                                value={cur.name}
-                                onSelect={() => setSelectedItemCurrency(cur.id)}
-                                className={selectedItemCurrency === cur.id ? "bg-accent text-accent-foreground" : ""}
-                              >
-                                <div className="flex w-full justify-between items-center">
-                                  <span>{cur.name}</span>
-                                  <span className="text-xs ">{cur.type}</span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                        </CommandList>
-                      </Command>
-                    </div>
-                    <div className="flex items-center justify-between mt-4 gap-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="show-currency-only-item" checked={itemShowCurrencyOnly} onCheckedChange={checked => setItemShowCurrencyOnly(checked === true)} />
-                        <label htmlFor="show-currency-only-item" className="text-sm select-none cursor-pointer">{t('shop.showCurrencyOnly')}</label>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => setEditingField(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="group flex items-center gap-1">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
+                      {shop.shop_type}
+                    </span>
+                    <Button size="icon" variant="ghost"
+                      className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                      onClick={() => startEdit("shop_type", shop.shop_type)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Starts / Ends At — event only */}
+              {(editingField === "shop_type" ? tmpShopType : shop.shop_type) === "event" && (
+                <>
+                  {/* Starts At */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> Starts At
+                    </p>
+                    {editingField === "starts_at" ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1">
+                          <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal}
+                            onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
+                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                            onClick={() => saveField({ starts_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
+                            <Save className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                            onClick={() => setEditingField(null)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => setTmpVal(toDatetimeLocal(new Date()))}>Now</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setHours(0,0,0,0); setTmpVal(toDatetimeLocal(d)) }}>Today 00:00</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); setTmpVal(toDatetimeLocal(d)) }}>Tomorrow</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setMonth(d.getMonth()+1,1); d.setHours(0,0,0,0); setTmpVal(toDatetimeLocal(d)) }}>Next month</Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setEditingCurrencyItemId(null)} disabled={itemCurrencyLoading}>{t('common.cancel')}</Button>
-                        <Button
-                          onClick={async () => {
-                            if (!selectedItemCurrency) return;
-                            setItemCurrencyLoading(true);
-                            setItemCurrencyError(null);
-                            try {
-                              await updateShopItemPrice(params.shopId, item.item_profile.id, {
-                                price_current: item.price_current,
-                                price_old: item.price_old,
-                                currency_id: selectedItemCurrency,
-                              });
-                              const newCurrencyObj = currencyOptions.find((cur) => cur.id === selectedItemCurrency) || { id: selectedItemCurrency, name: selectedItemCurrency };
-                              setShop((prev: any) => ({
-                                ...prev,
-                                items_in_shop: prev.items_in_shop.map((it: any) =>
-                                  it.id === item.id ? { ...it, currency_id: selectedItemCurrency, currency: newCurrencyObj } : it
-                                ),
-                              }));
-                              setEditingCurrencyItemId(null);
-                            } catch (e: any) {
-                              setItemCurrencyError(e.message || t('shop.loadError'));
-                            } finally {
-                              setItemCurrencyLoading(false);
-                            }
-                          }}
-                          disabled={itemCurrencyLoading || !selectedItemCurrency}
-                        >
-                          {itemCurrencyLoading ? t('shop.saving') : t('common.save')}
+                    ) : (
+                      <div className="group flex items-center gap-1">
+                        <span>{formatDate(shop.starts_at)}</span>
+                        <Button size="icon" variant="ghost"
+                          className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                          onClick={() => startEdit("starts_at", formatDateInput(shop.starts_at))}>
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Ends At */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> Ends At
+                    </p>
+                    {editingField === "ends_at" ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1">
+                          <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal}
+                            onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
+                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                            onClick={() => saveField({ ends_at: tmpVal ? new Date(tmpVal).toISOString() : null })}>
+                            <Save className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                            onClick={() => setEditingField(null)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setDate(d.getDate()+7); d.setHours(23,59,0,0); setTmpVal(toDatetimeLocal(d)) }}>+1 week</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setDate(d.getDate()+14); d.setHours(23,59,0,0); setTmpVal(toDatetimeLocal(d)) }}>+2 weeks</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setMonth(d.getMonth()+1); d.setHours(23,59,0,0); setTmpVal(toDatetimeLocal(d)) }}>+1 month</Button>
+                          <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+                            onClick={() => { const d = new Date(); d.setMonth(d.getMonth()+2,0); d.setHours(23,59,0,0); setTmpVal(toDatetimeLocal(d)) }}>End of next month</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="group flex items-center gap-1">
+                        <span>{formatDate(shop.ends_at)}</span>
+                        <Button size="icon" variant="ghost"
+                          className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                          onClick={() => startEdit("ends_at", formatDateInput(shop.ends_at))}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Currency */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                  <Coins className="h-3 w-3" /> Currency
+                </p>
+                {editingField === "currency" ? (
+                  <div className="space-y-1.5">
+                    <Popover open={currencyCbOpen} onOpenChange={setCurrencyCbOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={currencyCbOpen}
+                          className="w-full justify-between font-normal h-8 text-sm"
+                          disabled={itemDefsLoading}>
+                          {itemDefsLoading ? (
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                            </span>
+                          ) : tmpVal ? (
+                            <span className="flex items-center gap-2">
+                              <span>{itemDefs.find((d) => d.id === tmpVal)?.name ?? <span className="font-mono text-xs">{tmpVal.slice(0,8)}…</span>}</span>
+                              {itemDefs.find((d) => d.id === tmpVal) && (
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {itemDefs.find((d) => d.id === tmpVal)!.item_code}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Select currency item…</span>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Search by name or code…"
+                            value={currencyCbSearch}
+                            onValueChange={setCurrencyCbSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No item found.</CommandEmpty>
+                            <CommandGroup>
+                              {itemDefs
+                                .filter((d) =>
+                                  (currencyCbShowAll || d.category === "currency") &&
+                                  (d.name.toLowerCase().includes(currencyCbSearch.toLowerCase()) ||
+                                    d.item_code.toLowerCase().includes(currencyCbSearch.toLowerCase()))
+                                )
+                                .slice(0, 30)
+                                .map((d) => (
+                                  <CommandItem key={d.id} value={d.id}
+                                    onSelect={() => {
+                                      setTmpVal(d.id)
+                                      setCurrencyCbOpen(false)
+                                      setCurrencyCbSearch("")
+                                    }}>
+                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${tmpVal === d.id ? "opacity-100" : "opacity-0"}`} />
+                                    <span className="flex-1">{d.name}</span>
+                                    <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{d.category}</span>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="cb_show_all" checked={currencyCbShowAll}
+                        onCheckedChange={(v) => setCurrencyCbShowAll(!!v)} />
+                      <label htmlFor="cb_show_all" className="text-xs text-muted-foreground cursor-pointer select-none">
+                        Show all item types
+                      </label>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
+                        onClick={() => saveField({ currency_item_def_id: tmpVal.trim() || null })}>
+                        <Save className="h-3.5 w-3.5 mr-1" /> Save
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                        onClick={() => setEditingField(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group flex items-center gap-1">
+                    {shop.currency_item_def_id ? (
+                      <span className="flex items-center gap-1.5">
+                        {currencyItem ? (
+                          <>
+                            <span>{currencyItem.name}</span>
+                            <span className="text-xs text-muted-foreground font-mono">{currencyItem.item_code}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-mono">{shop.currency_item_def_id.slice(0, 8)}…</span>
+                        )}
+                        <Link
+                          href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
+                          className="opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                          title="View item definition"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground/50">—</span>
+                    )}
+                    <Button size="icon" variant="ghost"
+                      className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                      onClick={() => startEdit("currency", shop.currency_item_def_id ?? "")}>  
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* RIGHT column: IDs + Description */}
+            <div className="space-y-4 text-sm">
+
+              {/* IDs */}
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">IDs</p>
+                <div className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">studio</span>
+                    <span className="font-mono">{shop.studio_id}</span>
+                    <CopyButton text={shop.studio_id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">game</span>
+                    <span className="font-mono">{shop.game_id}</span>
+                    <CopyButton text={shop.game_id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
+                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">shop</span>
+                    <span className="font-mono">{shop.id}</span>
+                    <CopyButton text={shop.id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                  </span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Description</p>
+              {editingField === "description" ? (
+                <div className="space-y-1">
+                  <textarea
+                    className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[100px] bg-background"
+                    value={tmpVal}
+                    onChange={(e) => setTmpVal(e.target.value)}
+                    disabled={saving}
+                    autoFocus
+                    maxLength={700}
+                  />
+                  <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                    {tmpVal.length}/700
+                  </p>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
+                      onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
+                      <Save className="h-3.5 w-3.5 mr-1" /> Save
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => setEditingField(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="group flex items-start gap-1">
+                  <p className="flex-1 text-sm leading-relaxed whitespace-pre-line">
+                    {shop.description || <span className="italic text-muted-foreground/50">—</span>}
+                  </p>
+                  <Button size="icon" variant="ghost"
+                    className="h-7 w-7 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                    onClick={() => startEdit("description", shop.description ?? "")}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              </div>{/* /description */}
+            </div>{/* /right column */}
+
+          </div>
+        </CardContent>
+      </Card>
+
+      </div>
+
+      {/* Items section */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="h-5 w-5 text-muted-foreground mt-0.5" />
+          <div>
+            <h2 className="text-xl font-semibold">Items</h2>
+            {!itemsLoading && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                {shop?.item_limit
+                  ? (() => {
+                      const used = items.length
+                      const max = shop.item_limit
+                      const pct = used / max
+                      return (
+                        <>
+                          <span className={pct >= 1 ? "text-destructive font-medium" : ""}>
+                            {used} / {max} items
+                          </span>
+                          <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                            <span
+                              className={`block h-full rounded-full transition-all ${
+                                pct >= 1 ? "bg-destructive" : pct >= 0.8 ? "bg-amber-500" : "bg-primary"
+                              }`}
+                              style={{ width: `${Math.min(pct * 100, 100)}%` }}
+                            />
+                          </span>
+                        </>
+                      )
+                    })()
+                  : <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+                }
+              </p>
+            )}
+            {itemsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground mt-0.5" />}
+          </div>
         </div>
+        <Button onClick={openAdd} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Add Item
+        </Button>
+      </div>
+
+      {itemsError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{itemsError}</AlertDescription>
+        </Alert>
+      ) : itemsLoading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading items…
+          </CardContent>
+        </Card>
+      ) : items.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <PackageSearch className="h-10 w-10 text-muted-foreground" />
+            <div>
+              <p className="font-semibold">No items in this shop</p>
+              <p className="text-sm text-muted-foreground">
+                Add items to start selling to players.
+              </p>
+            </div>
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add First Item
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className={reordering ? "opacity-60 pointer-events-none" : ""}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead className="w-10 text-center">#</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Item Definition</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead>Limit</TableHead>
+                  <TableHead>Restock</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <TableBody>
+                  {items.map((item, idx) => (
+                    <SortableItemRow
+                      key={item.id}
+                      item={item}
+                      index={idx}
+                      gameId={params.id}
+                      itemDefs={itemDefs}
+                      onEdit={openEdit}
+                      onDelete={openDelete}
+                      onToggle={toggleItemActive}
+                    />
+                  ))}
+                </TableBody>
+              </SortableContext>
+            </Table>
+          </DndContext>
+        </Card>
       )}
-      <Dialog open={currencyModalOpen} onOpenChange={setCurrencyModalOpen}>
+
+      {/* ── Add Item Dialog ───────────────────────────────────────── */}
+      <Sheet open={addOpen} onOpenChange={setAddOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-[560px] overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Add Item to Shop</SheetTitle>
+            <SheetDescription>Select an item definition and configure its shop settings.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto py-2 pr-4">
+          <ItemForm
+            form={addForm}
+            setField={setAddField}
+            itemDefs={itemDefs}
+            itemDefsLoading={itemDefsLoading}
+            error={addError}
+            gameId={params.id}
+          />
+          </div>
+          <SheetFooter className="pt-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdd} disabled={adding}>
+              {adding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Add Item
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Edit Item Dialog ──────────────────────────────────────── */}
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-[560px] overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Edit Item</SheetTitle>
+            <SheetDescription>{editItem?.display_name}</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto py-2 pr-4">
+          <ItemForm
+            form={editForm}
+            setField={setEditField}
+            itemDefs={itemDefs}
+            itemDefsLoading={false}
+            error={editError}
+            disableItemDef
+            gameId={params.id}
+            editItemId={editItem?.item_def_id}
+          />
+          </div>
+          <SheetFooter className="pt-2">
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editing}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} disabled={editing}>
+              {editing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Toggle Active Confirmation ────────────────────────────── */}
+      <Dialog open={pendingToggle !== null} onOpenChange={(open) => { if (!open) setPendingToggle(null) }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('shop.selectShopCurrency')}</DialogTitle>
+            <DialogTitle>{pendingToggle ? "Activate shop?" : "Deactivate shop?"}</DialogTitle>
+            <DialogDescription>
+              {pendingToggle
+                ? "This shop will become visible and purchasable by players."
+                : "This shop will be hidden from players and no longer purchasable."}
+            </DialogDescription>
           </DialogHeader>
-          {currencyError && <div className="text-red-500 text-xs mb-2">{currencyError}</div>}
-          <div className="mb-2">
-            <Command>
-              <CommandInput placeholder={t('common.search')} disabled={currencyLoading} />
-              <CommandList>
-                <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
-                {filteredOptions.map((item) => (
-                  <CommandItem
-                    key={item.id}
-                    value={item.name}
-                    onSelect={() => setSelectedCurrency(item.id)}
-                    className={selectedCurrency === item.id ? "bg-accent text-accent-foreground" : ""}
-                  >
-                    <div className="flex w-full justify-between items-center">
-                      <span>{item.name}</span>
-                      <span className="text-xs ">{getItemTypeLabel(item.type)}</span>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandList>
-            </Command>
-          </div>
-          <div className="flex items-center justify-between mt-4 gap-2">
-            <div className="flex items-center gap-2">
-              <Checkbox id="show-currency-only" checked={showCurrencyOnly} onCheckedChange={checked => setShowCurrencyOnly(checked === true)} />
-              <label htmlFor="show-currency-only" className="text-sm select-none cursor-pointer">{t('shop.showCurrencyOnly')}</label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setCurrencyModalOpen(false)} disabled={currencyLoading}>{t('common.cancel')}</Button>
-              <Button onClick={handleCurrencySave} disabled={!selectedCurrency || selectedCurrency === "no-items" || currencyLoading}>
-                {currencyLoading ? t('shop.saving') : t('common.save')}
-              </Button>
-            </div>
-          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingToggle(null)} disabled={toggling}>
+              Cancel
+            </Button>
+            <Button onClick={confirmToggleActive} disabled={toggling}>
+              {toggling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Add Item Modal */}
-      <Dialog open={addItemModalOpen} onOpenChange={setAddItemModalOpen}>
-        <DialogContent className="max-w-md">
+      {/* ── Delete Confirmation ───────────────────────────────────── */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('shop.addItemToShop')}</DialogTitle>
+            <DialogTitle>Remove Item</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove{" "}
+              <span className="font-semibold">{deleteItem?.display_name}</span> from this shop?
+              This action cannot be undone on the UI (soft-delete — history is preserved).
+            </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Remove Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
 
-          {addItemError && <div className="text-red-500 text-sm mb-2">{addItemError}</div>}
+// ─── Sortable Item Row ────────────────────────────────────────────────────────
 
-          <div className="space-y-4">
-            {/* Item Profile Selection */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">{t('shop.selectItemProfile')}</label>
-              <Command>
-                <CommandInput
-                  placeholder={t('shop.searchItemProfiles')}
-                  value={addItemSearchTerm}
-                  onValueChange={setAddItemSearchTerm}
-                  disabled={addItemLoading}
-                />
+interface SortableItemRowProps {
+  item: ShopItem
+  index: number
+  gameId: string
+  itemDefs: ItemDefinition[]
+  onEdit: (item: ShopItem) => void
+  onDelete: (item: ShopItem) => void
+  onToggle: (item: ShopItem) => void
+}
+
+function SortableItemRow({ item, index, gameId, itemDefs, onEdit, onDelete, onToggle }: SortableItemRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? "var(--muted)" : undefined,
+    zIndex: isDragging ? 10 : undefined,
+    position: "relative",
+  }
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="w-8 pr-0">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 rounded touch-none"
+          title="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      </TableCell>
+      <TableCell className="w-10 text-center text-xs text-muted-foreground font-mono">
+        {item.sort_order}
+      </TableCell>
+      <TableCell>
+        <div>
+          <p className="font-medium">{item.display_name}</p>
+          {item.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Link
+          href={`/games/${gameId}/items/${item.item_def_id}`}
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono"
+          target="_blank"
+        >
+          {itemDefs.find((d) => d.id === item.item_def_id)?.name ?? item.item_def_id.slice(0, 8) + "…"}
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </Link>
+      </TableCell>
+      <TableCell className="text-right font-semibold">
+        {item.price.toLocaleString()}
+        {item.currency_item_def_id && (
+          <Link
+            href={`/games/${gameId}/items/${item.currency_item_def_id}`}
+            className="flex items-center justify-end gap-1 text-xs text-muted-foreground hover:text-primary hover:underline font-normal font-mono mt-0.5"
+            target="_blank"
+          >
+            {itemDefs.find((d) => d.id === item.currency_item_def_id)?.name ?? item.currency_item_def_id.slice(0, 8) + "…"}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </Link>
+        )}
+      </TableCell>
+      <TableCell>
+        <span className="text-xs">
+          {item.purchase_limit_type === "unlimited" ? (
+            "Unlimited"
+          ) : (
+            <>{item.purchase_limit.toLocaleString()} <span className="text-muted-foreground">/ {PURCHASE_LIMIT_LABELS[item.purchase_limit_type]}</span></>
+          )}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs">{RESTOCK_LABELS[item.restock_schedule]}</span>
+      </TableCell>
+      <TableCell className="text-right">
+        {item.stock === 0 ? (
+          <span className="text-xs text-muted-foreground">∞</span>
+        ) : (
+          item.stock.toLocaleString()
+        )}
+      </TableCell>
+      <TableCell>
+        <Switch
+          checked={item.is_active}
+          onCheckedChange={() => onToggle(item)}
+          title={item.is_active ? "Deactivate" : "Activate"}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button size="icon" variant="ghost" onClick={() => onEdit(item)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => onDelete(item)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// ─── Shared Item Form ─────────────────────────────────────────────────────────
+
+interface ItemFormProps {
+  form: ItemFormState
+  setField: <K extends keyof ItemFormState>(k: K, v: ItemFormState[K]) => void
+  itemDefs: ItemDefinition[]
+  itemDefsLoading: boolean
+  error: string | null
+  disableItemDef?: boolean
+  gameId?: string
+  editItemId?: string
+}
+
+function ItemForm({
+  form,
+  setField,
+  itemDefs,
+  itemDefsLoading,
+  error,
+  disableItemDef,
+  gameId,
+  editItemId,
+}: ItemFormProps) {
+  const showLimits = form.purchase_limit_type !== "unlimited"
+
+  // Item def combobox
+  const [itemDefOpen, setItemDefOpen] = useState(false)
+  const [itemDefSearch, setItemDefSearch] = useState("")
+  const selectedItemDef = itemDefs.find((d) => d.id === form.item_def_id)
+  const filteredItemDefs = itemDefs.filter(
+    (d) =>
+      d.name.toLowerCase().includes(itemDefSearch.toLowerCase()) ||
+      d.item_code.toLowerCase().includes(itemDefSearch.toLowerCase()),
+  )
+
+  // Display name auto-sync
+  const [syncName, setSyncName] = useState(true)
+
+  // Currency combobox local state
+  const [currOpen, setCurrOpen] = useState(false)
+  const [currSearch, setCurrSearch] = useState("")
+  const [currShowAll, setCurrShowAll] = useState(false)
+
+  const filteredCurrDefs = itemDefs.filter(
+    (d) =>
+      (currShowAll || d.category === "currency") &&
+      (d.name.toLowerCase().includes(currSearch.toLowerCase()) ||
+        d.item_code.toLowerCase().includes(currSearch.toLowerCase())),
+  )
+  const selectedCurrDef = itemDefs.find((d) => d.id === form.currency_item_def_id)
+
+  return (
+    <div className="space-y-4 py-1">
+      {/* Item definition */}
+      <div className="space-y-1.5">
+        <Label>
+          Item Definition <span className="text-destructive">*</span>
+        </Label>
+        {!disableItemDef ? (
+          <Popover open={itemDefOpen} onOpenChange={setItemDefOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" aria-expanded={itemDefOpen}
+                className="w-full justify-between font-normal h-9 text-sm" disabled={itemDefsLoading}>
+                {itemDefsLoading ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                  </span>
+                ) : selectedItemDef ? (
+                  <span className="flex items-center gap-2">
+                    <span>{selectedItemDef.name}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{selectedItemDef.item_code}</span>
+                  </span>
+                ) : form.item_def_id ? (
+                  <span className="font-mono text-xs text-muted-foreground">{form.item_def_id.slice(0, 8)}…</span>
+                ) : (
+                  <span className="text-muted-foreground">Select item definition…</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+              <Command shouldFilter={false}>
+                <CommandInput placeholder="Search by name or code…" value={itemDefSearch} onValueChange={setItemDefSearch} />
                 <CommandList>
-                  <CommandEmpty>{t('common.noItemsFound')}</CommandEmpty>
-                  {availableItemProfiles
-                    .filter(profile =>
-                      profile.name.toLowerCase().includes(addItemSearchTerm.toLowerCase()) ||
-                      profile.code_name.toLowerCase().includes(addItemSearchTerm.toLowerCase())
-                    )
-                    .map((profile) => (
-                      <CommandItem
-                        key={profile.id}
-                        value={profile.name}
-                        onSelect={() => setSelectedItemProfile(profile.id)}
-                        className={selectedItemProfile === profile.id ? "bg-accent text-accent-foreground" : ""}
-                      >
-                        <div className="flex w-full justify-between items-center">
-                          <span>{profile.name}</span>
-                          <span className="text-xs ">{profile.type}</span>
-                        </div>
+                  <CommandEmpty>No item found.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredItemDefs.slice(0, 30).map((d) => (
+                      <CommandItem key={d.id} value={d.id}
+                        onSelect={() => {
+                          setField("item_def_id", d.id)
+                          if (syncName) setField("display_name", d.name)
+                          setItemDefOpen(false)
+                          setItemDefSearch("")
+                        }}>
+                        <Check className={`mr-2 h-4 w-4 shrink-0 ${form.item_def_id === d.id ? "opacity-100" : "opacity-0"}`} />
+                        <span className="flex-1">{d.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                        <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{d.category}</span>
                       </CommandItem>
                     ))}
+                  </CommandGroup>
                 </CommandList>
               </Command>
-            </div>
-
-            {/* Price Settings */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium">{t('shop.priceSettings')}</h4>
-              <div>
-                <label className="text-sm ">{t('shop.currentPrice')} *</label>
-                <Input
-                  type="number"
-                  value={currentPrice}
-                  onChange={(e) => setCurrentPrice(e.target.value)}
-                  placeholder={t('shop.enterCurrentPrice')}
-                  disabled={addItemLoading}
-                />
-              </div>
-              <div>
-                <label className="text-sm ">{t('shop.oldPrice')}</label>
-                <Input
-                  type="number"
-                  value={oldPrice}
-                  onChange={(e) => setOldPrice(e.target.value)}
-                  placeholder={t('shop.enterOldPrice')}
-                  disabled={addItemLoading}
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setAddItemModalOpen(false)} disabled={addItemLoading}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={handleAddItem}
-              disabled={addItemLoading || !selectedItemProfile || !currentPrice}
-            >
-              {addItemLoading ? t('shop.addingItem') : t('shop.addItem')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Remove Item Confirmation Modal */}
-      <Dialog open={removeItemModalOpen} onOpenChange={setRemoveItemModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('shop.removeItemConfirm')}</DialogTitle>
-          </DialogHeader>
-
-          {removeItemError && <div className="text-red-500 text-sm mb-2">{removeItemError}</div>}
-
-          <div className="space-y-4">
-            <p className="text-sm ">
-              {t('shop.removeItemConfirmText')}
-            </p>
-
-            {itemToRemove && (
-              <div className="p-3 border rounded-lg bg-muted/50">
-                <p className="font-medium">{itemToRemove.item_profile?.name}</p>
-                <p className="text-sm ">{t('shop.type')}: {itemToRemove.item_profile?.type}</p>
-                <p className="text-sm ">{t('shop.currentPrice')}: {itemToRemove.price_current}</p>
-              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Input value={form.item_def_id} disabled className="font-mono text-xs flex-1" />
+            {gameId && editItemId && (
+              <Link href={`/games/${gameId}/items/${editItemId}`} target="_blank"
+                className="shrink-0 text-muted-foreground hover:text-foreground" title="View item definition">
+                <ExternalLink className="h-4 w-4" />
+              </Link>
             )}
           </div>
-
-          <DialogFooter className="mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setRemoveItemModalOpen(false)}
-              disabled={removeItemLoading}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRemoveItem}
-              disabled={removeItemLoading}
-            >
-              {removeItemLoading ? t('shop.removingItem') : t('shop.removeItem')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-function EditablePrice({ item, shopId, onPriceUpdate }: { item: any, shopId: string, onPriceUpdate: (newCurrent: number, newOld: number) => void }) {
-  const [editing, setEditing] = useState<"current" | "old" | null>(null)
-  const [current, setCurrent] = useState(item.price_current)
-  const [old, setOld] = useState(item.price_old)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  useEffect(() => {
-    if (editing === "current") setCurrent(item.price_current)
-    if (editing === "old") setOld(item.price_old)
-    // eslint-disable-next-line
-  }, [editing])
-
-  const handleSave = async (type: "current" | "old") => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = {
-        price_current: type === "current" ? Number(current) : Number(item.price_current),
-        price_old: type === "old" ? Number(old) : Number(item.price_old),
-      }
-      await updateShopItemPrice(shopId, item.item_profile.id, data)
-      onPriceUpdate(data.price_current, data.price_old)
-      setEditing(null)
-    } catch (e: any) {
-      setError(e.message || t('shop.loadError'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-1 mb-2">
-      <div className="group flex items-center gap-2">
-        <span>{t('shop.currentPrice')}:</span>
-        {editing === "current" ? (
-          <>
-            <Input
-              type="number"
-              value={current}
-              onChange={e => setCurrent(e.target.value)}
-              className="w-24 h-8 px-2 text-sm"
-              disabled={loading}
-            />
-            <Button size="icon" variant="ghost" onClick={() => handleSave("current")} disabled={loading}>
-              <Save className="w-4 h-4" />
-            </Button>
-            <Button size="icon" variant="ghost" onClick={() => setEditing(null)} disabled={loading}>
-              <X className="w-4 h-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <span>{item.price_current}</span>
-            <Button size="icon" variant="ghost" onClick={() => setEditing("current")} className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <Pencil className="w-4 h-4" />
-            </Button>
-          </>
         )}
       </div>
-      <div className="group flex items-center gap-2">
-        <span>{t('shop.oldPrice')}:</span>
-        {editing === "old" ? (
-          <>
-            <Input
-              type="number"
-              value={old}
-              onChange={e => setOld(e.target.value)}
-              className="w-24 h-8 px-2 text-sm"
-              disabled={loading}
-            />
-            <Button size="icon" variant="ghost" onClick={() => handleSave("old")} disabled={loading}>
-              <Save className="w-4 h-4" />
-            </Button>
-            <Button size="icon" variant="ghost" onClick={() => setEditing(null)} disabled={loading}>
-              <X className="w-4 h-4" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <span>{item.price_old}</span>
-            <Button size="icon" variant="ghost" onClick={() => setEditing("old")} className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <Pencil className="w-4 h-4" />
-            </Button>
-          </>
+
+      {/* Display name */}
+      <div className="space-y-1.5">
+        <Label>
+          Display Name <span className="text-destructive">*</span>
+        </Label>
+        <div className="relative">
+          <Input
+            placeholder="e.g. Magic Sword"
+            value={form.display_name}
+            onChange={(e) => {
+              setField("display_name", e.target.value)
+              setSyncName(false)
+            }}
+            className={!disableItemDef ? "pr-10" : ""}
+          />
+          {!disableItemDef && (
+            <button
+              type="button"
+              title={syncName ? "Auto-sync with item definition (click to disable)" : "Auto-sync disabled (click to enable)"}
+              onClick={() => {
+                const next = !syncName
+                setSyncName(next)
+                if (next && selectedItemDef) setField("display_name", selectedItemDef.name)
+              }}
+              className={`absolute right-5 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded transition-colors
+                ${
+                  syncName
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {!disableItemDef && (
+          <p className="text-xs text-muted-foreground">
+            {syncName ? "Auto-syncing with item definition name." : "Manual mode — not syncing with item definition."}
+          </p>
         )}
       </div>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+
+      {/* Description */}
+      <div className="space-y-1.5">
+        <Label>Description</Label>
+        <Textarea
+          placeholder="Optional description…"
+          value={form.description}
+          onChange={(e) => setField("description", e.target.value)}
+          rows={2}
+          maxLength={700}
+        />
+        <p className={`text-right text-xs ${form.description.length >= 700 ? 'text-destructive font-medium' : form.description.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+          {form.description.length}/700
+        </p>
+      </div>
+
+      {/* Price */}
+      <div className="space-y-1.5">
+        <Label>
+          Price <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          type="number"
+          min={1}
+          placeholder="e.g. 200"
+          value={form.price}
+          onChange={(e) => setField("price", e.target.value)}
+        />
+      </div>
+
+      {/* Currency */}
+      <div className="space-y-1.5">
+          <Label>Currency Item Def <span className="text-xs text-muted-foreground">(overrides shop)</span></Label>
+          <div className="flex items-center gap-2">
+          <Popover open={currOpen} onOpenChange={setCurrOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" aria-expanded={currOpen}
+                className="flex-1 justify-between font-normal h-9 text-sm">
+                {selectedCurrDef ? (
+                  <span className="flex items-center gap-2">
+                    <span>{selectedCurrDef.name}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{selectedCurrDef.item_code}</span>
+                  </span>
+                ) : form.currency_item_def_id ? (
+                  <span className="font-mono text-xs text-muted-foreground">{form.currency_item_def_id.slice(0,8)}…</span>
+                ) : (
+                  <span className="text-muted-foreground">None (use shop default)</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+              <Command shouldFilter={false}>
+                <CommandInput placeholder="Search by name or code…" value={currSearch} onValueChange={setCurrSearch} />
+                <CommandList>
+                  <CommandEmpty>No item found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem value="__none__" onSelect={() => { setField("currency_item_def_id", ""); setCurrOpen(false); setCurrSearch("") }}>
+                      <Check className={`mr-2 h-4 w-4 shrink-0 ${!form.currency_item_def_id ? "opacity-100" : "opacity-0"}`} />
+                      <span className="text-muted-foreground italic">None</span>
+                    </CommandItem>
+                    {filteredCurrDefs.slice(0, 30).map((d) => (
+                      <CommandItem key={d.id} value={d.id} onSelect={() => { setField("currency_item_def_id", d.id); setCurrOpen(false); setCurrSearch("") }}>
+                        <Check className={`mr-2 h-4 w-4 shrink-0 ${form.currency_item_def_id === d.id ? "opacity-100" : "opacity-0"}`} />
+                        <span className="flex-1">{d.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                        <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{d.category}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+              <div className="flex items-center gap-2 px-3 py-2 border-t">
+                <Checkbox id="curr_show_all" checked={currShowAll} onCheckedChange={(v) => setCurrShowAll(!!v)} />
+                <label htmlFor="curr_show_all" className="text-xs text-muted-foreground cursor-pointer select-none">Show all item types</label>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {form.currency_item_def_id && (
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+              title="Clear override" onClick={() => setField("currency_item_def_id", "")}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          </div>
+      </div>
+
+      {/* Purchase limit */}
+      <div className="space-y-1.5">
+        <Label>Purchase Limit Type</Label>
+        <Select
+          value={form.purchase_limit_type}
+          onValueChange={(v) => setField("purchase_limit_type", v as PurchaseLimitType)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unlimited">Unlimited</SelectItem>
+            <SelectItem value="player">Per Player</SelectItem>
+            <SelectItem value="global">Global</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {showLimits && (
+        <div className="space-y-1.5">
+          <Label>Max Purchases</Label>
+          <Input
+            type="number"
+            min={0}
+            value={form.purchase_limit}
+            onChange={(e) => setField("purchase_limit", e.target.value)}
+          />
+        </div>
+      )}
+
+      {/* Stock + Restock Schedule */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>
+            Stock{" "}
+            <span className="text-xs text-muted-foreground">(0 = unlimited)</span>
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            value={form.stock}
+            onChange={(e) => setField("stock", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Restock Schedule</Label>
+          <Select
+            value={form.restock_schedule}
+            onValueChange={(v) => setField("restock_schedule", v as RestockSchedule)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Never</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Available from/until */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Available From</Label>
+          <Input
+            type="datetime-local"
+            value={form.available_from}
+            onChange={(e) => setField("available_from", e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => setField("available_from", toDatetimeLocal(new Date()))}>Now</Button>
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => { const d = new Date(); d.setHours(0,0,0,0); setField("available_from", toDatetimeLocal(d)) }}>Today</Button>
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); setField("available_from", toDatetimeLocal(d)) }}>Tomorrow</Button>
+            {form.available_from && (
+              <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs text-destructive"
+                onClick={() => setField("available_from", "")}>Clear</Button>
+            )}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Available Until</Label>
+          <Input
+            type="datetime-local"
+            value={form.available_until}
+            onChange={(e) => setField("available_until", e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => { const d = new Date(); d.setDate(d.getDate()+7); d.setHours(23,59,0,0); setField("available_until", toDatetimeLocal(d)) }}>+1w</Button>
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => { const d = new Date(); d.setDate(d.getDate()+14); d.setHours(23,59,0,0); setField("available_until", toDatetimeLocal(d)) }}>+2w</Button>
+            <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
+              onClick={() => { const d = new Date(); d.setMonth(d.getMonth()+1); d.setHours(23,59,0,0); setField("available_until", toDatetimeLocal(d)) }}>+1m</Button>
+            {form.available_until && (
+              <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs text-destructive"
+                onClick={() => setField("available_until", "")}>Clear</Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Active */}
+      <div className="flex items-center gap-3">
+        <Switch
+          id="item_active"
+          checked={form.is_active}
+          onCheckedChange={(v) => setField("is_active", v)}
+        />
+        <Label htmlFor="item_active" className="cursor-pointer">
+          Active immediately
+        </Label>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }
-
-function ShopNameEditable({ shop, shopId, onNameUpdate }: { shop: any, shopId: string, onNameUpdate: (newName: string) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(shop.name)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  useEffect(() => {
-    setName(shop.name)
-  }, [shop.name])
-
-  const handleSave = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await updateShop(shopId, { name })
-      onNameUpdate(name)
-      setEditing(false)
-    } catch (e: any) {
-      setError(e.message || t('shop.loadError'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="group flex items-center gap-2">
-      {editing ? (
-        <>
-          <Input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-48 h-8 px-2 text-lg font-bold"
-            disabled={loading}
-          />
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setName(shop.name) }} disabled={loading}>
-            <X className="w-4 h-4" />
-          </Button>
-        </>
-      ) : (
-        <>
-          <span className="text-2xl font-bold">{shop.name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
-          </Button>
-        </>
-      )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  )
-}
-
-function ShopCodeNameEditable({ shop, shopId, onCodeNameUpdate }: { shop: any, shopId: string, onCodeNameUpdate: (newCodeName: string) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [codeName, setCodeName] = useState(shop.code_name)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  useEffect(() => {
-    setCodeName(shop.code_name)
-  }, [shop.code_name])
-
-  const handleSave = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await updateShop(shopId, { code_name: codeName })
-      onCodeNameUpdate(codeName)
-      setEditing(false)
-    } catch (e: any) {
-      setError(e.message || t('shop.loadError'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="group flex items-center gap-2">
-      {editing ? (
-        <>
-          <Input
-            value={codeName}
-            onChange={e => setCodeName(e.target.value)}
-            className="w-48 h-8 px-2 text-base"
-            disabled={loading}
-          />
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setCodeName(shop.code_name) }} disabled={loading}>
-            <X className="w-4 h-4" />
-          </Button>
-        </>
-      ) : (
-        <>
-          <span><span className="text-sm">{t('shop.code')}:</span> {shop.code_name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
-          </Button>
-        </>
-      )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  )
-}
-
-function ShopDescriptionEditable({ shop, shopId, onDescriptionUpdate }: { shop: any, shopId: string, onDescriptionUpdate: (newDescription: string) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [description, setDescription] = useState(shop.description || "")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  useEffect(() => {
-    setDescription(shop.description || "")
-  }, [shop.description])
-
-  const handleSave = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await updateShop(shopId, { description } as any)
-      onDescriptionUpdate(description)
-      setEditing(false)
-    } catch (e: any) {
-      setError(e.message || t('shop.loadError'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="mb-2 group flex items-center gap-2">
-      {editing ? (
-        <>
-          <Input
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            className="w-96 h-8 px-2 text-base"
-            disabled={loading}
-            placeholder={t('shop.description')}
-          />
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(shop.description || "") }} disabled={loading}>
-            <X className="w-4 h-4" />
-          </Button>
-        </>
-      ) : (
-        <>
-          <span><span className="text-sm">{t('shop.description')}:</span> {shop.description || t('shop.noDescription')}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
-          </Button>
-        </>
-      )}
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  )
-} 
