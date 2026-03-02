@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import {
+  Activity,
   BarChart3,
   Clock,
   MessageCircle,
@@ -237,6 +238,12 @@ export function SideNav() {
                   <Link href="/admin/plugins">
                     <Puzzle className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.allPlugins') || 'Plugins'}</span>
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/monitor">
+                    <Activity className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Monitor</span>
                   </Link>
                 </Button>
               </div>

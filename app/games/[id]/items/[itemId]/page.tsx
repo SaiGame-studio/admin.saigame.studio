@@ -299,7 +299,8 @@ export default function ItemDefinitionDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex flex-col items-end gap-2">
+          <GameNavButtons gameId={gameId} active="items" />
           <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="icon" disabled={deleting}>
@@ -326,8 +327,6 @@ export default function ItemDefinitionDetailPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-          <div className="w-px h-6 bg-border" />
-          <GameNavButtons gameId={gameId} active="items" />
         </div>
       </div>
 

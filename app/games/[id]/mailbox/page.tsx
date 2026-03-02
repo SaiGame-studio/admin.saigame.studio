@@ -20,7 +20,7 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { CopyButton } from "@/components/CopyButton"
 import { getGame } from "@/lib/game-api"
-import { getGameProgressList, GameProgress } from "@/lib/game-user-api"
+import { getGameProgressList, getGameProgressDetail, GameProgress } from "@/lib/game-user-api"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
@@ -82,11 +82,13 @@ function StatusBadge({ status }: { status: string }) {
     claimed: "default",
     unclaimed: "secondary",
     unread: "secondary",
+    read: "secondary",
     expired: "destructive",
   }
   const labels: Record<string, string> = {
     unclaimed: "unclaim",
     unread: "unclaim",
+    read: "unclaim",
   }
   return (
     <Badge variant={variants[status] ?? "outline"} className="text-xs capitalize">
@@ -95,8 +97,9 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function ReadBadge({ readAt }: { readAt: string | null }) {
-  const isRead = readAt !== null
+function ReadBadge({ readAt, claimedAt }: { readAt: string | null; claimedAt: string | null }) {
+  // claimed implies read — if either timestamp is set, the message was read
+  const isRead = readAt !== null || claimedAt !== null
   return (
     <Badge
       variant={isRead ? "outline" : "secondary"}
@@ -227,6 +230,17 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       }))
     }
   }, [searchParams])
+
+  // When receiver_id is set (e.g. from URL) and we have no display name yet, fetch player info
+  useEffect(() => {
+    if (!form.receiver_id || !isValidUUID(form.receiver_id) || selectedPlayerName) return
+    getGameProgressDetail(form.receiver_id)
+      .then((detail) => {
+        const name = detail.user_display_name || detail.user_email || ""
+        if (name) setSelectedPlayerName(name)
+      })
+      .catch(() => {})
+  }, [form.receiver_id]) // intentionally omit selectedPlayerName to avoid re-running after it's set
 
   // Clear cache when component mounts (user re-enters the page)
   useEffect(() => {
@@ -746,7 +760,8 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                             {msg.attachments.length}
                           </span>
                         )}
-                        <ReadBadge readAt={msg.read_at} />
+                        {/* hide ReadBadge when claimed — claimed already implies read */}
+                        {msg.status !== "claimed" && <ReadBadge readAt={msg.read_at} claimedAt={msg.claimed_at} />}
                         <StatusBadge status={msg.status} />
                       </button>
 

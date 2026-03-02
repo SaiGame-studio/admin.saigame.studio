@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { fetchStudioGames } from "@/lib/studio-api"
@@ -116,90 +115,90 @@ export function AddGameToTeamDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Games
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Add Games to Team</DialogTitle>
-            <DialogDescription>
-              Select one or more games from your studio to assign to this team.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 max-h-[400px] overflow-y-auto">
-            {gamesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : availableGames.length > 0 ? (
-              <div className="space-y-3">
-                {availableGames.map((game) => (
-                  <div key={game.id} className="flex items-start space-x-3 p-3 border rounded-md hover:bg-accent">
-                    <Checkbox
-                      id={`game-${game.id}`}
-                      checked={selectedGameIds.includes(game.id)}
-                      onCheckedChange={() => toggleGame(game.id)}
-                      disabled={loading}
-                    />
-                    <div className="flex-1">
-                      <Label 
-                        htmlFor={`game-${game.id}`}
-                        className="font-medium cursor-pointer"
-                      >
-                        {game.name}
-                      </Label>
-                      {game.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {game.description}
-                        </p>
-                      )}
-                      <div className="flex gap-2 mt-1">
-                        {game.slug && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {game.slug}
-                          </span>
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add Games
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <SheetHeader>
+              <SheetTitle>Add Games to Team</SheetTitle>
+              <SheetDescription>
+                Select one or more games from your studio to assign to this team.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="py-4 flex-1 overflow-y-auto">
+              {gamesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : availableGames.length > 0 ? (
+                <div className="space-y-3">
+                  {availableGames.map((game) => (
+                    <div key={game.id} className="flex items-start space-x-3 p-3 border rounded-md hover:bg-accent">
+                      <Checkbox
+                        id={`game-${game.id}`}
+                        checked={selectedGameIds.includes(game.id)}
+                        onCheckedChange={() => toggleGame(game.id)}
+                        disabled={loading}
+                      />
+                      <div className="flex-1">
+                        <Label 
+                          htmlFor={`game-${game.id}`}
+                          className="font-medium cursor-pointer"
+                        >
+                          {game.name}
+                        </Label>
+                        {game.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {game.description}
+                          </p>
                         )}
-                        {game.status && (
-                          <span className="text-xs text-muted-foreground">
-                            • {game.status}
-                          </span>
-                        )}
+                        <div className="flex gap-2 mt-1">
+                          {game.slug && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {game.slug}
+                            </span>
+                          )}
+                          {game.status && (
+                            <span className="text-xs text-muted-foreground">
+                              • {game.status}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No available games to add.</p>
-                <p className="text-sm mt-2">All games from this studio are already assigned to this team.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || selectedGameIds.length === 0}
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add {selectedGameIds.length > 0 && `(${selectedGameIds.length})`}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No available games to add.</p>
+                  <p className="text-sm mt-2">All games from this studio are already assigned to this team.</p>
+                </div>
+              )}
+            </div>
+            <SheetFooter className="pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={loading || selectedGameIds.length === 0}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add {selectedGameIds.length > 0 && `(${selectedGameIds.length})`}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

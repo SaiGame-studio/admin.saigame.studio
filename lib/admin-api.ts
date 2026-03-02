@@ -397,3 +397,39 @@ export async function listGameGrants(gameId: string): Promise<AdminGameGrant[]> 
 export async function revokeGameGrant(gameId: string, grantId: string): Promise<void> {
   return api.delete(`/api/v1/admin/games/${gameId}/plugins/${grantId}`)
 }
+
+// ---------------------------------------------------------------------------
+// Admin — Worker / System Monitor
+// ---------------------------------------------------------------------------
+
+export interface WorkerDetails {
+  [key: string]: string
+}
+
+export interface WorkerTelegramPreview {
+  chat_id: string
+  text: string
+}
+
+export interface WorkerMeta {
+  description?: string
+  collects_data?: string[]
+  telegram_preview?: WorkerTelegramPreview
+}
+
+export interface Worker {
+  name: string
+  running: boolean
+  last_event_at?: string
+  details?: WorkerDetails
+  meta?: WorkerMeta
+}
+
+export interface WorkersStatusResult {
+  collected_at: string
+  workers: Worker[]
+}
+
+export async function getWorkersStatus(): Promise<WorkersStatusResult> {
+  return api.get(`/api/v1/admin/workers/status`)
+}

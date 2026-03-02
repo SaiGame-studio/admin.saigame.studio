@@ -11,16 +11,18 @@ interface GameNavButtonsProps {
   gameId: string
   /** Highlight the currently active section */
   active?: GameNavSection
+  /** HTML id attribute on the wrapper div */
+  id?: string
 }
 
-export function GameNavButtons({ gameId, active }: GameNavButtonsProps) {
+export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
   const { t } = useTranslation()
 
   const btn = (section: GameNavSection) =>
     active === section ? "default" : "outline"
 
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div id={id ?? "game-nav-buttons"} className="flex gap-2 flex-wrap">
       <Button asChild variant={btn("shops")} className="flex items-center gap-2">
         <Link href={`/games/${gameId}/shops`}>
           <Store className="h-4 w-4" />

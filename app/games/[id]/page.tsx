@@ -221,10 +221,9 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         />
                     </div>
                 </div>
-                <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
-                    <DeleteGameDialog game={game} />
-                    <div className="w-px h-6 bg-border self-center" />
+                <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
                     <GameNavButtons gameId={game.id} />
+                    <DeleteGameDialog game={game} />
                 </div>
             </div>
 
