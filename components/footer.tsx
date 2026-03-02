@@ -34,18 +34,19 @@ export function Footer() {
 
   return (
     <footer className="border-t py-2 px-4 text-xs text-muted-foreground flex items-center justify-center gap-3">
-      {time && (
-        <span className="font-mono tabular-nums tracking-tight opacity-70">{time}</span>
-      )}
-      <span className="flex items-center gap-1">
-        <Package className="h-3 w-3" />
-        {SITE_NAME} {version} • {new Date().getFullYear()}
-      </span>
       {timezone && (
         <span className="flex items-center gap-1 opacity-60" title={`Dates and times are shown in: ${timezone}`}>
           <Clock className="h-3 w-3" />
           {timezone}
         </span>
+      )}
+      <span className="flex items-center gap-1">
+        <Package className="h-3 w-3" />
+        {SITE_NAME} {version} • {new Date().getFullYear()}
+      </span>
+
+      {time && (
+        <span className="font-mono tabular-nums tracking-tight opacity-70">{time}</span>
       )}
     </footer>
   )
