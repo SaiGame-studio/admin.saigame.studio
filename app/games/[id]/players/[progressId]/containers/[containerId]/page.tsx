@@ -20,6 +20,7 @@ import {
   PlayerItem,
 } from "@/lib/game-user-api"
 import { CopyButton } from "@/components/CopyButton"
+import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -299,32 +300,37 @@ export default function ContainerItemsPage({
       </div>
 
       {/* Header */}
-      <div className="flex items-start gap-3 mb-6">
-        <Button
-          variant="outline" size="icon" className="mt-1 shrink-0"
-          onClick={() => router.push(`/games/${gameId}/players/${progressId}?tab=containers`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold truncate">
-            {container?.definition?.name || "Container Items"}
-          </h1>
-          <p className="text-sm text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
-            {containerId}
-            <CopyButton text={containerId} />
-          </p>
-          {container?.definition && (
-            <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-muted-foreground">
-              <span className="capitalize">{container.container_type}</span>
-              {gridCols && gridRows && <span>{gridCols} × {gridRows} grid</span>}
-              {container.definition.is_portable && <Badge variant="outline" className="text-xs h-4">Portable</Badge>}
-            </div>
-          )}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div className="flex items-start gap-3">
+          <Button
+            variant="outline" size="icon" className="mt-1 shrink-0"
+            onClick={() => router.push(`/games/${gameId}/players/${progressId}?tab=containers`)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold truncate">
+              {container?.definition?.name || "Container Items"}
+            </h1>
+            <p className="text-sm text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
+              {containerId}
+              <CopyButton text={containerId} />
+            </p>
+            {container?.definition && (
+              <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-muted-foreground">
+                <span className="capitalize">{container.container_type}</span>
+                {gridCols && gridRows && <span>{gridCols} × {gridRows} grid</span>}
+                {container.definition.is_portable && <Badge variant="outline" className="text-xs h-4">Portable</Badge>}
+              </div>
+            )}
+          </div>
         </div>
-        <Button variant="outline" size="icon" onClick={loadData} disabled={loading} title="Refresh" className="shrink-0 mt-1">
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
+          <GameNavButtons gameId={gameId} active="players" />
+          <Button variant="outline" size="icon" onClick={loadData} disabled={loading} title="Refresh" className="shrink-0">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       {loading ? (
