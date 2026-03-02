@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   Card,
   CardContent,
@@ -54,6 +54,7 @@ import {
   BreadcrumbList,
 } from "@/components/ui/breadcrumb"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -84,6 +85,8 @@ import {
   ExternalLink,
   Wand2,
   GripVertical,
+  ScrollText,
+  RefreshCw,
 } from "lucide-react"
 import {
   DndContext,
@@ -110,8 +113,12 @@ import {
   updateShop,
   updateShopItem,
   deleteShopItem,
+  listShopEvents,
   type ShopDefinition,
   type ShopItem,
+  type ShopEvent,
+  type ShopEventType,
+  type ActorType,
   type AddShopItemPayload,
   type UpdateShopItemPayload,
   type PurchaseLimitType,
@@ -145,6 +152,38 @@ const RESTOCK_LABELS: Record<RestockSchedule, string> = {
   weekly: "Weekly",
   monthly: "Monthly",
 }
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  shop_created: "Shop Created",
+  shop_updated: "Shop Updated",
+  shop_deleted: "Shop Deleted",
+  shop_item_added: "Item Added",
+  shop_item_updated: "Item Updated",
+  shop_item_deleted: "Item Deleted",
+  shop_viewed: "Shop Viewed",
+  item_purchased: "Item Purchased",
+}
+
+const EVENT_TYPE_BADGE: Record<string, string> = {
+  shop_created: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  shop_updated: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  shop_deleted: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  shop_item_added: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  shop_item_updated: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  shop_item_deleted: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  shop_viewed: "bg-muted text-muted-foreground",
+  item_purchased: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+}
+
+const ALL_EVENT_TYPES: ShopEventType[] = [
+  "shop_created",
+  "shop_updated",
+  "shop_item_added",
+  "shop_item_updated",
+  "shop_item_deleted",
+  "shop_viewed",
+  "item_purchased",
+]
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—"
@@ -206,6 +245,8 @@ const defaultItemForm: ItemFormState = {
 
 export default function ShopDetailPage() {
   const params = useParams() as { id: string; shopId: string }
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
   const { toast } = useToast()
@@ -265,6 +306,20 @@ export default function ShopDetailPage() {
   // Game name for breadcrumb
   const [gameName, setGameName] = useState<string | null>(null)
 
+  // Logs tab
+  const [logsTabActive, setLogsTabActive] = useState(false)
+  const [logsLoaded, setLogsLoaded] = useState(false)
+  const [logs, setLogs] = useState<ShopEvent[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
+  const [logsTotal, setLogsTotal] = useState(0)
+  const [logFilterType, setLogFilterType] = useState<string>("")
+  const [logFilterActorType, setLogFilterActorType] = useState<string>("")
+  const [logFilterFrom, setLogFilterFrom] = useState<string>(() => { const d = new Date(); d.setHours(0,0,0,0); return toDatetimeLocal(d) })
+  const [logFilterTo, setLogFilterTo] = useState<string>(() => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return toDatetimeLocal(d) })
+  const [logLimit, setLogLimit] = useState<number>(50)
+  const [logOffset, setLogOffset] = useState<number>(0)
+
   // ── Load data ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -272,6 +327,10 @@ export default function ShopDetailPage() {
     loadItems()
     ensureItemDefs()
     getGame(params.id).then((g) => setGameName(g.name)).catch(() => {})
+    // Auto-load logs if navigating directly to ?tab=logs
+    if (searchParams.get("tab") === "logs") {
+      loadLogs({ offset: 0 })
+    }
   }, [params.id, params.shopId])
 
   async function loadShop() {
@@ -302,6 +361,43 @@ export default function ShopDetailPage() {
       setItemsError(err?.message ?? "Failed to load items")
     } finally {
       setItemsLoading(false)
+    }
+  }
+
+  async function loadLogs(
+    overrides?: {
+      type?: string
+      actor_type?: string
+      from?: string
+      to?: string
+      limit?: number
+      offset?: number
+    }
+  ) {
+    const type = overrides?.type !== undefined ? overrides.type : logFilterType
+    const actor_type = overrides?.actor_type !== undefined ? overrides.actor_type : logFilterActorType
+    const from = overrides?.from !== undefined ? overrides.from : logFilterFrom
+    const to = overrides?.to !== undefined ? overrides.to : logFilterTo
+    const limit = overrides?.limit !== undefined ? overrides.limit : logLimit
+    const offset = overrides?.offset !== undefined ? overrides.offset : logOffset
+    setLogsLoading(true)
+    setLogsError(null)
+    try {
+      const resp = await listShopEvents(params.id, params.shopId, {
+        type: type ? (type as ShopEventType) : undefined,
+        actor_type: actor_type ? (actor_type as ActorType) : undefined,
+        from: from ? new Date(from).toISOString() : undefined,
+        to: to ? new Date(to).toISOString() : undefined,
+        limit,
+        offset,
+      })
+      setLogs(resp.logs ?? [])
+      setLogsTotal(resp.total ?? 0)
+      setLogsLoaded(true)
+    } catch (err: any) {
+      setLogsError(err?.message ?? "Failed to load logs")
+    } finally {
+      setLogsLoading(false)
     }
   }
 
@@ -1030,113 +1126,386 @@ export default function ShopDetailPage() {
 
       </div>
 
-      {/* Items section */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <ShoppingCart className="h-5 w-5 text-muted-foreground mt-0.5" />
-          <div>
-            <h2 className="text-xl font-semibold">Items</h2>
-            {!itemsLoading && (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                {shop?.item_limit
-                  ? (() => {
-                      const used = items.length
-                      const max = shop.item_limit
-                      const pct = used / max
-                      return (
-                        <>
-                          <span className={pct >= 1 ? "text-destructive font-medium" : ""}>
-                            {used} / {max} items
-                          </span>
-                          <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                            <span
-                              className={`block h-full rounded-full transition-all ${
-                                pct >= 1 ? "bg-destructive" : pct >= 0.8 ? "bg-amber-500" : "bg-primary"
-                              }`}
-                              style={{ width: `${Math.min(pct * 100, 100)}%` }}
-                            />
-                          </span>
-                        </>
-                      )
-                    })()
-                  : <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
-                }
-              </p>
-            )}
-            {itemsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground mt-0.5" />}
-          </div>
-        </div>
-        <Button onClick={openAdd} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Item
-        </Button>
-      </div>
+      {/* Tabs: Items / Logs */}
+      <Tabs
+        value={searchParams.get("tab") === "logs" ? "logs" : "items"}
+        onValueChange={(v) => {
+          const sp = new URLSearchParams(searchParams.toString())
+          sp.set("tab", v)
+          router.replace(`?${sp.toString()}`, { scroll: false })
+          if (v === "logs" && !logsLoaded) {
+            loadLogs({ offset: 0 })
+          }
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="items" className="flex items-center gap-1.5">
+            <ShoppingCart className="h-4 w-4" />
+            Items
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-1.5">
+            <ScrollText className="h-4 w-4" />
+            Logs
+          </TabsTrigger>
+        </TabsList>
 
-      {itemsError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{itemsError}</AlertDescription>
-        </Alert>
-      ) : itemsLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading items…
-          </CardContent>
-        </Card>
-      ) : items.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <PackageSearch className="h-10 w-10 text-muted-foreground" />
-            <div>
-              <p className="font-semibold">No items in this shop</p>
-              <p className="text-sm text-muted-foreground">
-                Add items to start selling to players.
-              </p>
+        {/* ─── Items Tab ─────────────────────────────────────────── */}
+        <TabsContent value="items" className="space-y-4 mt-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <h2 className="text-xl font-semibold">Items</h2>
+                {!itemsLoading && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    {shop?.item_limit
+                      ? (() => {
+                          const used = items.length
+                          const max = shop.item_limit
+                          const pct = used / max
+                          return (
+                            <>
+                              <span className={pct >= 1 ? "text-destructive font-medium" : ""}>
+                                {used} / {max} items
+                              </span>
+                              <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                                <span
+                                  className={`block h-full rounded-full transition-all ${
+                                    pct >= 1 ? "bg-destructive" : pct >= 0.8 ? "bg-amber-500" : "bg-primary"
+                                  }`}
+                                  style={{ width: `${Math.min(pct * 100, 100)}%` }}
+                                />
+                              </span>
+                            </>
+                          )
+                        })()
+                      : <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+                    }
+                  </p>
+                )}
+                {itemsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground mt-0.5" />}
+              </div>
             </div>
-            <Button onClick={openAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add First Item
+            <Button onClick={openAdd} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Item
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className={reordering ? "opacity-60 pointer-events-none" : ""}>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8"></TableHead>
-                  <TableHead className="w-10 text-center">#</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Item Definition</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Limit</TableHead>
-                  <TableHead>Restock</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          </div>
+
+          {itemsError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{itemsError}</AlertDescription>
+            </Alert>
+          ) : itemsLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading items…
+              </CardContent>
+            </Card>
+          ) : items.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                <PackageSearch className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <p className="font-semibold">No items in this shop</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add items to start selling to players.
+                  </p>
+                </div>
+                <Button onClick={openAdd}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Item
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className={reordering ? "opacity-60 pointer-events-none" : ""}>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8"></TableHead>
+                      <TableHead className="w-10 text-center">#</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Item Definition</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead>Limit</TableHead>
+                      <TableHead>Restock</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                    <TableBody>
+                      {items.map((item, idx) => (
+                        <SortableItemRow
+                          key={item.id}
+                          item={item}
+                          index={idx}
+                          gameId={params.id}
+                          itemDefs={itemDefs}
+                          onEdit={openEdit}
+                          onDelete={openDelete}
+                          onToggle={toggleItemActive}
+                        />
+                      ))}
+                    </TableBody>
+                  </SortableContext>
+                </Table>
+              </DndContext>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ─── Logs Tab ──────────────────────────────────────────── */}
+        <TabsContent value="logs" className="space-y-4 mt-4">
+          {/* Filter bar */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-wrap gap-3 items-end">
+                {/* Event type */}
+                <div className="space-y-1 min-w-[180px]">
+                  <p className="text-xs text-muted-foreground font-medium">Event Type</p>
+                  <Select
+                    value={logFilterType || "__all__"}
+                    onValueChange={(v) => setLogFilterType(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All types</SelectItem>
+                      {ALL_EVENT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{EVENT_TYPE_LABELS[t]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Actor type */}
+                <div className="space-y-1 min-w-[130px]">
+                  <p className="text-xs text-muted-foreground font-medium">Actor</p>
+                  <Select
+                    value={logFilterActorType || "__all__"}
+                    onValueChange={(v) => setLogFilterActorType(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="All actors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All actors</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="player">Player</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* From */}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">From</p>
+                  <Input
+                    type="datetime-local"
+                    className="h-8 text-sm w-44"
+                    value={logFilterFrom}
+                    onChange={(e) => setLogFilterFrom(e.target.value)}
+                  />
+                </div>
+
+                {/* To */}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">To</p>
+                  <Input
+                    type="datetime-local"
+                    className="h-8 text-sm w-44"
+                    value={logFilterTo}
+                    onChange={(e) => setLogFilterTo(e.target.value)}
+                  />
+                </div>
+
+                {/* Limit */}
+                <div className="space-y-1 min-w-[90px]">
+                  <p className="text-xs text-muted-foreground font-medium">Limit</p>
+                  <Select value={String(logLimit)} onValueChange={(v) => setLogLimit(Number(v))}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 items-end pb-0.5">
+                  <Button
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      setLogOffset(0)
+                      loadLogs({ offset: 0 })
+                    }}
+                    disabled={logsLoading}
+                  >
+                    {logsLoading
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      : <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                    }
+                    Apply
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={logsLoading}
+                    onClick={() => {
+                      const todayFrom = (() => { const d = new Date(); d.setHours(0,0,0,0); return toDatetimeLocal(d) })()
+                      const tomorrowTo = (() => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return toDatetimeLocal(d) })()
+                      setLogFilterType("")
+                      setLogFilterActorType("")
+                      setLogFilterFrom(todayFrom)
+                      setLogFilterTo(tomorrowTo)
+                      setLogLimit(50)
+                      setLogOffset(0)
+                      loadLogs({ type: "", actor_type: "", from: todayFrom, to: tomorrowTo, limit: 50, offset: 0 })
+                    }}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Logs table */}
+          {logsError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{logsError}</AlertDescription>
+            </Alert>
+          ) : logsLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading logs…
+              </CardContent>
+            </Card>
+          ) : !logsLoaded ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
+                <ScrollText className="h-8 w-8" />
+                <p className="text-sm">Apply filters to load logs.</p>
+              </CardContent>
+            </Card>
+          ) : logs.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
+                <ScrollText className="h-8 w-8" />
+                <p className="text-sm">No log entries found.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Time</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Actor</TableHead>
+                    <TableHead>Actor ID</TableHead>
+                    <TableHead>Endpoint</TableHead>
+                    <TableHead>Metadata</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {items.map((item, idx) => (
-                    <SortableItemRow
-                      key={item.id}
-                      item={item}
-                      index={idx}
-                      gameId={params.id}
-                      itemDefs={itemDefs}
-                      onEdit={openEdit}
-                      onDelete={openDelete}
-                      onToggle={toggleItemActive}
-                    />
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap font-mono">
+                        {new Date(log.created_at).toLocaleString(undefined, {
+                          year: "numeric", month: "short", day: "numeric",
+                          hour: "2-digit", minute: "2-digit", second: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${EVENT_TYPE_BADGE[log.activity_type] ?? "bg-muted text-muted-foreground"}`}>
+                          {EVENT_TYPE_LABELS[log.activity_type] ?? log.activity_type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          log.actor_type === "admin"
+                            ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
+                            : "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300"
+                        }`}>
+                          {log.actor_type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        <span title={log.actor_id}>{log.actor_id.slice(0, 8)}…</span>
+                        <CopyButton text={log.actor_id} className="ml-1" />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[260px]">
+                        {log.endpoint ? (
+                          <code className="font-mono text-[10px] leading-snug break-all">{log.endpoint}</code>
+                        ) : (
+                          <span className="italic">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs">
+                        {log.metadata && Object.keys(log.metadata).length > 0 ? (
+                          <pre className="whitespace-pre-wrap break-all font-mono text-[10px] leading-snug">
+                            {JSON.stringify(log.metadata, null, 2)}
+                          </pre>
+                        ) : (
+                          <span className="italic">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
-              </SortableContext>
-            </Table>
-          </DndContext>
-        </Card>
-      )}
+              </Table>
+              {/* Pagination */}
+              {(logsTotal > logLimit || logOffset > 0) && (
+                <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
+                  <span>
+                    {logOffset + 1}–{Math.min(logOffset + logs.length, logsTotal)} of {logsTotal}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7"
+                      disabled={logOffset === 0 || logsLoading}
+                      onClick={() => {
+                        const next = Math.max(0, logOffset - logLimit)
+                        setLogOffset(next)
+                        loadLogs({ offset: next })
+                      }}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7"
+                      disabled={logOffset + logLimit >= logsTotal || logsLoading}
+                      onClick={() => {
+                        const next = logOffset + logLimit
+                        setLogOffset(next)
+                        loadLogs({ offset: next })
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* ── Add Item Dialog ───────────────────────────────────────── */}
       <Sheet open={addOpen} onOpenChange={setAddOpen}>

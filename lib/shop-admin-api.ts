@@ -196,3 +196,65 @@ export async function deleteShopItem(
 ): Promise<{ message: string }> {
   return api.delete(`/api/v1/games/${gameId}/shops/${shopId}/items/${itemId}`)
 }
+
+// ─── Shop Events / Logs ───────────────────────────────────────────────────────
+
+export type ShopEventType =
+  | 'shop_created'
+  | 'shop_updated'
+  | 'shop_deleted'
+  | 'shop_item_added'
+  | 'shop_item_updated'
+  | 'shop_item_deleted'
+  | 'shop_viewed'
+  | 'item_purchased'
+
+export type ActorType = 'admin' | 'player'
+
+export interface ShopEvent {
+  id: string
+  shop_id: string
+  game_id: string
+  shop_item_id?: string | null
+  activity_type: ShopEventType
+  actor_type: ActorType
+  actor_id: string
+  metadata?: Record<string, unknown>
+  ip_address?: string
+  endpoint?: string
+  request_body?: Record<string, unknown>
+  created_at: string
+}
+
+export interface ListShopEventsParams {
+  type?: ShopEventType
+  actor_type?: ActorType
+  from?: string
+  to?: string
+  limit?: number
+  offset?: number
+}
+
+export interface ListShopEventsResponse {
+  logs: ShopEvent[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/** GET /api/v1/games/:gameId/shops/:shopId/events */
+export async function listShopEvents(
+  gameId: string,
+  shopId: string,
+  params: ListShopEventsParams = {},
+): Promise<ListShopEventsResponse> {
+  const qs = new URLSearchParams()
+  if (params.type) qs.set('type', params.type)
+  if (params.actor_type) qs.set('actor_type', params.actor_type)
+  if (params.from) qs.set('from', params.from)
+  if (params.to) qs.set('to', params.to)
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.offset != null) qs.set('offset', String(params.offset))
+  const q = qs.toString()
+  return api.get(`/api/v1/games/${gameId}/shops/${shopId}/activity${q ? `?${q}` : ''}`)
+}
