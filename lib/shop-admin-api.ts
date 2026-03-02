@@ -116,6 +116,7 @@ export interface ListShopsResponse {
 
 /** GET /api/v1/games/:gameId/shops */
 export async function listShops(
+  studioId: string,
   gameId: string,
   params: { activeOnly?: boolean; limit?: number; offset?: number } = {},
 ): Promise<ListShopsResponse> {
@@ -124,12 +125,12 @@ export async function listShops(
     limit: String(params.limit ?? 50),
     offset: String(params.offset ?? 0),
   })
-  return api.get(`/api/v1/games/${gameId}/shops?${qs}`)
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/shops?${qs}`)
 }
 
 /** GET /api/v1/games/:gameId/shops/:shopId */
-export async function getShop(gameId: string, shopId: string): Promise<ShopDefinition> {
-  return api.get(`/api/v1/games/${gameId}/shops/${shopId}`)
+export async function getShop(studioId: string, gameId: string, shopId: string): Promise<ShopDefinition> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/shops/${shopId}`)
 }
 
 /** POST /api/v1/games/:gameId/shops */
@@ -158,15 +159,17 @@ export interface ListShopItemsResponse {
 
 /** GET /api/v1/games/:gameId/shops/:shopId/items */
 export async function listShopItems(
+  studioId: string,
   gameId: string,
   shopId: string,
-  params: { limit?: number; offset?: number } = {},
+  params: { limit?: number; offset?: number; activeOnly?: boolean } = {},
 ): Promise<ListShopItemsResponse> {
   const qs = new URLSearchParams({
     limit: String(params.limit ?? 200),
     offset: String(params.offset ?? 0),
   })
-  return api.get(`/api/v1/games/${gameId}/shops/${shopId}/items?${qs}`)
+  if (params.activeOnly) qs.set("active_only", "true")
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/shops/${shopId}/items?${qs}`)
 }
 
 /** POST /api/v1/games/:gameId/shops/:shopId/items */

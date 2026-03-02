@@ -88,6 +88,7 @@ import {
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { CopyButton } from "@/components/CopyButton"
 
 const SHOP_TYPE_LABELS: Record<ShopType, string> = {
   permanent: "Permanent",
@@ -211,22 +212,28 @@ export default function GameShopsPage() {
   const [pendingToggle, setPendingToggle] = useState<{ shopId: string; newActive: boolean } | null>(null)
   const [toggling, setToggling] = useState(false)
 
+  // Filters
+  const [activeOnly, setActiveOnly] = useState(false)
+
   useEffect(() => {
     if (hasFetched.current) return
     hasFetched.current = true
-    loadData()
+    loadData(false)
   }, [params.id])
 
-  async function loadData() {
+  useEffect(() => {
+    if (!hasFetched.current) return
+    loadData(activeOnly)
+  }, [activeOnly])
+
+  async function loadData(filterActiveOnly = activeOnly) {
     try {
       setLoading(true)
-      const [resp, gameData] = await Promise.all([
-        listShops(params.id),
-        getGame(params.id),
-      ])
+      const gameData = await getGame(params.id)
+      setGame(gameData)
+      const resp = await listShops(gameData.studio_id, params.id, { activeOnly: filterActiveOnly })
       setShops(resp.shops ?? [])
       setTotal(resp.total ?? 0)
-      setGame(gameData)
     } catch (err: any) {
       setError(err?.message ?? "Failed to load shops")
     } finally {
@@ -399,8 +406,18 @@ export default function GameShopsPage() {
             {total > 0 ? `${total.toLocaleString()} shop${total !== 1 ? "s" : ""} defined` : "No shops yet"}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => loadData()} disabled={loading} title="Refresh">
+        <div className="flex gap-2 items-center flex-wrap">
+          <div className="flex items-center gap-2 mr-2">
+            <Checkbox
+              id="active_only"
+              checked={activeOnly}
+              onCheckedChange={(v) => setActiveOnly(!!v)}
+            />
+            <label htmlFor="active_only" className="text-sm cursor-pointer select-none">
+              Active only
+            </label>
+          </div>
+          <Button variant="outline" size="icon" onClick={() => loadData(activeOnly)} disabled={loading} title="Refresh">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button
@@ -474,6 +491,10 @@ export default function GameShopsPage() {
                       <CardDescription className="text-xs font-mono truncate">
                         {shop.shop_key}
                       </CardDescription>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-xs text-muted-foreground/60 font-mono truncate">{shop.id}</span>
+                        <CopyButton text={shop.id} className="shrink-0" />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Switch

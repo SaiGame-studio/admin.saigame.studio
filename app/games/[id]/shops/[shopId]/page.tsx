@@ -129,6 +129,7 @@ import { getGame } from "@/lib/game-api"
 import type { ItemDefinition } from "@/types/inventory"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
+import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -259,6 +260,7 @@ export default function ShopDetailPage() {
   const [items, setItems] = useState<ShopItem[]>([])
   const [itemsLoading, setItemsLoading] = useState(true)
   const [itemsError, setItemsError] = useState<string | null>(null)
+  const [itemActiveOnly, setItemActiveOnly] = useState(false)
 
   // Item definitions (for picker)
   const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
@@ -324,9 +326,7 @@ export default function ShopDetailPage() {
 
   useEffect(() => {
     loadShop()
-    loadItems()
     ensureItemDefs()
-    getGame(params.id).then((g) => setGameName(g.name)).catch(() => {})
     // Auto-load logs if navigating directly to ?tab=logs
     if (searchParams.get("tab") === "logs") {
       loadLogs({ offset: 0 })
@@ -336,13 +336,16 @@ export default function ShopDetailPage() {
   async function loadShop() {
     try {
       setLoading(true)
-      const data = await getShop(params.id, params.shopId)
+      const gameData = await getGame(params.id)
+      setGameName(gameData.name)
+      const data = await getShop(gameData.studio_id, params.id, params.shopId)
       setShop(data)
       if (data.currency_item_def_id) {
         getItemDefinition({ gameId: params.id }, data.currency_item_def_id)
           .then((res) => setCurrencyItem(res.item))
           .catch(() => {})
       }
+      loadItems(data.studio_id, itemActiveOnly)
     } catch (err: any) {
       setError(err?.message ?? "Failed to load shop")
     } finally {
@@ -350,11 +353,13 @@ export default function ShopDetailPage() {
     }
   }
 
-  async function loadItems() {
+  async function loadItems(studioId?: string, activeOnly?: boolean) {
+    const sid = studioId ?? shop?.studio_id ?? ""
+    const ao = activeOnly !== undefined ? activeOnly : itemActiveOnly
     try {
       setItemsLoading(true)
       setItemsError(null)
-      const resp = await listShopItems(params.id, params.shopId)
+      const resp = await listShopItems(sid, params.id, params.shopId, { activeOnly: ao })
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch (err: any) {
@@ -425,7 +430,7 @@ export default function ShopDetailPage() {
         )
       )
       // refresh to get server state
-      const resp = await listShopItems(params.id, params.shopId)
+      const resp = await listShopItems(shop!.studio_id, params.id, params.shopId, { activeOnly: itemActiveOnly })
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch {
@@ -718,7 +723,8 @@ export default function ShopDetailPage() {
       <div className="group/meta space-y-6">
 
       {/* Back + Shop info */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
         <Button variant="ghost" size="icon" asChild>
           <Link href={`/games/${params.id}/shops`}>
             <ArrowLeft className="h-4 w-4" />
@@ -798,9 +804,11 @@ export default function ShopDetailPage() {
             )}
           </div>
         </div>
+        <div className="flex gap-2 items-center shrink-0">
+          <GameNavButtons gameId={params.id} active="shops" />
+        </div>
       </div>
-
-      {/* Shop meta */}
+      </div>
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1053,7 +1061,7 @@ export default function ShopDetailPage() {
 
             </div>
 
-            {/* RIGHT column: IDs + Description */}
+            {/* RIGHT column: IDs */}
             <div className="space-y-4 text-sm">
 
               {/* IDs */}
@@ -1078,49 +1086,50 @@ export default function ShopDetailPage() {
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Description</p>
-              {editingField === "description" ? (
-                <div className="space-y-1">
-                  <textarea
-                    className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[100px] bg-background"
-                    value={tmpVal}
-                    onChange={(e) => setTmpVal(e.target.value)}
-                    disabled={saving}
-                    autoFocus
-                    maxLength={700}
-                  />
-                  <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                    {tmpVal.length}/700
-                  </p>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
-                      onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
-                      <Save className="h-3.5 w-3.5 mr-1" /> Save
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                      onClick={() => setEditingField(null)}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="group flex items-start gap-1">
-                  <p className="flex-1 text-sm leading-relaxed whitespace-pre-line">
-                    {shop.description || <span className="italic text-muted-foreground/50">—</span>}
-                  </p>
-                  <Button size="icon" variant="ghost"
-                    className="h-7 w-7 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity"
-                    onClick={() => startEdit("description", shop.description ?? "")}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-              </div>{/* /description */}
             </div>{/* /right column */}
 
           </div>
+
+          {/* Description — full width row */}
+          <div className="mt-4 border-t pt-4 text-sm">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Description</p>
+            {editingField === "description" ? (
+              <div className="space-y-1">
+                <textarea
+                  className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[80px] bg-background"
+                  value={tmpVal}
+                  onChange={(e) => setTmpVal(e.target.value)}
+                  disabled={saving}
+                  autoFocus
+                  maxLength={700}
+                />
+                <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                  {tmpVal.length}/700
+                </p>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
+                    onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
+                    <Save className="h-3.5 w-3.5 mr-1" /> Save
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => setEditingField(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex w-full items-start gap-1">
+                <p className="flex-1 text-sm leading-relaxed whitespace-pre-line">
+                  {shop.description || <span className="italic text-muted-foreground/50">—</span>}
+                </p>
+                <Button size="icon" variant="ghost"
+                  className="h-7 w-7 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                  onClick={() => startEdit("description", shop.description ?? "")}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>{/* /description */}
         </CardContent>
       </Card>
 
@@ -1151,7 +1160,7 @@ export default function ShopDetailPage() {
 
         {/* ─── Items Tab ─────────────────────────────────────────── */}
         <TabsContent value="items" className="space-y-4 mt-4">
-          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <ShoppingCart className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
@@ -1186,10 +1195,26 @@ export default function ShopDetailPage() {
                 {itemsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground mt-0.5" />}
               </div>
             </div>
-            <Button onClick={openAdd} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Item
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="item_active_only"
+                  checked={itemActiveOnly}
+                  onCheckedChange={(v) => {
+                    const next = !!v
+                    setItemActiveOnly(next)
+                    loadItems(undefined, next)
+                  }}
+                />
+                <label htmlFor="item_active_only" className="text-sm cursor-pointer select-none">
+                  Active only
+                </label>
+              </div>
+              <Button onClick={openAdd} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add Item
+              </Button>
+            </div>
           </div>
 
           {itemsError ? (
