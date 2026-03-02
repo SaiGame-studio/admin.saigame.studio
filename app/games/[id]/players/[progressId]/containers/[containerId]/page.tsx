@@ -7,7 +7,6 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbS
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -196,18 +195,33 @@ export default function ContainerItemsPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filterText, setFilterText] = useState("")
+  const [filterCategory, setFilterCategory] = useState("")
+  const [filterRarity, setFilterRarity] = useState("")
+
+  const itemCategories = useMemo(() => {
+    const s = new Set<string>()
+    items.forEach((i) => { if (i.definition?.category) s.add(i.definition.category) })
+    return Array.from(s).sort()
+  }, [items])
+
+  const itemRarities = useMemo(() => {
+    const s = new Set<string>()
+    items.forEach((i) => { if (i.definition?.rarity) s.add(i.definition.rarity) })
+    return Array.from(s).sort()
+  }, [items])
 
   const filteredItems = useMemo(() => {
+    let result = items
     const q = filterText.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((item) =>
+    if (q) result = result.filter((item) =>
       (item.definition?.name ?? "").toLowerCase().includes(q) ||
       (item.definition?.item_code ?? "").toLowerCase().includes(q) ||
-      (item.definition?.category ?? "").toLowerCase().includes(q) ||
-      (item.definition?.rarity ?? "").toLowerCase().includes(q) ||
       item.item_definition_id.toLowerCase().includes(q)
     )
-  }, [items, filterText])
+    if (filterCategory) result = result.filter((item) => item.definition?.category === filterCategory)
+    if (filterRarity) result = result.filter((item) => item.definition?.rarity === filterRarity)
+    return result
+  }, [items, filterText, filterCategory, filterRarity])
 
   // Build container from URL params passed by the containers list page.
   // useEffect so it runs client-side only after hydration (same as items page tab sync).
@@ -372,32 +386,71 @@ export default function ContainerItemsPage({
                 <p className="text-sm mt-1">This container has no items.</p>
               </div>
             ) : (
-              <Card>
-                {/* Filter bar */}
-                <div className="flex items-center gap-2 px-4 py-3 border-b">
-                  <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Filter by name, code, category, rarity…"
-                      value={filterText}
-                      onChange={(e) => setFilterText(e.target.value)}
-                      className="pl-8 h-8 text-sm"
-                    />
-                    {filterText && (
-                      <button
-                        onClick={() => setFilterText("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              <>
+                {/* Toolbar */}
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Container Items</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {filteredItems.length !== items.length
+                        ? `${filteredItems.length} of ${items.length} items`
+                        : `${items.length} item${items.length !== 1 ? "s" : ""}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search by name…"
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      {filterText && (
+                        <button
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setFilterText("")}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {itemCategories.length > 0 && (
+                      <select
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <option value="">All Categories</option>
+                        {itemCategories.map((c) => (
+                          <option key={c} value={c} className="capitalize">{c}</option>
+                        ))}
+                      </select>
+                    )}
+                    {itemRarities.length > 0 && (
+                      <select
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                        value={filterRarity}
+                        onChange={(e) => setFilterRarity(e.target.value)}
+                      >
+                        <option value="">All Rarities</option>
+                        {itemRarities.map((r) => (
+                          <option key={r} value={r} className="capitalize">{r}</option>
+                        ))}
+                      </select>
+                    )}
+                    {(filterText || filterCategory || filterRarity) && (
+                      <button
+                        className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                        onClick={() => { setFilterText(""); setFilterCategory(""); setFilterRarity("") }}
+                      >
+                        Clear
                       </button>
                     )}
                   </div>
-                  {filterText && (
-                    <span className="text-xs text-muted-foreground">
-                      {filteredItems.length} / {items.length} items
-                    </span>
-                  )}
                 </div>
+                <Card>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
@@ -418,7 +471,7 @@ export default function ContainerItemsPage({
                       {filteredItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={10} className="text-center py-10 text-muted-foreground text-sm">
-                            No items match &quot;{filterText}&quot;
+                            No items match the current filters
                           </TableCell>
                         </TableRow>
                       ) : filteredItems.map((item) => {
@@ -485,6 +538,7 @@ export default function ContainerItemsPage({
                   </Table>
                 </CardContent>
               </Card>
+              </>
             )}
           </TabsContent>
 
