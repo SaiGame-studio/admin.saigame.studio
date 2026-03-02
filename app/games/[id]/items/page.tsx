@@ -43,7 +43,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from "@/components/ui/sheet"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -307,12 +307,12 @@ function CreateContainerDefinitionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>New Container Definition</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
+    <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>New Container Definition</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
             <Label htmlFor="cd-name">Name <span className="text-destructive">*</span></Label>
             <Input id="cd-name" placeholder="e.g. Standard Chest" value={name} onChange={(e) => setName(e.target.value)} />
@@ -349,16 +349,14 @@ function CreateContainerDefinitionDialog({
           </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata (e.g. icon = chest_wood)" />
         </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={loading}>Cancel</Button>
-          </DialogClose>
+        <SheetFooter className="pt-4">
+          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? "Creating…" : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -432,12 +430,12 @@ function EditContainerDefinitionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Container Definition</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
+    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Edit Container Definition</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
             <ContainerTypeBadge type={definition.container_type} />
             <span>{definition.is_portable ? 'Portable' : 'Fixed'}</span>
@@ -462,16 +460,14 @@ function EditContainerDefinitionDialog({
           </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata" />
         </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={loading}>Cancel</Button>
-          </DialogClose>
+        <SheetFooter className="pt-4">
+          <Button variant="outline" disabled={loading} onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? "Saving…" : "Save Changes"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 

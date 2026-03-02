@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { fetchStudioTeams } from "@/lib/studio-api"
@@ -122,88 +121,88 @@ export function AddTeamToGameDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {t('team.addTeams')}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{t('team.addTeamsTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('team.addTeamsDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 max-h-[400px] overflow-y-auto">
-            {teamsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : availableTeams.length > 0 ? (
-              <div className="space-y-3">
-                {availableTeams.map((team) => (
-                  <div key={team.id} className="flex items-start space-x-3 p-3 border rounded-md hover:bg-accent">
-                    <Checkbox
-                      id={`team-${team.id}`}
-                      checked={selectedTeamIds.includes(team.id)}
-                      onCheckedChange={() => toggleTeam(team.id)}
-                      disabled={loading}
-                    />
-                    <div className="flex-1">
-                      <Label 
-                        htmlFor={`team-${team.id}`}
-                        className="font-medium cursor-pointer"
-                      >
-                        {team.name}
-                      </Label>
-                      {team.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {team.description}
-                        </p>
-                      )}
-                      <div className="flex gap-2 mt-1">
-                        {team.slug && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {team.slug}
-                          </span>
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        {t('team.addTeams')}
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <SheetHeader>
+              <SheetTitle>{t('team.addTeamsTitle')}</SheetTitle>
+              <SheetDescription>
+                {t('team.addTeamsDesc')}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="py-4 flex-1 overflow-y-auto">
+              {teamsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : availableTeams.length > 0 ? (
+                <div className="space-y-3">
+                  {availableTeams.map((team) => (
+                    <div key={team.id} className="flex items-start space-x-3 p-3 border rounded-md hover:bg-accent">
+                      <Checkbox
+                        id={`team-${team.id}`}
+                        checked={selectedTeamIds.includes(team.id)}
+                        onCheckedChange={() => toggleTeam(team.id)}
+                        disabled={loading}
+                      />
+                      <div className="flex-1">
+                        <Label 
+                          htmlFor={`team-${team.id}`}
+                          className="font-medium cursor-pointer"
+                        >
+                          {team.name}
+                        </Label>
+                        {team.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {team.description}
+                          </p>
                         )}
-                        <span className="text-xs text-muted-foreground">
-                          &bull; {team.is_active ? t('common.active') : t('common.inactive')}
-                        </span>
+                        <div className="flex gap-2 mt-1">
+                          {team.slug && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {team.slug}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            &bull; {team.is_active ? t('common.active') : t('common.inactive')}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>{t('team.noTeamsAvailable')}</p>
-                <p className="text-sm mt-2">{t('team.allTeamsAssigned')}</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || selectedTeamIds.length === 0}
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('team.add')}{selectedTeamIds.length > 0 && ` (${selectedTeamIds.length})`}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>{t('team.noTeamsAvailable')}</p>
+                  <p className="text-sm mt-2">{t('team.allTeamsAssigned')}</p>
+                </div>
+              )}
+            </div>
+            <SheetFooter className="pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={loading}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={loading || selectedTeamIds.length === 0}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('team.add')}{selectedTeamIds.length > 0 && ` (${selectedTeamIds.length})`}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

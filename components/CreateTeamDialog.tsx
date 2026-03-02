@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,20 +120,18 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
 
   return (
     <>
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {t('team.create')}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{t('team.createTitle')}</DialogTitle>
-            <DialogDescription>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        {t('team.create')}
+      </Button>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <SheetHeader>
+            <SheetTitle>{t('team.createTitle')}</SheetTitle>
+            <SheetDescription>
               {t('team.createDesc')}
-            </DialogDescription>
+            </SheetDescription>
             <div className="flex items-center justify-between pt-1">
               <p className="text-xs text-muted-foreground">
                 {t('team.createCostHintPt1')}<span className="text-green-500 font-medium">{t('team.createCostHintFree')}</span>{t('team.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {TEAM_COST} coins</span>
@@ -157,8 +154,8 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
                 </Badge>
               )}
             </div>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
+          </SheetHeader>
+          <div className="flex flex-col gap-4 py-4 flex-1 overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="name">
                 {t('team.nameLabel')} <span className="text-destructive">*</span>
@@ -187,7 +184,7 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
               <div className="text-sm text-destructive">{error}</div>
             )}
           </div>
-          <DialogFooter>
+          <SheetFooter className="pt-4">
             <Button
               type="button"
               variant="outline"
@@ -200,10 +197,10 @@ export default function CreateTeamDialog({ studioId, existingTeamCount = 0, onTe
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? t('team.creating') : t('team.create')}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
 
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
