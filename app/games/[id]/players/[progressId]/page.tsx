@@ -19,6 +19,7 @@ import { fetchItemCategories, fetchItemRarities } from "@/lib/inventory-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
+import { GameNavButtons } from "@/components/GameNavButtons"
 
 export default function GameUserProgressDetailPage({
   params,
@@ -314,6 +315,9 @@ export default function GameUserProgressDetailPage({
               </p>
             )}
           </div>
+        </div>
+        <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
+          <GameNavButtons gameId={gameId} active="players" />
         </div>
       </div>
 

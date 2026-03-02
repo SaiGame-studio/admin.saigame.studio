@@ -66,7 +66,6 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import {
-  Store,
   ArrowLeft,
   Plus,
   Pencil,
@@ -720,94 +719,91 @@ export default function ShopDetailPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="group/meta space-y-6">
-
       {/* Back + Shop info */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/games/${params.id}/shops`}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <Store className="h-6 w-6 text-muted-foreground" />
-        <div>
-          <div className="flex items-center gap-2 flex-wrap group">
-            {editingField === "name" ? (
-              <>
-                <Input
-                  className="h-8 text-lg font-bold w-56"
-                  value={tmpVal}
-                  onChange={(e) => setTmpVal(e.target.value)}
-                  disabled={saving}
-                  autoFocus
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href={`/games/${params.id}/shops`}>
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div className="group">
+            <div className="flex items-center gap-2 flex-wrap">
+              {editingField === "name" ? (
+                <>
+                  <Input
+                    className="h-8 text-lg font-bold w-56"
+                    value={tmpVal}
+                    onChange={(e) => setTmpVal(e.target.value)}
+                    disabled={saving}
+                    autoFocus
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => saveField({ name: tmpVal.trim() })}>
+                    <Save className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => setEditingField(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold">{shop.name}</h1>
+                  <Button size="icon" variant="ghost"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => startEdit("name", shop.name)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
+                {shop.shop_type}
+              </span>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={shop.is_active}
+                  onCheckedChange={(checked) => setPendingToggle(checked)}
+                  title={shop.is_active ? "Deactivate shop" : "Activate shop"}
                 />
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                  onClick={() => saveField({ name: tmpVal.trim() })}>
-                  <Save className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                  onClick={() => setEditingField(null)}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <h1 className="text-2xl font-bold">{shop.name}</h1>
-                <Button size="icon" variant="ghost"
-                  className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
-                  onClick={() => startEdit("name", shop.name)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            )}
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
-              {shop.shop_type}
-            </span>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={shop.is_active}
-                onCheckedChange={(checked) => setPendingToggle(checked)}
-                title={shop.is_active ? "Deactivate shop" : "Activate shop"}
-              />
-              <span className="text-sm text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
+                <span className="text-sm text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-0.5">
+              {editingField === "shop_key" ? (
+                <>
+                  <Input
+                    className="h-7 text-sm font-mono w-52"
+                    value={tmpVal}
+                    onChange={(e) => setTmpVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    disabled={saving}
+                    autoFocus
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => saveField({ shop_key: tmpVal.trim() })}>
+                    <Save className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => setEditingField(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm text-muted-foreground font-mono">{shop.shop_key}</span>
+                  <Button size="icon" variant="ghost"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => startEdit("shop_key", shop.shop_key)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-1 group mt-0.5">
-            {editingField === "shop_key" ? (
-              <>
-                <Input
-                  className="h-7 text-sm font-mono w-52"
-                  value={tmpVal}
-                  onChange={(e) => setTmpVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                  disabled={saving}
-                  autoFocus
-                />
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                  onClick={() => saveField({ shop_key: tmpVal.trim() })}>
-                  <Save className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                  onClick={() => setEditingField(null)}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className="text-sm text-muted-foreground font-mono">{shop.shop_key}</span>
-                <Button size="icon" variant="ghost"
-                  className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
-                  onClick={() => startEdit("shop_key", shop.shop_key)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            )}
-          </div>
         </div>
-        <div className="flex gap-2 items-center shrink-0">
+        <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
           <GameNavButtons gameId={params.id} active="shops" />
         </div>
-      </div>
       </div>
       <Card>
         <CardContent className="pt-4 pb-4">
@@ -1123,7 +1119,7 @@ export default function ShopDetailPage() {
                   {shop.description || <span className="italic text-muted-foreground/50">—</span>}
                 </p>
                 <Button size="icon" variant="ghost"
-                  className="h-7 w-7 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => startEdit("description", shop.description ?? "")}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -1132,8 +1128,6 @@ export default function ShopDetailPage() {
           </div>{/* /description */}
         </CardContent>
       </Card>
-
-      </div>
 
       {/* Tabs: Items / Logs */}
       <Tabs
@@ -1690,6 +1684,10 @@ function SortableItemRow({ item, index, gameId, itemDefs, onEdit, onDelete, onTo
           {item.description && (
             <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
           )}
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-xs text-muted-foreground/60 font-mono">{item.id}</span>
+            <CopyButton text={item.id} className="shrink-0" />
+          </div>
         </div>
       </TableCell>
       <TableCell>

@@ -593,18 +593,18 @@ function CreateItemDialog({
   }
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(v) => {
         if (!v) { resetForm(); onClose() }
       }}
     >
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>New Item Definition</DialogTitle>
-        </DialogHeader>
+      <SheetContent side="right" className="sm:max-w-[520px] flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <SheetTitle>New Item Definition</SheetTitle>
+        </SheetHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Name */}
           <div className="space-y-1">
             <Label htmlFor="item-name">Name <span className="text-destructive">*</span></Label>
@@ -725,16 +725,14 @@ function CreateItemDialog({
           />
         </div>
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={loading}>Cancel</Button>
-          </DialogClose>
+        <div className="shrink-0 border-t px-6 py-4 flex justify-end gap-2">
+          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? "Creating…" : "Create Item"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }
 

@@ -140,7 +140,6 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <div className="w-px h-6 bg-border" />
           <GameNavButtons gameId={gameId} active="players" />
         </div>
       </div>
