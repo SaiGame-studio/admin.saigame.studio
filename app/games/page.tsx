@@ -148,7 +148,7 @@ export default function GamesPage() {
       <div className="mb-6 flex items-center gap-4">
         <span className="text-sm font-medium">{t('games.filterByStatus')}:</span>
         <Popover>
-          <PopoverTrigger>
+          <PopoverTrigger asChild>
             <Button variant="outline" size="sm">
               {statusFilter.length > 0 ? t('games.selectedStatuses') : t('games.selectStatus')}
               <ChevronDown className="ml-2 h-4 w-4" />
