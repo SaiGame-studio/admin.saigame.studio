@@ -274,7 +274,7 @@ export default function GameItemProfilesPage() {
 
             {/* Status Dropdown */}
             <Popover>
-              <PopoverTrigger>
+              <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   {statusFilter.length > 0 ? `${statusFilter.length} ${t('itemProfile.selected')}` : t('itemProfile.selectStatus')}
                   <ChevronDown className="ml-2 h-4 w-4" />
@@ -303,7 +303,7 @@ export default function GameItemProfilesPage() {
 
             {/* Type Dropdown */}
             <Popover>
-              <PopoverTrigger>
+              <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   {typeFilter.length > 0 ? `${typeFilter.length} ${t('itemProfile.selected')}` : t('itemProfile.selectType')}
                   <ChevronDown className="ml-2 h-4 w-4" />

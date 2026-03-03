@@ -28,6 +28,7 @@ import {
   ReceiptText,
   Puzzle,
   Map,
+  Bug,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -202,6 +203,12 @@ export function SideNav() {
                   <a href="https://discord.gg/tr7MxpMAH4" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">Discord Support</span>
+                  </a>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <a href="https://discord.gg/tr7MxpMAH4" target="_blank" rel="noopener noreferrer">
+                    <Bug className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Bug Report</span>
                   </a>
                 </Button>
                 {/* Documentation link hidden temporarily */}
