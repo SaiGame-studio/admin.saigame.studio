@@ -212,6 +212,7 @@ export function ChainTab({ game }: { game: Game | null }) {
   const [expandedChain, setExpandedChain] = useState<QuestChain | null>(null)
   const [expandedMembers, setExpandedMembers] = useState<QuestChainMember[]>([])
   const [expandedLoading, setExpandedLoading] = useState(false)
+  const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({})
 
   // Quest definitions lookup
   const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({})
@@ -312,6 +313,7 @@ export function ChainTab({ game }: { game: Game | null }) {
       setExpandedChain(chain)
       const members = (membersData.members ?? []).sort((a, b) => a.sort_order - b.sort_order)
       setExpandedMembers(members)
+      setMemberCountMap((prev) => ({ ...prev, [chainId]: members.length }))
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to load chain members" })
       setExpandedChainId(null)
@@ -608,7 +610,7 @@ export function ChainTab({ game }: { game: Game | null }) {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(chain.id)}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <CardTitle className="text-base">{chain.display_name}</CardTitle>
                         <Badge variant={chainTypeBadgeVariant(chain.chain_type)} className="text-xs">
                           {CHAIN_TYPE_OPTIONS.find((o) => o.value === chain.chain_type)?.label ?? chain.chain_type}
@@ -618,15 +620,39 @@ export function ChainTab({ game }: { game: Game | null }) {
                         ) : (
                           <Badge variant="secondary" className="text-xs">Inactive</Badge>
                         )}
+                        {chain.description && (
+                          <span className="text-sm text-muted-foreground truncate max-w-sm" title={chain.description}>
+                            {chain.description.length > 250 ? chain.description.slice(0, 250) + "…" : chain.description}
+                          </span>
+                        )}
                       </div>
-                      {chain.description && (
-                        <CardDescription className="mt-1 line-clamp-1">{chain.description}</CardDescription>
-                      )}
                       <p className="text-xs text-muted-foreground mt-1 font-mono">{chain.chain_key}</p>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0">
+                      {/* Status toggle */}
+                      <div className="flex items-center gap-1.5" title="Toggle active">
+                        <Switch
+                          checked={chain.is_active}
+                          onCheckedChange={(checked) => handleToggleActive(chain, checked)}
+                          aria-label="Toggle chain active"
+                          className="scale-90"
+                        />
+                      </div>
+                      <Separator orientation="vertical" className="h-5" />
+                      {/* Members count */}
+                      <div className="text-center" title="Members">
+                        <p className="text-xs text-muted-foreground leading-none">Members</p>
+                        <p className="text-sm font-medium">{expandedChainId === chain.id ? expandedMembers.length : (memberCountMap[chain.id] ?? "—")}</p>
+                      </div>
+                      <Separator orientation="vertical" className="h-5" />
+                      {/* Created */}
+                      <div className="text-center" title="Created">
+                        <p className="text-xs text-muted-foreground leading-none">Created</p>
+                        <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <Separator orientation="vertical" className="h-5" />
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title="Edit chain">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -653,35 +679,6 @@ export function ChainTab({ game }: { game: Game | null }) {
                       </div>
                     ) : expandedChain ? (
                       <div className="space-y-4">
-                        {/* Chain info summary */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground text-xs">Chain Type</p>
-                            <p className="font-medium flex items-center gap-1.5 mt-0.5">
-                              {CHAIN_TYPE_OPTIONS.find((o) => o.value === expandedChain.chain_type)?.icon}
-                              {CHAIN_TYPE_OPTIONS.find((o) => o.value === expandedChain.chain_type)?.label}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Status</p>
-                            <div className="mt-0.5">
-                              <Switch
-                                checked={expandedChain.is_active}
-                                onCheckedChange={(checked) => handleToggleActive(chain, checked)}
-                                aria-label="Toggle chain active"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Members</p>
-                            <p className="font-medium mt-0.5">{expandedMembers.length}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Created</p>
-                            <p className="font-medium mt-0.5">{new Date(expandedChain.created_at).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-
                         {/* Members — List / Grid tabs */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
@@ -952,9 +949,13 @@ export function ChainTab({ game }: { game: Game | null }) {
               <Label>Description</Label>
               <Textarea
                 value={chainForm.description ?? ""}
-                onChange={(e) => setChainForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(e) => setChainForm((f) => ({ ...f, description: e.target.value.slice(0, 200) }))}
+                maxLength={200}
                 rows={2}
               />
+              <p className="text-xs text-muted-foreground text-right">
+                {(chainForm.description ?? "").length}/200
+              </p>
             </div>
 
             {/* Chain Type */}
