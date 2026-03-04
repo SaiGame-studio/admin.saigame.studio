@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, Suspense } from "react"
+import { useEffect, useState, useCallback, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -89,6 +89,7 @@ import {
   type UpdateQuestDefinitionRequest,
 } from "@/lib/quest-api"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { DailyTab } from "./DailyTab"
 import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label>Conditions <span className="text-red-500">*</span></Label>
+        <Label>Conditions</Label>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Operator</span>
           <Select value={conditions.operator} onValueChange={(v) => setOperator(v as 'AND' | 'OR')}>
@@ -659,8 +660,9 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
 
 // ─── Definitions Tab ──────────────────────────────────────────────────────────
 
-function DefinitionsTab({ game }: { game: Game | null }) {
+function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?: string | null }) {
   const gameId = game?.id ?? ""
+  const router = useRouter()
   const { toast } = useToast()
 
   const [quests, setQuests] = useState<QuestDefinition[]>([])
@@ -707,6 +709,39 @@ function DefinitionsTab({ game }: { game: Game | null }) {
     loadQuests(0).finally(() => setLoading(false))
   }, [game, loadQuests])
 
+  // ── Edit ─────────────────────────────────────────────────────────────────────
+
+  const openEdit = useCallback((q: QuestDefinition) => {
+    setForm({
+      name: q.name,
+      description: q.description ?? "",
+      quest_type: q.quest_type,
+      conditions: q.conditions ?? { operator: "AND", clauses: [] },
+      quest_chain_id: q.quest_chain_id,
+      prerequisite_quest_id: q.prerequisite_quest_id,
+      is_active: q.is_active,
+      sort_order: q.sort_order,
+      rewards: q.rewards ?? [],
+    })
+    setEditQuest(q)
+  }, [])
+
+  // Auto-open edit sheet when navigated from DailyTab via editQuestId
+  const handledEditQuestId = useRef<string | null>(null)
+  useEffect(() => {
+    if (!editQuestId || editQuestId === handledEditQuestId.current || quests.length === 0) return
+    handledEditQuestId.current = editQuestId
+    const q = quests.find((qd) => qd.id === editQuestId)
+    if (q) {
+      openEdit(q)
+      // Clear the editQuestId from URL
+      const sp = new URLSearchParams(window.location.search)
+      sp.delete("editQuestId")
+      const qs = sp.toString()
+      router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
+    }
+  }, [editQuestId, quests, gameId, router, openEdit])
+
   const refresh = async () => {
     setRefreshing(true)
     await loadQuests(offset)
@@ -737,23 +772,6 @@ function DefinitionsTab({ game }: { game: Game | null }) {
     } finally {
       setSaving(false)
     }
-  }
-
-  // ── Edit ─────────────────────────────────────────────────────────────────────
-
-  const openEdit = (q: QuestDefinition) => {
-    setForm({
-      name: q.name,
-      description: q.description ?? "",
-      quest_type: q.quest_type,
-      conditions: q.conditions ?? { operator: "AND", clauses: [] },
-      quest_chain_id: q.quest_chain_id,
-      prerequisite_quest_id: q.prerequisite_quest_id,
-      is_active: q.is_active,
-      sort_order: q.sort_order,
-      rewards: q.rewards ?? [],
-    })
-    setEditQuest(q)
   }
 
   const handleEdit = async () => {
@@ -1332,11 +1350,11 @@ function QuestsPageInner() {
         </TabsList>
 
         <TabsContent value="definitions" className="mt-6 space-y-4">
-          <DefinitionsTab game={game} />
+          <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} />
         </TabsContent>
 
         <TabsContent value="daily" className="mt-6">
-          <ComingSoon title="Daily Quests" />
+          <DailyTab game={game} />
         </TabsContent>
 
         <TabsContent value="battle-pass" className="mt-6">
