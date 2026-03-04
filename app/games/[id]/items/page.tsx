@@ -1857,7 +1857,8 @@ export default function GameItemsPage() {
                 </Button>
               </div>
               {gachaForm.keyReqs.length > 0 && (
-                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_80px_32px] gap-1.5 px-1 font-medium">
+                <div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
+                  <span />
                   <span>Item</span>
                   <span>Quantity</span>
                   <span />
@@ -1865,7 +1866,14 @@ export default function GameItemsPage() {
               )}
               <div className="space-y-2">
                 {gachaForm.keyReqs.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_80px_32px] gap-1.5 items-center">
+                  <div key={i} className="grid grid-cols-[24px_1fr_80px_32px] gap-1.5 items-center">
+                    {row.item_definition_id ? (
+                      <Link href={`/games/${params.id}/items/${row.item_definition_id}`} title="View item">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                      </Link>
+                    ) : (
+                      <span />
+                    )}
                     <Select
                       value={row.item_definition_id}
                       onValueChange={(v) => updateKeyReqRow(i, { item_definition_id: v })}

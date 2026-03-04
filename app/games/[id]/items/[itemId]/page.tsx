@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ChevronsUpDown, Loader2, ExternalLink } from "lucide-react"
+import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,9 +26,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
-import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, listGachaPacks } from "@/lib/inventory-api"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack } from "@/lib/inventory-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,12 +107,6 @@ export default function ItemDefinitionDetailPage() {
   const [tmpGridH, setTmpGridH] = useState("1")
   const [tmpMaxStack, setTmpMaxStack] = useState("")
 
-  // gacha pack link (only relevant when category === "gacha_pack")
-  const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
-  const [gachaPacksLoading, setGachaPacksLoading] = useState(false)
-  const [gachaPackComboOpen, setGachaPackComboOpen] = useState(false)
-  const [linkingGachaPack, setLinkingGachaPack] = useState(false)
-
   // KV card editing
   const [editingStats, setEditingStats] = useState(false)
   const [editingMeta, setEditingMeta] = useState(false)
@@ -122,6 +114,9 @@ export default function ItemDefinitionDetailPage() {
   const [tmpMeta, setTmpMeta] = useState<{ key: string; value: string }[]>([])
   const [categories, setCategories] = useState<ItemCategory[]>([])
   const [rarities, setRarities] = useState<ItemRarity[]>([])
+
+  // gacha pack info resolved from gacha_pack_ids
+  const [gachaPackInfo, setGachaPackInfo] = useState<Record<string, { name: string; is_enabled: boolean }>>({})
 
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
@@ -137,12 +132,20 @@ export default function ItemDefinitionDetailPage() {
         setGameName(game.name)
         const data = await getItemDefinition({ gameId }, itemId)
         setItem(data.item)
-        if (data.item.category === "gacha_pack") {
-          setGachaPacksLoading(true)
-          listGachaPacks({ gameId })
-            .then((res) => setGachaPacks(res.packs))
-            .catch(() => {})
-            .finally(() => setGachaPacksLoading(false))
+        // resolve gacha pack names
+        const packIds = Array.isArray(data.item.metadata?.gacha_pack_ids)
+          ? (data.item.metadata.gacha_pack_ids as string[])
+          : []
+        if (packIds.length > 0) {
+          const info: Record<string, { name: string; is_enabled: boolean }> = {}
+          await Promise.allSettled(
+            packIds.map((pid) =>
+              getGachaPack({ gameId }, pid).then((res) => {
+                info[pid] = { name: res.pack.name, is_enabled: res.pack.is_enabled }
+              })
+            )
+          )
+          setGachaPackInfo(info)
         }
       } catch (err: any) {
         setError(err?.message ?? "Failed to load item")
@@ -186,31 +189,17 @@ export default function ItemDefinitionDetailPage() {
     setEditingStats(true)
   }
 
+  // Keys managed separately (read-only in the UI)
+  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id"]
+
   function startEditMeta() {
     if (!item) return
-    setTmpMeta(Object.entries(item.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
+    setTmpMeta(
+      Object.entries(item.metadata ?? {})
+        .filter(([key]) => !RESERVED_META_KEYS.includes(key))
+        .map(([key, value]) => ({ key, value: String(value) }))
+    )
     setEditingMeta(true)
-  }
-
-  async function linkGachaPack(packId: string) {
-    if (!item) return
-    setLinkingGachaPack(true)
-    setGachaPackComboOpen(false)
-    try {
-      const newMeta = { ...(item.metadata ?? {}) }
-      if (packId) {
-        newMeta.gacha_pack_id = packId
-      } else {
-        delete newMeta.gacha_pack_id
-      }
-      const res = await updateItemDefinition({ gameId }, itemId, { metadata: newMeta })
-      setItem(res.item)
-      toast({ title: packId ? "Gacha pack linked" : "Gacha pack unlinked" })
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Update failed", description: err?.message })
-    } finally {
-      setLinkingGachaPack(false)
-    }
   }
 
   async function saveStats() {
@@ -222,6 +211,10 @@ export default function ItemDefinitionDetailPage() {
 
   async function saveMeta() {
     const metadata: Record<string, unknown> = {}
+    // preserve reserved keys from original metadata
+    RESERVED_META_KEYS.forEach((rk) => {
+      if (item?.metadata?.[rk] !== undefined) metadata[rk] = item.metadata[rk]
+    })
     tmpMeta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
     await saveField({ metadata })
     setEditingMeta(false)
@@ -262,8 +255,7 @@ export default function ItemDefinitionDetailPage() {
   }
 
   const c = RARITY_COLORS[item.rarity]
-  const linkedPackId = item.metadata?.gacha_pack_id as string | undefined
-  const currentLinkedPack = gachaPacks.find((p) => p.id === linkedPackId)
+  const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[]
 
   return (
     <div className="container mx-auto py-6">
@@ -662,79 +654,36 @@ export default function ItemDefinitionDetailPage() {
             )}
           </CardHeader>
           <CardContent>
-            {/* ── Gacha Pack link (only for gacha_pack category) ─────────── */}
-            {item.category === "gacha_pack" && (
-              <div className="flex items-center justify-between py-1.5 mb-3 border-b border-muted/50">
-                <span className="text-muted-foreground font-mono text-xs shrink-0">gacha_pack_id</span>
-                <div className="flex items-center gap-1.5">
-                {linkedPackId && (
-                  <Link
-                    href={`/games/${gameId}/items?tab=gacha&editPack=${linkedPackId}`}
-                    title="Open gacha pack editor"
-                    className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                )}
-                <Popover open={gachaPackComboOpen} onOpenChange={setGachaPackComboOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs justify-between gap-2 min-w-[180px] max-w-[260px]"
-                      disabled={linkingGachaPack || gachaPacksLoading}
-                    >
-                      {linkingGachaPack ? (
-                        <><Loader2 className="h-3 w-3 animate-spin" /><span>Saving…</span></>
-                      ) : gachaPacksLoading ? (
-                        <><Loader2 className="h-3 w-3 animate-spin" /><span>Loading…</span></>
-                      ) : currentLinkedPack ? (
-                        <span className="truncate">{currentLinkedPack.name}</span>
-                      ) : linkedPackId ? (
-                        <span className="font-mono text-[10px] text-muted-foreground truncate">{linkedPackId}</span>
-                      ) : (
-                        <span className="text-muted-foreground">Select pack…</span>
-                      )}
-                      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 p-0" align="end">
-                    <Command>
-                      <CommandInput placeholder="Search pack…" className="h-8 text-xs" />
-                      <CommandList>
-                        <CommandEmpty className="text-xs py-2 text-center">No packs found.</CommandEmpty>
-                        <CommandGroup>
-                          {linkedPackId && (
-                            <CommandItem
-                              value="__unlink__"
-                              onSelect={() => linkGachaPack("")}
-                              className="text-xs text-muted-foreground"
-                            >
-                              <X className="h-3.5 w-3.5 mr-2 shrink-0" />
-                              Unlink (remove)
-                            </CommandItem>
-                          )}
-                          {gachaPacks.map((pack) => (
-                            <CommandItem
-                              key={pack.id}
-                              value={`${pack.name} ${pack.id}`}
-                              onSelect={() => linkGachaPack(pack.id)}
-                              className="text-xs"
-                            >
-                              <Check
-                                className={`h-3.5 w-3.5 mr-2 shrink-0 ${linkedPackId === pack.id ? "opacity-100" : "opacity-0"}`}
-                              />
-                              <span className="flex-1 truncate">{pack.name}</span>
-                              <span className="text-muted-foreground font-mono text-[10px] ml-2 shrink-0">
-                                {pack.id.slice(0, 8)}…
-                              </span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+            {/* ── Gacha Pack IDs (read-only) ────────────────────────── */}
+            {linkedPackIds.length > 0 && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">gacha_pack_ids</span>
+                <div className="flex flex-col gap-1 ml-1">
+                  {linkedPackIds.map((packId) => {
+                    const pack = gachaPackInfo[packId]
+                    return (
+                      <div key={packId} className="inline-flex items-center gap-1.5 text-xs">
+                        {pack && (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            pack.is_enabled
+                              ? "bg-green-500/15 text-green-500 border border-green-500/30"
+                              : "bg-red-500/15 text-red-500 border border-red-500/30"
+                          }`}>
+                            {pack.is_enabled ? "Enabled" : "Disabled"}
+                          </span>
+                        )}
+                        <Link
+                          href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`}
+                          title="Open gacha pack editor"
+                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="font-medium">{pack?.name || "…"}</span>
+                          <span className="font-mono text-[10px] opacity-60">{packId.slice(0, 8)}…</span>
+                        </Link>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -758,11 +707,13 @@ export default function ItemDefinitionDetailPage() {
                   <Plus className="h-3 w-3 mr-1" /> Add entry
                 </Button>
               </div>
-            ) : Object.keys(item.metadata ?? {}).length === 0 ? (
+            ) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 ? (
               <p className="text-sm text-muted-foreground">No metadata defined.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(item.metadata).map(([key, value]) => (
+                {Object.entries(item.metadata)
+                  .filter(([key]) => !RESERVED_META_KEYS.includes(key))
+                  .map(([key, value]) => (
                   <div key={key} className="flex justify-between text-sm border-b border-muted/50 pb-1.5">
                     <span className="text-muted-foreground font-mono text-xs">{key}</span>
                     <span className="text-xs font-medium max-w-[200px] truncate text-right" title={String(value)}>
