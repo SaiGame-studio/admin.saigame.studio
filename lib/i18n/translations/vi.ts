@@ -195,6 +195,7 @@ export const vi = {
   },
   game: {
     shops: "Cửa hàng",
+    quests: "Nhiệm vụ",
     itemProfiles: "Hồ sơ vật phẩm",
     users: "Người chơi",
     createNew: "Tạo Game mới",
@@ -740,6 +741,7 @@ export const vi = {
     profiles: "Hồ sơ người chơi",
     items: "Vật phẩm",
     shops: "Cửa hàng",
+    quests: "Nhiệm vụ",
     activeSubscriptions: "Đăng ký đang hoạt động",
     history: "Lịch sử đăng ký",
     noSubscriptions: "Chưa có đăng ký nào.",
@@ -807,6 +809,7 @@ export const vi = {
       labelProfiles: "Hồ sơ",
       labelItems: "Vật phẩm",
       labelShops: "Cửa hàng",
+      labelQuests: "Nhiệm vụ",
       labelGacha: "Gacha",
       willNotRenew: "Sẽ không gia hạn",
       daysLeft: "ngày còn lại",

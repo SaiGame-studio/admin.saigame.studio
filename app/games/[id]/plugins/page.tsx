@@ -48,6 +48,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbS
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
+import { GameNavButtons } from "@/components/GameNavButtons"
 
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
@@ -322,9 +323,10 @@ export default function GamePluginsPage() {
             max_profiles: acc.max_profiles + plugin.profiles_grant * n,
             max_items: acc.max_items + plugin.items_grant * n,
             max_shops: acc.max_shops + plugin.shops_grant * n,
+            max_quests: acc.max_quests + (plugin.quests_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -336,23 +338,58 @@ export default function GamePluginsPage() {
   return (
     <div className="container mx-auto py-6 space-y-8">
       {/* Breadcrumb */}
-      <Breadcrumb>
-        <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-          <BreadcrumbItem><BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink></BreadcrumbItem>
-          <BreadcrumbSeparator>/</BreadcrumbSeparator>
-          {game?.studio_id && (
-            <>
-              <BreadcrumbItem>
-                <BreadcrumbLink href={`/studios/${game.studio_id}`}>{studio?.name ?? game.studio_id}</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            </>
-          )}
-          <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}`}>{game?.name ?? gameId}</BreadcrumbLink></BreadcrumbItem>
-          <BreadcrumbSeparator>/</BreadcrumbSeparator>
-          <BreadcrumbItem><span>{t('plugins.materia.breadcrumb')}</span></BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <div className="mb-2">
+        <Breadcrumb>
+          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem><BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            {game?.studio_id && (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href={`/studios/${game.studio_id}`}>{studio?.name ?? game.studio_id}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator>/</BreadcrumbSeparator>
+              </>
+            )}
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/games/${gameId}`}>{game?.name ?? gameId}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem><span>{t('plugins.materia.breadcrumb')}</span></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {/* Header — synced with /games/[id] */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" asChild>
+            <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight leading-tight">{game?.name ?? gameId}</h1>
+            <p className="text-xs text-muted-foreground">{t('plugins.materia.socketDesc')}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
+          <GameNavButtons gameId={gameId} active="plugins" />
+          <div className="flex items-center gap-2 flex-wrap">
+            {gamePlugins && (
+              <div className="flex items-center gap-1.5 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm">
+                <span className="text-muted-foreground text-xs">{t('plugins.materia.monthly')}</span>
+                {totalMonthlyCost === 0 ? (
+                  <span className="font-bold text-green-400">Free</span>
+                ) : (
+                  <span className="font-bold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>
+                )}
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* ──────────────────────────────────────────
           EQUIPMENT PANEL  (the "game" as weapon)
@@ -362,34 +399,6 @@ export default function GamePluginsPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none" />
 
         <div className="relative p-5 flex flex-col gap-4">
-          {/* top row */}
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="icon" asChild>
-                <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
-              </Button>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.materia.equipment')}</p>
-                <h1 className="text-2xl font-extrabold tracking-tight leading-tight">{game?.name ?? gameId}</h1>
-                <p className="text-xs text-muted-foreground">{t('plugins.materia.socketDesc')}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {gamePlugins && (
-                <div className="flex items-center gap-1.5 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm">
-                  <span className="text-muted-foreground text-xs">{t('plugins.materia.monthly')}</span>
-                  {totalMonthlyCost === 0 ? (
-                    <span className="font-bold text-green-400">Free</span>
-                  ) : (
-                    <span className="font-bold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>
-                  )}
-                </div>
-              )}
-              <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              </Button>
-            </div>
-          </div>
 
           {/* Materia Slot Visualizer — one row per catalog tier */}
           {!catalogLoading && catalog.length > 0 && gamePlugins && (
@@ -427,6 +436,7 @@ export default function GamePluginsPage() {
                 { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
                 { label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦" },
                 { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪" },
+                { label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜" },
               ] as { label: string; max: number | null; reduction?: number; used: number | undefined; icon: string }[]).map((row) => {
                 const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                 const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -554,6 +564,7 @@ export default function GamePluginsPage() {
                         { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
                         { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -633,6 +644,7 @@ export default function GamePluginsPage() {
                     {plugin.profiles_grant > 0 && <span>+{formatNumber(plugin.profiles_grant)} profiles</span>}
                     {plugin.items_grant > 0 && <span>+{formatNumber(plugin.items_grant)} items</span>}
                     {plugin.shops_grant > 0 && <span>+{plugin.shops_grant} shops</span>}
+                    {(plugin.quests_grant ?? 0) > 0 && <span>+{formatNumber(plugin.quests_grant)} quests</span>}
                   </div>
                 </div>
                 <ExpiryBadge expiresAt={subscription.expires_at} />
@@ -858,6 +870,7 @@ export default function GamePluginsPage() {
                       { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
                     ].map((r) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>

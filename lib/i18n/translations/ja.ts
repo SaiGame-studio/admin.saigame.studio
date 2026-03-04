@@ -195,6 +195,7 @@ export const ja = {
   },
   game: {
     shops: "ショップ",
+    quests: "クエスト",
     itemProfiles: "アイテムプロフィール",
     users: "ユーザー",
     createNew: "新しいゲームを作成",
@@ -729,6 +730,7 @@ export const ja = {
     profiles: "プレイヤープロフィール",
     items: "アイテム",
     shops: "ショップ",
+    quests: "クエスト",
     activeSubscriptions: "有効な購読",
     history: "購読履歴",
     noSubscriptions: "まだ購読がありません。",
@@ -796,6 +798,7 @@ export const ja = {
       labelProfiles: "プロフィール",
       labelItems: "アイテム",
       labelShops: "ショップ",
+      labelQuests: "クエスト",
       labelGacha: "ガチャ",
       willNotRenew: "更新されません",
       daysLeft: "日残り",

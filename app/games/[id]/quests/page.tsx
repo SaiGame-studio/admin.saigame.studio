@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check,
+  ChevronsUpDown, Check, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1282,7 +1283,35 @@ function QuestsPageInner() {
               <h1 className="text-2xl font-bold">Quests</h1>
             </div>
             {game && (
-              <p className="text-sm text-muted-foreground">{game.name}</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                {game.limits?.max_quests != null ? (() => {
+                  const used = game.usage?.quests ?? 0
+                  const max = game.limits.max_quests!
+                  const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                  return (
+                    <>
+                      <span className={used >= max ? "text-destructive font-medium" : ""}>
+                        {used.toLocaleString()} / {max.toLocaleString()} quests
+                      </span>
+                      <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                        <span
+                          className={`block h-full rounded-full transition-all ${
+                            used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <Link
+                        href={`/games/${gameId}/plugins`}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        title="Manage plugins / raise limits"
+                      >
+                        <Hammer className="h-3.5 w-3.5" />
+                      </Link>
+                    </>
+                  )
+                })() : <span>{game.name}</span>}
+              </p>
             )}
           </div>
         </div>

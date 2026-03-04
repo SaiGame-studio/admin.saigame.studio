@@ -4,6 +4,9 @@ export interface GameLimits {
   max_gacha_packs: number
   max_player_profiles: number
   max_shops: number
+  max_quests?: number
+  max_daily_quest_sets?: number
+  max_battle_pass_sets?: number
 }
 
 export interface GameUsage {
@@ -12,6 +15,7 @@ export interface GameUsage {
   gacha_packs: number
   player_profiles: number
   shops: number
+  quests?: number
 }
 
 export interface Game {
