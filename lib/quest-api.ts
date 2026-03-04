@@ -305,6 +305,35 @@ export async function removeChainMember(
   return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/members/${questId}`)
 }
 
+// ─── Quest Chain Layout API Functions ──────────────────────────────────────────
+
+export interface ChainLayoutNodePosition {
+  id: string
+  x: number
+  y: number
+}
+
+export interface ChainLayout {
+  positions: ChainLayoutNodePosition[]
+}
+
+export async function getChainLayout(
+  studioId: string,
+  gameId: string,
+  chainId: string
+): Promise<ChainLayout> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/layout`)
+}
+
+export async function saveChainLayout(
+  studioId: string,
+  gameId: string,
+  chainId: string,
+  data: ChainLayout
+): Promise<void> {
+  return api.put(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/layout`, data)
+}
+
 // ─── Daily Quest Pool Types ───────────────────────────────────────────────────
 
 export type AssignmentStrategy =

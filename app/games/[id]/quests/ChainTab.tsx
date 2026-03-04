@@ -6,6 +6,7 @@ import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
   ChevronDown, ChevronRight, Wand2, Link2, ArrowRight,
   GitBranch, ArrowDownRight, Layers, X, ChevronsUpDown, Check,
+  List, LayoutGrid,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,6 +63,8 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ChainFlowView } from "./ChainFlowView"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api-client"
 import type { Game } from "@/types/game"
@@ -679,114 +682,193 @@ export function ChainTab({ game }: { game: Game | null }) {
                           </div>
                         </div>
 
-                        {/* Members table */}
+                        {/* Members — List / Grid tabs */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-sm font-medium flex items-center gap-2">
                               Quests in Chain
                               <Badge variant="outline" className="text-xs">{expandedMembers.length}</Badge>
                             </h4>
-                            <Button size="sm" variant="outline" onClick={() => openAddMember(chain.id)}>
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Quest
-                            </Button>
                           </div>
 
-                          {expandedMembers.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2">
-                              No quests in this chain yet. Click &quot;Add Quest&quot; to add quest definitions to this chain.
-                            </p>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-16">Order</TableHead>
-                                  <TableHead>Quest</TableHead>
-                                  <TableHead className="w-56">Unlocks</TableHead>
-                                  <TableHead className="w-24">Status</TableHead>
-                                  <TableHead className="w-24" />
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {expandedMembers.map((member) => {
-                                  const questDef = questDefsMap[member.quest_definition_id]
-                                  return (
-                                    <TableRow key={member.id}>
-                                      <TableCell className="font-mono text-muted-foreground">
-                                        {member.sort_order}
-                                      </TableCell>
-                                      <TableCell>
-                                        <div>
-                                          <p className="text-sm font-medium">
-                                            {questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…"}
-                                          </p>
-                                          {questDef?.description && (
-                                            <p className="text-xs text-muted-foreground truncate max-w-md">{questDef.description}</p>
-                                          )}
-                                          {questDef && (
-                                            <Badge variant="outline" className="text-xs mt-1">{questDef.quest_type}</Badge>
-                                          )}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        {member.unlock_quest_ids.length > 0 ? (
-                                          <div className="flex flex-wrap gap-1">
-                                            {member.unlock_quest_ids.map((uid) => {
-                                              const unlockDef = questDefsMap[uid]
-                                              return (
-                                                <Badge key={uid} variant="secondary" className="text-xs">
-                                                  <ArrowRight className="h-2.5 w-2.5 mr-0.5" />
-                                                  {unlockDef?.name ?? uid.slice(0, 8) + "…"}
-                                                </Badge>
-                                              )
-                                            })}
-                                          </div>
-                                        ) : (
-                                          <span className="text-xs text-muted-foreground">— (end of chain)</span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {questDef?.is_active ? (
-                                          <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
-                                        ) : (
-                                          <Badge variant="secondary" className="text-xs">
-                                            {questDef ? "Inactive" : "Unknown"}
-                                          </Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-0.5">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 shrink-0"
-                                            title="Edit membership"
-                                            onClick={() => openEditMember(member)}
-                                          >
-                                            <Pencil className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 shrink-0 text-destructive"
-                                            title="Remove from chain"
-                                            onClick={() =>
-                                              setRemoveMemberTarget({
-                                                chainId: chain.id,
-                                                questId: member.quest_definition_id,
-                                                questName: questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…",
-                                              })
-                                            }
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
+                          <Tabs
+                            value={searchParams.get("subTab") === "list" ? "list" : "grid"}
+                            onValueChange={(v) => {
+                              const sp = new URLSearchParams(searchParams.toString())
+                              sp.set("subTab", v)
+                              router.replace(`?${sp.toString()}`, { scroll: false })
+                            }}
+                            className="w-full"
+                          >
+                            <TabsList className="h-8 mb-3">
+                              <TabsTrigger value="grid" className="text-xs gap-1.5 px-3">
+                                <LayoutGrid className="h-3.5 w-3.5" /> Graph
+                              </TabsTrigger>
+                              <TabsTrigger value="list" className="text-xs gap-1.5 px-3">
+                                <List className="h-3.5 w-3.5" /> List
+                              </TabsTrigger>
+                            </TabsList>
+
+                              {/* ── List View ─────────────────────────────── */}
+                              <TabsContent value="list" className="mt-0">
+                                <div className="flex justify-end mb-2">
+                                  <Button size="sm" variant="outline" onClick={() => openAddMember(chain.id)}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Quest
+                                  </Button>
+                                </div>
+                                {expandedMembers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-2">
+                                    No quests in this chain yet. Click &quot;Add Quest&quot; to add quest definitions to this chain.
+                                  </p>
+                                ) : (
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-16">Order</TableHead>
+                                      <TableHead>Quest</TableHead>
+                                      <TableHead className="w-56">Unlocks</TableHead>
+                                      <TableHead className="w-24">Status</TableHead>
+                                      <TableHead className="w-24" />
                                     </TableRow>
-                                  )
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
+                                  </TableHeader>
+                                  <TableBody>
+                                    {expandedMembers.map((member) => {
+                                      const questDef = questDefsMap[member.quest_definition_id]
+                                      return (
+                                        <TableRow key={member.id}>
+                                          <TableCell className="font-mono text-muted-foreground">
+                                            {member.sort_order}
+                                          </TableCell>
+                                          <TableCell>
+                                            <div>
+                                              <p className="text-sm font-medium">
+                                                {questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…"}
+                                              </p>
+                                              {questDef?.description && (
+                                                <p className="text-xs text-muted-foreground truncate max-w-md">{questDef.description}</p>
+                                              )}
+                                              {questDef && (
+                                                <Badge variant="outline" className="text-xs mt-1">{questDef.quest_type}</Badge>
+                                              )}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell>
+                                            {member.unlock_quest_ids.length > 0 ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {member.unlock_quest_ids.map((uid) => {
+                                                  const unlockDef = questDefsMap[uid]
+                                                  return (
+                                                    <Badge key={uid} variant="secondary" className="text-xs">
+                                                      <ArrowRight className="h-2.5 w-2.5 mr-0.5" />
+                                                      {unlockDef?.name ?? uid.slice(0, 8) + "…"}
+                                                    </Badge>
+                                                  )
+                                                })}
+                                              </div>
+                                            ) : (
+                                              <span className="text-xs text-muted-foreground">— (end of chain)</span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            {questDef?.is_active ? (
+                                              <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">
+                                                {questDef ? "Inactive" : "Unknown"}
+                                              </Badge>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            <div className="flex items-center gap-0.5">
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 shrink-0"
+                                                title="Edit membership"
+                                                onClick={() => openEditMember(member)}
+                                              >
+                                                <Pencil className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 shrink-0 text-destructive"
+                                                title="Remove from chain"
+                                                onClick={() =>
+                                                  setRemoveMemberTarget({
+                                                    chainId: chain.id,
+                                                    questId: member.quest_definition_id,
+                                                    questName: questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…",
+                                                  })
+                                                }
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      )
+                                    })}
+                                  </TableBody>
+                                </Table>
+                                )}
+                              </TabsContent>
+
+                              {/* ── Graph View ────────────────────────────── */}
+                              <TabsContent value="grid" className="mt-0">
+                                <ChainFlowView
+                                  studioId={studioId}
+                                  gameId={gameId}
+                                  chainId={chain.id}
+                                  members={expandedMembers}
+                                  questDefsMap={questDefsMap}
+                                  availableQuests={allQuestDefs.filter(
+                                    (q) => !expandedMembers.some((m) => m.quest_definition_id === q.id)
+                                  )}
+                                  onQuickAdd={async (questId) => {
+                                    const nextSort = expandedMembers.length > 0
+                                      ? Math.max(...expandedMembers.map((m) => m.sort_order)) + 1
+                                      : 0
+                                    await addChainMember(studioId, gameId, chain.id, {
+                                      quest_definition_id: questId,
+                                      sort_order: nextSort,
+                                      unlock_quest_ids: [],
+                                    })
+                                    toast({ title: "Quest added to chain" })
+                                    await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()])
+                                  }}
+                                  onEditMember={openEditMember}
+                                  onRemoveMember={(member) => {
+                                    const questDef = questDefsMap[member.quest_definition_id]
+                                    setRemoveMemberTarget({
+                                      chainId: chain.id,
+                                      questId: member.quest_definition_id,
+                                      questName: questDef?.name ?? member.quest_definition_id.slice(0, 8) + "…",
+                                    })
+                                  }}
+                                  onConnectQuests={async (sourceQuestId, targetQuestId) => {
+                                    const sourceMember = expandedMembers.find((m) => m.quest_definition_id === sourceQuestId)
+                                    if (!sourceMember) return
+                                    const newUnlockIds = [...new Set([...sourceMember.unlock_quest_ids, targetQuestId])]
+                                    await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
+                                      unlock_quest_ids: newUnlockIds,
+                                    })
+                                    toast({ title: "Connection added" })
+                                    await refreshExpanded(chain.id)
+                                  }}
+                                  onDisconnectQuests={async (sourceQuestId, targetQuestId) => {
+                                    const sourceMember = expandedMembers.find((m) => m.quest_definition_id === sourceQuestId)
+                                    if (!sourceMember) return
+                                    const newUnlockIds = sourceMember.unlock_quest_ids.filter((id) => id !== targetQuestId)
+                                    await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
+                                      unlock_quest_ids: newUnlockIds,
+                                    })
+                                    toast({ title: "Connection removed" })
+                                    await refreshExpanded(chain.id)
+                                  }}
+                                />
+                              </TabsContent>
+                            </Tabs>
                         </div>
                       </div>
                     ) : null}
