@@ -195,6 +195,7 @@ export const en = {
   },
   game: {
     shops: "Shops",
+    quests: "Quests",
     itemProfiles: "Item Profiles",
     users: "Players",
     createNew: "Create New Game",
@@ -743,6 +744,7 @@ export const en = {
     profiles: "Player Profiles",
     items: "Items",
     shops: "Shops",
+    quests: "Quests",
     // Active subscriptions
     activeSubscriptions: "Active Subscriptions",
     history: "Subscription History",
@@ -814,6 +816,7 @@ export const en = {
       labelProfiles: "Profiles",
       labelItems: "Items",
       labelShops: "Shops",
+      labelQuests: "Quests",
       labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",

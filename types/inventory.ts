@@ -159,6 +159,7 @@ export interface ContainerDefinition {
   grid_cols: number
   grid_rows: number
   is_portable: boolean
+  linked_item_definition_id?: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -171,6 +172,7 @@ export interface CreateContainerDefinitionRequest {
   grid_cols: number
   grid_rows: number
   is_portable: boolean
+  linked_item_definition_id?: string
   metadata?: Record<string, unknown>
 }
 
@@ -178,6 +180,7 @@ export interface UpdateContainerDefinitionRequest {
   name?: string
   grid_cols?: number
   grid_rows?: number
+  linked_item_definition_id?: string
   metadata?: Record<string, unknown>
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +50,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
@@ -237,11 +241,13 @@ function ContainerTypeBadge({ type }: { type: ContainerType }) {
 function CreateContainerDefinitionDialog({
   open,
   gameId,
+  allItems,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
+  allItems: ItemDefinition[]
   onCreated: () => void
   onClose: () => void
 }) {
@@ -252,15 +258,18 @@ function CreateContainerDefinitionDialog({
   const [gridCols, setGridCols] = useState("9")
   const [gridRows, setGridRows] = useState("3")
   const [isPortable, setIsPortable] = useState(false)
+  const [linkedItemId, setLinkedItemId] = useState("")
+  const [linkedItemOpen, setLinkedItemOpen] = useState(false)
+  const [linkedItemSearch, setLinkedItemSearch] = useState("")
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
-
   function resetForm() {
     setName("")
     setContainerType("chest")
     setGridCols("9")
     setGridRows("3")
     setIsPortable(false)
+    setLinkedItemId("")
     setMeta([])
     setErrors({})
   }
@@ -288,6 +297,7 @@ function CreateContainerDefinitionDialog({
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
         is_portable: isPortable,
+        ...(linkedItemId ? { linked_item_definition_id: linkedItemId } : {}),
         metadata,
       }
       await createContainerDefinition({ gameId }, body)
@@ -347,6 +357,99 @@ function CreateContainerDefinitionDialog({
               {errors.gridRows && <p className="text-xs text-destructive">{errors.gridRows}</p>}
             </div>
           </div>
+          <div className="space-y-1">
+            <Label>Linked Item Definition</Label>
+            <div className="flex items-center gap-1">
+              <Popover open={linkedItemOpen} onOpenChange={setLinkedItemOpen} modal={true}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={linkedItemOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {linkedItemId ? (
+                      <span className="truncate">
+                        {allItems.find((i) => i.id === linkedItemId)?.name ?? linkedItemId.slice(0, 8) + "…"}
+                        {allItems.find((i) => i.id === linkedItemId)?.item_code && (
+                          <span className="ml-1 text-xs text-muted-foreground font-mono">
+                            ({allItems.find((i) => i.id === linkedItemId)!.item_code})
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">No linked item</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name or code…"
+                      value={linkedItemSearch}
+                      onValueChange={setLinkedItemSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No item found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__none__"
+                          onSelect={() => {
+                            setLinkedItemId("")
+                            setLinkedItemOpen(false)
+                            setLinkedItemSearch("")
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${!linkedItemId ? "opacity-100" : "opacity-0"}`} />
+                          <span className="text-muted-foreground">— No linked item —</span>
+                        </CommandItem>
+                        {allItems
+                          .filter(
+                            (d) =>
+                              !linkedItemSearch ||
+                              d.name.toLowerCase().includes(linkedItemSearch.toLowerCase()) ||
+                              (d.item_code ?? "").toLowerCase().includes(linkedItemSearch.toLowerCase()),
+                          )
+                          .slice(0, 50)
+                          .map((d) => (
+                            <CommandItem
+                              key={d.id}
+                              value={d.id}
+                              onSelect={() => {
+                                setLinkedItemId(d.id)
+                                setLinkedItemOpen(false)
+                                setLinkedItemSearch("")
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 shrink-0 ${linkedItemId === d.id ? "opacity-100" : "opacity-0"}`}
+                              />
+                              <span className="flex-1 truncate">{d.name}</span>
+                              {d.item_code && (
+                                <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {linkedItemId && (
+                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title="Go to item definition">
+                  <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" type="button">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Link a container to an item so that when a player owns this item, the server can automatically provision
+              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
+              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
+            </p>
+          </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata (e.g. icon = chest_wood)" />
         </div>
         <SheetFooter className="pt-4">
@@ -364,12 +467,14 @@ function EditContainerDefinitionDialog({
   open,
   gameId,
   definition,
+  allItems,
   onUpdated,
   onClose,
 }: {
   open: boolean
   gameId: string
   definition: ContainerDefinition
+  allItems: ItemDefinition[]
   onUpdated: () => void
   onClose: () => void
 }) {
@@ -378,6 +483,9 @@ function EditContainerDefinitionDialog({
   const [name, setName] = useState(definition.name)
   const [gridCols, setGridCols] = useState(String(definition.grid_cols))
   const [gridRows, setGridRows] = useState(String(definition.grid_rows))
+  const [linkedItemId, setLinkedItemId] = useState(definition.linked_item_definition_id ?? "")
+  const [linkedItemOpen, setLinkedItemOpen] = useState(false)
+  const [linkedItemSearch, setLinkedItemSearch] = useState("")
   const [meta, setMeta] = useState<KVEntry[]>(
     Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
   )
@@ -387,6 +495,8 @@ function EditContainerDefinitionDialog({
     setName(definition.name)
     setGridCols(String(definition.grid_cols))
     setGridRows(String(definition.grid_rows))
+    setLinkedItemId(definition.linked_item_definition_id ?? "")
+    setLinkedItemSearch("")
     setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
     setErrors({})
   }, [definition])
@@ -408,11 +518,17 @@ function EditContainerDefinitionDialog({
     try {
       const metadata: Record<string, unknown> = {}
       meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+      const origLinked = definition.linked_item_definition_id ?? ""
       const body: UpdateContainerDefinitionRequest = {
         name: name.trim(),
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
         metadata,
+      }
+      // Only send linked_item_definition_id if it changed
+      if (linkedItemId !== origLinked) {
+        // "" means unlink, UUID means set new link
+        body.linked_item_definition_id = linkedItemId
       }
       await updateContainerDefinition({ gameId }, definition.id, body)
       toast({ title: "Container definition updated" })
@@ -457,6 +573,99 @@ function EditContainerDefinitionDialog({
               <Input id="ed-rows" type="number" min={1} max={54} value={gridRows} onChange={(e) => setGridRows(e.target.value)} />
               {errors.gridRows && <p className="text-xs text-destructive">{errors.gridRows}</p>}
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Linked Item Definition</Label>
+            <div className="flex items-center gap-1">
+              <Popover open={linkedItemOpen} onOpenChange={setLinkedItemOpen} modal={true}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={linkedItemOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {linkedItemId ? (
+                      <span className="truncate">
+                        {allItems.find((i) => i.id === linkedItemId)?.name ?? linkedItemId.slice(0, 8) + "…"}
+                        {allItems.find((i) => i.id === linkedItemId)?.item_code && (
+                          <span className="ml-1 text-xs text-muted-foreground font-mono">
+                            ({allItems.find((i) => i.id === linkedItemId)!.item_code})
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">No linked item</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name or code…"
+                      value={linkedItemSearch}
+                      onValueChange={setLinkedItemSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No item found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__none__"
+                          onSelect={() => {
+                            setLinkedItemId("")
+                            setLinkedItemOpen(false)
+                            setLinkedItemSearch("")
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${!linkedItemId ? "opacity-100" : "opacity-0"}`} />
+                          <span className="text-muted-foreground">— No linked item —</span>
+                        </CommandItem>
+                        {allItems
+                          .filter(
+                            (d) =>
+                              !linkedItemSearch ||
+                              d.name.toLowerCase().includes(linkedItemSearch.toLowerCase()) ||
+                              (d.item_code ?? "").toLowerCase().includes(linkedItemSearch.toLowerCase()),
+                          )
+                          .slice(0, 50)
+                          .map((d) => (
+                            <CommandItem
+                              key={d.id}
+                              value={d.id}
+                              onSelect={() => {
+                                setLinkedItemId(d.id)
+                                setLinkedItemOpen(false)
+                                setLinkedItemSearch("")
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 shrink-0 ${linkedItemId === d.id ? "opacity-100" : "opacity-0"}`}
+                              />
+                              <span className="flex-1 truncate">{d.name}</span>
+                              {d.item_code && (
+                                <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {linkedItemId && (
+                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title="Go to item definition">
+                  <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" type="button">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Link a container to an item so that when a player owns this item, the server can automatically provision
+              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
+              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
+            </p>
           </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata" />
         </div>
@@ -781,6 +990,7 @@ export default function GameItemsPage() {
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
   const [containerSearch, setContainerSearch] = useState("")
   const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
+  const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([])
 
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
@@ -915,12 +1125,14 @@ export default function GameItemsPage() {
     setContainerLoading(true)
     setContainerError(null)
     try {
-      const result = await listContainerDefinitions(
-        { gameId },
-        { limit: CONTAINER_LIMIT, offset: containerOffset },
-      )
+      const ctx = { gameId }
+      const [result, itemsRes] = await Promise.all([
+        listContainerDefinitions(ctx, { limit: CONTAINER_LIMIT, offset: containerOffset }),
+        listItemDefinitions(ctx, { limit: 200 }),
+      ])
       setContainerDefs(result.container_definitions ?? [])
       setContainerTotal(result.total)
+      setContainerAllItems(itemsRes.items ?? [])
     } catch (err: any) {
       setContainerError(err?.message ?? 'Failed to load container definitions')
     } finally {
@@ -967,6 +1179,11 @@ export default function GameItemsPage() {
           d.id.toLowerCase().includes(containerSearchDebounced.toLowerCase()),
       )
     : containerDefs
+
+  function containerItemName(id: string): string {
+    const it = containerAllItems.find((i) => i.id === id)
+    return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "…"
+  }
 
   // ─── Gacha ───────────────────────────────────────────────────────────────────
   const fetchGachaData = useCallback(async () => {
@@ -1492,6 +1709,7 @@ export default function GameItemsPage() {
                       <TableHead>Type</TableHead>
                       <TableHead>Grid</TableHead>
                       <TableHead>Portable</TableHead>
+                      <TableHead>Linked Item</TableHead>
                       <TableHead>Metadata</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -1520,6 +1738,20 @@ export default function GameItemsPage() {
                             <span className="text-green-500 text-sm font-medium">✓ Portable</span>
                           ) : (
                             <span className="text-muted-foreground text-sm">✗ Fixed</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[180px]">
+                          {def.linked_item_definition_id ? (
+                            <span className="flex items-center gap-1">
+                              <span className="text-primary font-medium truncate" title={def.linked_item_definition_id}>
+                                {containerItemName(def.linked_item_definition_id)}
+                              </span>
+                              <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title="Go to item definition">
+                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
+                              </Link>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic text-xs">—</span>
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
@@ -1771,6 +2003,7 @@ export default function GameItemsPage() {
       <CreateContainerDefinitionDialog
         open={showCreateContainer}
         gameId={gameId}
+        allItems={containerAllItems}
         onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
         onClose={() => setShowCreateContainer(false)}
       />
@@ -1781,6 +2014,7 @@ export default function GameItemsPage() {
           open={!!editingContainer}
           gameId={gameId}
           definition={editingContainer}
+          allItems={containerAllItems}
           onUpdated={fetchContainerDefs}
           onClose={() => setEditingContainer(null)}
         />
@@ -1857,7 +2091,8 @@ export default function GameItemsPage() {
                 </Button>
               </div>
               {gachaForm.keyReqs.length > 0 && (
-                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_80px_32px] gap-1.5 px-1 font-medium">
+                <div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
+                  <span />
                   <span>Item</span>
                   <span>Quantity</span>
                   <span />
@@ -1865,7 +2100,14 @@ export default function GameItemsPage() {
               )}
               <div className="space-y-2">
                 {gachaForm.keyReqs.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_80px_32px] gap-1.5 items-center">
+                  <div key={i} className="grid grid-cols-[24px_1fr_80px_32px] gap-1.5 items-center">
+                    {row.item_definition_id ? (
+                      <Link href={`/games/${params.id}/items/${row.item_definition_id}`} title="View item">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                      </Link>
+                    ) : (
+                      <span />
+                    )}
                     <Select
                       value={row.item_definition_id}
                       onValueChange={(v) => updateKeyReqRow(i, { item_definition_id: v })}
@@ -1905,6 +2147,13 @@ export default function GameItemsPage() {
               {gachaForm.keyReqs.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">No key items — pack is free to open.</p>
               )}
+              <Link
+                href={`/games/${gameId}/items?create=1&category=key`}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Create new item
+              </Link>
             </div>
 
             {/* Enabled */}

@@ -158,3 +158,169 @@ export async function deleteQuestDefinition(
 ): Promise<void> {
   return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions/${questId}`)
 }
+
+// ─── Daily Quest Pool Types ───────────────────────────────────────────────────
+
+export type AssignmentStrategy =
+  | 'weighted_random'
+  | 'fixed_rotation'
+  | 'weekly_schedule'
+  | 'monthly_schedule'
+
+export interface DailyQuestPoolQuest {
+  id: string
+  pool_id: string
+  quest_definition_id: string
+  studio_id: string
+  game_id: string
+  weight: number
+  created_at: string
+}
+
+export interface ListPoolQuestsResponse {
+  quests: DailyQuestPoolQuest[]
+}
+
+export interface CompletionBonus {
+  id: string
+  studio_id: string
+  game_id: string
+  pool_id: string
+  rewards: QuestReward[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface DailyQuestPool {
+  id: string
+  studio_id: string
+  game_id: string
+  pool_key: string
+  display_name: string
+  description?: string
+  assignment_strategy: AssignmentStrategy
+  slots_per_day: number
+  reset_hour_utc: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateDailyQuestPoolRequest {
+  pool_key: string
+  display_name: string
+  description?: string
+  assignment_strategy: AssignmentStrategy
+  slots_per_day: number
+  reset_hour_utc?: number
+  is_active?: boolean
+}
+
+export interface UpdateDailyQuestPoolRequest {
+  display_name?: string
+  description?: string
+  slots_per_day?: number
+  reset_hour_utc?: number
+  is_active?: boolean
+}
+
+export interface AddQuestToPoolRequest {
+  quest_id: string
+  weight: number
+  sequence_order: number
+}
+
+export interface SetCompletionBonusRequest {
+  rewards: QuestReward[]
+}
+
+export interface ListDailyQuestPoolsResponse {
+  pools: DailyQuestPool[]
+  total?: number
+  limit?: number
+  offset?: number
+}
+
+// ─── Daily Quest Pool API Functions ───────────────────────────────────────────
+
+export async function listDailyQuestPools(
+  studioId: string,
+  gameId: string,
+  params?: { active_only?: boolean; limit?: number; offset?: number }
+): Promise<ListDailyQuestPoolsResponse> {
+  const qs = new URLSearchParams()
+  if (params?.active_only !== undefined) qs.set('active_only', String(params.active_only))
+  if (params?.limit !== undefined) qs.set('limit', String(params.limit))
+  if (params?.offset !== undefined) qs.set('offset', String(params.offset))
+  const query = qs.toString() ? `?${qs}` : ''
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools${query}`)
+}
+
+export async function getDailyQuestPool(
+  studioId: string,
+  gameId: string,
+  poolId: string
+): Promise<DailyQuestPool> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}`)
+}
+
+export async function listPoolQuests(
+  studioId: string,
+  gameId: string,
+  poolId: string
+): Promise<ListPoolQuestsResponse> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/quests`)
+}
+
+export async function createDailyQuestPool(
+  studioId: string,
+  gameId: string,
+  data: CreateDailyQuestPoolRequest
+): Promise<DailyQuestPool> {
+  return api.post(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools`, data)
+}
+
+export async function updateDailyQuestPool(
+  studioId: string,
+  gameId: string,
+  poolId: string,
+  data: UpdateDailyQuestPoolRequest
+): Promise<DailyQuestPool> {
+  return api.patch(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}`, data)
+}
+
+export async function addQuestToPool(
+  studioId: string,
+  gameId: string,
+  poolId: string,
+  data: AddQuestToPoolRequest
+): Promise<DailyQuestPoolQuest> {
+  return api.post(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/quests`, data)
+}
+
+export async function removeQuestFromPool(
+  studioId: string,
+  gameId: string,
+  poolId: string,
+  questId: string
+): Promise<void> {
+  return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/quests/${questId}`)
+}
+
+export async function setCompletionBonus(
+  studioId: string,
+  gameId: string,
+  poolId: string,
+  data: SetCompletionBonusRequest
+): Promise<CompletionBonus> {
+  return api.put(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/completion-bonus`, data)
+}
+
+export async function getCompletionBonus(
+  studioId: string,
+  gameId: string,
+  poolId: string
+): Promise<CompletionBonus> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/completion-bonus`)
+}
