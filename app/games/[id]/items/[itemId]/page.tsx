@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
-import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack } from "@/lib/inventory-api"
+import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack } from "@/types/inventory"
+import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack, ContainerDefinition } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
 
@@ -118,6 +118,9 @@ export default function ItemDefinitionDetailPage() {
   // gacha pack info resolved from gacha_pack_ids
   const [gachaPackInfo, setGachaPackInfo] = useState<Record<string, { name: string; is_enabled: boolean }>>({})
 
+  // linked container definition info resolved from metadata.linked_container_definition_id
+  const [linkedContainerInfo, setLinkedContainerInfo] = useState<{ id: string; name: string } | null>(null)
+
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
       .then(([cats, rars]) => { setCategories(cats); setRarities(rars) })
@@ -146,6 +149,20 @@ export default function ItemDefinitionDetailPage() {
             )
           )
           setGachaPackInfo(info)
+        }
+        // resolve linked container definition
+        const linkedContainerId = typeof data.item.metadata?.linked_container_definition_id === "string"
+          ? data.item.metadata.linked_container_definition_id
+          : null
+        if (linkedContainerId) {
+          try {
+            const cRes = await getContainerDefinition({ gameId }, linkedContainerId)
+            setLinkedContainerInfo({ id: linkedContainerId, name: cRes.container_definition.name })
+          } catch {
+            setLinkedContainerInfo({ id: linkedContainerId, name: "" })
+          }
+        } else {
+          setLinkedContainerInfo(null)
         }
       } catch (err: any) {
         setError(err?.message ?? "Failed to load item")
@@ -190,7 +207,7 @@ export default function ItemDefinitionDetailPage() {
   }
 
   // Keys managed separately (read-only in the UI)
-  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id"]
+  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id"]
 
   function startEditMeta() {
     if (!item) return
@@ -654,6 +671,23 @@ export default function ItemDefinitionDetailPage() {
             )}
           </CardHeader>
           <CardContent>
+            {/* ── Linked Container Definition (read-only) ────────── */}
+            {linkedContainerInfo && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">linked_container_definition_id</span>
+                <div className="flex items-center gap-1.5 ml-1">
+                  <Link
+                    href={`/games/${gameId}/items?tab=containers`}
+                    title="Go to container definitions"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="font-medium">{linkedContainerInfo.name || "Unknown container"}</span>
+                    <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
+                  </Link>
+                </div>
+              </div>
+            )}
             {/* ── Gacha Pack IDs (read-only) ────────────────────────── */}
             {linkedPackIds.length > 0 && (
               <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
