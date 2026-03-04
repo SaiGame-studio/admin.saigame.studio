@@ -445,7 +445,9 @@ function CreateContainerDefinitionDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              When linked, owning this item lets the player open this container via <code>ensure-container</code>.
+              Link a container to an item so that when a player owns this item, the server can automatically provision
+              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
+              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
             </p>
           </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata (e.g. icon = chest_wood)" />
@@ -660,7 +662,9 @@ function EditContainerDefinitionDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Select an item to link, or choose &quot;No linked item&quot; to remove the link.
+              Link a container to an item so that when a player owns this item, the server can automatically provision
+              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
+              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
             </p>
           </div>
           <KVEditor entries={meta} onChange={setMeta} label="Metadata" />
