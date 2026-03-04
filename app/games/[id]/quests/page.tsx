@@ -90,14 +90,16 @@ import {
 } from "@/lib/quest-api"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyTab } from "./DailyTab"
+import { ChainTab } from "./ChainTab"
 import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "definitions" | "daily" | "battle-pass"
+type TabValue = "definitions" | "chains" | "daily" | "battle-pass"
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "definitions", label: "Definitions" },
+  { value: "chains", label: "Chains" },
   { value: "daily", label: "Daily" },
   { value: "battle-pass", label: "Battle Pass" },
 ]
@@ -127,8 +129,6 @@ const DEFAULT_FORM: CreateQuestDefinitionRequest = {
   description: "",
   quest_type: "one_time",
   conditions: { operator: "AND", clauses: [] },
-  quest_chain_id: null,
-  prerequisite_quest_id: null,
   is_active: true,
   sort_order: 0,
   rewards: [],
@@ -683,7 +683,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [prereqPopoverOpen, setPrereqPopoverOpen] = useState(false)
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -717,8 +716,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       description: q.description ?? "",
       quest_type: q.quest_type,
       conditions: q.conditions ?? { operator: "AND", clauses: [] },
-      quest_chain_id: q.quest_chain_id,
-      prerequisite_quest_id: q.prerequisite_quest_id,
       is_active: q.is_active,
       sort_order: q.sort_order,
       rewards: q.rewards ?? [],
@@ -894,85 +891,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         onChange={(c) => setForm((f) => ({ ...f, conditions: c }))}
         gameId={gameId}
       />
-
-      {/* Chain & Prereq */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="qchain">Chain Group ID</Label>
-          <Input
-            id="qchain"
-            value={form.quest_chain_id ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, quest_chain_id: e.target.value || null }))}
-            placeholder="Optional UUID"
-            className="font-mono text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label>Unlock After Quest</Label>
-          <Popover open={prereqPopoverOpen} onOpenChange={setPrereqPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal text-sm h-9"
-              >
-                <span className="truncate">
-                  {form.prerequisite_quest_id
-                    ? (quests.find((q) => q.id === form.prerequisite_quest_id)?.name
-                        ?? form.prerequisite_quest_id)
-                    : "None"}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search quest…" className="h-8" />
-                <CommandList>
-                  <CommandEmpty>No quests found.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="__none__"
-                      onSelect={() => {
-                        setForm((f) => ({ ...f, prerequisite_quest_id: null }))
-                        setPrereqPopoverOpen(false)
-                      }}
-                    >
-                      <Check className={`mr-2 h-3 w-3 ${!form.prerequisite_quest_id ? "opacity-100" : "opacity-0"}`} />
-                      <span className="text-muted-foreground italic">None</span>
-                    </CommandItem>
-                    {quests
-                      .filter((q) => q.id !== editQuest?.id)
-                      .map((q) => (
-                        <CommandItem
-                          key={q.id}
-                          value={`${q.name} ${q.id}`}
-                          onSelect={() => {
-                            setForm((f) => ({ ...f, prerequisite_quest_id: q.id }))
-                            setPrereqPopoverOpen(false)
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-3 w-3 ${
-                              form.prerequisite_quest_id === q.id ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          <div>
-                            <p className="text-sm">{q.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-mono">{q.quest_type}</span>
-                            </p>
-                          </div>
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
 
       {/* Sort Order */}
       <div className="space-y-1">
@@ -1351,6 +1269,10 @@ function QuestsPageInner() {
 
         <TabsContent value="definitions" className="mt-6 space-y-4">
           <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} />
+        </TabsContent>
+
+        <TabsContent value="chains" className="mt-6 space-y-4">
+          <ChainTab game={game} />
         </TabsContent>
 
         <TabsContent value="daily" className="mt-6">

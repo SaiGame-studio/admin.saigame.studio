@@ -73,8 +73,6 @@ export interface QuestDefinition {
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
-  quest_chain_id: string | null
-  prerequisite_quest_id: string | null
   is_active: boolean
   sort_order: number
   rewards: QuestReward[]
@@ -92,8 +90,6 @@ export interface CreateQuestDefinitionRequest {
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
-  quest_chain_id?: string | null
-  prerequisite_quest_id?: string | null
   is_active?: boolean
   sort_order?: number
   rewards?: QuestReward[]
@@ -104,8 +100,6 @@ export interface UpdateQuestDefinitionRequest {
   description?: string
   quest_type?: QuestType
   conditions?: QuestConditionGroup
-  quest_chain_id?: string | null
-  prerequisite_quest_id?: string | null
   is_active?: boolean
   sort_order?: number
   rewards?: QuestReward[]
@@ -157,6 +151,158 @@ export async function deleteQuestDefinition(
   questId: string
 ): Promise<void> {
   return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions/${questId}`)
+}
+
+// ─── Quest Chain Member Types (pivot table — Many-to-Many) ────────────────────
+
+export interface QuestChainMember {
+  id: string
+  chain_id: string
+  quest_definition_id: string
+  sort_order: number
+  unlock_quest_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ListChainMembersResponse {
+  members: QuestChainMember[]
+}
+
+export interface AddChainMemberRequest {
+  quest_definition_id: string
+  sort_order: number
+  unlock_quest_ids: string[]
+}
+
+export interface UpdateChainMemberRequest {
+  sort_order?: number
+  unlock_quest_ids?: string[]
+}
+
+// ─── Quest Chain Types ─────────────────────────────────────────────────────────
+
+export type ChainType = 'linear' | 'branching' | 'parallel'
+
+export interface QuestChain {
+  id: string
+  studio_id: string
+  game_id: string
+  chain_key: string
+  display_name: string
+  description?: string
+  chain_type: ChainType
+  is_active: boolean
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ListQuestChainsResponse {
+  chains: QuestChain[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface CreateQuestChainRequest {
+  chain_key: string
+  display_name: string
+  description?: string
+  chain_type: ChainType
+  is_active: boolean
+}
+
+export interface UpdateQuestChainRequest {
+  display_name?: string
+  description?: string
+  chain_type?: ChainType
+  is_active?: boolean
+}
+
+// ─── Quest Chain API Functions ────────────────────────────────────────────────
+
+export async function listQuestChains(
+  studioId: string,
+  gameId: string,
+  params?: { limit?: number; offset?: number }
+): Promise<ListQuestChainsResponse> {
+  const qs = new URLSearchParams()
+  if (params?.limit !== undefined) qs.set('limit', String(params.limit))
+  if (params?.offset !== undefined) qs.set('offset', String(params.offset))
+  const query = qs.toString() ? `?${qs}` : ''
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains${query}`)
+}
+
+export async function getQuestChain(
+  studioId: string,
+  gameId: string,
+  chainId: string
+): Promise<QuestChain> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}`)
+}
+
+export async function createQuestChain(
+  studioId: string,
+  gameId: string,
+  data: CreateQuestChainRequest
+): Promise<QuestChain> {
+  return api.post(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains`, data)
+}
+
+export async function updateQuestChain(
+  studioId: string,
+  gameId: string,
+  chainId: string,
+  data: UpdateQuestChainRequest
+): Promise<QuestChain> {
+  return api.patch(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}`, data)
+}
+
+export async function deleteQuestChain(
+  studioId: string,
+  gameId: string,
+  chainId: string
+): Promise<void> {
+  return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}`)
+}
+
+// ─── Quest Chain Member API Functions ─────────────────────────────────────────
+
+export async function listChainMembers(
+  studioId: string,
+  gameId: string,
+  chainId: string
+): Promise<ListChainMembersResponse> {
+  return api.get(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/members`)
+}
+
+export async function addChainMember(
+  studioId: string,
+  gameId: string,
+  chainId: string,
+  data: AddChainMemberRequest
+): Promise<QuestChainMember> {
+  return api.post(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/members`, data)
+}
+
+export async function updateChainMember(
+  studioId: string,
+  gameId: string,
+  chainId: string,
+  questId: string,
+  data: UpdateChainMemberRequest
+): Promise<QuestChainMember> {
+  return api.patch(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/members/${questId}`, data)
+}
+
+export async function removeChainMember(
+  studioId: string,
+  gameId: string,
+  chainId: string,
+  questId: string
+): Promise<void> {
+  return api.delete(`/api/v1/studios/${studioId}/games/${gameId}/quest-chains/${chainId}/members/${questId}`)
 }
 
 // ─── Daily Quest Pool Types ───────────────────────────────────────────────────
