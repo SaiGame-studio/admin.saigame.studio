@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef, Suspense } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -568,6 +568,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
               />
             ) : (
               <div className="space-y-2">
+                <div className="flex items-center gap-1">
                 <Popover open={rewardItemPopover === i} onOpenChange={(o) => setRewardItemPopover(o ? i : null)}>
                   <PopoverTrigger asChild>
                     <Button
@@ -616,6 +617,16 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {r.item_definition_id && (
+                  <Link
+                    href={`/games/${gameId}/items/${r.item_definition_id}`}
+                    className="inline-flex items-center justify-center h-8 w-8 shrink-0 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                    title="Open item"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+                </div>
                 <div className="flex gap-2">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs text-muted-foreground">Min Qty</Label>
@@ -683,6 +694,33 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Filters
+  const [filterSearch, setFilterSearch] = useState("")
+  const [filterType, setFilterType] = useState<string>("all")
+  const [filterActive, setFilterActive] = useState<string>("all")
+
+  const filteredQuests = useMemo(() => {
+    let result = quests
+    if (filterSearch.trim()) {
+      const q = filterSearch.toLowerCase()
+      result = result.filter(
+        (d) => d.name.toLowerCase().includes(q) || (d.description ?? "").toLowerCase().includes(q) || d.id.toLowerCase().includes(q),
+      )
+    }
+    if (filterType !== "all") {
+      result = result.filter((d) => d.quest_type === filterType)
+    }
+    if (filterActive === "active") {
+      result = result.filter((d) => d.is_active)
+    } else if (filterActive === "inactive") {
+      result = result.filter((d) => !d.is_active)
+    }
+    return result
+  }, [quests, filterSearch, filterType, filterActive])
+
+  const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all"
+  const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all") }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -929,7 +967,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       {/* Sub-header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
+          {loading ? "Loading…" : `${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
         </p>
         <div className="flex gap-2">
           <Button
@@ -954,6 +992,47 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         </Alert>
       )}
 
+      {/* Filters */}
+      {!loading && quests.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, description…"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {QUEST_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterActive} onValueChange={setFilterActive}>
+            <SelectTrigger className="h-8 w-[120px] text-xs">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5 mr-1" /> Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -963,13 +1042,25 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : quests.length === 0 ? (
+          ) : filteredQuests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-              <ScrollText className="h-10 w-10 opacity-30" />
-              <p>No quest definitions yet.</p>
-              <Button onClick={openCreate} variant="outline">
-                <Plus className="h-4 w-4 mr-1" /> Create First Quest
-              </Button>
+              {hasActiveFilters ? (
+                <>
+                  <Search className="h-10 w-10 opacity-30" />
+                  <p>No quests match the current filters.</p>
+                  <Button onClick={clearFilters} variant="outline" size="sm">
+                    <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <ScrollText className="h-10 w-10 opacity-30" />
+                  <p>No quest definitions yet.</p>
+                  <Button onClick={openCreate} variant="outline">
+                    <Plus className="h-4 w-4 mr-1" /> Create First Quest
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <Table>
@@ -985,7 +1076,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quests.map((q) => (
+                {filteredQuests.map((q) => (
                   <TableRow key={q.id}>
                     <TableCell>
                       <div className="font-medium">{q.name}</div>
