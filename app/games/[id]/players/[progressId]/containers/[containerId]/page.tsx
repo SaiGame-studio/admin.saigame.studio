@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Box, ExternalLink, Grid2x2, List, Package, RefreshCw, Search, X } from "lucide-react"
+import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,7 +37,7 @@ const CELL_PX = 64
 
 // ─── Grid View ────────────────────────────────────────────────────────────────
 
-function GridView({ container, items }: { container: PlayerContainer; items: PlayerItem[] }) {
+function GridView({ container, items, onRefresh, loading }: { container: PlayerContainer; items: PlayerItem[]; onRefresh?: () => void; loading?: boolean }) {
   const cols = container.definition?.grid_cols ?? 1
   const rows = container.definition?.grid_rows ?? 1
   const [hovered, setHovered] = useState<string | null>(null)
@@ -47,12 +48,19 @@ function GridView({ container, items }: { container: PlayerContainer; items: Pla
   return (
     <div className="space-y-4">
       {/* Info bar */}
-      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{container.definition?.name || "Container"}</span>
-        <span>{cols} × {rows} grid</span>
-        <span>{items.length} item{items.length !== 1 ? "s" : ""} placed</span>
-        <span>{cols * rows - totalUsed} cells free</span>
-        {container.definition?.is_portable && <Badge variant="outline" className="text-xs h-5">Portable</Badge>}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{container.definition?.name || "Container"}</span>
+          <span>{cols} × {rows} grid</span>
+          <span>{items.length} item{items.length !== 1 ? "s" : ""} placed</span>
+          <span>{cols * rows - totalUsed} cells free</span>
+          {container.definition?.is_portable && <Badge variant="outline" className="text-xs h-5">Portable</Badge>}
+        </div>
+        {onRefresh && (
+          <Button variant="outline" size="icon" onClick={onRefresh} disabled={loading} title="Refresh" className="shrink-0">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        )}
       </div>
 
       {/* Grid */}
@@ -341,11 +349,15 @@ export default function ContainerItemsPage({
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
           <GameNavButtons gameId={gameId} active="players" />
-          <Button variant="outline" size="icon" onClick={loadData} disabled={loading} title="Refresh" className="shrink-0">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
         </div>
       </div>
+
+      {/* ── Player section navigation ── */}
+      <PlayerSectionNav
+        gameId={gameId}
+        progressId={progressId}
+        activeTab="containers-detail"
+      />
 
       {loading ? (
         <div className="space-y-3">
@@ -448,6 +460,9 @@ export default function ContainerItemsPage({
                         Clear
                       </button>
                     )}
+                    <Button variant="outline" size="icon" onClick={loadData} disabled={loading} title="Refresh" className="shrink-0">
+                      <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
                   </div>
                 </div>
                 <Card>
@@ -552,7 +567,7 @@ export default function ContainerItemsPage({
                   <p className="text-sm mt-1">No items placed in this container.</p>
                 </div>
               ) : (
-                <GridView container={container} items={items} />
+                <GridView container={container} items={items} onRefresh={loadData} loading={loading} />
               )
             ) : (
               <div className="p-12 text-center text-muted-foreground text-sm">
