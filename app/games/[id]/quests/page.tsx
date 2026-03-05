@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -683,6 +683,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null)
 
   // Pagination
   const offset = 0
@@ -1096,7 +1097,48 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                 {filteredQuests.map((q) => (
                   <TableRow key={q.id}>
                     <TableCell>
-                      <div className="font-medium">{q.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">{q.name}</span>
+                        <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Copy quest ID"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const text = q.id
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                              navigator.clipboard.writeText(text).catch(() => {
+                                const el = document.createElement('textarea')
+                                el.value = text
+                                el.style.position = 'fixed'
+                                el.style.opacity = '0'
+                                document.body.appendChild(el)
+                                el.focus()
+                                el.select()
+                                document.execCommand('copy')
+                                document.body.removeChild(el)
+                              })
+                            } else {
+                              const el = document.createElement('textarea')
+                              el.value = text
+                              el.style.position = 'fixed'
+                              el.style.opacity = '0'
+                              document.body.appendChild(el)
+                              el.focus()
+                              el.select()
+                              document.execCommand('copy')
+                              document.body.removeChild(el)
+                            }
+                            setCopiedQuestId(q.id)
+                            setTimeout(() => setCopiedQuestId(null), 1500)
+                          }}
+                        >
+                          {copiedQuestId === q.id
+                            ? <Check className="h-3 w-3 text-green-500" />
+                            : <Copy className="h-3 w-3" />}
+                        </button>
+                      </div>
                       {q.description && (
                         <div className="text-xs text-muted-foreground line-clamp-1">
                           {q.description}

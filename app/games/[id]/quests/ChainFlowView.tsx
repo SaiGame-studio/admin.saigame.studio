@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen } from "lucide-react"
+import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getChainLayout,
@@ -165,6 +165,8 @@ interface ChainFlowViewProps {
   onConnectQuests: (sourceQuestId: string, targetQuestId: string) => Promise<void>
   /** Called when user deletes an edge. Parent should call updateChainMember API. */
   onDisconnectQuests: (sourceQuestId: string, targetQuestId: string) => Promise<void>
+  /** Optional: refresh members data from server */
+  onRefresh?: () => Promise<void>
 }
 
 export function ChainFlowView(props: ChainFlowViewProps) {
@@ -187,9 +189,11 @@ function ChainFlowViewContent({
   onRemoveMember,
   onConnectQuests,
   onDisconnectQuests,
+  onRefresh,
 }: ChainFlowViewProps) {
   const { getNodes } = useReactFlow()
   const [connecting, setConnecting] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [layoutLoaded, setLayoutLoaded] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -397,16 +401,33 @@ function ChainFlowViewContent({
             <Loader2 className="h-3 w-3 animate-spin" /> Saving…
           </div>
         )}
-        {/* Toggle sidebar button */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="absolute top-2 right-2 z-10 h-7 w-7"
-          onClick={() => setSidebarOpen((v) => !v)}
-          title={sidebarOpen ? "Hide quest list" : "Show quest list"}
-        >
-          {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-        </Button>
+        {/* Top-right buttons */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          {onRefresh && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={async () => {
+                setRefreshing(true)
+                try { await onRefresh() } finally { setRefreshing(false) }
+              }}
+              title="Refresh graph data"
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setSidebarOpen((v) => !v)}
+            title={sidebarOpen ? "Hide quest list" : "Show quest list"}
+          >
+            {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+          </Button>
+        </div>
 
         {members.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">

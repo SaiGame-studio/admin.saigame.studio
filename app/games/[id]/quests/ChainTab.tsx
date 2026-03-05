@@ -6,7 +6,7 @@ import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
   ChevronDown, ChevronRight, Wand2, Link2, ArrowRight,
   GitBranch, ArrowDownRight, Layers, X, ChevronsUpDown, Check,
-  List, LayoutGrid,
+  List, LayoutGrid, Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -206,6 +206,7 @@ export function ChainTab({ game }: { game: Game | null }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedChainId, setCopiedChainId] = useState<string | null>(null)
 
   // Expanded chain detail
   const [expandedChainId, setExpandedChainId] = useState<string | null>(null)
@@ -626,7 +627,51 @@ export function ChainTab({ game }: { game: Game | null }) {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 font-mono">{chain.chain_key}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-mono text-muted-foreground">{chain.id}</span>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Copy chain ID"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const text = chain.id
+                              if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(text).catch(() => {
+                                  const el = document.createElement('textarea')
+                                  el.value = text
+                                  el.style.position = 'fixed'
+                                  el.style.opacity = '0'
+                                  document.body.appendChild(el)
+                                  el.focus()
+                                  el.select()
+                                  document.execCommand('copy')
+                                  document.body.removeChild(el)
+                                })
+                              } else {
+                                const el = document.createElement('textarea')
+                                el.value = text
+                                el.style.position = 'fixed'
+                                el.style.opacity = '0'
+                                document.body.appendChild(el)
+                                el.focus()
+                                el.select()
+                                document.execCommand('copy')
+                                document.body.removeChild(el)
+                              }
+                              setCopiedChainId(chain.id)
+                              setTimeout(() => setCopiedChainId(null), 1500)
+                            }}
+                          >
+                            {copiedChainId === chain.id
+                              ? <Check className="h-3 w-3 text-green-500" />
+                              : <Copy className="h-3 w-3" />}
+                          </button>
+                        </div>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs font-mono text-muted-foreground">{chain.chain_key}</span>
+                      </div>
                     </div>
 
                     {/* Actions */}
@@ -834,6 +879,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                                     toast({ title: "Quest added to chain" })
                                     await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()])
                                   }}
+                                  onRefresh={async () => { await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]) }}
                                   onEditMember={openEditMember}
                                   onRemoveMember={(member) => {
                                     const questDef = questDefsMap[member.quest_definition_id]
