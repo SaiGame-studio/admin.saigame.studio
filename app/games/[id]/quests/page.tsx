@@ -95,13 +95,14 @@ import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "definitions" | "chains" | "daily" | "battle-pass"
+type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest"
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "definitions", label: "Definitions" },
   { value: "chains", label: "Chains" },
   { value: "daily", label: "Daily" },
   { value: "battle-pass", label: "Battle Pass" },
+  { value: "world-quest", label: "World Quest" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -1442,6 +1443,10 @@ function QuestsPageInner() {
 
         <TabsContent value="battle-pass" className="mt-6">
           <ComingSoon title="Battle Pass" />
+        </TabsContent>
+
+        <TabsContent value="world-quest" className="mt-6">
+          <ComingSoon title="World Quest" />
         </TabsContent>
       </Tabs>
       </div>
