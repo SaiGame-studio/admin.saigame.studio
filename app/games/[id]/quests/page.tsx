@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef, Suspense } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,14 +90,16 @@ import {
 } from "@/lib/quest-api"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyTab } from "./DailyTab"
+import { ChainTab } from "./ChainTab"
 import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "definitions" | "daily" | "battle-pass"
+type TabValue = "definitions" | "chains" | "daily" | "battle-pass"
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "definitions", label: "Definitions" },
+  { value: "chains", label: "Chains" },
   { value: "daily", label: "Daily" },
   { value: "battle-pass", label: "Battle Pass" },
 ]
@@ -111,13 +113,14 @@ const QUEST_TYPES: { value: QuestType; label: string; description?: string }[] =
   { value: "daily",           label: "Daily",          description: "Resets at midnight UTC" },
   { value: "repeatable",      label: "Repeatable",     description: "Can be completed multiple times" },
   { value: "battle_pass_task",label: "Battle Pass Task",description: "Awards Battle Pass XP on completion" },
-  { value: "story",           label: "Story",          description: "Part of a Quest Chain (DAG)" },
+  { value: "chain",           label: "Story",          description: "Part of a Quest Chain (DAG)" },
 ]
 
 const CONDITION_TYPE_OPTIONS = [
-  { value: "login",        label: "Login" },
-  { value: "item_collect", label: "Item Collect" },
-  { value: "gacha_opened", label: "Gacha Opened" },
+  { value: "login",              label: "Login",              description: "Satisfied when the player authenticates" },
+  { value: "collect_and_keep",   label: "Collect & Keep",     description: "Player must hold items (not removed)" },
+  { value: "collect_and_submit", label: "Collect & Submit",   description: "Player must have items (deducted on completion)" },
+  { value: "gacha_opened",       label: "Gacha Opened",       description: "Player must open a gacha pack N times" },
 ]
 
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] }
@@ -127,8 +130,6 @@ const DEFAULT_FORM: CreateQuestDefinitionRequest = {
   description: "",
   quest_type: "one_time",
   conditions: { operator: "AND", clauses: [] },
-  quest_chain_id: null,
-  prerequisite_quest_id: null,
   is_active: true,
   sort_order: 0,
   rewards: [],
@@ -142,7 +143,7 @@ function questTypeBadgeVariant(type: QuestType) {
     case "daily":            return "secondary"
     case "repeatable":       return "outline"
     case "battle_pass_task": return "outline"
-    case "story":            return "secondary"
+    case "chain":            return "secondary"
     default:                 return "outline"
   }
 }
@@ -158,7 +159,8 @@ interface ConditionEditorProps {
 function genClauseId(type: string) {
   const prefix: Record<string, string> = {
     login: "login",
-    item_collect: "item",
+    collect_and_keep: "hold",
+    collect_and_submit: "submit",
     gacha_opened: "gacha",
   }
   const p = prefix[type] ?? type.split("_")[0]
@@ -234,12 +236,13 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
     const clause = conditions.clauses[i]
     if (!isConditionLeaf(clause)) return
     const clause_id = genClauseId(v)
-    if (v === "item_collect") {
-      updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], details: undefined })
+    if (v === "collect_and_keep" || v === "collect_and_submit") {
+      updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], packs: undefined, details: undefined })
     } else if (v === "gacha_opened") {
-      updateLeaf(i, { type: v, clause_id, items: undefined, target: clause.target ?? 1 })
+      updateLeaf(i, { type: v, clause_id, items: undefined, target: undefined, packs: clause.packs ?? { gacha_pack_id: "", quantity: 1 }, details: undefined })
     } else {
-      updateLeaf(i, { type: v, clause_id, items: undefined, target: clause.target ?? 1, details: undefined })
+      // login — no items, no packs
+      updateLeaf(i, { type: v, clause_id, items: undefined, target: undefined, packs: undefined, details: undefined })
     }
   }
 
@@ -313,8 +316,8 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
               </Button>
             </div>
 
-            {/* Row 2: target or items */}
-            {clause.type === "item_collect" ? (
+            {/* Row 2: type-specific fields */}
+            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit") ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Required Items</Label>
@@ -384,6 +387,11 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    {item.item_definition_id && (
+                      <Link href={`/games/${gameId}/items/${item.item_definition_id}`} target="_blank" className="shrink-0">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                      </Link>
+                    )}
                     <Input
                       type="number" min={1} placeholder="Qty"
                       className="h-7 w-20 text-xs"
@@ -419,9 +427,9 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                         className="h-7 w-full justify-between text-xs font-normal"
                       >
                         <span className="truncate">
-                          {(clause.details?.gacha_pack_id as string)
-                            ? (gachaPacks.find((p) => p.id === clause.details?.gacha_pack_id)?.name
-                                ?? (clause.details?.gacha_pack_id as string))
+                          {clause.packs?.gacha_pack_id
+                            ? (gachaPacks.find((p) => p.id === clause.packs?.gacha_pack_id)?.name
+                                ?? clause.packs.gacha_pack_id)
                             : (gachaPacksLoading ? "Loading…" : "Select gacha pack")}
                         </span>
                         <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
@@ -441,14 +449,14 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                                 value={`${pack.name} ${pack.id}`}
                                 onSelect={() => {
                                   updateLeaf(i, {
-                                    details: { ...clause.details, gacha_pack_id: pack.id },
+                                    packs: { gacha_pack_id: pack.id, quantity: clause.packs?.quantity ?? 1 },
                                   })
                                   setGachaPopoverOpen(null)
                                 }}
                               >
                                 <Check
                                   className={`mr-2 h-3 w-3 ${
-                                    clause.details?.gacha_pack_id === pack.id
+                                    clause.packs?.gacha_pack_id === pack.id
                                       ? "opacity-100"
                                       : "opacity-0"
                                   }`}
@@ -465,31 +473,26 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                     </PopoverContent>
                   </Popover>
                 </div>
-                {/* Target Number — w-32, aligns under Clause ID */}
+                {clause.packs?.gacha_pack_id && (
+                  <Link href={`/games/${gameId}/items?tab=gacha&editPack=${clause.packs.gacha_pack_id}`} target="_blank" className="shrink-0 mt-auto mb-1">
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                  </Link>
+                )}
+                {/* Quantity — w-32, aligns under Clause ID */}
                 <div className="w-32 shrink-0 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Target Number</Label>
+                  <Label className="text-xs text-muted-foreground">Quantity</Label>
                   <Input
                     type="number" min={1} className="h-7"
-                    value={clause.target ?? 1}
-                    onChange={(e) => updateLeaf(i, { target: Number(e.target.value) })}
+                    value={clause.packs?.quantity ?? 1}
+                    onChange={(e) => updateLeaf(i, { packs: { gacha_pack_id: clause.packs?.gacha_pack_id ?? "", quantity: Number(e.target.value) } })}
                   />
                 </div>
                 {/* Spacer — w-7, aligns under delete button */}
                 <div className="w-7 shrink-0" />
               </div>
             ) : (
-              <div className="flex gap-2 items-end">
-                <div className="flex-1" />
-                <div className="w-32 shrink-0 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Target Number</Label>
-                  <Input
-                    type="number" min={1} className="h-7"
-                    value={clause.target ?? 1}
-                    onChange={(e) => updateLeaf(i, { target: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="w-7 shrink-0" />
-              </div>
+              /* login — no extra fields needed */
+              <p className="text-xs text-muted-foreground">No extra fields — auto-checked on player login.</p>
             )}
           </div>
         )
@@ -568,6 +571,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
               />
             ) : (
               <div className="space-y-2">
+                <div className="flex items-center gap-1">
                 <Popover open={rewardItemPopover === i} onOpenChange={(o) => setRewardItemPopover(o ? i : null)}>
                   <PopoverTrigger asChild>
                     <Button
@@ -616,6 +620,16 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {r.item_definition_id && (
+                  <Link
+                    href={`/games/${gameId}/items/${r.item_definition_id}`}
+                    className="inline-flex items-center justify-center h-8 w-8 shrink-0 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                    title="Open item"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+                </div>
                 <div className="flex gap-2">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs text-muted-foreground">Min Qty</Label>
@@ -669,6 +683,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null)
 
   // Pagination
   const offset = 0
@@ -683,7 +698,30 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [prereqPopoverOpen, setPrereqPopoverOpen] = useState(false)
+
+  // Filters
+  const [filterSearch, setFilterSearch] = useState("")
+  const [filterType, setFilterType] = useState<string>("all")
+  const [filterActive, setFilterActive] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<string>("updated_at")
+  const [sortOrder, setSortOrder] = useState<string>("desc")
+
+  const filteredQuests = useMemo(() => {
+    let result = quests
+    if (filterSearch.trim()) {
+      const q = filterSearch.toLowerCase()
+      result = result.filter(
+        (d) => d.name.toLowerCase().includes(q) || (d.description ?? "").toLowerCase().includes(q) || d.id.toLowerCase().includes(q),
+      )
+    }
+    if (filterType !== "all") {
+      result = result.filter((d) => d.quest_type === filterType)
+    }
+    return result
+  }, [quests, filterSearch, filterType])
+
+  const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc"
+  const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc") }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -691,16 +729,18 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
     if (!game) return
     try {
       const res = await listQuestDefinitions(game.studio_id, gameId, {
-        active_only: false,
+        active_only: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
         limit,
         offset: off,
+        sort_by: sortBy,
+        order: sortOrder,
       })
       setQuests(res.quests ?? [])
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions"
       setError(msg)
     }
-  }, [game, gameId, limit])
+  }, [game, gameId, limit, filterActive, sortBy, sortOrder])
 
   useEffect(() => {
     if (!game) return
@@ -717,8 +757,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       description: q.description ?? "",
       quest_type: q.quest_type,
       conditions: q.conditions ?? { operator: "AND", clauses: [] },
-      quest_chain_id: q.quest_chain_id,
-      prerequisite_quest_id: q.prerequisite_quest_id,
       is_active: q.is_active,
       sort_order: q.sort_order,
       rewards: q.rewards ?? [],
@@ -883,7 +921,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             ))}
           </SelectContent>
         </Select>
-        {(form.quest_type === "story") && (
+        {(form.quest_type === "chain") && (
           <p className="text-xs text-muted-foreground">Story quests require a Chain Group ID.</p>
         )}
       </div>
@@ -894,85 +932,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         onChange={(c) => setForm((f) => ({ ...f, conditions: c }))}
         gameId={gameId}
       />
-
-      {/* Chain & Prereq */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="qchain">Chain Group ID</Label>
-          <Input
-            id="qchain"
-            value={form.quest_chain_id ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, quest_chain_id: e.target.value || null }))}
-            placeholder="Optional UUID"
-            className="font-mono text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label>Unlock After Quest</Label>
-          <Popover open={prereqPopoverOpen} onOpenChange={setPrereqPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between font-normal text-sm h-9"
-              >
-                <span className="truncate">
-                  {form.prerequisite_quest_id
-                    ? (quests.find((q) => q.id === form.prerequisite_quest_id)?.name
-                        ?? form.prerequisite_quest_id)
-                    : "None"}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search quest…" className="h-8" />
-                <CommandList>
-                  <CommandEmpty>No quests found.</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="__none__"
-                      onSelect={() => {
-                        setForm((f) => ({ ...f, prerequisite_quest_id: null }))
-                        setPrereqPopoverOpen(false)
-                      }}
-                    >
-                      <Check className={`mr-2 h-3 w-3 ${!form.prerequisite_quest_id ? "opacity-100" : "opacity-0"}`} />
-                      <span className="text-muted-foreground italic">None</span>
-                    </CommandItem>
-                    {quests
-                      .filter((q) => q.id !== editQuest?.id)
-                      .map((q) => (
-                        <CommandItem
-                          key={q.id}
-                          value={`${q.name} ${q.id}`}
-                          onSelect={() => {
-                            setForm((f) => ({ ...f, prerequisite_quest_id: q.id }))
-                            setPrereqPopoverOpen(false)
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-3 w-3 ${
-                              form.prerequisite_quest_id === q.id ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          <div>
-                            <p className="text-sm">{q.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-mono">{q.quest_type}</span>
-                            </p>
-                          </div>
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
 
       {/* Sort Order */}
       <div className="space-y-1">
@@ -1011,7 +970,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       {/* Sub-header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
+          {loading ? "Loading…" : `${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
         </p>
         <div className="flex gap-2">
           <Button
@@ -1036,6 +995,62 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         </Alert>
       )}
 
+      {/* Filters */}
+      {!loading && quests.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, description…"
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {QUEST_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterActive} onValueChange={setFilterActive}>
+            <SelectTrigger className="h-8 w-[120px] text-xs">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o) }}>
+            <SelectTrigger className="h-8 w-[160px] text-xs">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sort_order:asc">Sort Order ↑</SelectItem>
+              <SelectItem value="sort_order:desc">Sort Order ↓</SelectItem>
+              <SelectItem value="name:asc">Name A–Z</SelectItem>
+              <SelectItem value="name:desc">Name Z–A</SelectItem>
+              <SelectItem value="created_at:desc">Newest First</SelectItem>
+              <SelectItem value="created_at:asc">Oldest First</SelectItem>
+              <SelectItem value="updated_at:desc">Recently Updated</SelectItem>
+              <SelectItem value="updated_at:asc">Least Recently Updated</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5 mr-1" /> Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -1045,13 +1060,25 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : quests.length === 0 ? (
+          ) : filteredQuests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-              <ScrollText className="h-10 w-10 opacity-30" />
-              <p>No quest definitions yet.</p>
-              <Button onClick={openCreate} variant="outline">
-                <Plus className="h-4 w-4 mr-1" /> Create First Quest
-              </Button>
+              {hasActiveFilters ? (
+                <>
+                  <Search className="h-10 w-10 opacity-30" />
+                  <p>No quests match the current filters.</p>
+                  <Button onClick={clearFilters} variant="outline" size="sm">
+                    <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <ScrollText className="h-10 w-10 opacity-30" />
+                  <p>No quest definitions yet.</p>
+                  <Button onClick={openCreate} variant="outline">
+                    <Plus className="h-4 w-4 mr-1" /> Create First Quest
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <Table>
@@ -1067,10 +1094,51 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quests.map((q) => (
+                {filteredQuests.map((q) => (
                   <TableRow key={q.id}>
                     <TableCell>
-                      <div className="font-medium">{q.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">{q.name}</span>
+                        <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Copy quest ID"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const text = q.id
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                              navigator.clipboard.writeText(text).catch(() => {
+                                const el = document.createElement('textarea')
+                                el.value = text
+                                el.style.position = 'fixed'
+                                el.style.opacity = '0'
+                                document.body.appendChild(el)
+                                el.focus()
+                                el.select()
+                                document.execCommand('copy')
+                                document.body.removeChild(el)
+                              })
+                            } else {
+                              const el = document.createElement('textarea')
+                              el.value = text
+                              el.style.position = 'fixed'
+                              el.style.opacity = '0'
+                              document.body.appendChild(el)
+                              el.focus()
+                              el.select()
+                              document.execCommand('copy')
+                              document.body.removeChild(el)
+                            }
+                            setCopiedQuestId(q.id)
+                            setTimeout(() => setCopiedQuestId(null), 1500)
+                          }}
+                        >
+                          {copiedQuestId === q.id
+                            ? <Check className="h-3 w-3 text-green-500" />
+                            : <Copy className="h-3 w-3" />}
+                        </button>
+                      </div>
                       {q.description && (
                         <div className="text-xs text-muted-foreground line-clamp-1">
                           {q.description}
@@ -1351,6 +1419,10 @@ function QuestsPageInner() {
 
         <TabsContent value="definitions" className="mt-6 space-y-4">
           <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} />
+        </TabsContent>
+
+        <TabsContent value="chains" className="mt-6 space-y-4">
+          <ChainTab game={game} />
         </TabsContent>
 
         <TabsContent value="daily" className="mt-6">

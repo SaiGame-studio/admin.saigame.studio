@@ -957,6 +957,7 @@ export default function GameItemsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copiedPackId, setCopiedPackId] = useState(false)
 
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
@@ -1563,7 +1564,24 @@ export default function GameItemsPage() {
                                 className="text-muted-foreground hover:text-foreground transition-colors"
                                 title="Copy item code"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(item.item_code!)
+                                  const text = item.item_code!
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    navigator.clipboard.writeText(text).catch(() => {
+                                      const el = document.createElement('textarea')
+                                      el.value = text
+                                      document.body.appendChild(el)
+                                      el.select()
+                                      document.execCommand('copy')
+                                      document.body.removeChild(el)
+                                    })
+                                  } else {
+                                    const el = document.createElement('textarea')
+                                    el.value = text
+                                    document.body.appendChild(el)
+                                    el.select()
+                                    document.execCommand('copy')
+                                    document.body.removeChild(el)
+                                  }
                                   setCopiedId(item.id)
                                   setTimeout(() => setCopiedId(null), 1500)
                                 }}
@@ -2060,9 +2078,47 @@ export default function GameItemsPage() {
               Configure pack name, key requirements (items consumed on open), and item drop pool weights.
             </SheetDescription>
             {editingPack && (
-              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground pt-1">
-                <span>ID: {editingPack.id}</span>
-                <CopyButton text={editingPack.id} size="h-3 w-3" />
+              <div className="flex items-center gap-1 pt-1">
+                <p className="text-xs font-mono text-muted-foreground">
+                  ID: {editingPack.id}
+                </p>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Copy ID"
+                  onClick={(event) => {
+                    const text = editingPack.id
+                    console.log('[CopyPackId] clicked, text:', text)
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      navigator.clipboard.writeText(text)
+                        .then(() => console.log('[CopyPackId] Clipboard API success'))
+                        .catch((err) => console.warn('[CopyPackId] Clipboard API failed:', err))
+                    } else {
+                      const sheetContent = (event.currentTarget as HTMLElement).closest('[role="dialog"]') ?? document.body
+                      console.log('[CopyPackId] container:', sheetContent)
+                      const el = document.createElement('textarea')
+                      el.value = text
+                      el.style.position = 'fixed'
+                      el.style.top = '0'
+                      el.style.left = '0'
+                      el.style.opacity = '0'
+                      el.style.pointerEvents = 'none'
+                      sheetContent.appendChild(el)
+                      el.focus()
+                      el.select()
+                      console.log('[CopyPackId] selectionStart:', el.selectionStart, 'selectionEnd:', el.selectionEnd)
+                      const result = document.execCommand('copy')
+                      console.log('[CopyPackId] execCommand result:', result)
+                      sheetContent.removeChild(el)
+                    }
+                    setCopiedPackId(true)
+                    setTimeout(() => setCopiedPackId(false), 1500)
+                  }}
+                >
+                  {copiedPackId
+                    ? <Check className="h-3 w-3 text-green-500" />
+                    : <Copy className="h-3 w-3" />}
+                </button>
               </div>
             )}
           </SheetHeader>
