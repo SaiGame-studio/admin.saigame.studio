@@ -560,9 +560,8 @@ export function ChainTab({ game }: { game: Game | null }) {
           <p className="text-sm text-muted-foreground">Manage sequential and branching quest chains. Add quests via the membership panel.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+          <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title="Refresh">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-1" /> New Chain
