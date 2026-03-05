@@ -94,6 +94,331 @@ import {
   type QuestDefinition,
 } from "@/lib/quest-api"
 
+// ─── Strategy Grid Illustration ─────────────────────────────────────────────
+
+const QUEST_COLORS = [
+  { bg: "bg-blue-500/80", text: "text-blue-600", light: "bg-blue-100 dark:bg-blue-900/40", border: "border-blue-400" },
+  { bg: "bg-emerald-500/80", text: "text-emerald-600", light: "bg-emerald-100 dark:bg-emerald-900/40", border: "border-emerald-400" },
+  { bg: "bg-violet-500/80", text: "text-violet-600", light: "bg-violet-100 dark:bg-violet-900/40", border: "border-violet-400" },
+  { bg: "bg-amber-500/80", text: "text-amber-600", light: "bg-amber-100 dark:bg-amber-900/40", border: "border-amber-400" },
+  { bg: "bg-rose-500/80", text: "text-rose-600", light: "bg-rose-100 dark:bg-rose-900/40", border: "border-rose-400" },
+]
+
+const DEMO_QUESTS = [
+  { name: "Q-A", weight: 5 },
+  { name: "Q-B", weight: 3 },
+  { name: "Q-C", weight: 2 },
+  { name: "Q-D", weight: 1 },
+  { name: "Q-E", weight: 1 },
+]
+
+// Seeded pseudo-random 30-day weighted random picks (2 slots/day, no duplicate same slot)
+function seededWeightedRandom(weights: number[], seed: number): number {
+  let h = seed * 2654435761
+  h = (h ^ (h >>> 16)) >>> 0
+  const total = weights.reduce((a, b) => a + b, 0)
+  const r = (h % 1000) / 1000 * total
+  let cum = 0
+  for (let i = 0; i < weights.length; i++) {
+    cum += weights[i]
+    if (r < cum) return i
+  }
+  return weights.length - 1
+}
+
+function buildWeightedRandomDays(quests: typeof DEMO_QUESTS, slots: number, days: number) {
+  return Array.from({ length: days }, (_, d) => {
+    const picks: number[] = []
+    const weights = [...quests.map((q) => q.weight)]
+    for (let s = 0; s < slots; s++) {
+      const idx = seededWeightedRandom(weights, d * 100 + s + 7)
+      picks.push(idx)
+      weights[idx] = 0  // no duplicate in same day
+    }
+    return picks
+  })
+}
+
+function buildFixedRotationDays(quests: typeof DEMO_QUESTS, slots: number, days: number) {
+  return Array.from({ length: days }, (_, d) => {
+    return Array.from({ length: slots }, (_, s) => (d * slots + s) % quests.length)
+  })
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+function buildWeeklyScheduleDays(quests: typeof DEMO_QUESTS, slots: number, days: number) {
+  // Assign quests per day-of-week (wrap around if >7 quests)
+  // Assume month starts on Monday (dow=1)
+  const startDow = 1
+  return Array.from({ length: days }, (_, d) => {
+    const dow = (startDow + d) % 7
+    return Array.from({ length: slots }, (_, s) => (dow * slots + s) % quests.length)
+  })
+}
+
+function buildMonthlyScheduleDays(quests: typeof DEMO_QUESTS, slots: number, days: number) {
+  return Array.from({ length: days }, (_, d) => {
+    return Array.from({ length: slots }, (_, s) => ((d * slots + s)) % quests.length)
+  })
+}
+
+function DayCell({ picks, quests, day }: { picks: number[]; quests: typeof DEMO_QUESTS; day: number }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 p-0.5">
+      <span className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">{day}</span>
+      <div className="flex gap-0.5">
+        {picks.map((qi, si) => (
+          <div
+            key={si}
+            className={`w-5 h-5 rounded text-[8px] font-bold flex items-center justify-center text-white ${QUEST_COLORS[qi % QUEST_COLORS.length].bg}`}
+            title={quests[qi]?.name}
+          >
+            {quests[qi]?.name.replace("Q-", "")}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StrategyGridCard({
+  title,
+  description,
+  icon,
+  days,
+  quests,
+  extra,
+}: {
+  title: string
+  description: string
+  icon: React.ReactNode
+  days: number[][]
+  quests: typeof DEMO_QUESTS
+  extra?: React.ReactNode
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+        <CardDescription className="text-xs">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Quest Legend */}
+        <div className="flex flex-wrap gap-2">
+          {quests.map((q, i) => (
+            <div key={i} className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs border ${QUEST_COLORS[i % QUEST_COLORS.length].light} ${QUEST_COLORS[i % QUEST_COLORS.length].border}`}>
+              <div className={`w-3 h-3 rounded-sm ${QUEST_COLORS[i % QUEST_COLORS.length].bg}`} />
+              <span className={`font-medium ${QUEST_COLORS[i % QUEST_COLORS.length].text}`}>{q.name}</span>
+              {q.weight !== undefined && <span className="text-muted-foreground">w={q.weight}</span>}
+            </div>
+          ))}
+        </div>
+
+        {extra}
+
+        {/* 30-day grid */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">30-day simulation (2 slots/day)</p>
+          <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
+            {DAY_NAMES.map((d) => (
+              <div key={d} className="text-[9px] text-muted-foreground text-center font-medium py-0.5">{d}</div>
+            ))}
+            {/* empty cells for month starting on Monday */}
+            <div />{/* Sun placeholder for week 1 */}
+            {days.map((picks, d) => (
+              <DayCell key={d} picks={picks} quests={quests} day={d + 1} />
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DailyStrategyGrid() {
+  const slots = 2
+  const totalDays = 30
+  const quests = DEMO_QUESTS
+
+  const weightedDays = buildWeightedRandomDays(quests, slots, totalDays)
+  const rotationDays = buildFixedRotationDays(quests, slots, totalDays)
+  const weeklyDays = buildWeeklyScheduleDays(quests, slots, totalDays)
+  const monthlyDays = buildMonthlyScheduleDays(quests, slots, totalDays)
+
+  const totalWeight = quests.reduce((a, q) => a + q.weight, 0)
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-semibold mb-1">Strategy Mechanics — Visual Guide</h3>
+        <p className="text-xs text-muted-foreground">
+          Illustration of how each assignment strategy fills player quest slots over a 30-day month.
+          Demo: 5 quests · <strong>2 slots/day</strong> · month starts on Monday.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* ── Weighted Random ────────────────────────────────────── */}
+        <StrategyGridCard
+          title="Weighted Random"
+          icon={<Shuffle className="h-4 w-4 text-primary" />}
+          description="Each day, quests are picked randomly. Higher-weight quests appear more often. No duplicate in the same day's slots."
+          days={weightedDays}
+          quests={quests}
+          extra={
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Probability per pick</p>
+              <div className="space-y-1">
+                {quests.map((q, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-sm shrink-0 ${QUEST_COLORS[i].bg}`} />
+                    <span className="text-xs w-8">{q.name}</span>
+                    <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${QUEST_COLORS[i].bg}`}
+                        style={{ width: `${(q.weight / totalWeight) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-24 text-right">
+                      {q.weight}/{totalWeight} = {Math.round((q.weight / totalWeight) * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Each day rolls independently — a quest can appear on consecutive days.
+              </p>
+            </div>
+          }
+        />
+
+        {/* ── Fixed Rotation ────────────────────────────────────── */}
+        <StrategyGridCard
+          title="Fixed Rotation"
+          icon={<RotateCw className="h-4 w-4 text-secondary-foreground" />}
+          description="Quests advance in fixed order by sequence_order. After the last quest, the cycle repeats from the beginning."
+          days={rotationDays}
+          quests={quests}
+          extra={
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Sequence order (repeating cycle)</p>
+              <div className="flex items-center gap-1 flex-wrap">
+                {[...quests, ...quests.slice(0, 3)].map((q, i) => (
+                  <div key={i} className="flex items-center gap-0.5">
+                    <div className={`w-6 h-6 rounded text-[9px] font-bold flex items-center justify-center text-white ${QUEST_COLORS[(i) % QUEST_COLORS.length].bg}`}>
+                      {q.name.replace("Q-", "")}
+                    </div>
+                    {i < quests.length + 2 && <span className="text-muted-foreground text-xs">→</span>}
+                  </div>
+                ))}
+                <span className="text-xs text-muted-foreground">(repeats)</span>
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Every player always sees the same quests on the same days — predictable and fair.
+              </p>
+            </div>
+          }
+        />
+
+        {/* ── Weekly Schedule ───────────────────────────────────── */}
+        <StrategyGridCard
+          title="Weekly Schedule"
+          icon={<Calendar className="h-4 w-4 text-blue-400" />}
+          description="Quest assigned per day-of-week. Monday always gets the same quest, Tuesday another, etc. Repeats every 7 days."
+          days={weeklyDays}
+          quests={quests}
+          extra={
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Day-of-week → Quest mapping</p>
+              <div className="grid grid-cols-7 gap-1">
+                {DAY_NAMES.map((day, dow) => {
+                  const dow1 = (dow + 1) % 7 // start from Mon
+                  const qi = (dow1 * slots) % quests.length
+                  return (
+                    <div key={day} className="flex flex-col items-center gap-1">
+                      <span className="text-[9px] text-muted-foreground">{day}</span>
+                      <div className={`w-6 h-6 rounded text-[9px] font-bold flex items-center justify-center text-white ${QUEST_COLORS[qi % QUEST_COLORS.length].bg}`}>
+                        {quests[qi % quests.length].name.replace("Q-", "")}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Great for themed days (e.g., combat Monday, crafting Tuesday).
+              </p>
+            </div>
+          }
+        />
+
+        {/* ── Monthly Schedule ──────────────────────────────────── */}
+        <StrategyGridCard
+          title="Monthly Schedule"
+          icon={<Calendar className="h-4 w-4 text-amber-400" />}
+          description="Quest assigned per day-of-month (1–31). Day 1 always gets quest #1, Day 2 gets quest #2, etc. Wraps around if fewer quests than days."
+          days={monthlyDays}
+          quests={quests}
+          extra={
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Day-of-month sample (first 10 days)</p>
+              <div className="flex gap-1 flex-wrap">
+                {Array.from({ length: 10 }, (_, d) => {
+                  const qi = (d * slots) % quests.length
+                  return (
+                    <div key={d} className="flex flex-col items-center gap-0.5">
+                      <span className="text-[9px] text-muted-foreground">D{d + 1}</span>
+                      <div className={`w-7 h-7 rounded text-[9px] font-bold flex items-center justify-center text-white ${QUEST_COLORS[qi % QUEST_COLORS.length].bg}`}>
+                        {quests[qi % quests.length].name.replace("Q-", "")}
+                      </div>
+                    </div>
+                  )
+                })}
+                <div className="flex flex-col items-center justify-end">
+                  <span className="text-xs text-muted-foreground">…</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                If a month has fewer days than the schedule, the extra day mappings are skipped.
+              </p>
+            </div>
+          }
+        />
+      </div>
+
+      {/* ── How slots work ──────────────────────────────────────── */}
+      <Card className="border-dashed">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">What is &ldquo;Slots per Day&rdquo;?</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Each pool has a <strong>slots_per_day</strong> setting. Each slot picks one quest independently.
+            In the examples above, <strong>2 slots</strong> means every player sees 2 quests each day.
+          </p>
+          <div className="flex gap-6">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex flex-col items-center gap-1">
+                <span className="text-xs text-muted-foreground">{s} slot{s > 1 ? "s" : ""}</span>
+                <div className="flex gap-1">
+                  {Array.from({ length: s }, (_, i) => (
+                    <div key={i} className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold ${QUEST_COLORS[i].bg}`}>
+                      {DEMO_QUESTS[i].name.replace("Q-", "")}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STRATEGY_OPTIONS: { value: AssignmentStrategy; label: string; icon: React.ReactNode; description: string }[] = [
@@ -265,6 +590,13 @@ export function DailyTab({ game }: { game: Game | null }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+
+  const subTab = (searchParams.get("subTab") ?? "list") as "list" | "grid"
+  const setSubTab = (v: "list" | "grid") => {
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.set("subTab", v)
+    router.replace(`?${sp.toString()}`)
+  }
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -617,26 +949,57 @@ export function DailyTab({ game }: { game: Game | null }) {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-sm text-muted-foreground">
             Manage daily quest pools. Each pool assigns quests to players daily based on its strategy.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            Create Pool
-          </Button>
+          {subTab === "list" && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1" />
+                Create Pool
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
+      {/* SubTab Navigation */}
+      <div className="flex items-center gap-1 mb-4 border-b">
+        <button
+          onClick={() => setSubTab("list")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            subTab === "list"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          List
+        </button>
+        <button
+          onClick={() => setSubTab("grid")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            subTab === "grid"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Strategy Guide
+        </button>
+      </div>
+
+      {/* Strategy Guide (Grid) */}
+      {subTab === "grid" && <DailyStrategyGrid />}
+
       {/* Pool List */}
-      {pools.length === 0 ? (
+      {subTab === "list" && (pools.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
             <Calendar className="h-10 w-10 opacity-30" />
@@ -880,7 +1243,7 @@ export function DailyTab({ game }: { game: Game | null }) {
             )
           })}
         </div>
-      )}
+      ))}
 
       {/* ─── Create / Edit Pool Sheet ─────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>

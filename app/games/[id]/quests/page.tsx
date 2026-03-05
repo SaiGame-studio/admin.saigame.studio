@@ -677,6 +677,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
 function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?: string | null }) {
   const gameId = game?.id ?? ""
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
 
   const [quests, setQuests] = useState<QuestDefinition[]>([])
@@ -762,23 +763,21 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       rewards: q.rewards ?? [],
     })
     setEditQuest(q)
-  }, [])
+    // Reflect the edit target in the URL so the link can be shared
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.set("editQuestId", q.id)
+    sp.delete("tab")  // definitions is the default tab, keep URL clean
+    router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false })
+  }, [gameId, router, searchParams])
 
-  // Auto-open edit sheet when navigated from DailyTab via editQuestId
+  // Auto-open edit sheet when ?editQuestId=<id> is in the URL (shared link or pencil click)
   const handledEditQuestId = useRef<string | null>(null)
   useEffect(() => {
     if (!editQuestId || editQuestId === handledEditQuestId.current || quests.length === 0) return
     handledEditQuestId.current = editQuestId
     const q = quests.find((qd) => qd.id === editQuestId)
-    if (q) {
-      openEdit(q)
-      // Clear the editQuestId from URL
-      const sp = new URLSearchParams(window.location.search)
-      sp.delete("editQuestId")
-      const qs = sp.toString()
-      router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
-    }
-  }, [editQuestId, quests, gameId, router, openEdit])
+    if (q) openEdit(q)
+  }, [editQuestId, quests, openEdit])
 
   const refresh = async () => {
     setRefreshing(true)
@@ -1222,7 +1221,19 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       </Sheet>
 
       {/* Edit Sheet */}
-      <Sheet open={!!editQuest} onOpenChange={(o) => { if (!o) setEditQuest(null) }}>
+      <Sheet
+        open={!!editQuest}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditQuest(null)
+            // Remove editQuestId from URL when the sheet is closed
+            const sp = new URLSearchParams(searchParams.toString())
+            sp.delete("editQuestId")
+            const qs = sp.toString()
+            router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
+          }
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Quest Definition</SheetTitle>

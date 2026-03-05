@@ -279,3 +279,49 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── ReactFlow Controls / MiniMap – theme-aware ─────────────────────────── */
+.react-flow__controls {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  fill: hsl(var(--foreground)) !important;
+  transition: background 0.15s;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  fill: hsl(var(--accent-foreground)) !important;
+}
+
+.react-flow__controls-button svg {
+  fill: inherit;
+}
+
+.react-flow__minimap {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+}
+
+.react-flow__minimap-mask {
+  fill: hsl(var(--muted) / 0.6) !important;
+}
+
+.react-flow__minimap-node {
+  fill: hsl(var(--muted-foreground) / 0.4) !important;
+  stroke: hsl(var(--border)) !important;
+}

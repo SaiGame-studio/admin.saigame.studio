@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react"
+import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getChainLayout,
@@ -45,6 +45,7 @@ type QuestNodeData = {
   sortOrder: number
   description?: string
   member: QuestChainMember
+  editHref: string
   onEdit: (member: QuestChainMember) => void
   onRemove: (member: QuestChainMember) => void
 }
@@ -100,6 +101,16 @@ function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
             {data.label}
           </p>
           <div className="flex items-center gap-0.5 shrink-0">
+            <a
+              href={data.editHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors"
+              title="Open quest definition in new tab"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="h-3 w-3 text-muted-foreground" />
+            </a>
             <button
               className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors"
               title="Edit membership"
@@ -217,6 +228,7 @@ function ChainFlowViewContent({
           sortOrder: member.sort_order,
           description: def?.description,
           member,
+          editHref: `/games/${gameId}/quests?editQuestId=${member.quest_definition_id}`,
           onEdit: onEditMember,
           onRemove: onRemoveMember,
         },
