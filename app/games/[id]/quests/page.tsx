@@ -113,13 +113,14 @@ const QUEST_TYPES: { value: QuestType; label: string; description?: string }[] =
   { value: "daily",           label: "Daily",          description: "Resets at midnight UTC" },
   { value: "repeatable",      label: "Repeatable",     description: "Can be completed multiple times" },
   { value: "battle_pass_task",label: "Battle Pass Task",description: "Awards Battle Pass XP on completion" },
-  { value: "story",           label: "Story",          description: "Part of a Quest Chain (DAG)" },
+  { value: "chain",           label: "Story",          description: "Part of a Quest Chain (DAG)" },
 ]
 
 const CONDITION_TYPE_OPTIONS = [
-  { value: "login",        label: "Login" },
-  { value: "item_collect", label: "Item Collect" },
-  { value: "gacha_opened", label: "Gacha Opened" },
+  { value: "login",              label: "Login",              description: "Satisfied when the player authenticates" },
+  { value: "collect_and_keep",   label: "Collect & Keep",     description: "Player must hold items (not removed)" },
+  { value: "collect_and_submit", label: "Collect & Submit",   description: "Player must have items (deducted on completion)" },
+  { value: "gacha_opened",       label: "Gacha Opened",       description: "Player must open a gacha pack N times" },
 ]
 
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] }
@@ -142,7 +143,7 @@ function questTypeBadgeVariant(type: QuestType) {
     case "daily":            return "secondary"
     case "repeatable":       return "outline"
     case "battle_pass_task": return "outline"
-    case "story":            return "secondary"
+    case "chain":            return "secondary"
     default:                 return "outline"
   }
 }
@@ -158,7 +159,8 @@ interface ConditionEditorProps {
 function genClauseId(type: string) {
   const prefix: Record<string, string> = {
     login: "login",
-    item_collect: "item",
+    collect_and_keep: "hold",
+    collect_and_submit: "submit",
     gacha_opened: "gacha",
   }
   const p = prefix[type] ?? type.split("_")[0]
@@ -234,12 +236,13 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
     const clause = conditions.clauses[i]
     if (!isConditionLeaf(clause)) return
     const clause_id = genClauseId(v)
-    if (v === "item_collect") {
-      updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], details: undefined })
+    if (v === "collect_and_keep" || v === "collect_and_submit") {
+      updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], packs: undefined, details: undefined })
     } else if (v === "gacha_opened") {
-      updateLeaf(i, { type: v, clause_id, items: undefined, target: clause.target ?? 1 })
+      updateLeaf(i, { type: v, clause_id, items: undefined, target: undefined, packs: clause.packs ?? { gacha_pack_id: "", quantity: 1 }, details: undefined })
     } else {
-      updateLeaf(i, { type: v, clause_id, items: undefined, target: clause.target ?? 1, details: undefined })
+      // login — no items, no packs
+      updateLeaf(i, { type: v, clause_id, items: undefined, target: undefined, packs: undefined, details: undefined })
     }
   }
 
@@ -313,8 +316,8 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
               </Button>
             </div>
 
-            {/* Row 2: target or items */}
-            {clause.type === "item_collect" ? (
+            {/* Row 2: type-specific fields */}
+            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit") ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Required Items</Label>
@@ -384,6 +387,11 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    {item.item_definition_id && (
+                      <Link href={`/games/${gameId}/items/${item.item_definition_id}`} target="_blank" className="shrink-0">
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                      </Link>
+                    )}
                     <Input
                       type="number" min={1} placeholder="Qty"
                       className="h-7 w-20 text-xs"
@@ -419,9 +427,9 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                         className="h-7 w-full justify-between text-xs font-normal"
                       >
                         <span className="truncate">
-                          {(clause.details?.gacha_pack_id as string)
-                            ? (gachaPacks.find((p) => p.id === clause.details?.gacha_pack_id)?.name
-                                ?? (clause.details?.gacha_pack_id as string))
+                          {clause.packs?.gacha_pack_id
+                            ? (gachaPacks.find((p) => p.id === clause.packs?.gacha_pack_id)?.name
+                                ?? clause.packs.gacha_pack_id)
                             : (gachaPacksLoading ? "Loading…" : "Select gacha pack")}
                         </span>
                         <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
@@ -441,14 +449,14 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                                 value={`${pack.name} ${pack.id}`}
                                 onSelect={() => {
                                   updateLeaf(i, {
-                                    details: { ...clause.details, gacha_pack_id: pack.id },
+                                    packs: { gacha_pack_id: pack.id, quantity: clause.packs?.quantity ?? 1 },
                                   })
                                   setGachaPopoverOpen(null)
                                 }}
                               >
                                 <Check
                                   className={`mr-2 h-3 w-3 ${
-                                    clause.details?.gacha_pack_id === pack.id
+                                    clause.packs?.gacha_pack_id === pack.id
                                       ? "opacity-100"
                                       : "opacity-0"
                                   }`}
@@ -465,31 +473,21 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                     </PopoverContent>
                   </Popover>
                 </div>
-                {/* Target Number — w-32, aligns under Clause ID */}
+                {/* Quantity — w-32, aligns under Clause ID */}
                 <div className="w-32 shrink-0 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Target Number</Label>
+                  <Label className="text-xs text-muted-foreground">Quantity</Label>
                   <Input
                     type="number" min={1} className="h-7"
-                    value={clause.target ?? 1}
-                    onChange={(e) => updateLeaf(i, { target: Number(e.target.value) })}
+                    value={clause.packs?.quantity ?? 1}
+                    onChange={(e) => updateLeaf(i, { packs: { gacha_pack_id: clause.packs?.gacha_pack_id ?? "", quantity: Number(e.target.value) } })}
                   />
                 </div>
                 {/* Spacer — w-7, aligns under delete button */}
                 <div className="w-7 shrink-0" />
               </div>
             ) : (
-              <div className="flex gap-2 items-end">
-                <div className="flex-1" />
-                <div className="w-32 shrink-0 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Target Number</Label>
-                  <Input
-                    type="number" min={1} className="h-7"
-                    value={clause.target ?? 1}
-                    onChange={(e) => updateLeaf(i, { target: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="w-7 shrink-0" />
-              </div>
+              /* login — no extra fields needed */
+              <p className="text-xs text-muted-foreground">No extra fields — auto-checked on player login.</p>
             )}
           </div>
         )
@@ -918,7 +916,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             ))}
           </SelectContent>
         </Select>
-        {(form.quest_type === "story") && (
+        {(form.quest_type === "chain") && (
           <p className="text-xs text-muted-foreground">Story quests require a Chain Group ID.</p>
         )}
       </div>

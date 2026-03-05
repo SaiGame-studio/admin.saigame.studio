@@ -16,7 +16,7 @@ export type QuestType =
   | 'daily'
   | 'repeatable'
   | 'battle_pass_task'
-  | 'story'
+  | 'chain'
 
 // ─── Condition Tree ───────────────────────────────────────────────────────────
 
@@ -29,10 +29,12 @@ export interface ItemRequirement {
 export interface QuestConditionLeaf {
   clause_id: string
   type: string
-  /** Required for counter types: login, gacha_opened */
+  /** Required for counter types: login */
   target?: number
-  /** Required for item_collect type */
+  /** Required for collect_and_keep / collect_and_submit */
   items?: ItemRequirement[]
+  /** Required for gacha_opened — specifies pack + required open count */
+  packs?: { gacha_pack_id: string; quantity: number }
   /** Optional extra filter metadata (future use) */
   details?: Record<string, unknown>
 }
