@@ -1067,17 +1067,17 @@ export default function ShopDetailPage() {
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                     <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">studio</span>
                     <span className="font-mono">{shop.studio_id}</span>
-                    <CopyButton text={shop.studio_id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                    <CopyButton text={shop.studio_id} />
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                     <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">game</span>
                     <span className="font-mono">{shop.game_id}</span>
-                    <CopyButton text={shop.game_id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                    <CopyButton text={shop.game_id} />
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                     <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">shop</span>
                     <span className="font-mono">{shop.id}</span>
-                    <CopyButton text={shop.id} className="opacity-0 group-hover/meta:opacity-100 transition-opacity" />
+                    <CopyButton text={shop.id} />
                   </span>
                 </div>
               </div>
