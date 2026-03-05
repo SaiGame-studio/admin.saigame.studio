@@ -64,12 +64,14 @@ const phases: Phase[] = [
       { name: "Player Mailbox", description: "Send gifts, items, and messages directly to players' in-game inboxes", completed: "Feb 26–27, 2026" },
       { name: "Passive Resource Generation", description: "Items and resources accumulate over time while the player is offline", completed: "Feb 27, 2026" },
       { name: "Shop System", description: "In-game shop with purchase limits, restock schedules, and per-item currency support", completed: "Mar 2, 2026" },
+      { name: "Quest System", description: "Full quest lifecycle — definitions, conditions, rewards, chains, and quest-type filtering", completed: "Mar 3, 2026" },
+      { name: "Quest Chain System", description: "Sequential and branching quest chains with unlock conditions and graph visualisation", completed: "Mar 4, 2026" },
+      { name: "Daily Quest System", description: "Daily quest pools with weighted-random, fixed-rotation, weekly, and monthly assignment strategies", completed: "Mar 5, 2026" },
+      { name: "Player Containers", description: "Grid-based inventory containers with item placement, grid visualisation, and per-player container management", completed: "Mar 6, 2026" },
     ],
     planned: [
-      { name: "Quest System", group: "Progression" },
-      { name: "Daily Quest System", group: "Progression" },
       { name: "Battle Pass", group: "Progression" },
-      { name: "Player Containers (Deck / Loadout / Board)", group: "Game Support" },
+      { name: "World Quest System", group: "Progression" },
       { name: "Entity Definitions (Enemy / Room / Unit)", group: "Game Support" },
       { name: "Battle Engines (Card / Idle / Roguelike)", group: "Game Support" },
       { name: "PvP Raid System", group: "Game Support" },
@@ -158,7 +160,7 @@ export default function RoadmapPage() {
         <p className="text-muted-foreground ml-[52px]">
           The development roadmap — from foundation to realtime multiplayer.
         </p>
-        <p className="text-xs text-muted-foreground mt-1 ml-[52px]">Last updated: March 2, 2026</p>
+        <p className="text-xs text-muted-foreground mt-1 ml-[52px]">Last updated: Mar 6, 2026</p>
       </div>
 
       {/* Summary strip */}
