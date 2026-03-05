@@ -126,6 +126,14 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     if (!response.ok) {
       const errorMessage = data?.message || data?.error || `Request failed: ${response.status}`
 
+      // Redirect to forbidden page on 403
+      if (response.status === 403) {
+        if (typeof window !== 'undefined') {
+          window.location.replace('/forbidden')
+        }
+        throw new ApiError(errorMessage, 403, data)
+      }
+
       // Show toast for all 4xx/5xx errors except 401 (auth-context handles login redirect)
       if (response.status !== 401) {
         toast({
