@@ -473,6 +473,11 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                     </PopoverContent>
                   </Popover>
                 </div>
+                {clause.packs?.gacha_pack_id && (
+                  <Link href={`/games/${gameId}/items?tab=gacha&editPack=${clause.packs.gacha_pack_id}`} target="_blank" className="shrink-0 mt-auto mb-1">
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                  </Link>
+                )}
                 {/* Quantity — w-32, aligns under Clause ID */}
                 <div className="w-32 shrink-0 space-y-1">
                   <Label className="text-xs text-muted-foreground">Quantity</Label>
@@ -697,6 +702,8 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [filterSearch, setFilterSearch] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterActive, setFilterActive] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<string>("updated_at")
+  const [sortOrder, setSortOrder] = useState<string>("desc")
 
   const filteredQuests = useMemo(() => {
     let result = quests
@@ -709,16 +716,11 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
     if (filterType !== "all") {
       result = result.filter((d) => d.quest_type === filterType)
     }
-    if (filterActive === "active") {
-      result = result.filter((d) => d.is_active)
-    } else if (filterActive === "inactive") {
-      result = result.filter((d) => !d.is_active)
-    }
     return result
-  }, [quests, filterSearch, filterType, filterActive])
+  }, [quests, filterSearch, filterType])
 
-  const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all"
-  const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all") }
+  const hasActiveFilters = filterSearch.trim() !== "" || filterType !== "all" || filterActive !== "all" || sortBy !== "updated_at" || sortOrder !== "desc"
+  const clearFilters = () => { setFilterSearch(""); setFilterType("all"); setFilterActive("all"); setSortBy("updated_at"); setSortOrder("desc") }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -726,16 +728,18 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
     if (!game) return
     try {
       const res = await listQuestDefinitions(game.studio_id, gameId, {
-        active_only: false,
+        active_only: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
         limit,
         offset: off,
+        sort_by: sortBy,
+        order: sortOrder,
       })
       setQuests(res.quests ?? [])
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Failed to load quest definitions"
       setError(msg)
     }
-  }, [game, gameId, limit])
+  }, [game, gameId, limit, filterActive, sortBy, sortOrder])
 
   useEffect(() => {
     if (!game) return
@@ -1021,6 +1025,21 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o) }}>
+            <SelectTrigger className="h-8 w-[160px] text-xs">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sort_order:asc">Sort Order ↑</SelectItem>
+              <SelectItem value="sort_order:desc">Sort Order ↓</SelectItem>
+              <SelectItem value="name:asc">Name A–Z</SelectItem>
+              <SelectItem value="name:desc">Name Z–A</SelectItem>
+              <SelectItem value="created_at:desc">Newest First</SelectItem>
+              <SelectItem value="created_at:asc">Oldest First</SelectItem>
+              <SelectItem value="updated_at:desc">Recently Updated</SelectItem>
+              <SelectItem value="updated_at:asc">Least Recently Updated</SelectItem>
             </SelectContent>
           </Select>
           {hasActiveFilters && (

@@ -112,12 +112,14 @@ export interface UpdateQuestDefinitionRequest {
 export async function listQuestDefinitions(
   studioId: string,
   gameId: string,
-  params?: { active_only?: boolean; limit?: number; offset?: number }
+  params?: { active_only?: boolean; limit?: number; offset?: number; sort_by?: string; order?: string }
 ): Promise<ListQuestDefinitionsResponse> {
   const qs = new URLSearchParams()
   if (params?.active_only !== undefined) qs.set('active_only', String(params.active_only))
   if (params?.limit !== undefined) qs.set('limit', String(params.limit))
   if (params?.offset !== undefined) qs.set('offset', String(params.offset))
+  if (params?.sort_by) qs.set('sort_by', params.sort_by)
+  if (params?.order) qs.set('order', params.order)
   const query = qs.toString() ? `?${qs}` : ''
   return api.get(`/api/v1/studios/${studioId}/games/${gameId}/quest-definitions${query}`)
 }
