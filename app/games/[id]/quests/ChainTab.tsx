@@ -725,13 +725,6 @@ export function ChainTab({ game }: { game: Game | null }) {
                       <div className="space-y-4">
                         {/* Members — List / Grid tabs */}
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-medium flex items-center gap-2">
-                              Quests in Chain
-                              <Badge variant="outline" className="text-xs">{expandedMembers.length}</Badge>
-                            </h4>
-                          </div>
-
                           <Tabs
                             value={searchParams.get("subTab") === "list" ? "list" : "grid"}
                             onValueChange={(v) => {
@@ -741,14 +734,20 @@ export function ChainTab({ game }: { game: Game | null }) {
                             }}
                             className="w-full"
                           >
-                            <TabsList className="h-8 mb-3">
-                              <TabsTrigger value="grid" className="text-xs gap-1.5 px-3">
-                                <LayoutGrid className="h-3.5 w-3.5" /> Graph
-                              </TabsTrigger>
-                              <TabsTrigger value="list" className="text-xs gap-1.5 px-3">
-                                <List className="h-3.5 w-3.5" /> List
-                              </TabsTrigger>
-                            </TabsList>
+                            <div className="flex items-center justify-between mb-3">
+                              <TabsList className="h-8">
+                                <TabsTrigger value="grid" className="text-xs gap-1.5 px-3">
+                                  <LayoutGrid className="h-3.5 w-3.5" /> Graph
+                                </TabsTrigger>
+                                <TabsTrigger value="list" className="text-xs gap-1.5 px-3">
+                                  <List className="h-3.5 w-3.5" /> List
+                                </TabsTrigger>
+                              </TabsList>
+                              <h4 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                                Quests in Chain
+                                <Badge variant="outline" className="text-xs">{expandedMembers.length}</Badge>
+                              </h4>
+                            </div>
 
                               {/* ── List View ─────────────────────────────── */}
                               <TabsContent value="list" className="mt-0">
