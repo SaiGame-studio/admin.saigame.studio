@@ -126,19 +126,23 @@ function UnlockQuestIdsPicker({
   questDefsMap: Record<string, QuestDefinition>
   excludeQuestId?: string
 }) {
+  const [open, setOpen] = useState(false)
+
   const available = chainMembers
     .filter((m) => m.quest_definition_id !== excludeQuestId)
     .map((m) => ({
       id: m.quest_definition_id,
       name: questDefsMap[m.quest_definition_id]?.name ?? m.quest_definition_id.slice(0, 8) + "…",
+      inChain: true,
     }))
 
   const memberIds = new Set(chainMembers.map((m) => m.quest_definition_id))
   const extraQuests = allQuestDefs
     .filter((q) => !memberIds.has(q.id) && q.id !== excludeQuestId)
-    .map((q) => ({ id: q.id, name: q.name }))
+    .map((q) => ({ id: q.id, name: q.name, inChain: false }))
 
   const allOptions = [...available, ...extraQuests]
+  const unselected = allOptions.filter((o) => !value.includes(o.id))
 
   return (
     <div className="space-y-2">
@@ -163,30 +167,63 @@ function UnlockQuestIdsPicker({
           })}
         </div>
       )}
-      <Select
-        value=""
-        onValueChange={(v) => {
-          if (v && !value.includes(v)) {
-            onChange([...value, v])
-          }
-        }}
-      >
-        <SelectTrigger className="h-9 text-sm">
-          <SelectValue placeholder="Add quest to unlock…" />
-        </SelectTrigger>
-        <SelectContent>
-          {allOptions
-            .filter((o) => !value.includes(o.id))
-            .map((o) => (
-              <SelectItem key={o.id} value={o.id}>
-                {o.name}
-              </SelectItem>
-            ))}
-          {allOptions.filter((o) => !value.includes(o.id)).length === 0 && (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">No quests available</div>
-          )}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between h-9 text-sm font-normal"
+          >
+            <span className="text-muted-foreground">Add quest to unlock…</span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
+          <Command>
+            <CommandInput placeholder="Search quests…" />
+            <CommandList>
+              <CommandEmpty>No quests found.</CommandEmpty>
+              {unselected.filter((o) => o.inChain).length > 0 && (
+                <CommandGroup heading="In this chain">
+                  {unselected.filter((o) => o.inChain).map((o) => (
+                    <CommandItem
+                      key={o.id}
+                      value={`${o.name} ${o.id}`}
+                      onSelect={() => {
+                        onChange([...value, o.id])
+                        setOpen(false)
+                      }}
+                    >
+                      {o.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {unselected.filter((o) => !o.inChain).length > 0 && (
+                <CommandGroup heading="Other quests">
+                  {unselected.filter((o) => !o.inChain).map((o) => (
+                    <CommandItem
+                      key={o.id}
+                      value={`${o.name} ${o.id}`}
+                      onSelect={() => {
+                        onChange([...value, o.id])
+                        setOpen(false)
+                      }}
+                    >
+                      {o.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {unselected.length === 0 && (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">No quests available</div>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }
