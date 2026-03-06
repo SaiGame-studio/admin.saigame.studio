@@ -23,16 +23,16 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
 
   return (
     <div id={id ?? "game-nav-buttons"} className="flex gap-2 flex-wrap">
-      <Button asChild variant={btn("shops")} className="flex items-center gap-2">
-        <Link href={`/games/${gameId}/shops`}>
-          <Store className="h-4 w-4" />
-          {t("game.shops")}
-        </Link>
-      </Button>
       <Button asChild variant={btn("players")} className="flex items-center gap-2">
         <Link href={`/games/${gameId}/players`}>
           <Users className="h-4 w-4" />
           {t("game.users")}
+        </Link>
+      </Button>
+      <Button asChild variant={btn("shops")} className="flex items-center gap-2">
+        <Link href={`/games/${gameId}/shops`}>
+          <Store className="h-4 w-4" />
+          {t("game.shops")}
         </Link>
       </Button>
       <Button asChild variant={btn("items")} className="flex items-center gap-2">
