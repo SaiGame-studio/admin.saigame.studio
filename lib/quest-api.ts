@@ -503,3 +503,59 @@ export async function getCompletionBonus(
 ): Promise<CompletionBonus> {
   return api.get(`/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/completion-bonus`)
 }
+
+// ─── Daily Quest Assign-Ahead Preview Types ────────────────────────────────────
+
+export interface DailyQuestAssignment {
+  id: string
+  studio_id: string
+  game_id: string
+  user_id: string
+  pool_id: string
+  quest_definition_id: string
+  assigned_date: string
+  expires_at: string
+  created_at: string
+}
+
+export interface DailyQuestAheadQuestEntry {
+  assignment: DailyQuestAssignment
+  quest: QuestDefinition
+}
+
+export interface DailyQuestAheadDay {
+  date: string
+  is_today: boolean
+  already_assigned: boolean
+  quests: DailyQuestAheadQuestEntry[]
+}
+
+export interface DailyQuestFuturePreview {
+  pool_id: string
+  days_ahead: number
+  start_date: string
+  end_date: string
+  days: DailyQuestAheadDay[]
+}
+
+// ─── Daily Quest Assign-Ahead Preview API Function ─────────────────────────────
+
+/**
+ * GET /api/v1/studios/{studio_id}/games/{game_id}/daily-quest-pools/{pool_id}/players/{player_id}/assign-ahead
+ * Read-only. Returns whatever was pre-assigned via POST .../assign-ahead for the given player.
+ * Days with no assignments are still included with quests: [].
+ */
+export async function getPlayerDailyQuestAheadPreview(
+  studioId: string,
+  gameId: string,
+  poolId: string,
+  playerId: string,
+  params?: { days_ahead?: number }
+): Promise<DailyQuestFuturePreview> {
+  const qs = new URLSearchParams()
+  if (params?.days_ahead !== undefined) qs.set('days_ahead', String(params.days_ahead))
+  const query = qs.toString() ? `?${qs}` : ''
+  return api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/daily-quest-pools/${poolId}/players/${playerId}/assign-ahead${query}`
+  )
+}

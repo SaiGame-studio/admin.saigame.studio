@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { Fragment, use, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CheckCircle2, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -17,10 +17,12 @@ import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
 import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack } from "@/lib/inventory-api"
+import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // ── Quest progress data pretty-printer ──────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -153,10 +155,11 @@ function QuestProgressDisplay({ data, gameId }: { data: Record<string, unknown>;
 }
 
 export default function GameUserProgressDetailPage({
-  params,
+  params: paramsProp,
 }: {
-  params: { id: string; progressId: string }
+  params: Promise<{ id: string; progressId: string }>
 }) {
+  const params = use(paramsProp)
   const gameId = params.id
   const progressId = params.progressId
   const router = useRouter()
@@ -255,8 +258,21 @@ export default function GameUserProgressDetailPage({
   const [questHistory, setQuestHistory] = useState<QuestHistoryResult | null>(null)
   const [questLoading, setQuestLoading] = useState(false)
   const [questError, setQuestError] = useState<string | null>(null)
-  const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed">("completed")
+  const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed" | "daily-ahead">(() => {
+    const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null
+    return sub === "inprogress" || sub === "completed" || sub === "daily-ahead" ? sub : "completed"
+  })
   const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set())
+  const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({})
+
+  // Daily Ahead sub-tab
+  const [dailyAheadPools, setDailyAheadPools] = useState<DailyQuestPool[]>([])
+  const [dailyAheadPoolsLoading, setDailyAheadPoolsLoading] = useState(false)
+  const [dailyAheadSelectedPoolId, setDailyAheadSelectedPoolId] = useState<string>("")
+  const [dailyAheadPreview, setDailyAheadPreview] = useState<DailyQuestFuturePreview | null>(null)
+  const [dailyAheadLoading, setDailyAheadLoading] = useState(false)
+  const [dailyAheadError, setDailyAheadError] = useState<string | null>(null)
+  const [dailyAheadDays, setDailyAheadDays] = useState(30)
   const toggleQuestRow = (id: string) =>
     setQuestExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
@@ -373,12 +389,64 @@ export default function GameUserProgressDetailPage({
     try {
       const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT })
       setQuestHistory(res)
+      // Collect item_definition_id from rewards_granted and fetch their names
+      const itemIds = new Set<string>()
+      for (const claim of res.claims ?? []) {
+        for (const r of (claim.rewards_granted ?? []) as any[]) {
+          if (r.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        }
+      }
+      if (itemIds.size > 0) {
+        const ctx = { gameId }
+        const nameMap: Record<string, string> = {}
+        await Promise.allSettled(
+          [...itemIds].map(id =>
+            getItemDefinition(ctx, id)
+              .then(r2 => { nameMap[id] = r2.item.name })
+              .catch(() => {})
+          )
+        )
+        setQuestItemNames(nameMap)
+      }
     } catch (err: any) {
       setQuestError(err?.message ?? "Failed to load quest history")
     } finally {
       setQuestLoading(false)
     }
   }, [game, gameId, detail])
+
+  const loadDailyAheadPools = useCallback(async () => {
+    if (!game?.studio_id) return
+    setDailyAheadPoolsLoading(true)
+    try {
+      const res = await listDailyQuestPools(game.studio_id, gameId)
+      setDailyAheadPools(res.pools ?? [])
+      if (res.pools?.length && !dailyAheadSelectedPoolId) {
+        setDailyAheadSelectedPoolId(res.pools[0].id)
+      }
+    } catch {
+      // silently ignore — user will see empty selector
+    } finally {
+      setDailyAheadPoolsLoading(false)
+    }
+  }, [game, gameId, dailyAheadSelectedPoolId])
+
+  const loadDailyAheadPreview = useCallback(async (poolId: string) => {
+    if (!game?.studio_id || !detail?.user_id || !poolId) return
+    setDailyAheadLoading(true)
+    setDailyAheadError(null)
+    setDailyAheadPreview(null)
+    try {
+      const res = await getPlayerDailyQuestAheadPreview(
+        game.studio_id, gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays }
+      )
+      setDailyAheadPreview(res)
+    } catch (err: any) {
+      setDailyAheadError(err?.message ?? "Failed to load daily quest preview")
+    } finally {
+      setDailyAheadLoading(false)
+    }
+  }, [game, gameId, detail, dailyAheadDays])
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -390,6 +458,13 @@ export default function GameUserProgressDetailPage({
     }
     const qs = params.toString()
     router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false })
+  }
+
+  const handleQuestSubTabChange = (sub: "inprogress" | "completed" | "daily-ahead") => {
+    setQuestSubTab(sub)
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    params.set("quest_sub", sub)
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false })
   }
 
   useEffect(() => {
@@ -407,6 +482,20 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
   }, [activeTab, loadQuestHistory])
+
+  // Load pools when entering the daily-ahead sub-tab (or once game loads)
+  useEffect(() => {
+    if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadPools.length === 0 && game?.studio_id) {
+      loadDailyAheadPools()
+    }
+  }, [activeTab, questSubTab, game]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load preview whenever the selected pool or days change while on the tab
+  useEffect(() => {
+    if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadSelectedPoolId) {
+      loadDailyAheadPreview(dailyAheadSelectedPoolId)
+    }
+  }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const RARITY_STYLE: Record<string, string> = {
     common:    "bg-gray-500/15 text-gray-400 border-gray-400/40",
@@ -1054,7 +1143,7 @@ export default function GameUserProgressDetailPage({
           {/* Sub-tab navigation */}
           <div className="flex items-center gap-1 border-b pb-0">
             <button
-              onClick={() => setQuestSubTab("completed")}
+              onClick={() => handleQuestSubTabChange("completed")}
               className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                 questSubTab === "completed"
                   ? "border-primary text-foreground"
@@ -1068,7 +1157,7 @@ export default function GameUserProgressDetailPage({
               )}
             </button>
             <button
-              onClick={() => setQuestSubTab("inprogress")}
+              onClick={() => handleQuestSubTabChange("inprogress")}
               className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                 questSubTab === "inprogress"
                   ? "border-primary text-foreground"
@@ -1079,14 +1168,196 @@ export default function GameUserProgressDetailPage({
               In-progress
               {questHistory && (() => { const n = questHistory.starts.filter(s => s.progress?.status !== "claimed" && s.progress?.status !== "completed").length; return n > 0 ? <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{n}</span> : null })()}
             </button>
+            <button
+              onClick={() => handleQuestSubTabChange("daily-ahead")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                questSubTab === "daily-ahead"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Daily Ahead
+            </button>
             <div className="ml-auto">
-              <Button variant="outline" size="icon" onClick={loadQuestHistory} disabled={questLoading} title="Refresh">
-                <RefreshCw className={`h-4 w-4 ${questLoading ? "animate-spin" : ""}`} />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => questSubTab === "daily-ahead" && dailyAheadSelectedPoolId ? loadDailyAheadPreview(dailyAheadSelectedPoolId) : loadQuestHistory()}
+                disabled={questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 ${(questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading) ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
 
-          {questLoading ? (
+
+          {questSubTab === "daily-ahead" ? (
+            /* ── Daily Ahead sub-tab ── */
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground font-medium">Pool</label>
+                  {dailyAheadPoolsLoading ? (
+                    <Skeleton className="h-9 w-48" />
+                  ) : dailyAheadPools.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No pools found for this game.</p>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <Select
+                        value={dailyAheadSelectedPoolId}
+                        onValueChange={setDailyAheadSelectedPoolId}
+                      >
+                        <SelectTrigger className="w-56">
+                          <SelectValue placeholder="Select pool…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dailyAheadPools.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {dailyAheadSelectedPoolId && (
+                        <a
+                          href={`/games/${gameId}/quests?tab=daily`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors shrink-0"
+                          title="Open daily quest pools"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground font-medium">Days ahead</label>
+                  <Select
+                    value={String(dailyAheadDays)}
+                    onValueChange={v => setDailyAheadDays(Number(v))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[3, 7, 14, 30].map(d => (
+                        <SelectItem key={d} value={String(d)}>{d} days</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {!dailyAheadSelectedPoolId ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">Select a pool</p>
+                  <p className="text-sm mt-1">Choose a daily quest pool above to view pre-assigned quests.</p>
+                </div>
+              ) : dailyAheadLoading ? (
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : dailyAheadError ? (
+                <Card className="border-destructive">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-destructive text-sm mb-3">{dailyAheadError}</p>
+                    <Button variant="outline" size="sm" onClick={() => loadDailyAheadPreview(dailyAheadSelectedPoolId)}>Try Again</Button>
+                  </CardContent>
+                </Card>
+              ) : !dailyAheadPreview ? null : (
+                (() => {
+                  if (dailyAheadPreview.days.length === 0) return (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-medium">No data</p>
+                      <p className="text-sm mt-1">No pre-assigned quests found for this player.</p>
+                    </div>
+                  )
+                  const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                  const firstDate = dailyAheadPreview.days[0]?.date
+                    ? new Date(dailyAheadPreview.days[0].date + "T00:00:00")
+                    : null
+                  const startOffset = firstDate ? firstDate.getDay() : 0
+                  return (
+                    <div>
+                      {/* Weekday header */}
+                      <div className="grid grid-cols-7 gap-1 mb-1">
+                        {DOW.map(d => (
+                          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+                        ))}
+                      </div>
+                      {/* Grid cells */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {/* empty leading cells */}
+                        {Array.from({ length: startOffset }).map((_, i) => (
+                          <div key={`pad-${i}`} />
+                        ))}
+                        {dailyAheadPreview.days.map(day => {
+                          const isToday = day.is_today
+                          const hasQuests = day.quests.length > 0
+                          return (
+                            <div
+                              key={day.date}
+                              className={`rounded-md border p-1.5 min-h-[80px] flex flex-col gap-1 text-xs ${
+                                isToday
+                                  ? "border-primary bg-primary/5"
+                                  : hasQuests
+                                  ? "border-border bg-card"
+                                  : "border-dashed border-muted-foreground/25 bg-muted/20"
+                              }`}
+                            >  
+                              {/* Date label */}
+                              <div className={`font-semibold tabular-nums leading-none mb-0.5 ${
+                                isToday ? "text-primary" : "text-muted-foreground"
+                              }`}>
+                                {day.date.slice(5)} {/* MM-DD */}
+                                {isToday && <span className="ml-1 text-[10px] font-medium text-primary">Today</span>}
+                              </div>
+                              {/* Quests */}
+                              {hasQuests ? (
+                                <ul className="space-y-0.5 flex-1">
+                                  {day.quests.map((q) => (
+                                    <li key={q.assignment.id} className="leading-snug">
+                                      {q.quest?.name ? (
+                                        <a
+                                          href={`/games/${gameId}/quests?editQuestId=${q.quest.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-0.5 text-foreground hover:underline group"
+                                          title={q.quest.name}
+                                        >
+                                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                                          <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
+                                          <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </a>
+                                      ) : (
+                                        <span className="text-muted-foreground font-mono">
+                                          {q.assignment.quest_definition_id?.slice(0, 6) ?? "?"}…
+                                        </span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-muted-foreground/50 text-[10px] mt-auto">—</span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()
+              )}
+            </div>
+          ) : questLoading ? (
             <div className="space-y-3 p-6">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -1147,7 +1418,7 @@ export default function GameUserProgressDetailPage({
                               const expanded = questExpandedRows.has(claim.id)
                               const rewards = (claim.rewards_granted ?? []) as any[]
                               return (
-                                <>
+                                <Fragment key={claim.id}>
                                   <TableRow
                                     key={claim.id}
                                     className="cursor-pointer hover:bg-muted/50"
@@ -1196,7 +1467,7 @@ export default function GameUserProgressDetailPage({
                                             <div className="flex flex-wrap gap-2">
                                               {rewards.map((r: any, i: number) => {
                                                 const itemId = r.item_definition_id as string | undefined
-                                                const name = (r.name ?? r.item_name ?? r.item_code) as string | undefined
+                                                const name = (r.name ?? r.item_name ?? r.item_code ?? (itemId ? questItemNames[itemId] : undefined)) as string | undefined
                                                 const qty = r.quantity as number | undefined
                                                 const category = r.category as string | undefined
                                                 const rewardType = r.reward_type as string | undefined
@@ -1248,14 +1519,14 @@ export default function GameUserProgressDetailPage({
                                       </TableCell>
                                     </TableRow>
                                   )}
-                                </>
+                                </Fragment>
                               )
                             })}
                             {completedStarts.map((start, idx) => {
                               const rowId = start.progress?.id ?? `cs-${idx}`
                               const expanded = questExpandedRows.has(rowId)
                               return (
-                                <>
+                                <Fragment key={rowId}>
                                   <TableRow
                                     key={rowId}
                                     className="cursor-pointer hover:bg-muted/50"
@@ -1300,7 +1571,7 @@ export default function GameUserProgressDetailPage({
                                       </TableCell>
                                     </TableRow>
                                   )}
-                                </>
+                                </Fragment>
                               )
                             })}
                           </TableBody>
@@ -1349,7 +1620,7 @@ export default function GameUserProgressDetailPage({
                               const rowId = start.progress?.id ?? `ip-${idx}`
                               const expanded = questExpandedRows.has(rowId)
                               return (
-                                <>
+                                <Fragment key={rowId}>
                                   <TableRow
                                     key={rowId}
                                     className="cursor-pointer hover:bg-muted/50"
@@ -1392,7 +1663,7 @@ export default function GameUserProgressDetailPage({
                                       </TableCell>
                                     </TableRow>
                                   )}
-                                </>
+                                </Fragment>
                               )
                             })}
                           </TableBody>
