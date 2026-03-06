@@ -543,35 +543,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
       {rewards.map((r, i) => (
         <div key={i} className="flex gap-2 items-start border rounded p-2">
           <div className="flex-1 space-y-2">
-            <Select
-              value={r.reward_type}
-              onValueChange={(v) => {
-                if (v === "coin") {
-                  updateReward(i, { reward_type: v, item_definition_id: undefined, quantity_min: undefined, quantity_max: undefined })
-                } else {
-                  updateReward(i, { reward_type: v, amount: undefined })
-                }
-              }}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="coin">Coin</SelectItem>
-                <SelectItem value="item">Item</SelectItem>
-              </SelectContent>
-            </Select>
-            {r.reward_type === "coin" ? (
-              <Input
-                type="number"
-                min={1}
-                placeholder="Amount"
-                value={r.amount ?? ""}
-                onChange={(e) => updateReward(i, { amount: Number(e.target.value) })}
-                className="h-8"
-              />
-            ) : (
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <div className="flex items-center gap-1">
                 <Popover open={rewardItemPopover === i} onOpenChange={(o) => setRewardItemPopover(o ? i : null)}>
                   <PopoverTrigger asChild>
@@ -656,7 +628,6 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                   </div>
                 </div>
               </div>
-            )}
           </div>
           <Button
             type="button"
