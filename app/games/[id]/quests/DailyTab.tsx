@@ -6,8 +6,9 @@ import { CopyButton } from "@/components/CopyButton"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
-  ChevronsUpDown, Check, Calendar, Shuffle, RotateCw,
+  ChevronsUpDown, Calendar, Shuffle, RotateCw,
   ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2,
+  Search, GripVertical,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
@@ -484,8 +486,7 @@ export function DailyTab({ game }: { game: Game | null }) {
   const [poolSaving, setPoolSaving] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
 
-  // Add quest to pool
-  const [addQuestPoolId, setAddQuestPoolId] = useState<string | null>(null)
+  // Add quest to pool (inline)
   const [dailyQuestDefs, setDailyQuestDefs] = useState<QuestDefinition[]>([])
   const [dailyQuestDefsLoading, setDailyQuestDefsLoading] = useState(false)
   const [addQuestForm, setAddQuestForm] = useState<AddQuestToPoolRequest>({
@@ -494,7 +495,9 @@ export function DailyTab({ game }: { game: Game | null }) {
     sequence_order: 0,
   })
   const [addQuestSaving, setAddQuestSaving] = useState(false)
-  const [questPickerOpen, setQuestPickerOpen] = useState(false)
+  const [addQuestSearch, setAddQuestSearch] = useState("")
+  const [draggedQuestId, setDraggedQuestId] = useState<string | null>(null)
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null)
 
   // Remove quest from pool
   const [removeQuestTarget, setRemoveQuestTarget] = useState<{ poolId: string; questId: string; questName: string } | null>(null)
@@ -556,7 +559,17 @@ export function DailyTab({ game }: { game: Game | null }) {
     setExpandedPoolId(poolId)
     setExpandedPool(null)
     setExpandedQuests([])
+    setAddQuestForm({ quest_id: "", weight: 10, sequence_order: 0 })
+    setAddQuestSearch("")
     setExpandedLoading(true)
+    // Load quest defs for the search panel if not already loaded
+    if (dailyQuestDefs.length === 0 && !dailyQuestDefsLoading) {
+      setDailyQuestDefsLoading(true)
+      listQuestDefinitions(studioId, gameId, { limit: 200 })
+        .then((res) => { setDailyQuestDefs((res.quests ?? []).filter((q) => q.quest_type === "daily")) })
+        .catch(() => {})
+        .finally(() => setDailyQuestDefsLoading(false))
+    }
     try {
       const [detail, questsData] = await Promise.all([
         getDailyQuestPool(studioId, gameId, poolId),
@@ -661,34 +674,14 @@ export function DailyTab({ game }: { game: Game | null }) {
 
   // ── Add quest to pool ─────────────────────────────────────────────────────
 
-  const openAddQuest = (poolId: string, strategy: AssignmentStrategy) => {
-    setAddQuestPoolId(poolId)
-    setAddQuestForm({
-      quest_id: "",
-      weight: strategy === "weighted_random" ? 10 : 1,
-      sequence_order: 0,
-    })
-    // Load daily quest definitions
-    if (!dailyQuestDefsLoading && dailyQuestDefs.length === 0) {
-      setDailyQuestDefsLoading(true)
-      listQuestDefinitions(studioId, gameId, { limit: 200 })
-        .then((res) => {
-          const dailyOnly = (res.quests ?? []).filter((q) => q.quest_type === "daily")
-          setDailyQuestDefs(dailyOnly)
-        })
-        .catch(() => setDailyQuestDefs([]))
-        .finally(() => setDailyQuestDefsLoading(false))
-    }
-  }
-
   const handleAddQuest = async () => {
-    if (!addQuestPoolId || !addQuestForm.quest_id) return
+    if (!expandedPoolId || !addQuestForm.quest_id) return
     setAddQuestSaving(true)
     try {
-      await addQuestToPool(studioId, gameId, addQuestPoolId, addQuestForm)
+      await addQuestToPool(studioId, gameId, expandedPoolId, addQuestForm)
       toast({ title: "Quest added to pool" })
-      setAddQuestPoolId(null)
-      if (expandedPoolId) await refreshExpanded(expandedPoolId)
+      setAddQuestForm((prev) => ({ ...prev, quest_id: "" }))
+      await refreshExpanded(expandedPoolId)
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Failed to add quest to pool"
       toast({ variant: "destructive", title: "Error", description: msg })
@@ -863,120 +856,243 @@ export function DailyTab({ game }: { game: Game | null }) {
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading pool details…
                       </div>
                     ) : expandedPool ? (
-                      <div className="grid grid-cols-1 gap-6">
-                        {/* Quests in pool */}
-                        <div className="min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-medium flex items-center gap-2">
-                              Quests in Pool
-                              <Badge variant="outline" className="text-xs">{expandedQuests.length}</Badge>
-                            </h4>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openAddQuest(pool.id, pool.assignment_strategy)}
-                            >
-                              <Plus className="h-3 w-3 mr-1" /> Add Quest
-                            </Button>
+                      <div className="flex items-start gap-0 -mx-6">
+                        {/* ── Left: pool quests ── */}
+                        <div className="flex-1 min-w-0 px-6 pb-4 overflow-auto">
+                          <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
+                            Quests in Pool
+                            <Badge variant="outline" className="text-xs">{expandedQuests.length}</Badge>
+                          </h4>
+                          {pool.assignment_strategy === "weekly_schedule" ? (
+                            /* 7-day drag-drop grid */
+                            (() => {
+                              const questsByDay: Record<number, DailyQuestPoolQuest[]> = {}
+                              for (let d = 0; d < 7; d++) questsByDay[d] = []
+                              for (const q of expandedQuests) {
+                                if (q.sequence_order >= 0 && q.sequence_order <= 6) questsByDay[q.sequence_order].push(q)
+                              }
+                              return (
+                                <div className="grid grid-cols-7 gap-2">
+                                  {([0, 1, 2, 3, 4, 5, 6] as const).map((dow) => {
+                                    const dayQuests = questsByDay[dow] ?? []
+                                    const isDragOver = dragOverDay === dow
+                                    return (
+                                      <div
+                                        key={dow}
+                                        className={`min-h-[120px] rounded-lg border-2 flex flex-col transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-dashed border-muted-foreground/25"}`}
+                                        onDragOver={(e) => { e.preventDefault(); setDragOverDay(dow) }}
+                                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDay(null) }}
+                                        onDrop={async (e) => {
+                                          e.preventDefault()
+                                          setDragOverDay(null)
+                                          if (!draggedQuestId || !expandedPoolId) return
+                                          if (dayQuests.some((q) => q.quest_definition_id === draggedQuestId)) {
+                                            toast({ title: "Already assigned" }); return
+                                          }
+                                          try {
+                                            await addQuestToPool(studioId, gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow })
+                                            toast({ title: "Quest assigned" })
+                                            await refreshExpanded(expandedPoolId)
+                                          } catch (err) {
+                                            toast({ variant: "destructive", title: "Error", description: err instanceof ApiError ? err.message : "Failed" })
+                                          }
+                                        }}
+                                      >
+                                        <div className={`px-2 py-1 text-xs font-semibold text-center border-b rounded-t-md ${isDragOver ? "text-primary bg-primary/10 border-primary/20" : "text-muted-foreground bg-muted/30 border-muted"}`}>
+                                          {DAY_NAMES[dow]}
+                                        </div>
+                                        <div className="flex flex-col gap-1 p-1 flex-1">
+                                          {dayQuests.map((pq) => {
+                                            const qDef = questDefsMap[pq.quest_definition_id]
+                                            return (
+                                              <div key={pq.id} className="flex items-center gap-1 text-xs bg-muted/50 rounded px-1.5 py-1 group">
+                                                <span className="flex-1 truncate leading-tight">{qDef?.name ?? pq.quest_definition_id.slice(0, 8)}</span>
+                                                <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors shrink-0" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })} title="Remove">
+                                                  <Trash2 className="h-3 w-3" />
+                                                </button>
+                                              </div>
+                                            )
+                                          })}
+                                          {dayQuests.length === 0 && !isDragOver && <span className="text-[10px] text-muted-foreground/40 text-center mt-auto pb-1">—</span>}
+                                          {isDragOver && draggedQuestId && !dayQuests.some(q => q.quest_definition_id === draggedQuestId) && (
+                                            <div className="text-[10px] text-primary text-center py-1 border border-primary/30 border-dashed rounded mt-auto">Drop here</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )
+                            })()
+                          ) : (
+                            /* Non-weekly: existing quest cards + inline add form */
+                            <>
+                              {expandedQuests.length === 0 && !addQuestForm.quest_id && (
+                                <p className="text-sm text-muted-foreground py-2">No quests yet. Select one from the right →</p>
+                              )}
+                              {expandedQuests.length > 0 && (() => {
+                                const totalWeight = expandedQuests.reduce((sum, q) => sum + (q.weight ?? 0), 0)
+                                return (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 mb-3">
+                                    {expandedQuests.map((pq) => {
+                                      const qDef = questDefsMap[pq.quest_definition_id]
+                                      const pct = totalWeight > 0 ? ((pq.weight ?? 0) / totalWeight) * 100 : 0
+                                      return (
+                                        <div key={pq.id} className="relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
+                                          <div className="flex items-start justify-between gap-1 min-w-0">
+                                            <div className="min-w-0">
+                                              <p className="text-sm font-medium leading-tight truncate">{qDef?.name ?? pq.quest_definition_id}</p>
+                                              <p className="text-xs text-muted-foreground font-mono flex items-center gap-0.5 mt-0.5 truncate">
+                                                {pq.quest_definition_id}
+                                                <CopyButton text={pq.quest_definition_id} size="h-3 w-3" />
+                                              </p>
+                                            </div>
+                                            <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
+                                              <Switch
+                                                checked={qDef?.is_active ?? false}
+                                                onCheckedChange={async (checked) => {
+                                                  try {
+                                                    await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked })
+                                                    setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }))
+                                                    toast({ title: checked ? "Quest activated" : "Quest deactivated" })
+                                                  } catch (e) {
+                                                    toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update quest" })
+                                                  }
+                                                }}
+                                                aria-label="Toggle quest active"
+                                              />
+                                              <Button variant="ghost" size="icon" className="h-6 w-6 ml-2.5" title="Edit quest definition" asChild>
+                                                <Link href={(() => { const sp = new URLSearchParams(searchParams.toString()); sp.delete("tab"); sp.set("editQuestId", pq.quest_definition_id); return `/games/${gameId}/quests?${sp.toString()}` })()}>
+                                                  <Pencil className="h-3 w-3" />
+                                                </Link>
+                                              </Button>
+                                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive ml-2.5" onClick={() => setRemoveQuestTarget({ poolId: pool.id, questId: pq.quest_definition_id, questName: qDef?.name ?? pq.quest_definition_id })}>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                              <span className="flex items-center gap-1"><Weight className="h-3 w-3" />Weight: <span className="text-foreground font-medium">{pq.weight}</span></span>
+                                              <span className="font-medium text-foreground">{pct.toFixed(1)}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )
+                              })()}
+
+                            </>
+                          )}
+                        </div>
+
+                        {/* ── Right: searchable quest list ── */}
+                        <div className="w-64 border-l shrink-0 flex flex-col self-stretch">
+                          <div className="p-3 border-b shrink-0">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">
+                              {pool.assignment_strategy === "weekly_schedule" ? "Drag onto a day →" : "Click to select →"}
+                            </p>
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                              <Input placeholder="Search…" value={addQuestSearch} onChange={(e) => setAddQuestSearch(e.target.value)} className="pl-8 h-8 text-sm" />
+                            </div>
                           </div>
-
-                          {expandedQuests.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2">No quests in this pool yet.</p>
-                          ) : (() => {
-                            const totalWeight = expandedQuests.reduce((sum, q) => sum + (q.weight ?? 0), 0)
-                            return (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 mt-1">
-                                {expandedQuests.map((pq) => {
-                                  const qDef = questDefsMap[pq.quest_definition_id]
-                                  const pct = totalWeight > 0 ? ((pq.weight ?? 0) / totalWeight) * 100 : 0
-                                  return (
-                                    <div
-                                      key={pq.id}
-                                      className="relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
-                                    >
-                                      {/* Name + controls */}
-                                      <div className="flex items-start justify-between gap-1 min-w-0">
-                                        <div className="min-w-0">
-                                          <p className="text-sm font-medium leading-tight truncate">
-                                            {qDef?.name ?? pq.quest_definition_id}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-0.5 mt-0.5 truncate">
-                                            {pq.quest_definition_id}
-                                            <CopyButton text={pq.quest_definition_id} size="h-3 w-3" />
-                                          </p>
-                                        </div>
-                                        <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
-                                          <Switch
-                                            checked={qDef?.is_active ?? false}
-                                            onCheckedChange={async (checked) => {
-                                              try {
-                                                await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked })
-                                                setQuestDefsMap((prev) => ({
-                                                  ...prev,
-                                                  [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked },
-                                                }))
-                                                toast({ title: checked ? "Quest activated" : "Quest deactivated" })
-                                              } catch (e) {
-                                                toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update quest" })
-                                              }
-                                            }}
-                                            aria-label="Toggle quest active"
-                                          />
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 ml-2.5"
-                                            title="Edit quest definition"
-                                            asChild
-                                          >
-                                            <Link
-                                              href={(() => {
-                                                const sp = new URLSearchParams(searchParams.toString())
-                                                sp.delete("tab")
-                                                sp.set("editQuestId", pq.quest_definition_id)
-                                                return `/games/${gameId}/quests?${sp.toString()}`
-                                              })()}
-                                            >
-                                              <Pencil className="h-3 w-3" />
-                                            </Link>
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 text-destructive ml-2.5"
-                                            onClick={() => setRemoveQuestTarget({
-                                              poolId: pool.id,
-                                              questId: pq.quest_definition_id,
-                                              questName: qDef?.name ?? pq.quest_definition_id,
-                                            })}
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </div>
-                                      </div>
-
-                                      {/* Weight + % bar */}
-                                      <div className="space-y-1">
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                          <span className="flex items-center gap-1">
-                                            <Weight className="h-3 w-3" />
-                                            Weight: <span className="text-foreground font-medium">{pq.weight}</span>
-                                          </span>
-                                          <span className="font-medium text-foreground">{pct.toFixed(1)}%</span>
-                                        </div>
-                                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                                          <div
-                                            className="h-full rounded-full bg-primary transition-all"
-                                            style={{ width: `${pct}%` }}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
+                          <div className="flex-1 overflow-y-auto p-2 space-y-0.5 max-h-96">
+                            {dailyQuestDefsLoading ? (
+                              <div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-1.5">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
                               </div>
-                            )
-                          })()}
+                            ) : (() => {
+                              const isWeekly = pool.assignment_strategy === "weekly_schedule"
+                              const inPoolIds = new Set(expandedQuests.map((q) => q.quest_definition_id))
+                              const filtered = dailyQuestDefs.filter((q) => {
+                                const matchSearch = !addQuestSearch || q.name.toLowerCase().includes(addQuestSearch.toLowerCase())
+                                const notInPool = !inPoolIds.has(q.id)
+                                return matchSearch && notInPool
+                              })
+                              if (filtered.length === 0) {
+                                return <p className="text-xs text-muted-foreground text-center py-6">{addQuestSearch ? "No results" : "All quests added"}</p>
+                              }
+                              return filtered.map((q) => {
+                                const isSelected = !isWeekly && addQuestForm.quest_id === q.id
+                                return (
+                                  <div
+                                    key={q.id}
+                                    draggable={isWeekly}
+                                    onDragStart={() => { if (isWeekly) setDraggedQuestId(q.id) }}
+                                    onDragEnd={() => { setDraggedQuestId(null); setDragOverDay(null) }}
+                                    className={`rounded-md border transition-colors select-none ${
+                                      isWeekly
+                                        ? "border-transparent hover:bg-muted hover:border-border"
+                                        : isSelected
+                                        ? "bg-primary/10 border-primary/30"
+                                        : "border-transparent hover:bg-muted"
+                                    }`}
+                                  >
+                                    {/* Header row */}
+                                    <div
+                                      onClick={() => {
+                                        if (!isWeekly) {
+                                          if (isSelected) {
+                                            setAddQuestForm((prev) => ({ ...prev, quest_id: "" }))
+                                          } else {
+                                            setAddQuestForm((prev) => ({ ...prev, quest_id: q.id, weight: pool.assignment_strategy === "weighted_random" ? 10 : 1, sequence_order: 0 }))
+                                          }
+                                        }
+                                      }}
+                                      className={`flex items-center gap-2 px-2.5 py-2 text-sm ${
+                                        isWeekly ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+                                      }`}
+                                    >
+                                      {isWeekly && <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="truncate text-xs font-medium leading-snug">{q.name}</p>
+                                        {q.description && <p className="truncate text-[10px] text-muted-foreground">{q.description}</p>}
+                                      </div>
+                                      {!isWeekly && (
+                                        <ChevronDown className={`h-3.5 w-3.5 text-primary shrink-0 transition-transform ${
+                                          isSelected ? "rotate-180" : "opacity-30"
+                                        }`} />
+                                      )}
+                                    </div>
+                                    {/* Expanded config + add */}
+                                    {isSelected && (
+                                      <div className="px-2.5 pb-2.5 pt-1 space-y-2 border-t border-primary/10">
+                                        {pool.assignment_strategy === "weighted_random" && (
+                                          <div className="flex items-center gap-2">
+                                            <Label className="text-xs shrink-0">Weight</Label>
+                                            <Input type="number" min={1} value={addQuestForm.weight} onChange={(e) => setAddQuestForm({ ...addQuestForm, weight: Number(e.target.value) })} className="w-20 h-7 text-xs" />
+                                            <span className="text-[10px] text-muted-foreground">higher = more frequent</span>
+                                          </div>
+                                        )}
+                                        {pool.assignment_strategy === "fixed_rotation" && (
+                                          <div className="flex items-center gap-2">
+                                            <Label className="text-xs shrink-0">Order</Label>
+                                            <Input type="number" min={1} value={addQuestForm.sequence_order} onChange={(e) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(e.target.value) })} className="w-20 h-7 text-xs" />
+                                          </div>
+                                        )}
+                                        {pool.assignment_strategy === "monthly_schedule" && (
+                                          <div className="flex items-center gap-2">
+                                            <Label className="text-xs shrink-0">Day</Label>
+                                            <Input type="number" min={1} max={31} value={addQuestForm.sequence_order} onChange={(e) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(e.target.value) })} className="w-20 h-7 text-xs" />
+                                          </div>
+                                        )}
+                                        <Button size="sm" className="w-full h-7 text-xs" onClick={handleAddQuest} disabled={addQuestSaving}>
+                                          {addQuestSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                                          Add to Pool
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })
+                            })()}
+                          </div>
                         </div>
                       </div>
                     ) : null}
@@ -1174,144 +1290,6 @@ export function DailyTab({ game }: { game: Game | null }) {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-
-      {/* ─── Add Quest to Pool Dialog ─────────────────────────────────────── */}
-      <Dialog open={!!addQuestPoolId} onOpenChange={(o) => { if (!o) setAddQuestPoolId(null) }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Quest to Pool</DialogTitle>
-            <DialogDescription>
-              Select a daily quest definition and configure its weight/sequence.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Quest Picker */}
-            <div className="space-y-1">
-              <Label>Quest Definition <span className="text-destructive">*</span></Label>
-              <Popover open={questPickerOpen} onOpenChange={setQuestPickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" role="combobox" className="w-full justify-between text-sm font-normal">
-                    <span className="truncate">
-                      {addQuestForm.quest_id
-                        ? (dailyQuestDefs.find((q) => q.id === addQuestForm.quest_id)?.name ?? addQuestForm.quest_id)
-                        : (dailyQuestDefsLoading ? "Loading…" : "Select a daily quest…")}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-96 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search quests…" />
-                    <CommandList>
-                      <CommandEmpty>{dailyQuestDefsLoading ? "Loading…" : "No daily quest definitions found."}</CommandEmpty>
-                      <CommandGroup>
-                        {dailyQuestDefs.map((q) => (
-                          <CommandItem
-                            key={q.id}
-                            value={`${q.name} ${q.id}`}
-                            onSelect={() => {
-                              setAddQuestForm({ ...addQuestForm, quest_id: q.id })
-                              setQuestPickerOpen(false)
-                            }}
-                          >
-                            <Check className={`mr-2 h-3 w-3 ${addQuestForm.quest_id === q.id ? "opacity-100" : "opacity-0"}`} />
-                            <div>
-                              <p className="text-sm">{q.name}</p>
-                              {q.description && <p className="text-xs text-muted-foreground truncate">{q.description}</p>}
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <p className="text-xs text-muted-foreground">
-                Only quest definitions with type &quot;daily&quot; are shown.
-              </p>
-            </div>
-
-            {/* Strategy-specific fields */}
-            {(() => {
-              const currentPool = pools.find((p) => p.id === addQuestPoolId)
-              const strategy = currentPool?.assignment_strategy
-              return (
-                <>
-                  {strategy === "weighted_random" && (
-                    <div className="space-y-1">
-                      <Label>Weight <span className="text-destructive">*</span></Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={addQuestForm.weight}
-                        onChange={(e) => setAddQuestForm({ ...addQuestForm, weight: Number(e.target.value) })}
-                      />
-                      <p className="text-xs text-muted-foreground">Higher weight = more likely to be picked. E.g., 10 = common, 1 = rare.</p>
-                    </div>
-                  )}
-                  {strategy === "fixed_rotation" && (
-                    <div className="space-y-1">
-                      <Label>Sequence Order <span className="text-destructive">*</span></Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={addQuestForm.sequence_order}
-                        onChange={(e) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(e.target.value) })}
-                      />
-                      <p className="text-xs text-muted-foreground">Cycle position (1, 2, 3…). Quests rotate in order each day.</p>
-                    </div>
-                  )}
-                  {strategy === "weekly_schedule" && (
-                    <div className="space-y-1">
-                      <Label>Day of Week <span className="text-destructive">*</span></Label>
-                      <Select
-                        value={String(addQuestForm.sequence_order)}
-                        onValueChange={(v) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(v) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(DAY_OF_WEEK_LABELS).map(([val, label]) => (
-                            <SelectItem key={val} value={val}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {strategy === "monthly_schedule" && (
-                    <div className="space-y-1">
-                      <Label>Day of Month <span className="text-destructive">*</span></Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={addQuestForm.sequence_order}
-                        onChange={(e) => setAddQuestForm({ ...addQuestForm, sequence_order: Number(e.target.value) })}
-                      />
-                      <p className="text-xs text-muted-foreground">1–31. If month doesn&apos;t have this day, falls back to last valid day.</p>
-                    </div>
-                  )}
-                </>
-              )
-            })()}
-          </div>
-
-          <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
-            {!addQuestSaving && !addQuestForm.quest_id && (
-              <p className="text-xs text-destructive text-right">Please select a quest definition.</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAddQuestPoolId(null)} disabled={addQuestSaving}>Cancel</Button>
-              <Button onClick={handleAddQuest} disabled={addQuestSaving || !addQuestForm.quest_id}>
-                {addQuestSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                Add Quest
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ─── Remove Quest Confirm ─────────────────────────────────────────── */}
       <AlertDialog open={!!removeQuestTarget} onOpenChange={(o) => { if (!o) setRemoveQuestTarget(null) }}>
