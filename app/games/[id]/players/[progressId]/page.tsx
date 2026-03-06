@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Mail, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -322,19 +323,18 @@ export default function GameUserProgressDetailPage({
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="info">Player Info</TabsTrigger>
-          <TabsTrigger value="items">Items {itemsTotal > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{itemsTotal}</span>}</TabsTrigger>
-          <TabsTrigger value="containers">Containers {containers.length > 0 && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{containers.length}{containersHasMore ? "+" : ""}</span>}</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions {gachaTxnsTotal > 0 && activeTab === "transactions" && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs">{gachaTxnsTotal}</span>}</TabsTrigger>
-          <a
-            href={`/games/${gameId}/mailbox?userId=${progressId}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-muted hover:text-foreground text-muted-foreground"
-          >
-            <Mail className="h-3.5 w-3.5" />
-            Mail
-          </a>
-        </TabsList>
+        <PlayerSectionNav
+          gameId={gameId}
+          progressId={progressId}
+          activeTab={activeTab as any}
+          onTabChange={(tab) => handleTabChange(tab)}
+          counts={{
+            items: itemsTotal || undefined,
+            containers: containers.length || undefined,
+            containersHasMore,
+            transactions: gachaTxnsTotal || undefined,
+          }}
+        />
 
         <TabsContent value="info" className="space-y-4">
           <div className="flex justify-end">
@@ -1002,23 +1002,23 @@ export default function GameUserProgressDetailPage({
                         <TableCell className="text-sm text-muted-foreground">{c.created_at ? formatISODate(c.created_at) : "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.updated_at ? formatISODate(c.updated_at) : "—"}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                              const q = new URLSearchParams()
-                              if (c.definition?.name) q.set("def_name", c.definition.name)
-                              if (c.definition?.grid_cols) q.set("def_cols", String(c.definition.grid_cols))
-                              if (c.definition?.grid_rows) q.set("def_rows", String(c.definition.grid_rows))
-                              if (c.definition?.is_portable != null) q.set("def_portable", c.definition.is_portable ? "1" : "0")
-                              if (c.container_type) q.set("ctype", c.container_type)
-                              const qs = q.toString()
-                              router.push(`/games/${gameId}/players/${progressId}/containers/${c.id}${qs ? `?${qs}` : ""}`)
-                            }}
-                            title="View items"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          {(() => {
+                            const q = new URLSearchParams()
+                            if (c.definition?.name) q.set("def_name", c.definition.name)
+                            if (c.definition?.grid_cols) q.set("def_cols", String(c.definition.grid_cols))
+                            if (c.definition?.grid_rows) q.set("def_rows", String(c.definition.grid_rows))
+                            if (c.definition?.is_portable != null) q.set("def_portable", c.definition.is_portable ? "1" : "0")
+                            if (c.container_type) q.set("ctype", c.container_type)
+                            const qs = q.toString()
+                            const href = `/games/${gameId}/players/${progressId}/containers/${c.id}${qs ? `?${qs}` : ""}`
+                            return (
+                              <Button variant="outline" size="icon" asChild title="View items">
+                                <a href={href}>
+                                  <Eye className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )
+                          })()}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
+import Link from "next/link"
+import { CopyButton } from "@/components/CopyButton"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
-  ChevronsUpDown, Check, Calendar, Shuffle, RotateCw, Gift,
-  ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2, ExternalLink,
+  ChevronsUpDown, Check, Calendar, Shuffle, RotateCw,
+  ChevronDown, ChevronRight, Clock, Weight, Hash, Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,14 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import {
   Sheet,
   SheetContent,
@@ -66,8 +60,6 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Separator } from "@/components/ui/separator"
-import { listItemDefinitions } from "@/lib/inventory-api"
-import type { ItemDefinition } from "@/types/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api-client"
 import type { Game } from "@/types/game"
@@ -75,22 +67,18 @@ import {
   listDailyQuestPools,
   getDailyQuestPool,
   listPoolQuests,
-  getCompletionBonus,
   createDailyQuestPool,
   updateDailyQuestPool,
   updateQuestDefinition,
   addQuestToPool,
   removeQuestFromPool,
-  setCompletionBonus,
   listQuestDefinitions,
   type DailyQuestPool,
   type DailyQuestPoolQuest,
-  type CompletionBonus,
   type CreateDailyQuestPoolRequest,
   type UpdateDailyQuestPoolRequest,
   type AddQuestToPoolRequest,
   type AssignmentStrategy,
-  type QuestReward,
   type QuestDefinition,
 } from "@/lib/quest-api"
 
@@ -449,139 +437,6 @@ function strategyLabel(strategy: AssignmentStrategy) {
 
 // ─── Reward Editor (inline, reused from DefinitionsTab pattern) ───────────────
 
-interface RewardEditorProps {
-  rewards: QuestReward[]
-  onChange: (rewards: QuestReward[]) => void
-  gameId: string
-}
-
-function BonusRewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
-  const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
-  const [itemDefsLoading, setItemDefsLoading] = useState(false)
-  const [rewardItemPopover, setRewardItemPopover] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (!gameId) return
-    setItemDefsLoading(true)
-    listItemDefinitions({ gameId }, { limit: 200 })
-      .then((res) => setItemDefs(res.items ?? []))
-      .catch(() => setItemDefs([]))
-      .finally(() => setItemDefsLoading(false))
-  }, [gameId])
-
-  const addReward = () => onChange([...rewards, { reward_type: "item", item_definition_id: "", quantity_min: 1, quantity_max: 1 }])
-  const removeReward = (i: number) => onChange(rewards.filter((_, idx) => idx !== i))
-  const updateReward = (i: number, patch: Partial<QuestReward>) =>
-    onChange(rewards.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Rewards</Label>
-        <Button type="button" size="sm" variant="outline" onClick={addReward}>
-          <Plus className="h-3 w-3 mr-1" /> Add Reward
-        </Button>
-      </div>
-      {rewards.length === 0 && (
-        <p className="text-sm text-muted-foreground">No rewards configured.</p>
-      )}
-      {rewards.map((r, i) => (
-        <div key={i} className="flex gap-2 items-start border rounded p-2">
-          <div className="flex-1 space-y-2">
-            <Select
-              value={r.reward_type}
-              onValueChange={(v) => {
-                if (v === "coin") {
-                  updateReward(i, { reward_type: v, item_definition_id: undefined, quantity_min: undefined, quantity_max: undefined, amount: 100 })
-                } else {
-                  updateReward(i, { reward_type: v, amount: undefined, item_definition_id: "", quantity_min: 1, quantity_max: 1 })
-                }
-              }}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="coin">Coin</SelectItem>
-                <SelectItem value="item">Item</SelectItem>
-              </SelectContent>
-            </Select>
-            {r.reward_type === "coin" ? (
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  min={1}
-                  value={r.amount ?? ""}
-                  onChange={(e) => updateReward(i, { amount: Number(e.target.value) })}
-                  className="h-8"
-                />
-                <p className="text-xs text-muted-foreground">Number of coins to credit</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Popover open={rewardItemPopover === i} onOpenChange={(o) => setRewardItemPopover(o ? i : null)}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" role="combobox" className="h-8 w-full justify-between text-sm font-normal">
-                      <span className="truncate">
-                        {r.item_definition_id
-                          ? (itemDefs.find((d) => d.id === r.item_definition_id)?.name ?? r.item_definition_id)
-                          : (itemDefsLoading ? "Loading…" : "Select item")}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search item…" className="h-8" />
-                      <CommandList>
-                        <CommandEmpty>{itemDefsLoading ? "Loading…" : "No items found."}</CommandEmpty>
-                        <CommandGroup>
-                          {itemDefs.map((def) => (
-                            <CommandItem
-                              key={def.id}
-                              value={`${def.name} ${def.item_code} ${def.id}`}
-                              onSelect={() => {
-                                updateReward(i, { item_definition_id: def.id })
-                                setRewardItemPopover(null)
-                              }}
-                            >
-                              <Check className={`mr-2 h-3 w-3 ${r.item_definition_id === def.id ? "opacity-100" : "opacity-0"}`} />
-                              <div>
-                                <p className="text-sm">{def.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  <span className="font-mono">{def.item_code}</span>
-                                  <span className="ml-1 opacity-50">{def.category} · {def.rarity}</span>
-                                </p>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <div className="flex gap-2">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Min Qty</Label>
-                    <Input type="number" min={1} value={r.quantity_min ?? ""} onChange={(e) => updateReward(i, { quantity_min: Number(e.target.value) })} className="h-8" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Max Qty</Label>
-                    <Input type="number" min={1} value={r.quantity_max ?? ""} onChange={(e) => updateReward(i, { quantity_max: Number(e.target.value) })} className="h-8" />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" onClick={() => removeReward(i)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ─── Daily Tab (exported) ────────────────────────────────────────────────────
 
 export function DailyTab({ game }: { game: Game | null }) {
@@ -609,14 +464,10 @@ export function DailyTab({ game }: { game: Game | null }) {
   const [expandedPoolId, setExpandedPoolId] = useState<string | null>(null)
   const [expandedPool, setExpandedPool] = useState<DailyQuestPool | null>(null)
   const [expandedQuests, setExpandedQuests] = useState<DailyQuestPoolQuest[]>([])
-  const [expandedBonus, setExpandedBonus] = useState<CompletionBonus | null>(null)
   const [expandedLoading, setExpandedLoading] = useState(false)
 
   // Quest definitions lookup (for displaying quest names in pool)
   const [questDefsMap, setQuestDefsMap] = useState<Record<string, QuestDefinition>>({})
-
-  // Item definitions lookup (for displaying item names in bonus rewards)
-  const [itemDefsMap, setItemDefsMap] = useState<Record<string, ItemDefinition>>({})
 
   // Pool create / edit
   const [createOpen, setCreateOpen] = useState(false)
@@ -649,11 +500,6 @@ export function DailyTab({ game }: { game: Game | null }) {
   const [removeQuestTarget, setRemoveQuestTarget] = useState<{ poolId: string; questId: string; questName: string } | null>(null)
   const [removeQuestDeleting, setRemoveQuestDeleting] = useState(false)
 
-  // Completion bonus
-  const [bonusPoolId, setBonusPoolId] = useState<string | null>(null)
-  const [bonusRewards, setBonusRewards] = useState<QuestReward[]>([])
-  const [bonusSaving, setBonusSaving] = useState(false)
-
   const hasFetched = useRef(false)
 
   // ── Load quest definitions for name lookup ────────────────────────────────
@@ -670,21 +516,6 @@ export function DailyTab({ game }: { game: Game | null }) {
       // non-critical – names just won't resolve
     }
   }, [game, studioId, gameId])
-
-  // ── Load item definitions for name lookup ─────────────────────────────
-
-  const loadItemDefsMap = useCallback(async () => {
-    if (!game) return
-    try {
-      const data = await listItemDefinitions({ gameId }, { limit: 500 })
-      const items = Array.isArray(data) ? data : (data as any).items ?? []
-      const map: Record<string, ItemDefinition> = {}
-      for (const d of items) map[d.id] = d
-      setItemDefsMap(map)
-    } catch {
-      // non-critical – names just won't resolve
-    }
-  }, [game, gameId])
 
   // ── Load pools ────────────────────────────────────────────────────────────
 
@@ -703,13 +534,13 @@ export function DailyTab({ game }: { game: Game | null }) {
     if (!game || hasFetched.current) return
     hasFetched.current = true
     setLoading(true)
-    Promise.all([loadPools(), loadQuestDefsMap(), loadItemDefsMap()]).finally(() => setLoading(false))
-  }, [game, loadPools, loadQuestDefsMap, loadItemDefsMap])
+    Promise.all([loadPools(), loadQuestDefsMap()]).finally(() => setLoading(false))
+  }, [game, loadPools, loadQuestDefsMap])
 
   const handleRefresh = async () => {
     setRefreshing(true)
     setError(null)
-    await Promise.all([loadPools(), loadQuestDefsMap(), loadItemDefsMap()])
+    await Promise.all([loadPools(), loadQuestDefsMap()])
     setRefreshing(false)
   }
 
@@ -725,17 +556,14 @@ export function DailyTab({ game }: { game: Game | null }) {
     setExpandedPoolId(poolId)
     setExpandedPool(null)
     setExpandedQuests([])
-    setExpandedBonus(null)
     setExpandedLoading(true)
     try {
-      const [detail, questsData, bonusData] = await Promise.all([
+      const [detail, questsData] = await Promise.all([
         getDailyQuestPool(studioId, gameId, poolId),
         listPoolQuests(studioId, gameId, poolId),
-        getCompletionBonus(studioId, gameId, poolId).catch(() => null),
       ])
       setExpandedPool(detail)
       setExpandedQuests(questsData.quests ?? [])
-      setExpandedBonus(bonusData)
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to load pool details" })
       setExpandedPoolId(null)
@@ -746,14 +574,12 @@ export function DailyTab({ game }: { game: Game | null }) {
 
   const refreshExpanded = async (poolId: string) => {
     try {
-      const [detail, questsData, bonusData] = await Promise.all([
+      const [detail, questsData] = await Promise.all([
         getDailyQuestPool(studioId, gameId, poolId),
         listPoolQuests(studioId, gameId, poolId),
-        getCompletionBonus(studioId, gameId, poolId).catch(() => null),
       ])
       setExpandedPool(detail)
       setExpandedQuests(questsData.quests ?? [])
-      setExpandedBonus(bonusData)
     } catch {
       // silent
     }
@@ -886,29 +712,6 @@ export function DailyTab({ game }: { game: Game | null }) {
       toast({ variant: "destructive", title: "Error", description: msg })
     } finally {
       setRemoveQuestDeleting(false)
-    }
-  }
-
-  // ── Completion bonus ──────────────────────────────────────────────────────
-
-  const openBonusEditor = (pool: DailyQuestPool) => {
-    setBonusPoolId(pool.id)
-    setBonusRewards(expandedBonus?.rewards ? [...expandedBonus.rewards] : [])
-  }
-
-  const handleSaveBonus = async () => {
-    if (!bonusPoolId) return
-    setBonusSaving(true)
-    try {
-      await setCompletionBonus(studioId, gameId, bonusPoolId, { rewards: bonusRewards })
-      toast({ title: "Completion bonus updated" })
-      setBonusPoolId(null)
-      if (expandedPoolId) await refreshExpanded(expandedPoolId)
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Failed to save bonus"
-      toast({ variant: "destructive", title: "Error", description: msg })
-    } finally {
-      setBonusSaving(false)
     }
   }
 
@@ -1060,7 +863,7 @@ export function DailyTab({ game }: { game: Game | null }) {
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading pool details…
                       </div>
                     ) : expandedPool ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 gap-6">
                         {/* Quests in pool */}
                         <div className="min-w-0">
                           <div className="flex items-center justify-between mb-2">
@@ -1079,161 +882,101 @@ export function DailyTab({ game }: { game: Game | null }) {
 
                           {expandedQuests.length === 0 ? (
                             <p className="text-sm text-muted-foreground py-2">No quests in this pool yet.</p>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Quest</TableHead>
-                                  <TableHead className="w-24">Weight</TableHead>
-                                  <TableHead className="w-24">Status</TableHead>
-                                  <TableHead className="w-16" />
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
+                          ) : (() => {
+                            const totalWeight = expandedQuests.reduce((sum, q) => sum + (q.weight ?? 0), 0)
+                            return (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 mt-1">
                                 {expandedQuests.map((pq) => {
                                   const qDef = questDefsMap[pq.quest_definition_id]
+                                  const pct = totalWeight > 0 ? ((pq.weight ?? 0) / totalWeight) * 100 : 0
                                   return (
-                                    <TableRow key={pq.id}>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1.5">
-                                          <div>
-                                            <p className="text-sm font-medium">{qDef?.name ?? pq.quest_definition_id}</p>
-                                            {qDef?.description && (
-                                              <p className="text-xs text-muted-foreground truncate max-w-md">{qDef.description}</p>
-                                            )}
-                                          </div>
+                                    <div
+                                      key={pq.id}
+                                      className="relative flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm"
+                                    >
+                                      {/* Name + controls */}
+                                      <div className="flex items-start justify-between gap-1 min-w-0">
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium leading-tight truncate">
+                                            {qDef?.name ?? pq.quest_definition_id}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-0.5 mt-0.5 truncate">
+                                            {pq.quest_definition_id}
+                                            <CopyButton text={pq.quest_definition_id} size="h-3 w-3" />
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
+                                          <Switch
+                                            checked={qDef?.is_active ?? false}
+                                            onCheckedChange={async (checked) => {
+                                              try {
+                                                await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked })
+                                                setQuestDefsMap((prev) => ({
+                                                  ...prev,
+                                                  [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked },
+                                                }))
+                                                toast({ title: checked ? "Quest activated" : "Quest deactivated" })
+                                              } catch (e) {
+                                                toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update quest" })
+                                              }
+                                            }}
+                                            aria-label="Toggle quest active"
+                                          />
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-6 w-6 shrink-0"
+                                            className="h-6 w-6 ml-2.5"
                                             title="Edit quest definition"
-                                            onClick={() => {
-                                              const sp = new URLSearchParams(searchParams.toString())
-                                              sp.delete("tab")
-                                              sp.set("editQuestId", pq.quest_definition_id)
-                                              router.push(`/games/${gameId}/quests?${sp.toString()}`)
-                                            }}
+                                            asChild
                                           >
-                                            <Pencil className="h-3 w-3" />
+                                            <Link
+                                              href={(() => {
+                                                const sp = new URLSearchParams(searchParams.toString())
+                                                sp.delete("tab")
+                                                sp.set("editQuestId", pq.quest_definition_id)
+                                                return `/games/${gameId}/quests?${sp.toString()}`
+                                              })()}
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                            </Link>
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive ml-2.5"
+                                            onClick={() => setRemoveQuestTarget({
+                                              poolId: pool.id,
+                                              questId: pq.quest_definition_id,
+                                              questName: qDef?.name ?? pq.quest_definition_id,
+                                            })}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
                                           </Button>
                                         </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1 text-sm">
-                                          <Weight className="h-3 w-3 text-muted-foreground" />
-                                          {pq.weight}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <Switch
-                                          checked={qDef?.is_active ?? false}
-                                          onCheckedChange={async (checked) => {
-                                            try {
-                                              await updateQuestDefinition(studioId, gameId, pq.quest_definition_id, { is_active: checked })
-                                              setQuestDefsMap((prev) => ({
-                                                ...prev,
-                                                [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked },
-                                              }))
-                                              toast({ title: checked ? "Quest activated" : "Quest deactivated" })
-                                            } catch (e) {
-                                              toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update quest" })
-                                            }
-                                          }}
-                                          aria-label="Toggle quest active"
-                                        />
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-destructive"
-                                          onClick={() => setRemoveQuestTarget({
-                                            poolId: pool.id,
-                                            questId: pq.quest_definition_id,
-                                            questName: qDef?.name ?? pq.quest_definition_id,
-                                          })}
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
-                        </div>
+                                      </div>
 
-                        {/* Completion Bonus */}
-                        <div className="min-w-0 lg:border-l lg:pl-6">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-sm font-medium flex items-center gap-2">
-                              <Gift className="h-4 w-4" /> Completion Bonus
-                              {expandedBonus?.rewards && expandedBonus.rewards.length > 0 && (
-                                <Badge variant="outline" className="text-xs">{expandedBonus.rewards.length}</Badge>
-                              )}
-                            </h4>
-                            <Button size="sm" variant="outline" onClick={() => openBonusEditor(expandedPool)}>
-                              <Pencil className="h-3 w-3 mr-1" /> Edit Bonus
-                            </Button>
-                          </div>
-                          {expandedBonus?.rewards && expandedBonus.rewards.length > 0 ? (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Reward</TableHead>
-                                  <TableHead className="w-28">Amount</TableHead>
-                                  <TableHead className="w-10" />
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {expandedBonus.rewards.map((r, i) => {
-                                  if (r.reward_type === "coin") {
-                                    return (
-                                      <TableRow key={i}>
-                                        <TableCell>
-                                          <span className="text-sm font-medium">Coins</span>
-                                        </TableCell>
-                                        <TableCell>
-                                          <span className="text-sm">{r.amount}</span>
-                                        </TableCell>
-                                        <TableCell />
-                                      </TableRow>
-                                    )
-                                  }
-                                  const itemDef = r.item_definition_id ? itemDefsMap[r.item_definition_id] : null
-                                  return (
-                                    <TableRow key={i}>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-sm font-medium">
-                                            {itemDef?.name ?? r.item_definition_id?.slice(0, 8) + "…"}
+                                      {/* Weight + % bar */}
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                          <span className="flex items-center gap-1">
+                                            <Weight className="h-3 w-3" />
+                                            Weight: <span className="text-foreground font-medium">{pq.weight}</span>
                                           </span>
-                                          {r.item_definition_id && (
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 shrink-0"
-                                              title="View item definition"
-                                              onClick={() => router.push(`/games/${gameId}/items/${r.item_definition_id}`)}
-                                            >
-                                              <ExternalLink className="h-3 w-3" />
-                                            </Button>
-                                          )}
+                                          <span className="font-medium text-foreground">{pct.toFixed(1)}%</span>
                                         </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <span className="text-sm">{r.quantity_min}–{r.quantity_max}</span>
-                                      </TableCell>
-                                      <TableCell />
-                                    </TableRow>
+                                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                          <div
+                                            className="h-full rounded-full bg-primary transition-all"
+                                            style={{ width: `${pct}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
                                   )
                                 })}
-                              </TableBody>
-                            </Table>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No completion bonus set.</p>
-                          )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     ) : null}
@@ -1594,33 +1337,6 @@ export function DailyTab({ game }: { game: Game | null }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Completion Bonus Dialog ──────────────────────────────────────── */}
-      <Dialog open={!!bonusPoolId} onOpenChange={(o) => { if (!o) setBonusPoolId(null) }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Completion Bonus</DialogTitle>
-            <DialogDescription>
-              Reward given when a player completes all daily quests in this pool.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-2">
-            <BonusRewardEditor
-              rewards={bonusRewards}
-              onChange={setBonusRewards}
-              gameId={gameId}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBonusPoolId(null)} disabled={bonusSaving}>Cancel</Button>
-            <Button onClick={handleSaveBonus} disabled={bonusSaving}>
-              {bonusSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Save Bonus
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
