@@ -22,6 +22,7 @@ export const ja = {
     games: "ゲーム",
     users: "ユーザー",
     administration: "アカウント",
+    support: "サポート",
     admin: "管理者",
     allUsers: "全ユーザー",
     allStudios: "全スタジオ",
