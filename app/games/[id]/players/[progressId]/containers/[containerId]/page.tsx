@@ -211,6 +211,10 @@ function GridView({ container, items, gameId, onRefresh, loading }: { container:
                         </a>
                         <CopyButton text={item.definition.id} />
                       </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <p className="font-mono text-[10px] text-muted-foreground truncate" title={item.definition.id}>{item.definition.id}</p>
+                        <CopyButton text={item.definition.id} />
+                      </div>
                     </div>
                     <div><p className="text-muted-foreground text-xs">Code</p><div className="flex items-center gap-1"><p className="font-mono text-xs">{item.definition.item_code}</p><CopyButton text={item.definition.item_code} /></div></div>
                     <div><p className="text-muted-foreground text-xs">Category</p><p className="capitalize">{item.definition.category}</p></div>
