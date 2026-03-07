@@ -60,6 +60,7 @@ import { ApiError } from "@/lib/api-client"
 import {
   listItemDefinitions,
   createItemDefinition,
+  getItemDefinition,
   fetchItemCategories,
   fetchItemRarities,
   listContainerDefinitions,
@@ -716,15 +717,16 @@ function CreateItemDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Generator config
-  interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string }
-  const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])
-  const [genInterval, setGenInterval] = useState("60")
-  const [genCapacity, setGenCapacity] = useState("1000")
-  const [genInitialOutput, setGenInitialOutput] = useState("100")
+  interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string; collect_cap: string; initial_output: string }
+  const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
+  const [genInterval, setGenInterval] = useState("3600")
+  const [genTickCapacity, setGenTickCapacity] = useState("24")
 
   // All items for generator output dropdown
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
   const [genItemsLoading, setGenItemsLoading] = useState(false)
+  const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({})
+  const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({})
 
   // Fetch all items when category switches to generator
   useEffect(() => {
@@ -750,10 +752,9 @@ function CreateItemDialog({
     setStats([])
     setMeta([])
     setErrors({})
-    setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])
-    setGenInterval("60")
-    setGenCapacity("1000")
-    setGenInitialOutput("100")
+    setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
+    setGenInterval("3600")
+    setGenTickCapacity("24")
     setGenAllItems([])
   }
 
@@ -778,11 +779,8 @@ function CreateItemDialog({
       if (!genInterval || Number(genInterval) < 1) {
         e.genInterval = "Interval must be ≥ 1"
       }
-      if (!genCapacity || Number(genCapacity) < 1) {
-        e.genCapacity = "Capacity must be ≥ 1"
-      }
-      if (!genInitialOutput || Number(genInitialOutput) < 0) {
-        e.genInitialOutput = "Initial output must be ≥ 0"
+      if (!genTickCapacity || Number(genTickCapacity) < 1) {
+        e.genTickCapacity = "Tick Capacity must be ≥ 1"
       }
     }
     setErrors(e)
@@ -805,9 +803,8 @@ function CreateItemDialog({
       // Inject generator_config into metadata
       if (category === "generator") {
         metadata.generator_config = {
-          production_interval_seconds: Number(genInterval) || 60,
-          capacity: Number(genCapacity) || 1000,
-          initial_output: Number(genInitialOutput) || 0,
+          production_interval_seconds: Number(genInterval) || 3600,
+          tick_capacity: Number(genTickCapacity) || 24,
           output_pool: genOutputPool
             .filter(p => p.item_definition_id.trim())
             .map(p => ({
@@ -815,6 +812,8 @@ function CreateItemDialog({
               drop_rate: Number(p.drop_rate) || 1,
               quantity_min: Number(p.quantity_min) || 1,
               quantity_max: Number(p.quantity_max) || 1,
+              collect_cap: Number(p.collect_cap) || 5,
+              initial_output: Number(p.initial_output) || 0,
             })),
         }
       }
@@ -865,7 +864,7 @@ function CreateItemDialog({
         if (!v) { resetForm(); onClose() }
       }}
     >
-      <SheetContent side="right" className="sm:max-w-[520px] flex flex-col p-0">
+      <SheetContent side="right" className="sm:max-w-[560px] flex flex-col p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <SheetTitle>New Item Definition</SheetTitle>
         </SheetHeader>
@@ -1012,11 +1011,11 @@ function CreateItemDialog({
 
           {/* Generator Config */}
           {category === "generator" && (
-            <div className="space-y-3 rounded-md border p-4">
+            <div className="space-y-4 rounded-lg border p-5">
               <Label className="text-sm font-semibold">Generator Config</Label>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label htmlFor="gen-interval">Interval (s) <span className="text-destructive">*</span></Label>
                   <Input
                     id="gen-interval"
@@ -1027,129 +1026,229 @@ function CreateItemDialog({
                   />
                   {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="gen-capacity">Capacity <span className="text-destructive">*</span></Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gen-tick-capacity">Tick Capacity <span className="text-destructive">*</span></Label>
                   <Input
-                    id="gen-capacity"
+                    id="gen-tick-capacity"
                     type="number"
                     min={1}
-                    value={genCapacity}
-                    onChange={(e) => setGenCapacity(e.target.value)}
+                    value={genTickCapacity}
+                    onChange={(e) => setGenTickCapacity(e.target.value)}
                   />
-                  {errors.genCapacity && <p className="text-xs text-destructive">{errors.genCapacity}</p>}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="gen-initial">Initial Output</Label>
-                  <Input
-                    id="gen-initial"
-                    type="number"
-                    min={0}
-                    value={genInitialOutput}
-                    onChange={(e) => setGenInitialOutput(e.target.value)}
-                  />
-                  {errors.genInitialOutput && <p className="text-xs text-destructive">{errors.genInitialOutput}</p>}
+                  {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
                 </div>
               </div>
 
+              {/* Offline calculation hint */}
+              {(() => {
+                const interval = parseInt(genInterval) || 0
+                const ticks = parseInt(genTickCapacity) || 0
+                const maxSeconds = interval * ticks
+                if (interval > 0 && ticks > 0) {
+                  const hours = Math.floor(maxSeconds / 3600)
+                  const mins = Math.floor((maxSeconds % 3600) / 60)
+                  const timeStr = hours > 0
+                    ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}`
+                    : `${mins}m`
+                  return (
+                    <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+                      <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
+                      <p>Max offline duration = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
+                      <p>After being offline for up to <span className="font-medium text-foreground">{timeStr}</span>, the player can collect up to <span className="font-mono font-medium text-foreground">{ticks}</span> ticks worth of output.</p>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+
               {/* Output Pool */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">Output Pool <span className="text-destructive">*</span></Label>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs gap-1"
-                    onClick={() => setGenOutputPool([...genOutputPool, { item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])}
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setGenOutputPool([...genOutputPool, { item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])}
                   >
-                    <Plus className="h-3 w-3" /> Add Entry
+                    <Plus className="h-3.5 w-3.5" /> Add Entry
                   </Button>
                 </div>
-                <div className="rounded border overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/40">
-                        <th className="text-left px-2 py-1.5 font-medium">Item Definition ID</th>
-                        <th className="text-right px-2 py-1.5 font-medium w-20">Drop Rate</th>
-                        <th className="text-right px-2 py-1.5 font-medium w-16">Qty Min</th>
-                        <th className="text-right px-2 py-1.5 font-medium w-16">Qty Max</th>
-                        <th className="w-8"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {genOutputPool.map((entry, idx) => (
-                        <tr key={idx} className="border-b last:border-0">
-                          <td className="px-1 py-1">
-                            <Input
-                              className="h-7 text-xs font-mono"
-                              placeholder="item_code or UUID"
-                              value={entry.item_definition_id}
-                              onChange={(e) => {
-                                const pool = [...genOutputPool]
-                                pool[idx] = { ...pool[idx], item_definition_id: e.target.value }
-                                setGenOutputPool(pool)
-                              }}
-                            />
-                          </td>
-                          <td className="px-1 py-1">
-                            <Input
-                              className="h-7 text-xs text-right w-full"
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              max={1}
-                              value={entry.drop_rate}
-                              onChange={(e) => {
-                                const pool = [...genOutputPool]
-                                pool[idx] = { ...pool[idx], drop_rate: e.target.value }
-                                setGenOutputPool(pool)
-                              }}
-                            />
-                          </td>
-                          <td className="px-1 py-1">
-                            <Input
-                              className="h-7 text-xs text-right w-full"
-                              type="number"
-                              min={1}
-                              value={entry.quantity_min}
-                              onChange={(e) => {
-                                const pool = [...genOutputPool]
-                                pool[idx] = { ...pool[idx], quantity_min: e.target.value }
-                                setGenOutputPool(pool)
-                              }}
-                            />
-                          </td>
-                          <td className="px-1 py-1">
-                            <Input
-                              className="h-7 text-xs text-right w-full"
-                              type="number"
-                              min={1}
-                              value={entry.quantity_max}
-                              onChange={(e) => {
-                                const pool = [...genOutputPool]
-                                pool[idx] = { ...pool[idx], quantity_max: e.target.value }
-                                setGenOutputPool(pool)
-                              }}
-                            />
-                          </td>
-                          <td className="px-1 py-1">
-                            {genOutputPool.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+
+                {genOutputPool.map((entry, idx) => {
+                  const selectedItem = genAllItems.find((i) => i.id === entry.item_definition_id)
+                  return (
+                    <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3 relative">
+                      {/* Entry header with delete */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                        {genOutputPool.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Item Definition - searchable combobox */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Item Definition <span className="text-destructive">*</span></Label>
+                        <Popover
+                          open={genPoolOpen[idx] ?? false}
+                          onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))}
+                          modal={true}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={genPoolOpen[idx] ?? false}
+                              className="w-full justify-between font-normal h-9"
+                            >
+                              {entry.item_definition_id ? (
+                                <span className="truncate">
+                                  {selectedItem?.name ?? entry.item_definition_id.slice(0, 12) + "…"}
+                                  {selectedItem?.item_code && (
+                                    <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Select item…</span>
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command shouldFilter={false}>
+                              <CommandInput
+                                placeholder="Search by name or code…"
+                                value={genPoolSearch[idx] ?? ""}
+                                onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))}
+                              />
+                              <CommandList>
+                                <CommandEmpty>{genItemsLoading ? "Loading…" : "No item found."}</CommandEmpty>
+                                <CommandGroup>
+                                  {genAllItems
+                                    .filter((d) => {
+                                      const q = (genPoolSearch[idx] ?? "").toLowerCase()
+                                      return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q)
+                                    })
+                                    .slice(0, 50)
+                                    .map((d) => (
+                                      <CommandItem
+                                        key={d.id}
+                                        value={d.id}
+                                        onSelect={() => {
+                                          const pool = [...genOutputPool]
+                                          pool[idx] = { ...pool[idx], item_definition_id: d.id }
+                                          setGenOutputPool(pool)
+                                          setGenPoolOpen((prev) => ({ ...prev, [idx]: false }))
+                                          setGenPoolSearch((prev) => ({ ...prev, [idx]: "" }))
+                                        }}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 shrink-0 ${entry.item_definition_id === d.id ? "opacity-100" : "opacity-0"}`}
+                                        />
+                                        <span className="flex-1 truncate">{d.name}</span>
+                                        {d.item_code && (
+                                          <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
+                                        )}
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Numeric fields in a grid */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Drop Rate</Label>
+                          <Input
+                            className="h-10 text-sm"
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            max={1}
+                            value={entry.drop_rate}
+                            onChange={(e) => {
+                              const pool = [...genOutputPool]
+                              pool[idx] = { ...pool[idx], drop_rate: e.target.value }
+                              setGenOutputPool(pool)
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Qty Min</Label>
+                          <Input
+                            className="h-10 text-sm"
+                            type="number"
+                            min={1}
+                            value={entry.quantity_min}
+                            onChange={(e) => {
+                              const pool = [...genOutputPool]
+                              pool[idx] = { ...pool[idx], quantity_min: e.target.value }
+                              setGenOutputPool(pool)
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Qty Max</Label>
+                          <Input
+                            className="h-10 text-sm"
+                            type="number"
+                            min={1}
+                            value={entry.quantity_max}
+                            onChange={(e) => {
+                              const pool = [...genOutputPool]
+                              pool[idx] = { ...pool[idx], quantity_max: e.target.value }
+                              setGenOutputPool(pool)
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Collect Cap</Label>
+                          <Input
+                            className="h-10 text-sm"
+                            type="number"
+                            min={0}
+                            value={entry.collect_cap}
+                            onChange={(e) => {
+                              const pool = [...genOutputPool]
+                              pool[idx] = { ...pool[idx], collect_cap: e.target.value }
+                              setGenOutputPool(pool)
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Initial Output</Label>
+                          <Input
+                            className="h-10 text-sm"
+                            type="number"
+                            min={0}
+                            value={entry.initial_output}
+                            onChange={(e) => {
+                              const pool = [...genOutputPool]
+                              pool[idx] = { ...pool[idx], initial_output: e.target.value }
+                              setGenOutputPool(pool)
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
                 {errors.genOutputPool && <p className="text-xs text-destructive">{errors.genOutputPool}</p>}
               </div>
             </div>
@@ -1201,6 +1300,9 @@ export default function GameItemsPage() {
   const [copiedPackId, setCopiedPackId] = useState(false)
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
 
+  // Cache of resolved item names for output pool display
+  const [poolItemNames, setPoolItemNames] = useState<Record<string, string>>({})
+
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [filterRarity, setFilterRarity] = useState<string>("all")
@@ -1210,6 +1312,40 @@ export default function GameItemsPage() {
   // pagination
   const LIMIT = 50
   const [offset, setOffset] = useState(0)
+
+  // Resolve item names for generator output pool when items expand
+  useEffect(() => {
+    if (expandedItemIds.size === 0 || !studioId || !gameId) return
+    const idsToResolve = new Set<string>()
+    items.forEach((item) => {
+      if (!expandedItemIds.has(item.id)) return
+      if (item.category !== "generator" || !item.metadata?.generator_config) return
+      const gc = item.metadata.generator_config as Record<string, unknown>
+      const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+      pool.forEach((entry) => {
+        const defId = String(entry.item_definition_id ?? "")
+        if (defId && !poolItemNames[defId]) idsToResolve.add(defId)
+      })
+    })
+    if (idsToResolve.size === 0) return
+    // First try to resolve from current items list
+    const newNames: Record<string, string> = {}
+    idsToResolve.forEach((id) => {
+      const found = items.find((i) => i.id === id)
+      if (found) { newNames[id] = found.name; idsToResolve.delete(id) }
+    })
+    if (Object.keys(newNames).length > 0) {
+      setPoolItemNames((prev) => ({ ...prev, ...newNames }))
+    }
+    // Fetch remaining from API
+    idsToResolve.forEach((id) => {
+      getItemDefinition({ studioId, gameId }, id)
+        .then((res) => {
+          setPoolItemNames((prev) => ({ ...prev, [id]: res.item?.name ?? id }))
+        })
+        .catch(() => {})
+    })
+  }, [expandedItemIds, items, studioId, gameId])
 
   // modal
   const [showCreate, setShowCreate] = useState(false)
@@ -1699,61 +1835,66 @@ export default function GameItemsPage() {
                 {total > 0 ? `${total.toLocaleString()} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={fetchItems} title="Refresh">
-                <RefreshCw className="h-4 w-4" />
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Name search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by name…"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+                {searchName && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearchName("")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {/* Category */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                <option value="all">All categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c} className="capitalize">{c}</option>
+                ))}
+              </select>
+              {/* Rarity */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+                value={filterRarity}
+                onChange={(e) => setFilterRarity(e.target.value)}
+              >
+                <option value="all">All rarities</option>
+                {rarities.map((r) => (
+                  <option key={r} value={r} className="capitalize">{r}</option>
+                ))}
+              </select>
+              {/* Clear all */}
+              {(searchName || filterCategory !== "all" || filterRarity !== "all") && (
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all") }}
+                >
+                  Clear
+                </button>
+              )}
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
-              <Button onClick={() => setShowCreate(true)} disabled={!studioId}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button size="sm" className="h-8" onClick={() => setShowCreate(true)} disabled={!studioId}>
+                <Plus className="h-4 w-4 mr-1" />
                 New Item
               </Button>
             </div>
           </div>
-
-          {/* Filter bar */}
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    className="pl-8 border-none"
-                    placeholder="Search name…"
-                    value={searchName}
-                    onChange={(e) => setSearchName(e.target.value)}
-                  />
-                </div>
-                <Select
-                  value={filterCategory}
-                  onValueChange={(v) => setFilterCategory(v)}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={filterRarity}
-                  onValueChange={(v) => setFilterRarity(v)}
-                >
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue placeholder="Rarity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All rarities</SelectItem>
-                    {rarities.map((r) => (
-                      <SelectItem key={r} value={r}><RarityBadge rarity={r} /></SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Table */}
           <Card>
@@ -1983,6 +2124,90 @@ export default function GameItemsPage() {
                                   </div>
                                 </div>
                               )}
+
+                              {/* Generator Config (for generator items) */}
+                              {item.category === "generator" && item.metadata?.generator_config && (() => {
+                                const gc = item.metadata.generator_config as Record<string, unknown>
+                                const outputPool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+                                const interval = Number(gc.production_interval_seconds) || 0
+                                const ticks = Number(gc.tick_capacity) || 0
+                                const maxSeconds = interval * ticks
+                                const hours = Math.floor(maxSeconds / 3600)
+                                const mins = Math.floor((maxSeconds % 3600) / 60)
+                                const timeStr = hours > 0 ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}` : `${mins}m`
+                                return (
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-semibold text-foreground">Generator Config</p>
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Interval: </span>
+                                        <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Tick Capacity: </span>
+                                        <span className="font-medium">{String(gc.tick_capacity ?? "—")}</span>
+                                      </div>
+                                    </div>
+                                    {interval > 0 && ticks > 0 && (
+                                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-[11px] text-muted-foreground space-y-0.5">
+                                        <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
+                                        <p>Max offline = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
+                                        <p>Player can collect up to <span className="font-medium text-foreground">{ticks}</span> ticks worth of output after <span className="font-medium text-foreground">{timeStr}</span> offline.</p>
+                                      </div>
+                                    )}
+                                    {outputPool.length > 0 && (
+                                      <div className="space-y-1">
+                                        <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+                                        <div className="rounded border border-border overflow-hidden">
+                                          <table className="w-full text-xs">
+                                            <thead>
+                                              <tr className="border-b bg-muted/40">
+                                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Item Definition</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Collect Cap</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Initial Out</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {outputPool.map((entry, idx) => {
+                                                const defId = String(entry.item_definition_id ?? "")
+                                                const resolvedName = poolItemNames[defId]
+                                                return (
+                                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
+                                                    <td className="px-2 py-1">
+                                                      <div className="flex items-center gap-1">
+                                                        <Link
+                                                          href={`/games/${gameId}/items/${defId}`}
+                                                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
+                                                          title={defId}
+                                                          onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                          <span className="truncate max-w-[200px]">
+                                                            {resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
+                                                          </span>
+                                                          <ExternalLink className="h-3 w-3 shrink-0" />
+                                                        </Link>
+                                                        {defId && <CopyButton text={defId} />}
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
+                                                  </tr>
+                                                )
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()}
 
                               {/* Metadata */}
                               {item.metadata && Object.keys(item.metadata).length > 0 && (

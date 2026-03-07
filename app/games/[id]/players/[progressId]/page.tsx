@@ -1026,18 +1026,14 @@ export default function GameUserProgressDetailPage({
                                 return (
                                   <div className="space-y-2">
                                     <p className="text-xs font-semibold text-foreground">Generator Config</p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs">
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
                                       <div>
                                         <span className="text-muted-foreground">Interval: </span>
                                         <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
                                       </div>
                                       <div>
-                                        <span className="text-muted-foreground">Capacity: </span>
-                                        <span className="font-medium">{String(gc.capacity ?? "—")}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Initial Output: </span>
-                                        <span className="font-medium">{String(gc.initial_output ?? "—")}</span>
+                                        <span className="text-muted-foreground">Tick Capacity: </span>
+                                        <span className="font-medium">{String(gc.tick_capacity ?? "—")}</span>
                                       </div>
                                     </div>
                                     {outputPool.length > 0 && (
@@ -1051,6 +1047,8 @@ export default function GameUserProgressDetailPage({
                                                 <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
                                                 <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
                                                 <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Collect Cap</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Initial Out</th>
                                               </tr>
                                             </thead>
                                             <tbody>
@@ -1076,9 +1074,11 @@ export default function GameUserProgressDetailPage({
                                                         <p className="font-mono text-[10px] text-muted-foreground truncate mt-0.5" title={defId}>{defId}</p>
                                                       )}
                                                     </td>
-                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.drop_rate ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
                                                     <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
                                                     <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
                                                   </tr>
                                                 )
                                               })}
