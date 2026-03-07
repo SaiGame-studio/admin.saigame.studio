@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -196,6 +196,7 @@ export default function GameUserProgressDetailPage({
     return tab === "items" || tab === "containers" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
   const [itemsTotal, setItemsTotal] = useState(0)
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
@@ -863,6 +864,7 @@ export default function GameUserProgressDetailPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
+                      <TableHead>Item Code</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Rarity</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
@@ -873,25 +875,57 @@ export default function GameUserProgressDetailPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {playerItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="font-medium whitespace-nowrap flex items-center gap-1">
-                            {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
-                            <a
-                              href={`/games/${gameId}/items/${item.item_definition_id}`}
-                              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                              title="Open item definition"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </div>
-                          {item.definition?.item_code && (
-                            <div className="text-xs text-muted-foreground font-mono">{item.definition.item_code}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="capitalize text-sm">{item.definition?.category ?? "—"}</TableCell>
+                    {playerItems.map((item) => {
+                      const isGenerator = item.definition?.category === "generator"
+                      const isExpanded = expandedItemIds.has(item.id)
+                      const toggleExpand = () => {
+                        setExpandedItemIds((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(item.id)) next.delete(item.id)
+                          else next.add(item.id)
+                          return next
+                        })
+                      }
+                      return (
+                        <Fragment key={item.id}>
+                          <TableRow
+                            className="hover:bg-muted/40 cursor-pointer"
+                            onClick={toggleExpand}
+                          >
+                            <TableCell>
+                              <div className="font-medium whitespace-nowrap flex items-center gap-1">
+                                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
+                                <a
+                                  href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Open item definition"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-muted-foreground/60 font-mono" title="Definition ID">def: {item.item_definition_id.slice(0, 8)}…</span>
+                                <CopyButton text={item.item_definition_id} />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {item.definition?.item_code ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-mono" onClick={(e) => e.stopPropagation()}>
+                                  {item.definition.item_code}
+                                  <CopyButton text={item.definition.item_code} />
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                        <TableCell className="capitalize text-sm">
+                              <span className="inline-flex items-center gap-1">
+                                {item.definition?.category ?? "—"}
+                                {isGenerator && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                              </span>
+                            </TableCell>
                         <TableCell>
                           {item.definition?.rarity ? (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border capitalize ${RARITY_STYLE[item.definition.rarity] ?? "bg-muted text-muted-foreground border-border"}`}>
@@ -928,7 +962,96 @@ export default function GameUserProgressDetailPage({
                           {item.acquired_at ? formatISODate(item.acquired_at) : "—"}
                         </TableCell>
                       </TableRow>
-                    ))}
+
+                      {/* Expanded detail row */}
+                      {isExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/40">
+                          <TableCell colSpan={9} className="p-0">
+                            <div className="px-6 py-3 space-y-3">
+                              {/* Instance ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Instance ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                                <CopyButton text={item.id} />
+                              </div>
+
+                              {/* Generator Config */}
+                              {item.definition?.metadata?.generator_config && (() => {
+                                const gc = item.definition.metadata.generator_config as Record<string, unknown>
+                                return (
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-foreground">Generator Config</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Output Item Code: </span>
+                                        <span className="font-mono font-medium">{String(gc.output_item_code ?? "—")}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Interval: </span>
+                                        <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Capacity: </span>
+                                        <span className="font-medium">{String(gc.capacity ?? "—")}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Initial Output: </span>
+                                        <span className="font-medium">{String(gc.initial_output ?? "—")}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Full Metadata */}
+                              {item.definition?.metadata && Object.keys(item.definition.metadata).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(item.definition.metadata, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Definition Info */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-foreground">Definition Info</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground">Stackable: </span>
+                                    <span className="font-medium">{item.definition?.is_stackable ? `Yes (max ${item.definition.max_stack_size ?? "∞"})` : "No"}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Grid: </span>
+                                    <span className="font-medium">{item.definition?.grid_width ?? 1}×{item.definition?.grid_height ?? 1}</span>
+                                  </div>
+                                  {item.definition?.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
+                                    <div className="col-span-2">
+                                      <span className="text-muted-foreground">Base Stats: </span>
+                                      <span className="font-mono font-medium">
+                                        {Object.entries(item.definition.base_stats).map(([k, v]) => `${k}=${v}`).join(", ")}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Custom Properties */}
+                              {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Custom Properties (Instance)</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(item.custom_properties, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}
