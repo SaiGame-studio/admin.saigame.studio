@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Box, ExternalLink, Grid2x2, List, Package, RefreshCw, Search, X } from "lucide-react"
+import { ArrowLeft, Box, ExternalLink, Gift, Grid2x2, List, Package, RefreshCw, Search, X } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,8 @@ import {
 } from "@/lib/game-user-api"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { listGachaPacks } from "@/lib/inventory-api"
+import type { GachaPack } from "@/types/inventory"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,11 +39,27 @@ const CELL_PX = 64
 
 // ─── Grid View ────────────────────────────────────────────────────────────────
 
-function GridView({ container, items, onRefresh, loading }: { container: PlayerContainer; items: PlayerItem[]; onRefresh?: () => void; loading?: boolean }) {
+function GridView({ container, items, gameId, onRefresh, loading }: { container: PlayerContainer; items: PlayerItem[]; gameId: string; onRefresh?: () => void; loading?: boolean }) {
   const cols = container.definition?.grid_cols ?? 1
   const rows = container.definition?.grid_rows ?? 1
   const [hovered, setHovered] = useState<string | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
+  const [gachaPackMap, setGachaPackMap] = useState<Record<string, GachaPack>>({})
+
+  // Fetch gacha packs for resolving gacha_pack_ids in metadata
+  useEffect(() => {
+    const allPackIds = new Set<string>()
+    items.forEach((item) => {
+      const ids = item.definition?.metadata?.gacha_pack_ids
+      if (Array.isArray(ids)) ids.forEach((id: string) => allPackIds.add(id))
+    })
+    if (allPackIds.size === 0) return
+    listGachaPacks({ gameId }).then((res) => {
+      const map: Record<string, GachaPack> = {}
+      ;(res.packs ?? []).forEach((p) => { map[p.id] = p })
+      setGachaPackMap(map)
+    }).catch(() => {})
+  }, [items, gameId])
 
   const totalUsed = items.reduce((acc, i) => acc + (i.definition?.grid_width ?? 1) * (i.definition?.grid_height ?? 1), 0)
 
@@ -151,22 +169,115 @@ function GridView({ container, items, onRefresh, loading }: { container: PlayerC
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="py-0 pb-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div><p className="text-muted-foreground text-xs">Code</p><p className="font-mono text-xs">{item.definition?.item_code ?? "—"}</p></div>
-              <div><p className="text-muted-foreground text-xs">Category</p><p className="capitalize">{item.definition?.category ?? "—"}</p></div>
-              <div><p className="text-muted-foreground text-xs">Qty</p><p className="font-mono">{item.quantity}</p></div>
-              <div><p className="text-muted-foreground text-xs">Level</p><p>{item.level}</p></div>
-              <div><p className="text-muted-foreground text-xs">Position</p><p className="font-mono">({item.grid_x}, {item.grid_y})</p></div>
-              <div><p className="text-muted-foreground text-xs">Size</p><p className="font-mono">{item.definition?.grid_width ?? 1}×{item.definition?.grid_height ?? 1}</p></div>
-              <div><p className="text-muted-foreground text-xs">Stackable</p><p>{item.definition?.is_stackable ? `Yes${item.definition.max_stack_size != null ? ` / ${item.definition.max_stack_size}` : ""}` : "No"}</p></div>
-              {item.definition?.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
-                <div className="col-span-2 md:col-span-4">
-                  <p className="text-muted-foreground text-xs mb-1">Base stats</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(item.definition.base_stats).map(([k, v]) => (
-                      <span key={k} className="text-xs bg-muted rounded px-2 py-0.5 font-mono">{k}: {v}</span>
-                    ))}
+            <CardContent className="py-0 pb-4 space-y-4 text-sm">
+              {/* ── Instance Properties ── */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Instance</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div><p className="text-muted-foreground text-xs">Instance ID</p><div className="flex items-center gap-1"><p className="font-mono text-xs truncate" title={item.id}>{item.id.slice(0, 12)}…</p><CopyButton text={item.id} /></div></div>
+                  <div><p className="text-muted-foreground text-xs">Qty</p><p className="font-mono">{item.quantity}</p></div>
+                  <div><p className="text-muted-foreground text-xs">Level</p><p className="font-mono">{item.level}</p></div>
+                  <div><p className="text-muted-foreground text-xs">Version</p><p className="font-mono">{item.version}</p></div>
+                  <div><p className="text-muted-foreground text-xs">Position</p><p className="font-mono">({item.grid_x}, {item.grid_y})</p></div>
+                  <div><p className="text-muted-foreground text-xs">Container</p><div className="flex items-center gap-1"><p className="font-mono text-xs truncate" title={item.item_container_id}>{item.item_container_id.slice(0, 12)}…</p><CopyButton text={item.item_container_id} /></div></div>
+                  <div><p className="text-muted-foreground text-xs">Acquired</p><p className="text-xs">{item.acquired_at ? formatISODate(item.acquired_at) : "—"}</p></div>
+                  <div><p className="text-muted-foreground text-xs">Last Modified</p><p className="text-xs">{item.last_modified_at ? formatISODate(item.last_modified_at) : "—"}</p></div>
+                </div>
+                {/* Custom Properties */}
+                {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-muted-foreground text-xs mb-1">Custom Properties</p>
+                    <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[160px]">{JSON.stringify(item.custom_properties, null, 2)}</pre>
                   </div>
+                )}
+              </div>
+
+              {/* ── Definition Properties ── */}
+              {item.definition && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Definition</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Definition</p>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={`/games/${gameId}/items/${item.definition.id}`}
+                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
+                          title={item.definition.id}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {item.definition.name || item.definition.id.slice(0, 12)}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                        <CopyButton text={item.definition.id} />
+                      </div>
+                    </div>
+                    <div><p className="text-muted-foreground text-xs">Code</p><div className="flex items-center gap-1"><p className="font-mono text-xs">{item.definition.item_code}</p><CopyButton text={item.definition.item_code} /></div></div>
+                    <div><p className="text-muted-foreground text-xs">Category</p><p className="capitalize">{item.definition.category}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Rarity</p><p className="capitalize">{item.definition.rarity}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Size</p><p className="font-mono">{item.definition.grid_width}×{item.definition.grid_height}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Stackable</p><p>{item.definition.is_stackable ? `Yes (max ${item.definition.max_stack_size ?? "∞"})` : "No"}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Created</p><p className="text-xs">{formatISODate(item.definition.created_at)}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Updated</p><p className="text-xs">{formatISODate(item.definition.updated_at)}</p></div>
+                  </div>
+
+                  {/* Base Stats */}
+                  {item.definition.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-muted-foreground text-xs mb-1">Base Stats</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(item.definition.base_stats).map(([k, v]) => (
+                          <span key={k} className="text-xs bg-muted rounded px-2 py-0.5 font-mono">{k}: {v}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Metadata */}
+                  {item.definition.metadata && Object.keys(item.definition.metadata).length > 0 && (() => {
+                    const gachaPackIds = Array.isArray(item.definition.metadata.gacha_pack_ids)
+                      ? (item.definition.metadata.gacha_pack_ids as string[])
+                      : []
+                    // Remaining metadata without gacha_pack_ids
+                    const restMeta = Object.fromEntries(
+                      Object.entries(item.definition.metadata).filter(([k]) => k !== "gacha_pack_ids")
+                    )
+                    return (
+                      <>
+                        {/* Gacha Packs */}
+                        {gachaPackIds.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-muted-foreground text-xs mb-1">Gacha Packs ({gachaPackIds.length})</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {gachaPackIds.map((packId) => {
+                                const pack = gachaPackMap[packId]
+                                return (
+                                  <a
+                                    key={packId}
+                                    href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`}
+                                    className="inline-flex items-center gap-1 text-xs bg-muted hover:bg-muted/80 rounded px-2 py-1 font-medium hover:text-primary transition-colors"
+                                    title={packId}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Gift className="h-3 w-3 shrink-0 text-purple-400" />
+                                    {pack?.name ?? packId.slice(0, 8) + "…"}
+                                    <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                                  </a>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {/* Rest of Metadata */}
+                        {Object.keys(restMeta).length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-muted-foreground text-xs mb-1">Metadata</p>
+                            <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">{JSON.stringify(restMeta, null, 2)}</pre>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
             </CardContent>
@@ -567,7 +678,7 @@ export default function ContainerItemsPage({
                   <p className="text-sm mt-1">No items placed in this container.</p>
                 </div>
               ) : (
-                <GridView container={container} items={items} onRefresh={loadData} loading={loading} />
+                <GridView container={container} items={items} gameId={gameId} onRefresh={loadData} loading={loading} />
               )
             ) : (
               <div className="p-12 text-center text-muted-foreground text-sm">
