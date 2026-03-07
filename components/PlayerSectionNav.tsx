@@ -2,7 +2,7 @@
 
 import { Mail } from "lucide-react"
 
-export type PlayerNavTab = "info" | "items" | "containers" | "quests" | "transactions"
+export type PlayerNavTab = "info" | "items" | "containers" | "generators" | "quests" | "transactions"
 
 interface PlayerSectionNavProps {
   gameId: string
@@ -15,6 +15,7 @@ interface PlayerSectionNavProps {
     items?: number
     containers?: number
     containersHasMore?: boolean
+    generators?: number
     quests?: number
     transactions?: number
   }
@@ -24,6 +25,7 @@ const TABS: { value: PlayerNavTab; label: string }[] = [
   { value: "info",         label: "Player Info"  },
   { value: "items",        label: "Items"        },
   { value: "containers",   label: "Containers"   },
+  { value: "generators",   label: "Generators"   },
   { value: "quests",       label: "Quests"       },
   { value: "transactions", label: "Transactions" },
 ]
@@ -46,6 +48,7 @@ export function PlayerSectionNav({
       n = counts.containers
       plus = !!counts.containersHasMore
     }
+    if (value === "generators" && counts.generators != null) n = counts.generators
     if (value === "quests" && counts.quests != null) n = counts.quests
     if (value === "transactions" && counts.transactions != null && activeTab === "transactions")
       n = counts.transactions

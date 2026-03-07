@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -206,10 +206,12 @@ function GeneratorLiveEstimate({
         <div>
           <span className="text-muted-foreground">Interval: </span>
           <span className="font-medium">{interval}s</span>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Time between each production tick</p>
         </div>
         <div>
           <span className="text-muted-foreground">Tick Capacity: </span>
           <span className="font-medium">{tickCapacity}</span>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Max ticks stored while offline</p>
         </div>
       </div>
 
@@ -337,9 +339,6 @@ function GeneratorLiveEstimate({
                           </a>
                           {defId && <CopyButton text={defId} />}
                         </div>
-                        {defName && (
-                          <p className="font-mono text-[10px] text-muted-foreground truncate mt-0.5" title={defId}>{defId}</p>
-                        )}
                       </td>
                       <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
                       <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
@@ -441,7 +440,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "generators" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -449,50 +448,6 @@ export default function GameUserProgressDetailPage({
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [itemsError, setItemsError] = useState<string | null>(null)
-  const [outputPoolDefNames, setOutputPoolDefNames] = useState<Record<string, string>>({})
-
-  // Resolve item definition names for output_pool entries in generator configs
-  useEffect(() => {
-    if (playerItems.length === 0) return
-    // Collect all output_pool item_definition_ids across all items
-    const idsToResolve = new Set<string>()
-    const knownNames: Record<string, string> = {}
-    // First pass: collect known names from playerItems definitions
-    playerItems.forEach((pi) => {
-      if (pi.definition) {
-        knownNames[pi.item_definition_id] = pi.definition.name
-        knownNames[pi.definition.id] = pi.definition.name
-        if (pi.definition.item_code) knownNames[pi.definition.item_code] = pi.definition.name
-      }
-    })
-    // Second pass: find output_pool IDs that need resolving
-    playerItems.forEach((pi) => {
-      const gc = pi.definition?.metadata?.generator_config as Record<string, unknown> | undefined
-      if (!gc) return
-      const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
-      pool.forEach((entry) => {
-        const defId = String(entry.item_definition_id ?? "")
-        if (defId && !knownNames[defId]) idsToResolve.add(defId)
-      })
-    })
-    if (idsToResolve.size === 0) {
-      setOutputPoolDefNames(knownNames)
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const resolved = { ...knownNames }
-      await Promise.allSettled(
-        [...idsToResolve].map((id) =>
-          getItemDefinition({ gameId }, id)
-            .then((r) => { resolved[id] = r.item.name })
-            .catch(() => {})
-        )
-      )
-      if (!cancelled) setOutputPoolDefNames(resolved)
-    })()
-    return () => { cancelled = true }
-  }, [playerItems, gameId])
 
   // debounce item name filter
   useEffect(() => {
@@ -533,6 +488,12 @@ export default function GameUserProgressDetailPage({
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
+
+  // Generators tab
+  const [generatorItems, setGeneratorItems] = useState<PlayerItem[]>([])
+  const [generatorsLoading, setGeneratorsLoading] = useState(false)
+  const [generatorsError, setGeneratorsError] = useState<string | null>(null)
+  const [genOutputPoolDefNames, setGenOutputPoolDefNames] = useState<Record<string, string>>({})
   const [containers, setContainers] = useState<PlayerContainer[]>([])
   const [containersTotal, setContainersTotal] = useState(0)
   const [containersHasMore, setContainersHasMore] = useState(false)
@@ -674,6 +635,51 @@ export default function GameUserProgressDetailPage({
     }
   }, [progressId, containersOffset, containersType])
 
+  const loadGenerators = useCallback(async () => {
+    setGeneratorsLoading(true)
+    setGeneratorsError(null)
+    try {
+      // Fetch all items with category=generator (no pagination for simplicity)
+      const res = await getProgressItems(progressId, { limit: 200, category: "generator" })
+      const gens = res.items ?? []
+      setGeneratorItems(gens)
+
+      // Resolve output pool item names
+      const knownNames: Record<string, string> = {}
+      const idsToResolve = new Set<string>()
+      gens.forEach((pi) => {
+        if (pi.definition) {
+          knownNames[pi.item_definition_id] = pi.definition.name
+          knownNames[pi.definition.id] = pi.definition.name
+        }
+        const gc = pi.definition?.metadata?.generator_config as Record<string, unknown> | undefined
+        if (!gc) return
+        const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+        pool.forEach((entry) => {
+          const defId = String(entry.item_definition_id ?? "")
+          if (defId && !knownNames[defId]) idsToResolve.add(defId)
+        })
+      })
+      if (idsToResolve.size > 0) {
+        const resolved = { ...knownNames }
+        await Promise.allSettled(
+          [...idsToResolve].map((id) =>
+            getItemDefinition({ gameId }, id)
+              .then((r) => { resolved[id] = r.item.name })
+              .catch(() => {})
+          )
+        )
+        setGenOutputPoolDefNames(resolved)
+      } else {
+        setGenOutputPoolDefNames(knownNames)
+      }
+    } catch (err: any) {
+      setGeneratorsError(err?.message ?? "Failed to load generators")
+    } finally {
+      setGeneratorsLoading(false)
+    }
+  }, [progressId, gameId])
+
   const loadQuestHistory = useCallback(async () => {
     if (!game?.studio_id || !detail?.user_id) return
     setQuestLoading(true)
@@ -771,6 +777,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "containers") loadContainers()
   }, [activeTab, loadContainers])
+
+  useEffect(() => {
+    if (activeTab === "generators") loadGenerators()
+  }, [activeTab, loadGenerators])
 
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
@@ -873,6 +883,7 @@ export default function GameUserProgressDetailPage({
             items: itemsTotal || undefined,
             containers: containers.length || undefined,
             containersHasMore,
+            generators: generatorItems.length || undefined,
             quests: questHistory ? (questHistory.claims_total + questHistory.starts_total) || undefined : undefined,
             transactions: gachaTxnsTotal || undefined,
           }}
@@ -1266,24 +1277,6 @@ export default function GameUserProgressDetailPage({
                                 <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
                                 <CopyButton text={item.id} />
                               </div>
-
-                              {/* Generator Config */}
-                              {item.definition?.metadata?.generator_config && (() => {
-                                const gc = item.definition.metadata.generator_config as Record<string, unknown>
-                                const outputPool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
-                                const interval = Number(gc.production_interval_seconds) || 0
-                                const tickCap = Number(gc.tick_capacity) || 0
-                                return (
-                                  <GeneratorLiveEstimate
-                                    interval={interval}
-                                    tickCapacity={tickCap}
-                                    outputPool={outputPool}
-                                    outputPoolDefNames={outputPoolDefNames}
-                                    lastModifiedAt={item.last_modified_at}
-                                    gameId={gameId}
-                                  />
-                                )
-                              })()}
 
                               {/* Full Metadata */}
                               {item.definition?.metadata && Object.keys(item.definition.metadata).length > 0 && (
@@ -2241,6 +2234,166 @@ export default function GameUserProgressDetailPage({
                   onClick={() => setContainersOffset(containersOffset + CONTAINERS_LIMIT)}
                 >Next</Button>
               </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="generators" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Player Generators</h2>
+              <p className="text-sm text-muted-foreground">
+                {generatorsLoading
+                  ? "Loading…"
+                  : generatorItems.length > 0
+                  ? `${generatorItems.length} generator${generatorItems.length !== 1 ? "s" : ""}`
+                  : "No generators"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadGenerators} disabled={generatorsLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${generatorsLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {generatorsLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}><CardContent className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </CardContent></Card>
+              ))}
+            </div>
+          ) : generatorsError ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-destructive text-sm mb-3">{generatorsError}</p>
+                <Button variant="outline" size="sm" onClick={loadGenerators}>Try Again</Button>
+              </CardContent>
+            </Card>
+          ) : generatorItems.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                <Zap className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No generators</p>
+                <p className="text-sm mt-1">This player has no generator items in their inventory.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {generatorItems.map((item) => {
+                const gc = item.definition?.metadata?.generator_config as Record<string, unknown> | undefined
+                const outputPool = gc && Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+                const interval = Number(gc?.production_interval_seconds) || 0
+                const tickCap = Number(gc?.tick_capacity) || 0
+                return (
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-sm truncate">{item.definition?.name ?? item.item_definition_id.slice(0, 12)}</span>
+                            <a
+                              href={`/games/${gameId}/items/${item.item_definition_id}`}
+                              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                              title="Open item definition"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            {item.definition?.rarity && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border capitalize ${RARITY_STYLE[item.definition.rarity] ?? "bg-muted text-muted-foreground border-border"}`}>
+                                {item.definition.rarity}
+                              </span>
+                            )}
+                          </div>
+                          {item.definition?.item_code && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground font-mono">{item.definition.item_code}</span>
+                              <CopyButton text={item.definition.item_code} />
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground/60 font-mono">def: {item.item_definition_id.slice(0, 8)}…</span>
+                            <CopyButton text={item.item_definition_id} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 text-xs text-muted-foreground shrink-0">
+                          <span>Qty: <span className="font-semibold text-foreground">{item.quantity}</span></span>
+                          <span>Lv: <span className="font-semibold text-foreground">{item.level}</span></span>
+                        </div>
+                      </div>
+
+                      {/* Instance ID */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-muted-foreground">Instance:</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{item.id.slice(0, 16)}…</span>
+                        <CopyButton text={item.id} />
+                      </div>
+
+                      {/* Container info */}
+                      {(() => {
+                        const c = containerMapForItems[item.item_container_id]
+                        if (!c) return null
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Archive className="h-3 w-3" />
+                            <span className="font-medium">{c.definition?.name ?? c.container_type}</span>
+                            <span className="font-mono text-[10px]">@ ({item.grid_x}, {item.grid_y})</span>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Acquired */}
+                      <div className="text-[10px] text-muted-foreground">
+                        Acquired: {item.acquired_at ? formatISODate(item.acquired_at) : "—"}
+                      </div>
+
+                      {/* Generator Live Estimate */}
+                      {gc && (
+                        <div className="border-t pt-3">
+                          <GeneratorLiveEstimate
+                            interval={interval}
+                            tickCapacity={tickCap}
+                            outputPool={outputPool}
+                            outputPoolDefNames={genOutputPoolDefNames}
+                            lastModifiedAt={item.last_modified_at}
+                            gameId={gameId}
+                          />
+                        </div>
+                      )}
+
+                      {/* Metadata (non-generator_config) */}
+                      {item.definition?.metadata && (() => {
+                        const filtered = Object.fromEntries(
+                          Object.entries(item.definition.metadata).filter(([k]) => k !== "generator_config")
+                        )
+                        if (Object.keys(filtered).length === 0) return null
+                        return (
+                          <div className="border-t pt-2 space-y-1">
+                            <p className="text-[10px] font-medium text-muted-foreground">Other Metadata</p>
+                            <pre className="text-[10px] font-mono bg-muted rounded p-2 overflow-x-auto max-h-[120px]">
+                              {JSON.stringify(filtered, null, 2)}
+                            </pre>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Custom Properties */}
+                      {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
+                        <div className="border-t pt-2 space-y-1">
+                          <p className="text-[10px] font-medium text-muted-foreground">Custom Properties</p>
+                          <pre className="text-[10px] font-mono bg-muted rounded p-2 overflow-x-auto max-h-[120px]">
+                            {JSON.stringify(item.custom_properties, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
