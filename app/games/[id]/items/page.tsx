@@ -1280,6 +1280,229 @@ function CreateItemDialog({
   )
 }
 
+// ─── Generator Tab ────────────────────────────────────────────────────────────
+function GeneratorTab({
+  studioId,
+  gameId,
+  generatorItems,
+  setGeneratorItems,
+  generatorLoading,
+  setGeneratorLoading,
+  generatorError,
+  setGeneratorError,
+  activeTab,
+  onAddGenerator,
+}: {
+  studioId: string
+  gameId: string
+  generatorItems: ItemDefinition[]
+  setGeneratorItems: (items: ItemDefinition[]) => void
+  generatorLoading: boolean
+  setGeneratorLoading: (v: boolean) => void
+  generatorError: string | null
+  setGeneratorError: (v: string | null) => void
+  activeTab: string
+  onAddGenerator: () => void
+}) {
+  const [poolNames, setPoolNames] = useState<Record<string, string>>({})
+
+  // Fetch generators
+  const fetchGenerators = useCallback(() => {
+    if (!studioId || !gameId) return
+    setGeneratorLoading(true)
+    setGeneratorError(null)
+    setPoolNames({})
+    listItemDefinitions({ studioId, gameId }, { category: "generator", limit: 500 })
+      .then((res) => {
+        setGeneratorItems(res.items ?? [])
+        const ids = new Set<string>()
+        ;(res.items ?? []).forEach((item) => {
+          const gc = item.metadata?.generator_config as Record<string, unknown> | undefined
+          if (!gc) return
+          const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+          pool.forEach((e) => {
+            const id = String(e.item_definition_id ?? "")
+            if (id) ids.add(id)
+          })
+        })
+        ids.forEach((id) => {
+          getItemDefinition({ studioId, gameId }, id)
+            .then((r) => setPoolNames((prev) => ({ ...prev, [id]: r.item?.name ?? id })))
+            .catch(() => {})
+        })
+      })
+      .catch((e) => setGeneratorError(e?.message ?? "Failed to load generators"))
+      .finally(() => setGeneratorLoading(false))
+  }, [studioId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch on first activation
+  useEffect(() => {
+    if (activeTab !== "generators" || !studioId || !gameId) return
+    if (generatorItems.length > 0 || generatorLoading) return
+    fetchGenerators()
+  }, [activeTab, studioId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (generatorLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading generators…</span>
+      </div>
+    )
+  }
+
+  if (generatorError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+            <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" className="h-8" onClick={onAddGenerator}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Generator
+          </Button>
+        </div>
+        <div className="text-center py-12 text-sm text-destructive">{generatorError}</div>
+      </div>
+    )
+  }
+
+  if (generatorItems.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+            <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" className="h-8" onClick={onAddGenerator}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Generator
+          </Button>
+        </div>
+        <div className="text-center py-12 text-sm text-muted-foreground">
+          No generator items found. Click "Add Generator" to create one.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Generators</h2>
+          <p className="text-sm text-muted-foreground">{generatorItems.length} generator{generatorItems.length !== 1 ? "s" : ""} defined</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+            <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" className="h-8" onClick={onAddGenerator}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Generator
+          </Button>
+        </div>
+      </div>
+
+      {/* Concept explanation */}
+      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
+        <p><span className="font-semibold text-foreground">Interval</span> — the time (in seconds) between each production tick. Every <code className="bg-muted px-1 rounded">interval</code> seconds, the generator produces one batch of output.</p>
+        <p><span className="font-semibold text-foreground">Tick Capacity</span> — the maximum number of ticks that can accumulate while the player is offline. After <code className="bg-muted px-1 rounded">interval × tick_cap</code> seconds offline, no further output accrues.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {generatorItems.map((item) => {
+          const gc = (item.metadata?.generator_config ?? {}) as Record<string, unknown>
+          const interval = Number(gc.production_interval_seconds) || 0
+          const ticks = Number(gc.tick_capacity) || 0
+          const maxSeconds = interval * ticks
+          const hours = Math.floor(maxSeconds / 3600)
+          const mins = Math.floor((maxSeconds % 3600) / 60)
+          const timeStr = hours > 0 ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}` : `${mins}m`
+          const outputPool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+
+          return (
+            <Card key={item.id} className="flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold truncate">{item.name}</CardTitle>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{item.rarity}</Badge>
+                </div>
+                {item.item_code && (
+                  <p className="text-xs font-mono text-muted-foreground flex items-center gap-1">
+                    {item.item_code} <CopyButton text={item.item_code} />
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3 text-xs">
+                {/* Timing */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-md border px-3 py-2 text-center">
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Interval</p>
+                    <p className="font-semibold text-sm">{interval}s</p>
+                  </div>
+                  <div className="rounded-md border px-3 py-2 text-center">
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Tick Cap</p>
+                    <p className="font-semibold text-sm">{ticks}</p>
+                  </div>
+                </div>
+
+                {/* Offline hint */}
+                {interval > 0 && ticks > 0 && (
+                  <div className="rounded-md bg-muted/50 border border-dashed px-3 py-1.5 text-[11px] text-muted-foreground">
+                    ⏱ Max offline: <span className="font-semibold text-foreground">{timeStr}</span>
+                    <span className="mx-1">·</span>
+                    <span className="font-mono">{interval}s × {ticks}</span> = {maxSeconds.toLocaleString()}s
+                  </div>
+                )}
+
+                {/* Output Pool */}
+                {outputPool.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+                    <div className="space-y-1">
+                      {outputPool.map((entry, idx) => {
+                        const defId = String(entry.item_definition_id ?? "")
+                        const name = poolNames[defId]
+                        const dropPct = entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"
+                        return (
+                          <div key={idx} className="flex items-center gap-2 rounded border px-2.5 py-2 bg-background">
+                            <div className="flex-1 min-w-0 flex items-center gap-1">
+                              <Link
+                                href={`/games/${gameId}/items/${defId}`}
+                                className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
+                                title={defId}
+                              >
+                                <span className="truncate max-w-[160px]">{name || defId.slice(0, 16) + "…"}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0" />
+                              </Link>
+                              {defId && <CopyButton text={defId} />}
+                            </div>
+                            <span className="text-muted-foreground shrink-0">{dropPct}</span>
+                            <span className="text-muted-foreground shrink-0 font-mono text-[10px]">{String(entry.quantity_min ?? 1)}–{String(entry.quantity_max ?? 1)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+              <div className="px-6 pb-4 flex justify-end">
+                <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Edit">
+                  <Link href={`/games/${gameId}/items/${item.id}`}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function GameItemsPage() {
   const params = useParams() as { id: string }
   const router = useRouter()
@@ -1300,9 +1523,6 @@ export default function GameItemsPage() {
   const [copiedPackId, setCopiedPackId] = useState(false)
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
 
-  // Cache of resolved item names for output pool display
-  const [poolItemNames, setPoolItemNames] = useState<Record<string, string>>({})
-
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [filterRarity, setFilterRarity] = useState<string>("all")
@@ -1312,40 +1532,6 @@ export default function GameItemsPage() {
   // pagination
   const LIMIT = 50
   const [offset, setOffset] = useState(0)
-
-  // Resolve item names for generator output pool when items expand
-  useEffect(() => {
-    if (expandedItemIds.size === 0 || !studioId || !gameId) return
-    const idsToResolve = new Set<string>()
-    items.forEach((item) => {
-      if (!expandedItemIds.has(item.id)) return
-      if (item.category !== "generator" || !item.metadata?.generator_config) return
-      const gc = item.metadata.generator_config as Record<string, unknown>
-      const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
-      pool.forEach((entry) => {
-        const defId = String(entry.item_definition_id ?? "")
-        if (defId && !poolItemNames[defId]) idsToResolve.add(defId)
-      })
-    })
-    if (idsToResolve.size === 0) return
-    // First try to resolve from current items list
-    const newNames: Record<string, string> = {}
-    idsToResolve.forEach((id) => {
-      const found = items.find((i) => i.id === id)
-      if (found) { newNames[id] = found.name; idsToResolve.delete(id) }
-    })
-    if (Object.keys(newNames).length > 0) {
-      setPoolItemNames((prev) => ({ ...prev, ...newNames }))
-    }
-    // Fetch remaining from API
-    idsToResolve.forEach((id) => {
-      getItemDefinition({ studioId, gameId }, id)
-        .then((res) => {
-          setPoolItemNames((prev) => ({ ...prev, [id]: res.item?.name ?? id }))
-        })
-        .catch(() => {})
-    })
-  }, [expandedItemIds, items, studioId, gameId])
 
   // modal
   const [showCreate, setShowCreate] = useState(false)
@@ -1371,6 +1557,11 @@ export default function GameItemsPage() {
   const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
   const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([])
 
+  // generator tab state
+  const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
+  const [generatorLoading, setGeneratorLoading] = useState(false)
+  const [generatorError, setGeneratorError] = useState<string | null>(null)
+
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaAllItems, setGachaAllItems] = useState<ItemDefinition[]>([])
@@ -1389,7 +1580,7 @@ export default function GameItemsPage() {
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "containers" || tab === "catalogue" || tab === "gacha") {
+    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators") {
       setActiveTab(tab)
     }
     // initialize container search from URL `q` param
@@ -1824,6 +2015,7 @@ export default function GameItemsPage() {
             <TabsTrigger value="catalogue">Items</TabsTrigger>
             <TabsTrigger value="containers">Containers</TabsTrigger>
             <TabsTrigger value="gacha">Gacha</TabsTrigger>
+            <TabsTrigger value="generators">Generators</TabsTrigger>
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
@@ -2124,90 +2316,6 @@ export default function GameItemsPage() {
                                   </div>
                                 </div>
                               )}
-
-                              {/* Generator Config (for generator items) */}
-                              {item.category === "generator" && item.metadata?.generator_config && (() => {
-                                const gc = item.metadata.generator_config as Record<string, unknown>
-                                const outputPool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
-                                const interval = Number(gc.production_interval_seconds) || 0
-                                const ticks = Number(gc.tick_capacity) || 0
-                                const maxSeconds = interval * ticks
-                                const hours = Math.floor(maxSeconds / 3600)
-                                const mins = Math.floor((maxSeconds % 3600) / 60)
-                                const timeStr = hours > 0 ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}` : `${mins}m`
-                                return (
-                                  <div className="space-y-2">
-                                    <p className="text-xs font-semibold text-foreground">Generator Config</p>
-                                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                                      <div>
-                                        <span className="text-muted-foreground">Interval: </span>
-                                        <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Tick Capacity: </span>
-                                        <span className="font-medium">{String(gc.tick_capacity ?? "—")}</span>
-                                      </div>
-                                    </div>
-                                    {interval > 0 && ticks > 0 && (
-                                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-[11px] text-muted-foreground space-y-0.5">
-                                        <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
-                                        <p>Max offline = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                                        <p>Player can collect up to <span className="font-medium text-foreground">{ticks}</span> ticks worth of output after <span className="font-medium text-foreground">{timeStr}</span> offline.</p>
-                                      </div>
-                                    )}
-                                    {outputPool.length > 0 && (
-                                      <div className="space-y-1">
-                                        <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
-                                        <div className="rounded border border-border overflow-hidden">
-                                          <table className="w-full text-xs">
-                                            <thead>
-                                              <tr className="border-b bg-muted/40">
-                                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Item Definition</th>
-                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
-                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
-                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
-                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Collect Cap</th>
-                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Initial Out</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {outputPool.map((entry, idx) => {
-                                                const defId = String(entry.item_definition_id ?? "")
-                                                const resolvedName = poolItemNames[defId]
-                                                return (
-                                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
-                                                    <td className="px-2 py-1">
-                                                      <div className="flex items-center gap-1">
-                                                        <Link
-                                                          href={`/games/${gameId}/items/${defId}`}
-                                                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
-                                                          title={defId}
-                                                          onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                          <span className="truncate max-w-[200px]">
-                                                            {resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
-                                                          </span>
-                                                          <ExternalLink className="h-3 w-3 shrink-0" />
-                                                        </Link>
-                                                        {defId && <CopyButton text={defId} />}
-                                                      </div>
-                                                    </td>
-                                                    <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
-                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
-                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
-                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
-                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
-                                                  </tr>
-                                                )
-                                              })}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              })()}
 
                               {/* Metadata */}
                               {item.metadata && Object.keys(item.metadata).length > 0 && (
@@ -2619,6 +2727,25 @@ export default function GameItemsPage() {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* ═══════════ GENERATORS TAB ═══════════ */}
+        <TabsContent value="generators" className="space-y-4">
+          <GeneratorTab
+            studioId={studioId}
+            gameId={gameId}
+            generatorItems={generatorItems}
+            setGeneratorItems={setGeneratorItems}
+            generatorLoading={generatorLoading}
+            setGeneratorLoading={setGeneratorLoading}
+            generatorError={generatorError}
+            setGeneratorError={setGeneratorError}
+            activeTab={activeTab}
+            onAddGenerator={() => {
+              setCreateInitCategory("generator" as ItemCategory)
+              setShowCreate(true)
+            }}
+          />
         </TabsContent>
       </Tabs>
 
