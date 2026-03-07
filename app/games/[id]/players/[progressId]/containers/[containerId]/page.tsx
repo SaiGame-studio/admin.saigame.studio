@@ -300,7 +300,7 @@ export default function ContainerItemsPage({
   const searchParams = useSearchParams()
 
   // tab state — initialize from URL then sync via useEffect (same pattern as items page)
-  const [activeTab, setActiveTab] = useState<string>("list")
+  const [activeTab, setActiveTab] = useState<string>("grid")
 
   useEffect(() => {
     const view = searchParams.get("view")
@@ -387,7 +387,7 @@ export default function ContainerItemsPage({
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     const newParams = new URLSearchParams(searchParams.toString())
-    if (value === "list") newParams.delete("view")
+    if (value === "grid") newParams.delete("view")
     else newParams.set("view", value)
     router.push(`${window.location.pathname}${newParams.toString() ? `?${newParams.toString()}` : ""}`)
   }

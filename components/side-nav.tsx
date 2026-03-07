@@ -120,7 +120,7 @@ export function SideNav() {
   return (
     <div
         ref={sidebarRef}
-        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col"
+        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col mr-[20px]"
         style={{ 
           width: `${sidebarWidth}px`,
           height: "100vh",
