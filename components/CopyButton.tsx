@@ -13,22 +13,30 @@ interface CopyButtonProps {
 export function CopyButton({ text, className, size = "h-3.5 w-3.5" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
-  function doCopy() {
-    const el = document.createElement("textarea")
-    el.value = text
-    el.style.position = "fixed"
-    el.style.left = "-9999px"
-    el.style.opacity = "0"
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand("copy")
-    document.body.removeChild(el)
-  }
-
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation()
     e.preventDefault()
-    doCopy()
+
+    const fallback = () => {
+      // Append inside the closest dialog/sheet (focus trap) so focus isn't stolen
+      const container = (e.currentTarget as HTMLElement).closest('[role="dialog"]') || document.body
+      const el = document.createElement("textarea")
+      el.value = text
+      el.style.position = "fixed"
+      el.style.opacity = "0"
+      el.style.left = "-9999px"
+      container.appendChild(el)
+      el.focus()
+      el.select()
+      document.execCommand("copy")
+      container.removeChild(el)
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { fallback() })
+    } else {
+      fallback()
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

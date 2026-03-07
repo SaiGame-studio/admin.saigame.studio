@@ -411,11 +411,11 @@ function DailyStrategyGrid() {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STRATEGY_OPTIONS: { value: AssignmentStrategy; label: string; icon: React.ReactNode; description: string }[] = [
+const STRATEGY_OPTIONS: { value: AssignmentStrategy; label: string; icon: React.ReactNode; description: string; comingSoon?: boolean }[] = [
   { value: "weighted_random", label: "Weighted Random", icon: <Shuffle className="h-4 w-4" />, description: "Random pick each day weighted by weight" },
-  { value: "fixed_rotation", label: "Fixed Rotation", icon: <RotateCw className="h-4 w-4" />, description: "Round-robin by sequence order, advances each day" },
+  { value: "fixed_rotation", label: "Fixed Rotation", icon: <RotateCw className="h-4 w-4" />, description: "Round-robin by sequence order, advances each day", comingSoon: true },
   { value: "weekly_schedule", label: "Weekly Schedule", icon: <Calendar className="h-4 w-4" />, description: "Fixed quest per day-of-week" },
-  { value: "monthly_schedule", label: "Monthly Schedule", icon: <Calendar className="h-4 w-4" />, description: "Fixed quest per day-of-month" },
+  { value: "monthly_schedule", label: "Monthly Schedule", icon: <Calendar className="h-4 w-4" />, description: "Fixed quest per day-of-month", comingSoon: true },
 ]
 
 const DAY_OF_WEEK_LABELS: Record<number, string> = {
@@ -1207,11 +1207,14 @@ export function DailyTab({ game }: { game: Game | null }) {
                 </SelectTrigger>
                 <SelectContent>
                   {STRATEGY_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
+                    <SelectItem key={s.value} value={s.value} disabled={s.comingSoon}>
                       <div className="flex items-center gap-2">
                         {s.icon}
                         <div>
-                          <p className="text-sm">{s.label}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm">{s.label}</p>
+                            {s.comingSoon && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">Coming Soon</span>}
+                          </div>
                           <p className="text-xs text-muted-foreground">{s.description}</p>
                         </div>
                       </div>
@@ -1278,11 +1281,14 @@ export function DailyTab({ game }: { game: Game | null }) {
                     : "Display Name is required."}
               </p>
             )}
+            {!editPool && !poolSaving && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon && (
+              <p className="text-xs text-muted-foreground text-right">This strategy is not yet available.</p>
+            )}
             <div className="flex justify-end gap-2">
               <SheetClose asChild>
                 <Button variant="outline" disabled={poolSaving}>Cancel</Button>
               </SheetClose>
-              <Button onClick={handleSavePool} disabled={poolSaving || !poolForm.pool_key || !poolForm.display_name}>
+              <Button onClick={handleSavePool} disabled={poolSaving || !poolForm.pool_key || !poolForm.display_name || (!editPool && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon === true)}>
                 {poolSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 {editPool ? "Save Changes" : "Create Pool"}
               </Button>

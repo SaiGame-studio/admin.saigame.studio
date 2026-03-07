@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
   ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy,
@@ -1209,6 +1210,12 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Quest Definition</SheetTitle>
+            {editQuest && (
+              <p className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
+                {editQuest.id}
+                <CopyButton text={editQuest.id} size="h-3 w-3" />
+              </p>
+            )}
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
           <SheetFooter className="mt-6">
