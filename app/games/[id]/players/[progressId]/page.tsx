@@ -201,6 +201,50 @@ export default function GameUserProgressDetailPage({
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
   const [itemsError, setItemsError] = useState<string | null>(null)
+  const [outputPoolDefNames, setOutputPoolDefNames] = useState<Record<string, string>>({})
+
+  // Resolve item definition names for output_pool entries in generator configs
+  useEffect(() => {
+    if (playerItems.length === 0) return
+    // Collect all output_pool item_definition_ids across all items
+    const idsToResolve = new Set<string>()
+    const knownNames: Record<string, string> = {}
+    // First pass: collect known names from playerItems definitions
+    playerItems.forEach((pi) => {
+      if (pi.definition) {
+        knownNames[pi.item_definition_id] = pi.definition.name
+        knownNames[pi.definition.id] = pi.definition.name
+        if (pi.definition.item_code) knownNames[pi.definition.item_code] = pi.definition.name
+      }
+    })
+    // Second pass: find output_pool IDs that need resolving
+    playerItems.forEach((pi) => {
+      const gc = pi.definition?.metadata?.generator_config as Record<string, unknown> | undefined
+      if (!gc) return
+      const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+      pool.forEach((entry) => {
+        const defId = String(entry.item_definition_id ?? "")
+        if (defId && !knownNames[defId]) idsToResolve.add(defId)
+      })
+    })
+    if (idsToResolve.size === 0) {
+      setOutputPoolDefNames(knownNames)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const resolved = { ...knownNames }
+      await Promise.allSettled(
+        [...idsToResolve].map((id) =>
+          getItemDefinition({ gameId }, id)
+            .then((r) => { resolved[id] = r.item.name })
+            .catch(() => {})
+        )
+      )
+      if (!cancelled) setOutputPoolDefNames(resolved)
+    })()
+    return () => { cancelled = true }
+  }, [playerItems, gameId])
 
   // debounce item name filter
   useEffect(() => {
@@ -978,14 +1022,11 @@ export default function GameUserProgressDetailPage({
                               {/* Generator Config */}
                               {item.definition?.metadata?.generator_config && (() => {
                                 const gc = item.definition.metadata.generator_config as Record<string, unknown>
+                                const outputPool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
                                 return (
-                                  <div className="space-y-1">
+                                  <div className="space-y-2">
                                     <p className="text-xs font-semibold text-foreground">Generator Config</p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
-                                      <div>
-                                        <span className="text-muted-foreground">Output Item Code: </span>
-                                        <span className="font-mono font-medium">{String(gc.output_item_code ?? "—")}</span>
-                                      </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs">
                                       <div>
                                         <span className="text-muted-foreground">Interval: </span>
                                         <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
@@ -999,6 +1040,53 @@ export default function GameUserProgressDetailPage({
                                         <span className="font-medium">{String(gc.initial_output ?? "—")}</span>
                                       </div>
                                     </div>
+                                    {outputPool.length > 0 && (
+                                      <div className="space-y-1">
+                                        <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+                                        <div className="rounded border border-border overflow-hidden">
+                                          <table className="w-full text-xs">
+                                            <thead>
+                                              <tr className="border-b bg-muted/40">
+                                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Item Definition</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
+                                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {outputPool.map((entry, idx) => {
+                                                const defId = String(entry.item_definition_id ?? "")
+                                                const defName = outputPoolDefNames[defId]
+                                                return (
+                                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
+                                                    <td className="px-2 py-1">
+                                                      <div className="flex items-center gap-1">
+                                                        <a
+                                                          href={`/games/${gameId}/items/${defId}`}
+                                                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
+                                                          title={defId}
+                                                          onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                          {defName || defId || "—"}
+                                                          <ExternalLink className="h-3 w-3 shrink-0" />
+                                                        </a>
+                                                        {defId && <CopyButton text={defId} />}
+                                                      </div>
+                                                      {defName && (
+                                                        <p className="font-mono text-[10px] text-muted-foreground truncate mt-0.5" title={defId}>{defId}</p>
+                                                      )}
+                                                    </td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.drop_rate ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
+                                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
+                                                  </tr>
+                                                )
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })()}

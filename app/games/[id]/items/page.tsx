@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, Wand2 } from "lucide-react"
@@ -716,7 +716,8 @@ function CreateItemDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Generator config
-  const [genOutputItemCode, setGenOutputItemCode] = useState("")
+  interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string }
+  const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])
   const [genInterval, setGenInterval] = useState("60")
   const [genCapacity, setGenCapacity] = useState("1000")
   const [genInitialOutput, setGenInitialOutput] = useState("100")
@@ -724,8 +725,6 @@ function CreateItemDialog({
   // All items for generator output dropdown
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
   const [genItemsLoading, setGenItemsLoading] = useState(false)
-  const [genOutputOpen, setGenOutputOpen] = useState(false)
-  const [genOutputSearch, setGenOutputSearch] = useState("")
 
   // Fetch all items when category switches to generator
   useEffect(() => {
@@ -737,14 +736,6 @@ function CreateItemDialog({
         .finally(() => setGenItemsLoading(false))
     }
   }, [category, open, studioId, gameId])
-
-  const filteredGenItems = genOutputSearch
-    ? genAllItems.filter(
-        (it) =>
-          it.item_code.toLowerCase().includes(genOutputSearch.toLowerCase()) ||
-          it.name.toLowerCase().includes(genOutputSearch.toLowerCase())
-      )
-    : genAllItems
 
   function resetForm() {
     setName("")
@@ -759,12 +750,11 @@ function CreateItemDialog({
     setStats([])
     setMeta([])
     setErrors({})
-    setGenOutputItemCode("")
+    setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])
     setGenInterval("60")
     setGenCapacity("1000")
     setGenInitialOutput("100")
     setGenAllItems([])
-    setGenOutputSearch("")
   }
 
   // reset category when dialog opens with a fresh initialCategory
@@ -781,8 +771,9 @@ function CreateItemDialog({
       e.maxStack = "Enter a valid max stack (≥ 1)"
     }
     if (category === "generator") {
-      if (!genOutputItemCode.trim()) {
-        e.genOutputItemCode = "Output item code is required"
+      const validPoolEntries = genOutputPool.filter(p => p.item_definition_id.trim())
+      if (validPoolEntries.length === 0) {
+        e.genOutputPool = "At least one output pool entry is required"
       }
       if (!genInterval || Number(genInterval) < 1) {
         e.genInterval = "Interval must be ≥ 1"
@@ -814,10 +805,17 @@ function CreateItemDialog({
       // Inject generator_config into metadata
       if (category === "generator") {
         metadata.generator_config = {
-          output_item_code: genOutputItemCode.trim(),
           production_interval_seconds: Number(genInterval) || 60,
           capacity: Number(genCapacity) || 1000,
           initial_output: Number(genInitialOutput) || 0,
+          output_pool: genOutputPool
+            .filter(p => p.item_definition_id.trim())
+            .map(p => ({
+              item_definition_id: p.item_definition_id.trim(),
+              drop_rate: Number(p.drop_rate) || 1,
+              quantity_min: Number(p.quantity_min) || 1,
+              quantity_max: Number(p.quantity_max) || 1,
+            })),
         }
       }
 
@@ -1017,63 +1015,6 @@ function CreateItemDialog({
             <div className="space-y-3 rounded-md border p-4">
               <Label className="text-sm font-semibold">Generator Config</Label>
 
-              <div className="space-y-1">
-                <Label htmlFor="gen-output">Output Item Code <span className="text-destructive">*</span></Label>
-                <Popover open={genOutputOpen} onOpenChange={setGenOutputOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={genOutputOpen}
-                      className="w-full justify-between font-mono text-sm h-9"
-                    >
-                      {genOutputItemCode ? (
-                        <span className="flex items-center gap-2 truncate">
-                          <span>{genAllItems.find((it) => it.item_code === genOutputItemCode)?.name ?? genOutputItemCode}</span>
-                          <span className="text-xs text-muted-foreground">{genOutputItemCode}</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Select output item…</span>
-                      )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name or code…"
-                        value={genOutputSearch}
-                        onValueChange={setGenOutputSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>
-                          {genItemsLoading ? "Loading items…" : "No item found."}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {filteredGenItems.slice(0, 30).map((it) => (
-                            <CommandItem
-                              key={it.id}
-                              value={it.item_code}
-                              onSelect={() => {
-                                setGenOutputItemCode(it.item_code)
-                                setGenOutputOpen(false)
-                                setGenOutputSearch("")
-                              }}
-                            >
-                              <Check className={`mr-2 h-4 w-4 shrink-0 ${genOutputItemCode === it.item_code ? "opacity-100" : "opacity-0"}`} />
-                              <span className="flex-1">{it.name}</span>
-                              <span className="ml-2 text-xs text-muted-foreground font-mono">{it.item_code}</span>
-                              <RarityBadge rarity={it.rarity} />
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {errors.genOutputItemCode && <p className="text-xs text-destructive">{errors.genOutputItemCode}</p>}
-              </div>
-
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="gen-interval">Interval (s) <span className="text-destructive">*</span></Label>
@@ -1108,6 +1049,108 @@ function CreateItemDialog({
                   />
                   {errors.genInitialOutput && <p className="text-xs text-destructive">{errors.genInitialOutput}</p>}
                 </div>
+              </div>
+
+              {/* Output Pool */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Output Pool <span className="text-destructive">*</span></Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setGenOutputPool([...genOutputPool, { item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1" }])}
+                  >
+                    <Plus className="h-3 w-3" /> Add Entry
+                  </Button>
+                </div>
+                <div className="rounded border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/40">
+                        <th className="text-left px-2 py-1.5 font-medium">Item Definition ID</th>
+                        <th className="text-right px-2 py-1.5 font-medium w-20">Drop Rate</th>
+                        <th className="text-right px-2 py-1.5 font-medium w-16">Qty Min</th>
+                        <th className="text-right px-2 py-1.5 font-medium w-16">Qty Max</th>
+                        <th className="w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {genOutputPool.map((entry, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="px-1 py-1">
+                            <Input
+                              className="h-7 text-xs font-mono"
+                              placeholder="item_code or UUID"
+                              value={entry.item_definition_id}
+                              onChange={(e) => {
+                                const pool = [...genOutputPool]
+                                pool[idx] = { ...pool[idx], item_definition_id: e.target.value }
+                                setGenOutputPool(pool)
+                              }}
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input
+                              className="h-7 text-xs text-right w-full"
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              max={1}
+                              value={entry.drop_rate}
+                              onChange={(e) => {
+                                const pool = [...genOutputPool]
+                                pool[idx] = { ...pool[idx], drop_rate: e.target.value }
+                                setGenOutputPool(pool)
+                              }}
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input
+                              className="h-7 text-xs text-right w-full"
+                              type="number"
+                              min={1}
+                              value={entry.quantity_min}
+                              onChange={(e) => {
+                                const pool = [...genOutputPool]
+                                pool[idx] = { ...pool[idx], quantity_min: e.target.value }
+                                setGenOutputPool(pool)
+                              }}
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input
+                              className="h-7 text-xs text-right w-full"
+                              type="number"
+                              min={1}
+                              value={entry.quantity_max}
+                              onChange={(e) => {
+                                const pool = [...genOutputPool]
+                                pool[idx] = { ...pool[idx], quantity_max: e.target.value }
+                                setGenOutputPool(pool)
+                              }}
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            {genOutputPool.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {errors.genOutputPool && <p className="text-xs text-destructive">{errors.genOutputPool}</p>}
               </div>
             </div>
           )}
@@ -1156,6 +1199,7 @@ export default function GameItemsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [copiedPackId, setCopiedPackId] = useState(false)
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
 
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
@@ -1746,12 +1790,26 @@ export default function GameItemsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-muted/40">
+                    {items.map((item) => {
+                      const isExpanded = expandedItemIds.has(item.id)
+                      return (
+                      <Fragment key={item.id}>
+                      <TableRow
+                        className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
+                        onClick={() => {
+                          setExpandedItemIds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(item.id)) next.delete(item.id)
+                            else next.add(item.id)
+                            return next
+                          })
+                        }}
+                      >
                         <TableCell className="font-medium">
                           <Link
                             href={`/games/${gameId}/items/${item.id}`}
                             className="hover:text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {item.name}
                           </Link>
@@ -1761,7 +1819,8 @@ export default function GameItemsPage() {
                               type="button"
                               className="text-muted-foreground hover:text-foreground transition-colors"
                               title="Copy definition ID"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 const text = item.id
                                 if (navigator.clipboard && navigator.clipboard.writeText) {
                                   navigator.clipboard.writeText(text).catch(() => {
@@ -1798,7 +1857,8 @@ export default function GameItemsPage() {
                                 type="button"
                                 className="text-muted-foreground hover:text-foreground transition-colors"
                                 title="Copy item code"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   const text = item.item_code!
                                   if (navigator.clipboard && navigator.clipboard.writeText) {
                                     navigator.clipboard.writeText(text).catch(() => {
@@ -1851,14 +1911,111 @@ export default function GameItemsPage() {
                           {item.grid_width}×{item.grid_height}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" asChild>
-                            <Link href={`/games/${gameId}/items/${item.id}`}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                              <Link href={`/games/${gameId}/items/${item.id}`}>
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+
+                      {/* Expanded detail row */}
+                      {isExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/40">
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="px-6 py-4 space-y-4">
+                              {/* Definition ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                                <CopyButton text={item.id} />
+                              </div>
+
+                              {/* Item Code */}
+                              {item.item_code && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Item Code:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
+                                  <CopyButton text={item.item_code} />
+                                </div>
+                              )}
+
+                              {/* Core info grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Category: </span>
+                                  <Badge variant="outline" className="capitalize text-xs">{item.category}</Badge>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Rarity: </span>
+                                  <RarityBadge rarity={item.rarity} />
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Grid: </span>
+                                  <span className="font-medium">{item.grid_width}×{item.grid_height}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Stackable: </span>
+                                  {item.is_stackable ? (
+                                    <span className="text-green-500 font-medium">
+                                      Yes {item.max_stack_size != null ? `(max ${item.max_stack_size.toLocaleString()})` : "(∞)"}
+                                    </span>
+                                  ) : (
+                                    <span className="font-medium">No</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Base Stats */}
+                              {item.base_stats && Object.keys(item.base_stats).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Base Stats</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {Object.entries(item.base_stats).map(([k, v]) => (
+                                      <div key={k} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-xs">
+                                        <span className="text-muted-foreground">{k}:</span>
+                                        <span className="font-semibold">{String(v)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Metadata */}
+                              {item.metadata && Object.keys(item.metadata).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                  <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
+                                    {JSON.stringify(item.metadata, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Timestamps */}
+                              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                <span>Created: {new Date(item.created_at).toLocaleString()}</span>
+                                <span>Updated: {new Date(item.updated_at).toLocaleString()}</span>
+                              </div>
+
+                              {/* Link to detail page */}
+                              <div>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                                  <Link href={`/games/${gameId}/items/${item.id}`}>
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    Open Detail Page
+                                  </Link>
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}
