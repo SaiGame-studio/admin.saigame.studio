@@ -20,6 +20,7 @@ export const vi = {
     games: "Game",
     users: "Người dùng",
     administration: "Tài khoản",
+    support: "Hỗ trợ",
     admin: "Quản trị",
     allUsers: "Tất cả Users",
     allStudios: "Tất cả Studios",

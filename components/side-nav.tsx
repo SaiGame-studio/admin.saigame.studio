@@ -120,7 +120,7 @@ export function SideNav() {
   return (
     <div
         ref={sidebarRef}
-        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col"
+        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col mr-[20px]"
         style={{ 
           width: `${sidebarWidth}px`,
           height: "100vh",
@@ -176,13 +176,6 @@ export function SideNav() {
                   {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/roadmap">
-                  <Map className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">Roadmap</span>}
-                </Link>
-              </Button>
-
             </div>
             {!isCollapsed && (
               <div className="space-y-1">
@@ -199,6 +192,18 @@ export function SideNav() {
                     <span className="whitespace-nowrap">{t('common.payment')}</span>
                   </Link>
                 </Button>
+                {/* Documentation link hidden temporarily */}
+              </div>
+            )}
+            {!isCollapsed && (
+              <div className="space-y-1">
+                <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.support')}</h3>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/roadmap">
+                    <Map className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Roadmap</span>
+                  </Link>
+                </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <a href="https://discord.gg/tr7MxpMAH4" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="h-4 w-4 flex-shrink-0" />
@@ -211,7 +216,6 @@ export function SideNav() {
                     <span className="whitespace-nowrap">Bug Report</span>
                   </a>
                 </Button>
-                {/* Documentation link hidden temporarily */}
               </div>
             )}
             {!isCollapsed && capabilities.is_super_admin && (

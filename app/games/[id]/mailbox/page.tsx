@@ -20,6 +20,8 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { CopyButton } from "@/components/CopyButton"
 import { getGame } from "@/lib/game-api"
+import { listItemDefinitions } from "@/lib/inventory-api"
+import type { ItemDefinition } from "@/types/inventory"
 import { getGameProgressList, getGameProgressDetail, GameProgress } from "@/lib/game-user-api"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -151,6 +153,9 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const playerIdRef = useRef<HTMLInputElement>(null)
   const [highlightPlayerId, setHighlightPlayerId] = useState(false)
 
+  // Item definitions map for resolving attachment names
+  const [itemDefsMap, setItemDefsMap] = useState<Record<string, ItemDefinition>>({})
+
   const handleFocusPlayerId = () => {
     playerIdRef.current?.focus()
     setHighlightPlayerId(true)
@@ -168,13 +173,36 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     try {
       const data = await api.get(`/api/v1/gamer-progress/${progressId}/mailbox?limit=50`)
       setMailboxData(data)
+
+      // Collect all unique definition_ids from attachments
+      const defIds = new Set<string>()
+      for (const msg of (data.messages ?? [])) {
+        for (const att of (msg.attachments ?? [])) {
+          if (att.definition_id) defIds.add(att.definition_id)
+        }
+      }
+
+      // Fetch item definitions if we have IDs not yet in the map
+      const missingIds = [...defIds].filter((id) => !itemDefsMap[id])
+      if (missingIds.length > 0) {
+        try {
+          const res = await listItemDefinitions({ gameId }, { limit: 200 })
+          const map: Record<string, ItemDefinition> = { ...itemDefsMap }
+          for (const item of (res.items ?? [])) {
+            map[item.id] = item
+          }
+          setItemDefsMap(map)
+        } catch {
+          // silently ignore — will fall back to showing IDs
+        }
+      }
     } catch (err: any) {
       setMailboxError(err?.message || "Failed to load mailbox")
       setMailboxData(null)
     } finally {
       setMailboxLoading(false)
     }
-  }, [])
+  }, [gameId, itemDefsMap])
 
   // Debounced fetch when receiver_id changes
   useEffect(() => {
@@ -802,8 +830,10 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                                   >
                                     <span className="capitalize">{att.type}</span>
                                     {att.definition_id && (
-                                      <span className="text-muted-foreground truncate max-w-[120px]" title={att.definition_id}>
-                                        {att.definition_id.slice(0, 8)}…
+                                      <span className="text-muted-foreground truncate max-w-[160px]" title={att.definition_id}>
+                                        {itemDefsMap[att.definition_id]
+                                          ? `${itemDefsMap[att.definition_id].name} (${itemDefsMap[att.definition_id].item_code || att.definition_id.slice(0, 8)})`
+                                          : `${att.definition_id.slice(0, 8)}…`}
                                       </span>
                                     )}
                                     <span className="font-medium">×{att.quantity}</span>

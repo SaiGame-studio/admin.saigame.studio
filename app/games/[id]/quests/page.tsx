@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
   ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy,
@@ -543,35 +544,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
       {rewards.map((r, i) => (
         <div key={i} className="flex gap-2 items-start border rounded p-2">
           <div className="flex-1 space-y-2">
-            <Select
-              value={r.reward_type}
-              onValueChange={(v) => {
-                if (v === "coin") {
-                  updateReward(i, { reward_type: v, item_definition_id: undefined, quantity_min: undefined, quantity_max: undefined })
-                } else {
-                  updateReward(i, { reward_type: v, amount: undefined })
-                }
-              }}
-            >
-              <SelectTrigger className="h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="coin">Coin</SelectItem>
-                <SelectItem value="item">Item</SelectItem>
-              </SelectContent>
-            </Select>
-            {r.reward_type === "coin" ? (
-              <Input
-                type="number"
-                min={1}
-                placeholder="Amount"
-                value={r.amount ?? ""}
-                onChange={(e) => updateReward(i, { amount: Number(e.target.value) })}
-                className="h-8"
-              />
-            ) : (
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <div className="flex items-center gap-1">
                 <Popover open={rewardItemPopover === i} onOpenChange={(o) => setRewardItemPopover(o ? i : null)}>
                   <PopoverTrigger asChild>
@@ -656,7 +629,6 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                   </div>
                 </div>
               </div>
-            )}
           </div>
           <Button
             type="button"
@@ -1238,6 +1210,12 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Quest Definition</SheetTitle>
+            {editQuest && (
+              <p className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
+                {editQuest.id}
+                <CopyButton text={editQuest.id} size="h-3 w-3" />
+              </p>
+            )}
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
           <SheetFooter className="mt-6">

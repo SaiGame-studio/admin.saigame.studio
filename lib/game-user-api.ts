@@ -384,3 +384,60 @@ export async function getGachaTransactions(
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/gacha/transactions${query ? `?${query}` : ""}`)
 }
+
+// ─── Quest History ─────────────────────────────────────────────────────────────
+
+export interface QuestDefinitionSummary {
+  id: string
+  name: string
+  [key: string]: unknown
+}
+
+export interface QuestProgressData {
+  id: string
+  status: string
+  progress_data?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export interface QuestHistoryStart {
+  quest: QuestDefinitionSummary
+  progress: QuestProgressData
+}
+
+export interface QuestClaimReward {
+  [key: string]: unknown
+}
+
+export interface QuestHistoryClaim {
+  id: string
+  quest_definition_id: string
+  rewards_granted: QuestClaimReward[]
+  claimed_at: string
+  quest_definition: QuestDefinitionSummary
+}
+
+export interface QuestHistoryResult {
+  user_id: string
+  starts_total: number
+  starts: QuestHistoryStart[]
+  claims_total: number
+  claims: QuestHistoryClaim[]
+  limit: number
+  offset: number
+}
+
+export async function getPlayerQuestHistory(
+  studioId: string,
+  gameId: string,
+  userId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<QuestHistoryResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`
+  )
+}

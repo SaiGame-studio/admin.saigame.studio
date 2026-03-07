@@ -22,6 +22,7 @@ export const en = {
     games: "Games",
     users: "Users",
     administration: "Account",
+    support: "Support",
     admin: "Admin",
     allUsers: "All Users",
     allStudios: "All Studios",

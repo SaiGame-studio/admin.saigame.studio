@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -704,6 +704,7 @@ function CreateItemDialog({
 
   const [name, setName] = useState("")
   const [itemCode, setItemCode] = useState("")
+  const [autoSlug, setAutoSlug] = useState(true)
   const [category, setCategory] = useState<ItemCategory>(initialCategory ?? "weapon")
   const [rarity, setRarity] = useState<ItemRarity>("common")
   const [isStackable, setIsStackable] = useState(false)
@@ -714,9 +715,41 @@ function CreateItemDialog({
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Generator config
+  const [genOutputItemCode, setGenOutputItemCode] = useState("")
+  const [genInterval, setGenInterval] = useState("60")
+  const [genCapacity, setGenCapacity] = useState("1000")
+  const [genInitialOutput, setGenInitialOutput] = useState("100")
+
+  // All items for generator output dropdown
+  const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
+  const [genItemsLoading, setGenItemsLoading] = useState(false)
+  const [genOutputOpen, setGenOutputOpen] = useState(false)
+  const [genOutputSearch, setGenOutputSearch] = useState("")
+
+  // Fetch all items when category switches to generator
+  useEffect(() => {
+    if (category === "generator" && open && genAllItems.length === 0) {
+      setGenItemsLoading(true)
+      listItemDefinitions({ studioId, gameId }, { limit: 200 })
+        .then((res) => setGenAllItems(res.items ?? []))
+        .catch(() => {})
+        .finally(() => setGenItemsLoading(false))
+    }
+  }, [category, open, studioId, gameId])
+
+  const filteredGenItems = genOutputSearch
+    ? genAllItems.filter(
+        (it) =>
+          it.item_code.toLowerCase().includes(genOutputSearch.toLowerCase()) ||
+          it.name.toLowerCase().includes(genOutputSearch.toLowerCase())
+      )
+    : genAllItems
+
   function resetForm() {
     setName("")
     setItemCode("")
+    setAutoSlug(true)
     setCategory(initialCategory ?? "weapon")
     setRarity("common")
     setIsStackable(false)
@@ -726,6 +759,12 @@ function CreateItemDialog({
     setStats([])
     setMeta([])
     setErrors({})
+    setGenOutputItemCode("")
+    setGenInterval("60")
+    setGenCapacity("1000")
+    setGenInitialOutput("100")
+    setGenAllItems([])
+    setGenOutputSearch("")
   }
 
   // reset category when dialog opens with a fresh initialCategory
@@ -740,6 +779,20 @@ function CreateItemDialog({
     }
     if (isStackable && maxStack !== "" && Number(maxStack) < 1) {
       e.maxStack = "Enter a valid max stack (≥ 1)"
+    }
+    if (category === "generator") {
+      if (!genOutputItemCode.trim()) {
+        e.genOutputItemCode = "Output item code is required"
+      }
+      if (!genInterval || Number(genInterval) < 1) {
+        e.genInterval = "Interval must be ≥ 1"
+      }
+      if (!genCapacity || Number(genCapacity) < 1) {
+        e.genCapacity = "Capacity must be ≥ 1"
+      }
+      if (!genInitialOutput || Number(genInitialOutput) < 0) {
+        e.genInitialOutput = "Initial output must be ≥ 0"
+      }
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -757,6 +810,16 @@ function CreateItemDialog({
       meta.forEach(({ key, value }) => {
         if (key.trim()) metadata[key.trim()] = value
       })
+
+      // Inject generator_config into metadata
+      if (category === "generator") {
+        metadata.generator_config = {
+          output_item_code: genOutputItemCode.trim(),
+          production_interval_seconds: Number(genInterval) || 60,
+          capacity: Number(genCapacity) || 1000,
+          initial_output: Number(genInitialOutput) || 0,
+        }
+      }
 
       const body: CreateItemRequest = {
         ...(itemCode.trim() && { item_code: itemCode.trim() }),
@@ -817,7 +880,18 @@ function CreateItemDialog({
               id="item-name"
               placeholder="e.g. Iron Sword"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setName(v)
+                if (autoSlug) {
+                  setItemCode(
+                    v.trim()
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]+/g, "_")
+                      .replace(/^_|_$/g, "")
+                  )
+                }
+              }}
             />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
@@ -825,13 +899,36 @@ function CreateItemDialog({
           {/* Item Code */}
           <div className="space-y-1">
             <Label htmlFor="item-code">Item Code <span className="text-muted-foreground text-xs">(optional, e.g. iron_sword)</span></Label>
-            <Input
-              id="item-code"
-              placeholder="e.g. iron_sword"
-              value={itemCode}
-              onChange={(e) => setItemCode(e.target.value)}
-              className="font-mono"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="item-code"
+                placeholder="e.g. IRON_SWORD"
+                value={itemCode}
+                onChange={(e) => {
+                  setAutoSlug(false)
+                  setItemCode(e.target.value)
+                }}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant={autoSlug ? "default" : "outline"}
+                size="icon"
+                className="shrink-0"
+                title={autoSlug ? "Auto-slug is ON — item code generated from name" : "Auto-slug is OFF — click to re-enable"}
+                onClick={() => {
+                  setAutoSlug(true)
+                  setItemCode(
+                    name.trim()
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]+/g, "_")
+                      .replace(/^_|_$/g, "")
+                  )
+                }}
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Category + Rarity */}
@@ -915,6 +1012,106 @@ function CreateItemDialog({
             </div>
           </div>
 
+          {/* Generator Config */}
+          {category === "generator" && (
+            <div className="space-y-3 rounded-md border p-4">
+              <Label className="text-sm font-semibold">Generator Config</Label>
+
+              <div className="space-y-1">
+                <Label htmlFor="gen-output">Output Item Code <span className="text-destructive">*</span></Label>
+                <Popover open={genOutputOpen} onOpenChange={setGenOutputOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={genOutputOpen}
+                      className="w-full justify-between font-mono text-sm h-9"
+                    >
+                      {genOutputItemCode ? (
+                        <span className="flex items-center gap-2 truncate">
+                          <span>{genAllItems.find((it) => it.item_code === genOutputItemCode)?.name ?? genOutputItemCode}</span>
+                          <span className="text-xs text-muted-foreground">{genOutputItemCode}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Select output item…</span>
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search by name or code…"
+                        value={genOutputSearch}
+                        onValueChange={setGenOutputSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {genItemsLoading ? "Loading items…" : "No item found."}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {filteredGenItems.slice(0, 30).map((it) => (
+                            <CommandItem
+                              key={it.id}
+                              value={it.item_code}
+                              onSelect={() => {
+                                setGenOutputItemCode(it.item_code)
+                                setGenOutputOpen(false)
+                                setGenOutputSearch("")
+                              }}
+                            >
+                              <Check className={`mr-2 h-4 w-4 shrink-0 ${genOutputItemCode === it.item_code ? "opacity-100" : "opacity-0"}`} />
+                              <span className="flex-1">{it.name}</span>
+                              <span className="ml-2 text-xs text-muted-foreground font-mono">{it.item_code}</span>
+                              <RarityBadge rarity={it.rarity} />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.genOutputItemCode && <p className="text-xs text-destructive">{errors.genOutputItemCode}</p>}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="gen-interval">Interval (s) <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="gen-interval"
+                    type="number"
+                    min={1}
+                    value={genInterval}
+                    onChange={(e) => setGenInterval(e.target.value)}
+                  />
+                  {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="gen-capacity">Capacity <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="gen-capacity"
+                    type="number"
+                    min={1}
+                    value={genCapacity}
+                    onChange={(e) => setGenCapacity(e.target.value)}
+                  />
+                  {errors.genCapacity && <p className="text-xs text-destructive">{errors.genCapacity}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="gen-initial">Initial Output</Label>
+                  <Input
+                    id="gen-initial"
+                    type="number"
+                    min={0}
+                    value={genInitialOutput}
+                    onChange={(e) => setGenInitialOutput(e.target.value)}
+                  />
+                  {errors.genInitialOutput && <p className="text-xs text-destructive">{errors.genInitialOutput}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Base stats */}
           <KVEditor
             entries={stats}
@@ -957,6 +1154,7 @@ export default function GameItemsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [copiedPackId, setCopiedPackId] = useState(false)
 
   // filters
@@ -1539,6 +1737,7 @@ export default function GameItemsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Item Code</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Rarity</TableHead>
                       <TableHead>Stackable</TableHead>
@@ -1556,8 +1755,44 @@ export default function GameItemsPage() {
                           >
                             {item.name}
                           </Link>
-                          {item.item_code && (
-                            <div className="flex items-center gap-1 mt-0.5">
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-xs font-mono text-muted-foreground">{item.id.slice(0, 8)}…</span>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title="Copy definition ID"
+                              onClick={() => {
+                                const text = item.id
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                  navigator.clipboard.writeText(text).catch(() => {
+                                    const el = document.createElement('textarea')
+                                    el.value = text
+                                    document.body.appendChild(el)
+                                    el.select()
+                                    document.execCommand('copy')
+                                    document.body.removeChild(el)
+                                  })
+                                } else {
+                                  const el = document.createElement('textarea')
+                                  el.value = text
+                                  document.body.appendChild(el)
+                                  el.select()
+                                  document.execCommand('copy')
+                                  document.body.removeChild(el)
+                                }
+                                setCopiedId(item.id)
+                                setTimeout(() => setCopiedId(null), 1500)
+                              }}
+                            >
+                              {copiedId === item.id
+                                ? <Check className="h-3 w-3 text-green-500" />
+                                : <Copy className="h-3 w-3" />}
+                            </button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.item_code ? (
+                            <div className="flex items-center gap-1">
                               <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
                               <button
                                 type="button"
@@ -1582,15 +1817,17 @@ export default function GameItemsPage() {
                                     document.execCommand('copy')
                                     document.body.removeChild(el)
                                   }
-                                  setCopiedId(item.id)
-                                  setTimeout(() => setCopiedId(null), 1500)
+                                  setCopiedCode(item.id)
+                                  setTimeout(() => setCopiedCode(null), 1500)
                                 }}
                               >
-                                {copiedId === item.id
+                                {copiedCode === item.id
                                   ? <Check className="h-3 w-3 text-green-500" />
                                   : <Copy className="h-3 w-3" />}
                               </button>
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell>

@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { Fragment, use, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -15,18 +15,151 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, GachaTransaction, GachaTransactionsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
-import { fetchItemCategories, fetchItemRarities } from "@/lib/inventory-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack } from "@/lib/inventory-api"
+import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+// ── Quest progress data pretty-printer ──────────────────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type ResolvedEntity = { name: string; type: "item" | "gacha_pack" }
+
+function QuestProgressDisplay({ data, gameId }: { data: Record<string, unknown>; gameId: string }) {
+  const [entities, setEntities] = useState<Record<string, ResolvedEntity>>({})
+
+  useEffect(() => {
+    // Collect all UUIDs we need to resolve: gacha_pack_id values + UUID object-keys
+    const gachaPackIds = new Set<string>()
+    const itemIds = new Set<string>()
+
+    for (const value of Object.values(data)) {
+      if (typeof value === "string" && UUID_RE.test(value)) {
+        // top-level string UUID — likely a gacha_pack_id value handled inside sub-entries
+      }
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const sub = value as Record<string, unknown>
+        for (const [k, v] of Object.entries(sub)) {
+          if (k === "gacha_pack_id" && typeof v === "string" && UUID_RE.test(v)) gachaPackIds.add(v)
+          else if (UUID_RE.test(k)) itemIds.add(k)
+        }
+      }
+    }
+
+    if (gachaPackIds.size === 0 && itemIds.size === 0) return
+    const ctx = { gameId }
+    let cancelled = false
+    ;(async () => {
+      const resolved: Record<string, ResolvedEntity> = {}
+      await Promise.allSettled([
+        ...[...gachaPackIds].map(id =>
+          getGachaPack(ctx, id)
+            .then(r => { resolved[id] = { name: r.pack.name, type: "gacha_pack" } })
+            .catch(() => {})
+        ),
+        ...[...itemIds].map(id =>
+          getItemDefinition(ctx, id)
+            .then(r => { resolved[id] = { name: r.item.name, type: "item" } })
+            .catch(() => {})
+        ),
+      ])
+      if (!cancelled) setEntities(resolved)
+    })()
+    return () => { cancelled = true }
+  }, [data, gameId])
+
+  const resolveName = (id: string) => entities[id]?.name
+
+  const entries = Object.entries(data)
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground mb-2">Progress</p>
+      <div className="flex flex-wrap gap-2">
+        {entries.map(([clauseId, value]) => {
+          // Counter value
+          if (typeof value === "number") {
+            return (
+              <div key={clauseId} className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                <span className="text-muted-foreground font-mono">{clauseId}</span>
+                <span className="font-semibold text-foreground">{value}</span>
+              </div>
+            )
+          }
+          // Object value (e.g. gacha clause or item_collect)
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            const sub = value as Record<string, unknown>
+            return (
+              <div key={clauseId} className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs space-y-1.5 min-w-[160px]">
+                <p className="text-muted-foreground font-mono font-medium text-[11px]">{clauseId}</p>
+                {Object.entries(sub).map(([k, v]) => {
+                  const isGachaPackKey = k === "gacha_pack_id" && typeof v === "string" && UUID_RE.test(v as string)
+                  const isItemKey = UUID_RE.test(k)
+                  if (isGachaPackKey) {
+                    const packId = v as string
+                    const packName = resolveName(packId)
+                    return (
+                      <div key={k} className="flex items-center gap-1.5 pl-1">
+                        <span className="text-muted-foreground/70">{k}:</span>
+                        <a
+                          href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`}
+                          className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {packName ?? (packId.slice(0, 8) + "…")}
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </a>
+                      </div>
+                    )
+                  }
+                  if (isItemKey) {
+                    const itemName = resolveName(k)
+                    return (
+                      <div key={k} className="flex items-center gap-1.5 pl-1">
+                        <a
+                          href={`/games/${gameId}/items/${k}`}
+                          className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {itemName ?? (k.slice(0, 8) + "…")}
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </a>
+                        <span className="text-muted-foreground">×{String(v)}</span>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={k} className="flex items-center gap-1.5 pl-1">
+                      <span className="text-muted-foreground/70">{k}:</span>
+                      <span className="font-semibold text-foreground">{String(v)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          }
+          // Fallback
+          return (
+            <div key={clauseId} className="inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+              <span className="text-muted-foreground font-mono">{clauseId}</span>
+              <span className="font-semibold text-foreground">{String(value)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function GameUserProgressDetailPage({
-  params,
+  params: paramsProp,
 }: {
-  params: { id: string; progressId: string }
+  params: Promise<{ id: string; progressId: string }>
 }) {
+  const params = use(paramsProp)
   const gameId = params.id
   const progressId = params.progressId
   const router = useRouter()
@@ -60,9 +193,10 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
   const [itemsTotal, setItemsTotal] = useState(0)
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
@@ -119,6 +253,29 @@ export default function GameUserProgressDetailPage({
   const [containerMapForItems, setContainerMapForItems] = useState<Record<string, PlayerContainer>>({})
 
   const [idempotencyHelpOpen, setIdempotencyHelpOpen] = useState(false)
+
+  // Quest History tab
+  const QUEST_LIMIT = 50
+  const [questHistory, setQuestHistory] = useState<QuestHistoryResult | null>(null)
+  const [questLoading, setQuestLoading] = useState(false)
+  const [questError, setQuestError] = useState<string | null>(null)
+  const [questSubTab, setQuestSubTab] = useState<"inprogress" | "completed" | "daily-ahead">(() => {
+    const sub = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("quest_sub") : null
+    return sub === "inprogress" || sub === "completed" || sub === "daily-ahead" ? sub : "completed"
+  })
+  const [questExpandedRows, setQuestExpandedRows] = useState<Set<string>>(new Set())
+  const [questItemNames, setQuestItemNames] = useState<Record<string, string>>({})
+
+  // Daily Ahead sub-tab
+  const [dailyAheadPools, setDailyAheadPools] = useState<DailyQuestPool[]>([])
+  const [dailyAheadPoolsLoading, setDailyAheadPoolsLoading] = useState(false)
+  const [dailyAheadSelectedPoolId, setDailyAheadSelectedPoolId] = useState<string>("")
+  const [dailyAheadPreview, setDailyAheadPreview] = useState<DailyQuestFuturePreview | null>(null)
+  const [dailyAheadLoading, setDailyAheadLoading] = useState(false)
+  const [dailyAheadError, setDailyAheadError] = useState<string | null>(null)
+  const [dailyAheadDays, setDailyAheadDays] = useState(30)
+  const toggleQuestRow = (id: string) =>
+    setQuestExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const loadData = useCallback(async () => {
     try {
@@ -225,6 +382,73 @@ export default function GameUserProgressDetailPage({
     }
   }, [progressId, containersOffset, containersType])
 
+  const loadQuestHistory = useCallback(async () => {
+    if (!game?.studio_id || !detail?.user_id) return
+    setQuestLoading(true)
+    setQuestError(null)
+    setQuestExpandedRows(new Set())
+    try {
+      const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT })
+      setQuestHistory(res)
+      // Collect item_definition_id from rewards_granted and fetch their names
+      const itemIds = new Set<string>()
+      for (const claim of res.claims ?? []) {
+        for (const r of (claim.rewards_granted ?? []) as any[]) {
+          if (r.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        }
+      }
+      if (itemIds.size > 0) {
+        const ctx = { gameId }
+        const nameMap: Record<string, string> = {}
+        await Promise.allSettled(
+          [...itemIds].map(id =>
+            getItemDefinition(ctx, id)
+              .then(r2 => { nameMap[id] = r2.item.name })
+              .catch(() => {})
+          )
+        )
+        setQuestItemNames(nameMap)
+      }
+    } catch (err: any) {
+      setQuestError(err?.message ?? "Failed to load quest history")
+    } finally {
+      setQuestLoading(false)
+    }
+  }, [game, gameId, detail])
+
+  const loadDailyAheadPools = useCallback(async () => {
+    if (!game?.studio_id) return
+    setDailyAheadPoolsLoading(true)
+    try {
+      const res = await listDailyQuestPools(game.studio_id, gameId)
+      setDailyAheadPools(res.pools ?? [])
+      if (res.pools?.length && !dailyAheadSelectedPoolId) {
+        setDailyAheadSelectedPoolId(res.pools[0].id)
+      }
+    } catch {
+      // silently ignore — user will see empty selector
+    } finally {
+      setDailyAheadPoolsLoading(false)
+    }
+  }, [game, gameId, dailyAheadSelectedPoolId])
+
+  const loadDailyAheadPreview = useCallback(async (poolId: string) => {
+    if (!game?.studio_id || !detail?.user_id || !poolId) return
+    setDailyAheadLoading(true)
+    setDailyAheadError(null)
+    setDailyAheadPreview(null)
+    try {
+      const res = await getPlayerDailyQuestAheadPreview(
+        game.studio_id, gameId, poolId, detail.user_id, { days_ahead: dailyAheadDays }
+      )
+      setDailyAheadPreview(res)
+    } catch (err: any) {
+      setDailyAheadError(err?.message ?? "Failed to load daily quest preview")
+    } finally {
+      setDailyAheadLoading(false)
+    }
+  }, [game, gameId, detail, dailyAheadDays])
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
@@ -235,6 +459,13 @@ export default function GameUserProgressDetailPage({
     }
     const qs = params.toString()
     router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false })
+  }
+
+  const handleQuestSubTabChange = (sub: "inprogress" | "completed" | "daily-ahead") => {
+    setQuestSubTab(sub)
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    params.set("quest_sub", sub)
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false })
   }
 
   useEffect(() => {
@@ -248,6 +479,24 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "containers") loadContainers()
   }, [activeTab, loadContainers])
+
+  useEffect(() => {
+    if (activeTab === "quests") loadQuestHistory()
+  }, [activeTab, loadQuestHistory])
+
+  // Load pools when entering the daily-ahead sub-tab (or once game loads)
+  useEffect(() => {
+    if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadPools.length === 0 && game?.studio_id) {
+      loadDailyAheadPools()
+    }
+  }, [activeTab, questSubTab, game]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load preview whenever the selected pool or days change while on the tab
+  useEffect(() => {
+    if (activeTab === "quests" && questSubTab === "daily-ahead" && dailyAheadSelectedPoolId) {
+      loadDailyAheadPreview(dailyAheadSelectedPoolId)
+    }
+  }, [activeTab, questSubTab, dailyAheadSelectedPoolId, dailyAheadDays]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const RARITY_STYLE: Record<string, string> = {
     common:    "bg-gray-500/15 text-gray-400 border-gray-400/40",
@@ -332,6 +581,7 @@ export default function GameUserProgressDetailPage({
             items: itemsTotal || undefined,
             containers: containers.length || undefined,
             containersHasMore,
+            quests: questHistory ? (questHistory.claims_total + questHistory.starts_total) || undefined : undefined,
             transactions: gachaTxnsTotal || undefined,
           }}
         />
@@ -614,6 +864,7 @@ export default function GameUserProgressDetailPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
+                      <TableHead>Item Code</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Rarity</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
@@ -624,25 +875,57 @@ export default function GameUserProgressDetailPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {playerItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="font-medium whitespace-nowrap flex items-center gap-1">
-                            {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
-                            <a
-                              href={`/games/${gameId}/items/${item.item_definition_id}`}
-                              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                              title="Open item definition"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </div>
-                          {item.definition?.item_code && (
-                            <div className="text-xs text-muted-foreground font-mono">{item.definition.item_code}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="capitalize text-sm">{item.definition?.category ?? "—"}</TableCell>
+                    {playerItems.map((item) => {
+                      const isGenerator = item.definition?.category === "generator"
+                      const isExpanded = expandedItemIds.has(item.id)
+                      const toggleExpand = () => {
+                        setExpandedItemIds((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(item.id)) next.delete(item.id)
+                          else next.add(item.id)
+                          return next
+                        })
+                      }
+                      return (
+                        <Fragment key={item.id}>
+                          <TableRow
+                            className="hover:bg-muted/40 cursor-pointer"
+                            onClick={toggleExpand}
+                          >
+                            <TableCell>
+                              <div className="font-medium whitespace-nowrap flex items-center gap-1">
+                                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
+                                <a
+                                  href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                  title="Open item definition"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-muted-foreground/60 font-mono" title="Definition ID">def: {item.item_definition_id.slice(0, 8)}…</span>
+                                <CopyButton text={item.item_definition_id} />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {item.definition?.item_code ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-mono" onClick={(e) => e.stopPropagation()}>
+                                  {item.definition.item_code}
+                                  <CopyButton text={item.definition.item_code} />
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                        <TableCell className="capitalize text-sm">
+                              <span className="inline-flex items-center gap-1">
+                                {item.definition?.category ?? "—"}
+                                {isGenerator && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                              </span>
+                            </TableCell>
                         <TableCell>
                           {item.definition?.rarity ? (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border capitalize ${RARITY_STYLE[item.definition.rarity] ?? "bg-muted text-muted-foreground border-border"}`}>
@@ -679,7 +962,96 @@ export default function GameUserProgressDetailPage({
                           {item.acquired_at ? formatISODate(item.acquired_at) : "—"}
                         </TableCell>
                       </TableRow>
-                    ))}
+
+                      {/* Expanded detail row */}
+                      {isExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/40">
+                          <TableCell colSpan={9} className="p-0">
+                            <div className="px-6 py-3 space-y-3">
+                              {/* Instance ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Instance ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                                <CopyButton text={item.id} />
+                              </div>
+
+                              {/* Generator Config */}
+                              {item.definition?.metadata?.generator_config && (() => {
+                                const gc = item.definition.metadata.generator_config as Record<string, unknown>
+                                return (
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-foreground">Generator Config</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Output Item Code: </span>
+                                        <span className="font-mono font-medium">{String(gc.output_item_code ?? "—")}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Interval: </span>
+                                        <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Capacity: </span>
+                                        <span className="font-medium">{String(gc.capacity ?? "—")}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Initial Output: </span>
+                                        <span className="font-medium">{String(gc.initial_output ?? "—")}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Full Metadata */}
+                              {item.definition?.metadata && Object.keys(item.definition.metadata).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(item.definition.metadata, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Definition Info */}
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-foreground">Definition Info</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground">Stackable: </span>
+                                    <span className="font-medium">{item.definition?.is_stackable ? `Yes (max ${item.definition.max_stack_size ?? "∞"})` : "No"}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Grid: </span>
+                                    <span className="font-medium">{item.definition?.grid_width ?? 1}×{item.definition?.grid_height ?? 1}</span>
+                                  </div>
+                                  {item.definition?.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
+                                    <div className="col-span-2">
+                                      <span className="text-muted-foreground">Base Stats: </span>
+                                      <span className="font-mono font-medium">
+                                        {Object.entries(item.definition.base_stats).map(([k, v]) => `${k}=${v}`).join(", ")}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Custom Properties */}
+                              {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Custom Properties (Instance)</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(item.custom_properties, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -886,6 +1258,546 @@ export default function GameUserProgressDetailPage({
               <p className="text-xl font-semibold">Coming Soon</p>
               <p className="text-sm mt-1">Shopping transaction history will be available in a future update.</p>
             </div>
+          )}
+        </TabsContent>
+
+        {/* ── Quest History Tab ── */}
+        <TabsContent value="quests" className="space-y-4">
+          {/* Sub-tab navigation */}
+          <div className="flex items-center gap-1 border-b pb-0">
+            <button
+              onClick={() => handleQuestSubTabChange("completed")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                questSubTab === "completed"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Completed
+              {questHistory && questHistory.claims_total > 0 && (
+                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{questHistory.claims_total}</span>
+              )}
+            </button>
+            <button
+              onClick={() => handleQuestSubTabChange("inprogress")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                questSubTab === "inprogress"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              In-progress
+              {questHistory && (() => { const n = questHistory.starts.filter(s => s.progress?.status !== "claimed" && s.progress?.status !== "completed").length; return n > 0 ? <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs">{n}</span> : null })()}
+            </button>
+            <button
+              onClick={() => handleQuestSubTabChange("daily-ahead")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                questSubTab === "daily-ahead"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Daily Ahead
+            </button>
+            <div className="ml-auto">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => questSubTab === "daily-ahead" && dailyAheadSelectedPoolId ? loadDailyAheadPreview(dailyAheadSelectedPoolId) : loadQuestHistory()}
+                disabled={questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 ${(questSubTab === "daily-ahead" ? dailyAheadLoading : questLoading) ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </div>
+
+
+          {questSubTab === "daily-ahead" ? (
+            /* ── Daily Ahead sub-tab ── */
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground font-medium">Pool</label>
+                  {dailyAheadPoolsLoading ? (
+                    <Skeleton className="h-9 w-48" />
+                  ) : dailyAheadPools.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No pools found for this game.</p>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <Select
+                        value={dailyAheadSelectedPoolId}
+                        onValueChange={setDailyAheadSelectedPoolId}
+                      >
+                        <SelectTrigger className="w-56">
+                          <SelectValue placeholder="Select pool…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dailyAheadPools.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {dailyAheadSelectedPoolId && (
+                        <a
+                          href={`/games/${gameId}/quests?tab=daily`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors shrink-0"
+                          title="Open daily quest pools"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground font-medium">Days ahead</label>
+                  <Select
+                    value={String(dailyAheadDays)}
+                    onValueChange={v => setDailyAheadDays(Number(v))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[3, 7, 14, 30].map(d => (
+                        <SelectItem key={d} value={String(d)}>{d} days</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {!dailyAheadSelectedPoolId ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">Select a pool</p>
+                  <p className="text-sm mt-1">Choose a daily quest pool above to view pre-assigned quests.</p>
+                </div>
+              ) : dailyAheadLoading ? (
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : dailyAheadError ? (
+                <Card className="border-destructive">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-destructive text-sm mb-3">{dailyAheadError}</p>
+                    <Button variant="outline" size="sm" onClick={() => loadDailyAheadPreview(dailyAheadSelectedPoolId)}>Try Again</Button>
+                  </CardContent>
+                </Card>
+              ) : !dailyAheadPreview ? null : (
+                (() => {
+                  if (dailyAheadPreview.days.length === 0) return (
+                    <div className="p-12 text-center text-muted-foreground">
+                      <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-medium">No data</p>
+                      <p className="text-sm mt-1">No pre-assigned quests found for this player.</p>
+                    </div>
+                  )
+                  const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                  const firstDate = dailyAheadPreview.days[0]?.date
+                    ? new Date(dailyAheadPreview.days[0].date + "T00:00:00")
+                    : null
+                  const startOffset = firstDate ? firstDate.getDay() : 0
+                  return (
+                    <div>
+                      {/* Weekday header */}
+                      <div className="grid grid-cols-7 gap-1 mb-1">
+                        {DOW.map(d => (
+                          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+                        ))}
+                      </div>
+                      {/* Grid cells */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {/* empty leading cells */}
+                        {Array.from({ length: startOffset }).map((_, i) => (
+                          <div key={`pad-${i}`} />
+                        ))}
+                        {dailyAheadPreview.days.map(day => {
+                          const isToday = day.is_today
+                          const hasQuests = day.quests.length > 0
+                          return (
+                            <div
+                              key={day.date}
+                              className={`rounded-md border p-1.5 min-h-[80px] flex flex-col gap-1 text-xs ${
+                                isToday
+                                  ? "border-primary bg-primary/5"
+                                  : hasQuests
+                                  ? "border-border bg-card"
+                                  : "border-dashed border-muted-foreground/25 bg-muted/20"
+                              }`}
+                            >  
+                              {/* Date label */}
+                              <div className={`font-semibold tabular-nums leading-none mb-0.5 ${
+                                isToday ? "text-primary" : "text-muted-foreground"
+                              }`}>
+                                {day.date.slice(5)} {/* MM-DD */}
+                                {isToday && <span className="ml-1 text-[10px] font-medium text-primary">Today</span>}
+                              </div>
+                              {/* Quests */}
+                              {hasQuests ? (
+                                <ul className="space-y-0.5 flex-1">
+                                  {day.quests.map((q) => (
+                                    <li key={q.assignment.id} className="leading-snug">
+                                      {q.quest?.name ? (
+                                        <a
+                                          href={`/games/${gameId}/quests?editQuestId=${q.quest.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-0.5 text-foreground hover:underline group"
+                                          title={q.quest.name}
+                                        >
+                                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                                          <span>{q.quest.name.length > 25 ? q.quest.name.slice(0, 25) + "…" : q.quest.name}</span>
+                                          <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </a>
+                                      ) : (
+                                        <span className="text-muted-foreground font-mono">
+                                          {q.assignment.quest_definition_id?.slice(0, 6) ?? "?"}…
+                                        </span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-muted-foreground/50 text-[10px] mt-auto">—</span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()
+              )}
+            </div>
+          ) : questLoading ? (
+            <div className="space-y-3 p-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : questError ? (
+            <Card className="border-destructive">
+              <CardContent className="p-6 text-center">
+                <p className="text-destructive text-sm mb-3">{questError}</p>
+                <Button variant="outline" size="sm" onClick={loadQuestHistory}>Try Again</Button>
+              </CardContent>
+            </Card>
+          ) : !questHistory ? (
+            <div className="p-12 text-center text-muted-foreground">
+              <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">No quest data</p>
+              <p className="text-sm mt-1">Quest history has not been loaded yet.</p>
+            </div>
+          ) : (
+            <>
+              {/* ── Completed sub-tab: claims + starts that are claimed/completed ── */}
+              {questSubTab === "completed" && (() => {
+                const completedStarts = questHistory.starts.filter(
+                  s => s.progress?.status === "claimed" || s.progress?.status === "completed"
+                )
+                const totalCompleted = questHistory.claims_total
+                return (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Completed Quests</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {totalCompleted > 0
+                        ? `${totalCompleted} claim${totalCompleted !== 1 ? "s" : ""}`
+                        : "No completed quests yet"}
+                    </p>
+                  </div>
+                  <Card>
+                    <CardContent className="p-0">
+                      {questHistory.claims.length === 0 && completedStarts.length === 0 ? (
+                        <div className="p-12 text-center text-muted-foreground">
+                          <Star className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                          <p className="text-lg font-medium">No completed quests</p>
+                          <p className="text-sm mt-1">This player has not completed any quests yet.</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-8" />
+                              <TableHead>Quest</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Rewards</TableHead>
+                              <TableHead>Claimed At</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {questHistory.claims.map((claim) => {
+                              const expanded = questExpandedRows.has(claim.id)
+                              const rewards = (claim.rewards_granted ?? []) as any[]
+                              return (
+                                <Fragment key={claim.id}>
+                                  <TableRow
+                                    key={claim.id}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => toggleQuestRow(claim.id)}
+                                  >
+                                    <TableCell className="text-muted-foreground">
+                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                      <a
+                                        href={`/games/${gameId}/quests?editQuestId=${claim.quest_definition_id}`}
+                                        className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground"
+                                        onClick={e => e.stopPropagation()}
+                                      >
+                                        {claim.quest_definition?.name || claim.quest_definition_id.slice(0, 8) + "…"}
+                                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                      </a>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize bg-green-500/10 text-green-500 border-green-500/30">
+                                        claimed
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                      {rewards.length > 0 ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50">
+                                          {rewards.length} reward{rewards.length !== 1 ? "s" : ""}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground text-xs">—</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                      {formatISODate(claim.claimed_at)}
+                                    </TableCell>
+                                  </TableRow>
+                                  {expanded && (
+                                    <TableRow key={`${claim.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                                      <TableCell />
+                                      <TableCell colSpan={4} className="py-3">
+                                        {rewards.length === 0 ? (
+                                          <p className="text-xs text-muted-foreground">No rewards recorded.</p>
+                                        ) : (
+                                          <div>
+                                            <p className="text-xs font-medium text-muted-foreground mb-2">Rewards Granted</p>
+                                            <div className="flex flex-wrap gap-2">
+                                              {rewards.map((r: any, i: number) => {
+                                                const itemId = r.item_definition_id as string | undefined
+                                                const name = (r.name ?? r.item_name ?? r.item_code ?? (itemId ? questItemNames[itemId] : undefined)) as string | undefined
+                                                const qty = r.quantity as number | undefined
+                                                const category = r.category as string | undefined
+                                                const rewardType = r.reward_type as string | undefined
+                                                const amount = r.amount as number | undefined
+                                                // Coin / currency reward
+                                                if (!itemId && rewardType) {
+                                                  return (
+                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                                                      <Coins className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+                                                      <span className="capitalize text-muted-foreground">{rewardType}</span>
+                                                      {amount != null && <span className="font-semibold text-foreground">+{amount.toLocaleString()}</span>}
+                                                    </div>
+                                                  )
+                                                }
+                                                // Item reward
+                                                if (itemId) {
+                                                  return (
+                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                                                      {category && (
+                                                        <span className="capitalize text-muted-foreground">{category}</span>
+                                                      )}
+                                                      <a
+                                                        href={`/games/${gameId}/items/${itemId}`}
+                                                        className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
+                                                      >
+                                                        {name || itemId.slice(0, 8) + "…"}
+                                                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                                      </a>
+                                                      {qty != null && <span className="text-muted-foreground">×{qty}</span>}
+                                                    </div>
+                                                  )
+                                                }
+                                                // Generic reward — render key/value pairs
+                                                const entries = Object.entries(r).filter(([, v]) => v != null && v !== "")
+                                                return (
+                                                  <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                                                    {entries.map(([k, v]) => (
+                                                      <span key={k}>
+                                                        <span className="text-muted-foreground">{k}:</span>{" "}
+                                                        <span className="font-medium text-foreground">{String(v)}</span>
+                                                      </span>
+                                                    ))}
+                                                  </div>
+                                                )
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </Fragment>
+                              )
+                            })}
+                            {completedStarts.map((start, idx) => {
+                              const rowId = start.progress?.id ?? `cs-${idx}`
+                              const expanded = questExpandedRows.has(rowId)
+                              return (
+                                <Fragment key={rowId}>
+                                  <TableRow
+                                    key={rowId}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => toggleQuestRow(rowId)}
+                                  >
+                                    <TableCell className="text-muted-foreground">
+                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                      {start.quest?.id ? (
+                                        <a
+                                          href={`/games/${gameId}/quests?editQuestId=${start.quest.id}`}
+                                          className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          {start.quest.name || start.quest.id.slice(0, 8) + "…"}
+                                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                        </a>
+                                      ) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${
+                                        start.progress?.status === "claimed"
+                                          ? "bg-green-500/10 text-green-500 border-green-500/30"
+                                          : "bg-blue-500/10 text-blue-400 border-blue-400/30"
+                                      }`}>
+                                        {start.progress?.status || "—"}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">—</TableCell>
+                                  </TableRow>
+                                  {expanded && (
+                                    <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                                      <TableCell />
+                                      <TableCell colSpan={4} className="py-3">
+                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
+                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground">No progress data.</p>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </Fragment>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                )
+              })()}
+
+              {/* ── In-progress sub-tab: starts that are NOT claimed/completed ── */}
+              {questSubTab === "inprogress" && (() => {
+                const activeStarts = questHistory.starts.filter(
+                  s => s.progress?.status !== "claimed" && s.progress?.status !== "completed"
+                )
+                return (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">In-progress Quests</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {activeStarts.length > 0
+                        ? `${activeStarts.length} quest${activeStarts.length !== 1 ? "s" : ""} in progress`
+                        : "No quests in progress"}
+                    </p>
+                  </div>
+                  <Card>
+                    <CardContent className="p-0">
+                      {activeStarts.length === 0 ? (
+                        <div className="p-12 text-center text-muted-foreground">
+                          <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                          <p className="text-lg font-medium">No quests in progress</p>
+                          <p className="text-sm mt-1">This player has no active quests.</p>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-8" />
+                              <TableHead>Quest</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {activeStarts.map((start, idx) => {
+                              const rowId = start.progress?.id ?? `ip-${idx}`
+                              const expanded = questExpandedRows.has(rowId)
+                              return (
+                                <Fragment key={rowId}>
+                                  <TableRow
+                                    key={rowId}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => toggleQuestRow(rowId)}
+                                  >
+                                    <TableCell className="text-muted-foreground">
+                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                      {start.quest?.id ? (
+                                        <a
+                                          href={`/games/${gameId}/quests?editQuestId=${start.quest.id}`}
+                                          className="inline-flex items-center gap-1 font-medium text-xs hover:underline text-foreground"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          {start.quest.name || start.quest.id.slice(0, 8) + "…"}
+                                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                        </a>
+                                      ) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${
+                                        start.progress?.status === "failed"
+                                          ? "bg-red-500/10 text-red-400 border-red-400/30"
+                                          : "bg-muted/50 text-muted-foreground border-border"
+                                      }`}>
+                                        {start.progress?.status || "—"}
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>
+                                  {expanded && (
+                                    <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                                      <TableCell />
+                                      <TableCell colSpan={2} className="py-3">
+                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
+                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground">No progress data.</p>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </Fragment>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                )
+              })()}
+            </>
           )}
         </TabsContent>
 
