@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, Wand2 } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -2139,47 +2139,15 @@ export default function GameItemsPage() {
                         }}
                       >
                         <TableCell className="font-medium">
-                          <Link
-                            href={`/games/${gameId}/items/${item.id}`}
-                            className="hover:text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {item.name}
-                          </Link>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-xs font-mono text-muted-foreground">{item.id.slice(0, 8)}…</span>
-                            <button
-                              type="button"
-                              className="text-muted-foreground hover:text-foreground transition-colors"
-                              title="Copy definition ID"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const text = item.id
-                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                  navigator.clipboard.writeText(text).catch(() => {
-                                    const el = document.createElement('textarea')
-                                    el.value = text
-                                    document.body.appendChild(el)
-                                    el.select()
-                                    document.execCommand('copy')
-                                    document.body.removeChild(el)
-                                  })
-                                } else {
-                                  const el = document.createElement('textarea')
-                                  el.value = text
-                                  document.body.appendChild(el)
-                                  el.select()
-                                  document.execCommand('copy')
-                                  document.body.removeChild(el)
-                                }
-                                setCopiedId(item.id)
-                                setTimeout(() => setCopiedId(null), 1500)
-                              }}
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                            <Link
+                              href={`/games/${gameId}/items/${item.id}`}
+                              className="hover:text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              {copiedId === item.id
-                                ? <Check className="h-3 w-3 text-green-500" />
-                                : <Copy className="h-3 w-3" />}
-                            </button>
+                              {item.name}
+                            </Link>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -2244,14 +2212,11 @@ export default function GameItemsPage() {
                           {item.grid_width}×{item.grid_height}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                              <Link href={`/games/${gameId}/items/${item.id}`}>
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                          </div>
+                          <Button variant="ghost" size="icon" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                            <Link href={`/games/${gameId}/items/${item.id}`}>
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
 
@@ -2694,7 +2659,7 @@ export default function GameItemsPage() {
                             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
                             onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
                           >
-                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                             Drop table
                           </button>
                           {isExpanded && (

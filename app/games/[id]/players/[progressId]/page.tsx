@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -1197,7 +1197,7 @@ export default function GameUserProgressDetailPage({
                           >
                             <TableCell>
                               <div className="font-medium whitespace-nowrap flex items-center gap-1">
-                                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                {isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                                 {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
                                 <a
                                   href={`/games/${gameId}/items/${item.item_definition_id}`}
