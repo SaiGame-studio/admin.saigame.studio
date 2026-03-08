@@ -1208,10 +1208,6 @@ export default function GameUserProgressDetailPage({
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </a>
                               </div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[10px] text-muted-foreground/60 font-mono" title="Definition ID">def: {item.item_definition_id.slice(0, 8)}…</span>
-                                <CopyButton text={item.item_definition_id} />
-                              </div>
                             </TableCell>
                             <TableCell>
                               {item.definition?.item_code ? (
@@ -1276,6 +1272,13 @@ export default function GameUserProgressDetailPage({
                                 <span className="text-xs font-semibold text-foreground">Instance ID:</span>
                                 <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
                                 <CopyButton text={item.id} />
+                              </div>
+
+                              {/* Definition ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
+                                <CopyButton text={item.item_definition_id} />
                               </div>
 
                               {/* Full Metadata */}
