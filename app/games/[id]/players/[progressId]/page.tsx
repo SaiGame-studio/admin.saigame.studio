@@ -1,8 +1,8 @@
 "use client"
 
-import { Fragment, use, useCallback, useEffect, useState } from "react"
+import { Fragment, use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -154,6 +154,253 @@ function QuestProgressDisplay({ data, gameId }: { data: Record<string, unknown>;
   )
 }
 
+// ── Live Generator Estimate component ───────────────────────────────────────
+function GeneratorLiveEstimate({
+  interval,
+  tickCapacity,
+  outputPool,
+  outputPoolDefNames,
+  lastModifiedAt,
+  gameId,
+}: {
+  interval: number
+  tickCapacity: number
+  outputPool: Array<Record<string, unknown>>
+  outputPoolDefNames: Record<string, string>
+  lastModifiedAt: string
+  gameId: string
+}) {
+  const [now, setNow] = useState(() => Date.now())
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => setNow(Date.now()), 1000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
+
+  const baseTime = new Date(lastModifiedAt).getTime()
+  const elapsedSec = Math.max(0, Math.floor((now - baseTime) / 1000))
+
+  const accumulatedTicks = interval > 0 ? Math.min(Math.floor(elapsedSec / interval), tickCapacity) : 0
+  const nextTickIn = interval > 0 && accumulatedTicks < tickCapacity
+    ? interval - (elapsedSec % interval)
+    : 0
+  const isFull = accumulatedTicks >= tickCapacity
+  const progressPct = tickCapacity > 0 ? Math.min((accumulatedTicks / tickCapacity) * 100, 100) : 0
+
+  const maxSeconds = interval * tickCapacity
+  const maxHours = Math.floor(maxSeconds / 3600)
+  const maxMins = Math.floor((maxSeconds % 3600) / 60)
+  const maxTimeStr = maxHours > 0 ? `${maxHours}h${maxMins > 0 ? ` ${maxMins}m` : ""}` : `${maxMins}m`
+
+  const elapsedH = Math.floor(elapsedSec / 3600)
+  const elapsedM = Math.floor((elapsedSec % 3600) / 60)
+  const elapsedS = elapsedSec % 60
+
+  const allGuaranteed = outputPool.length > 0 && outputPool.every((e) => Number(e.drop_rate) === 1)
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-foreground">Generator Config</p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+        <div>
+          <span className="text-muted-foreground">Interval: </span>
+          <span className="font-medium">{interval}s</span>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Time between each production tick</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Tick Capacity: </span>
+          <span className="font-medium">{tickCapacity}</span>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Max ticks stored while offline</p>
+        </div>
+      </div>
+
+      {interval > 0 && tickCapacity > 0 && (
+        <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-[11px] text-muted-foreground space-y-0.5">
+          <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
+          <p>Max offline = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{tickCapacity}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({maxTimeStr})</span></p>
+        </div>
+      )}
+
+      {/* Live accumulation tracker */}
+      {interval > 0 && tickCapacity > 0 && (
+        <div className="rounded-md border bg-gradient-to-r from-blue-500/5 to-purple-500/5 px-3 py-2 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-medium text-foreground/80">⚡ Live Accumulation</span>
+            <span className="font-mono text-muted-foreground">
+              since {new Date(lastModifiedAt).toLocaleTimeString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="font-mono font-medium tabular-nums">
+                {elapsedH > 0 && `${elapsedH}h `}{String(elapsedM).padStart(2, "0")}m {String(elapsedS).padStart(2, "0")}s
+              </span>
+            </div>
+            <div className="h-3 w-px bg-border" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Ticks:</span>
+              <span className={`font-mono font-semibold tabular-nums ${isFull ? "text-yellow-500" : "text-foreground"}`}>
+                {accumulatedTicks}
+              </span>
+              <span className="text-muted-foreground">/ {tickCapacity}</span>
+            </div>
+            {!isFull && nextTickIn > 0 && (
+              <>
+                <div className="h-3 w-px bg-border" />
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-[10px]">next in</span>
+                  <span className="font-mono font-medium tabular-nums text-blue-500">{nextTickIn}s</span>
+                </div>
+              </>
+            )}
+            {isFull && (
+              <>
+                <div className="h-3 w-px bg-border" />
+                <span className="text-[10px] font-medium text-yellow-500">Max ticks — no more production</span>
+              </>
+            )}
+          </div>
+          {/* Progress bar */}
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ease-linear ${isFull ? "bg-yellow-500" : "bg-blue-500"}`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {outputPool.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+          <div className="rounded border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="text-left px-2 py-1 font-medium text-muted-foreground">Item Definition</th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Collect Cap</th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground">Initial Out</th>
+                  <th className="text-right px-2 py-1 font-medium text-blue-500" title={`Live expected output over ${accumulatedTicks} accumulated ticks`}>
+                    Expected ({accumulatedTicks} ticks)
+                  </th>
+                  <th className="text-right px-2 py-1 font-medium text-muted-foreground" title={`Max expected output over ${tickCapacity} ticks`}>
+                    Max ({tickCapacity} ticks)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {outputPool.map((entry, idx) => {
+                  const defId = String(entry.item_definition_id ?? "")
+                  const defName = outputPoolDefNames[defId]
+                  const dropRate = Number(entry.drop_rate) || 0
+                  const qtyMin = Number(entry.quantity_min) || 1
+                  const qtyMax = Number(entry.quantity_max) || 1
+                  const collectCap = Number(entry.collect_cap) || 0
+                  const isGuaranteed = dropRate === 1
+
+                  // Live accumulated expected
+                  const liveTicksDropped = dropRate * accumulatedTicks
+                  const liveMinRaw = Math.round(liveTicksDropped * qtyMin)
+                  const liveMaxRaw = Math.round(liveTicksDropped * qtyMax)
+                  const liveMin = collectCap > 0 ? Math.min(liveMinRaw, collectCap) : liveMinRaw
+                  const liveMax = collectCap > 0 ? Math.min(liveMaxRaw, collectCap) : liveMaxRaw
+                  const liveCapped = collectCap > 0 && liveMaxRaw >= collectCap
+
+                  // Max (full capacity) expected
+                  const maxTicksDropped = dropRate * tickCapacity
+                  const maxMinRaw = Math.round(maxTicksDropped * qtyMin)
+                  const maxMaxRaw = Math.round(maxTicksDropped * qtyMax)
+                  const maxMin = collectCap > 0 ? Math.min(maxMinRaw, collectCap) : maxMinRaw
+                  const maxMax = collectCap > 0 ? Math.min(maxMaxRaw, collectCap) : maxMaxRaw
+                  const maxCapped = collectCap > 0 && maxMaxRaw >= collectCap
+
+                  // Calculate fill percentage toward this item's collect_cap
+                  const capPct = collectCap > 0 ? Math.min((liveMax / collectCap) * 100, 100) : 0
+
+                  const fmtRange = (lo: number, hi: number) => lo === hi ? lo.toLocaleString() : `${lo.toLocaleString()} – ${hi.toLocaleString()}`
+
+                  return (
+                    <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
+                      <td className="px-2 py-1">
+                        <div className="flex items-center gap-1">
+                          <a
+                            href={`/games/${gameId}/items/${defId}`}
+                            className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
+                            title={defId}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {defName || defId || "—"}
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
+                          {defId && <CopyButton text={defId} />}
+                        </div>
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
+                      <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
+                      <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
+                      <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
+                      <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
+                      <td className="px-2 py-1 text-right font-mono">
+                        {accumulatedTicks === 0 ? (
+                          <span className="text-muted-foreground tabular-nums">0</span>
+                        ) : (
+                          <div className="flex flex-col items-end gap-0.5">
+                            {isGuaranteed ? (
+                              <span className={`font-semibold tabular-nums ${liveCapped ? "text-yellow-500" : "text-green-500"}`}>
+                                {fmtRange(liveMin, liveMax)}
+                              </span>
+                            ) : (
+                              <span className={`tabular-nums ${liveCapped ? "text-yellow-500" : "text-blue-400"}`}>
+                                ~{fmtRange(liveMin, liveMax)}
+                              </span>
+                            )}
+                            {liveCapped && (
+                              <span className="text-[9px] text-yellow-500 font-medium">capped</span>
+                            )}
+                            {collectCap > 0 && !liveCapped && (
+                              <span className="text-[9px] text-muted-foreground tabular-nums">{Math.round(capPct)}% of cap</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {isGuaranteed ? (
+                            <span className={`font-semibold tabular-nums ${maxCapped ? "text-yellow-500/60" : "text-green-500/60"}`}>
+                              {fmtRange(maxMin, maxMax)}
+                            </span>
+                          ) : (
+                            <span className={`tabular-nums ${maxCapped ? "text-yellow-500/40" : "text-foreground/40"}`}>
+                              ~{fmtRange(maxMin, maxMax)}
+                            </span>
+                          )}
+                          {maxCapped && (
+                            <span className="text-[9px] text-yellow-500/60 font-medium">capped</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {!allGuaranteed && (
+            <p className="text-[10px] text-muted-foreground/70 italic mt-1">
+              ⚠ Values with ~ are estimates. Only 100% drop rate items are guaranteed.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function GameUserProgressDetailPage({
   params: paramsProp,
 }: {
@@ -193,7 +440,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "generators" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -241,6 +488,12 @@ export default function GameUserProgressDetailPage({
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
+
+  // Generators tab
+  const [generatorItems, setGeneratorItems] = useState<PlayerItem[]>([])
+  const [generatorsLoading, setGeneratorsLoading] = useState(false)
+  const [generatorsError, setGeneratorsError] = useState<string | null>(null)
+  const [genOutputPoolDefNames, setGenOutputPoolDefNames] = useState<Record<string, string>>({})
   const [containers, setContainers] = useState<PlayerContainer[]>([])
   const [containersTotal, setContainersTotal] = useState(0)
   const [containersHasMore, setContainersHasMore] = useState(false)
@@ -382,6 +635,51 @@ export default function GameUserProgressDetailPage({
     }
   }, [progressId, containersOffset, containersType])
 
+  const loadGenerators = useCallback(async () => {
+    setGeneratorsLoading(true)
+    setGeneratorsError(null)
+    try {
+      // Fetch all items with category=generator (no pagination for simplicity)
+      const res = await getProgressItems(progressId, { limit: 200, category: "generator" })
+      const gens = res.items ?? []
+      setGeneratorItems(gens)
+
+      // Resolve output pool item names
+      const knownNames: Record<string, string> = {}
+      const idsToResolve = new Set<string>()
+      gens.forEach((pi) => {
+        if (pi.definition) {
+          knownNames[pi.item_definition_id] = pi.definition.name
+          knownNames[pi.definition.id] = pi.definition.name
+        }
+        const gc = pi.definition?.metadata?.generator_config as Record<string, unknown> | undefined
+        if (!gc) return
+        const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+        pool.forEach((entry) => {
+          const defId = String(entry.item_definition_id ?? "")
+          if (defId && !knownNames[defId]) idsToResolve.add(defId)
+        })
+      })
+      if (idsToResolve.size > 0) {
+        const resolved = { ...knownNames }
+        await Promise.allSettled(
+          [...idsToResolve].map((id) =>
+            getItemDefinition({ gameId }, id)
+              .then((r) => { resolved[id] = r.item.name })
+              .catch(() => {})
+          )
+        )
+        setGenOutputPoolDefNames(resolved)
+      } else {
+        setGenOutputPoolDefNames(knownNames)
+      }
+    } catch (err: any) {
+      setGeneratorsError(err?.message ?? "Failed to load generators")
+    } finally {
+      setGeneratorsLoading(false)
+    }
+  }, [progressId, gameId])
+
   const loadQuestHistory = useCallback(async () => {
     if (!game?.studio_id || !detail?.user_id) return
     setQuestLoading(true)
@@ -479,6 +777,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "containers") loadContainers()
   }, [activeTab, loadContainers])
+
+  useEffect(() => {
+    if (activeTab === "generators") loadGenerators()
+  }, [activeTab, loadGenerators])
 
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
@@ -581,6 +883,7 @@ export default function GameUserProgressDetailPage({
             items: itemsTotal || undefined,
             containers: containers.length || undefined,
             containersHasMore,
+            generators: generatorItems.length || undefined,
             quests: questHistory ? (questHistory.claims_total + questHistory.starts_total) || undefined : undefined,
             transactions: gachaTxnsTotal || undefined,
           }}
@@ -974,34 +1277,6 @@ export default function GameUserProgressDetailPage({
                                 <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
                                 <CopyButton text={item.id} />
                               </div>
-
-                              {/* Generator Config */}
-                              {item.definition?.metadata?.generator_config && (() => {
-                                const gc = item.definition.metadata.generator_config as Record<string, unknown>
-                                return (
-                                  <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-foreground">Generator Config</p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
-                                      <div>
-                                        <span className="text-muted-foreground">Output Item Code: </span>
-                                        <span className="font-mono font-medium">{String(gc.output_item_code ?? "—")}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Interval: </span>
-                                        <span className="font-medium">{String(gc.production_interval_seconds ?? "—")}s</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Capacity: </span>
-                                        <span className="font-medium">{String(gc.capacity ?? "—")}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Initial Output: </span>
-                                        <span className="font-medium">{String(gc.initial_output ?? "—")}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )
-                              })()}
 
                               {/* Full Metadata */}
                               {item.definition?.metadata && Object.keys(item.definition.metadata).length > 0 && (
@@ -1959,6 +2234,166 @@ export default function GameUserProgressDetailPage({
                   onClick={() => setContainersOffset(containersOffset + CONTAINERS_LIMIT)}
                 >Next</Button>
               </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="generators" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Player Generators</h2>
+              <p className="text-sm text-muted-foreground">
+                {generatorsLoading
+                  ? "Loading…"
+                  : generatorItems.length > 0
+                  ? `${generatorItems.length} generator${generatorItems.length !== 1 ? "s" : ""}`
+                  : "No generators"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadGenerators} disabled={generatorsLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${generatorsLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {generatorsLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}><CardContent className="p-4 space-y-3">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </CardContent></Card>
+              ))}
+            </div>
+          ) : generatorsError ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-destructive text-sm mb-3">{generatorsError}</p>
+                <Button variant="outline" size="sm" onClick={loadGenerators}>Try Again</Button>
+              </CardContent>
+            </Card>
+          ) : generatorItems.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                <Zap className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No generators</p>
+                <p className="text-sm mt-1">This player has no generator items in their inventory.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {generatorItems.map((item) => {
+                const gc = item.definition?.metadata?.generator_config as Record<string, unknown> | undefined
+                const outputPool = gc && Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
+                const interval = Number(gc?.production_interval_seconds) || 0
+                const tickCap = Number(gc?.tick_capacity) || 0
+                return (
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-sm truncate">{item.definition?.name ?? item.item_definition_id.slice(0, 12)}</span>
+                            <a
+                              href={`/games/${gameId}/items/${item.item_definition_id}`}
+                              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                              title="Open item definition"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            {item.definition?.rarity && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border capitalize ${RARITY_STYLE[item.definition.rarity] ?? "bg-muted text-muted-foreground border-border"}`}>
+                                {item.definition.rarity}
+                              </span>
+                            )}
+                          </div>
+                          {item.definition?.item_code && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground font-mono">{item.definition.item_code}</span>
+                              <CopyButton text={item.definition.item_code} />
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground/60 font-mono">def: {item.item_definition_id.slice(0, 8)}…</span>
+                            <CopyButton text={item.item_definition_id} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 text-xs text-muted-foreground shrink-0">
+                          <span>Qty: <span className="font-semibold text-foreground">{item.quantity}</span></span>
+                          <span>Lv: <span className="font-semibold text-foreground">{item.level}</span></span>
+                        </div>
+                      </div>
+
+                      {/* Instance ID */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-muted-foreground">Instance:</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{item.id.slice(0, 16)}…</span>
+                        <CopyButton text={item.id} />
+                      </div>
+
+                      {/* Container info */}
+                      {(() => {
+                        const c = containerMapForItems[item.item_container_id]
+                        if (!c) return null
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Archive className="h-3 w-3" />
+                            <span className="font-medium">{c.definition?.name ?? c.container_type}</span>
+                            <span className="font-mono text-[10px]">@ ({item.grid_x}, {item.grid_y})</span>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Acquired */}
+                      <div className="text-[10px] text-muted-foreground">
+                        Acquired: {item.acquired_at ? formatISODate(item.acquired_at) : "—"}
+                      </div>
+
+                      {/* Generator Live Estimate */}
+                      {gc && (
+                        <div className="border-t pt-3">
+                          <GeneratorLiveEstimate
+                            interval={interval}
+                            tickCapacity={tickCap}
+                            outputPool={outputPool}
+                            outputPoolDefNames={genOutputPoolDefNames}
+                            lastModifiedAt={item.last_modified_at}
+                            gameId={gameId}
+                          />
+                        </div>
+                      )}
+
+                      {/* Metadata (non-generator_config) */}
+                      {item.definition?.metadata && (() => {
+                        const filtered = Object.fromEntries(
+                          Object.entries(item.definition.metadata).filter(([k]) => k !== "generator_config")
+                        )
+                        if (Object.keys(filtered).length === 0) return null
+                        return (
+                          <div className="border-t pt-2 space-y-1">
+                            <p className="text-[10px] font-medium text-muted-foreground">Other Metadata</p>
+                            <pre className="text-[10px] font-mono bg-muted rounded p-2 overflow-x-auto max-h-[120px]">
+                              {JSON.stringify(filtered, null, 2)}
+                            </pre>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Custom Properties */}
+                      {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
+                        <div className="border-t pt-2 space-y-1">
+                          <p className="text-[10px] font-medium text-muted-foreground">Custom Properties</p>
+                          <pre className="text-[10px] font-mono bg-muted rounded p-2 overflow-x-auto max-h-[120px]">
+                            {JSON.stringify(item.custom_properties, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
