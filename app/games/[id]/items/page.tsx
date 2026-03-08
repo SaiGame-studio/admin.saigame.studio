@@ -709,12 +709,13 @@ function CreateItemDialog({
   const [category, setCategory] = useState<ItemCategory>(initialCategory ?? "weapon")
   const [rarity, setRarity] = useState<ItemRarity>("common")
   const [isStackable, setIsStackable] = useState(false)
-  const [maxStack, setMaxStack] = useState<string>("")
+  const [maxStack, setMaxStack] = useState<string>("99")
   const [gridW, setGridW] = useState("1")
   const [gridH, setGridH] = useState("1")
   const [stats, setStats] = useState<KVEntry[]>([])
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [clientWritable, setClientWritable] = useState(false)
 
   // Generator config
   interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string; collect_cap: string; initial_output: string }
@@ -746,12 +747,13 @@ function CreateItemDialog({
     setCategory(initialCategory ?? "weapon")
     setRarity("common")
     setIsStackable(false)
-    setMaxStack("")
+    setMaxStack("99")
     setGridW("1")
     setGridH("1")
     setStats([])
     setMeta([])
     setErrors({})
+    setClientWritable(false)
     setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
     setGenInterval("3600")
     setGenTickCapacity("24")
@@ -828,6 +830,7 @@ function CreateItemDialog({
         grid_height: Number(gridH) || 1,
         base_stats,
         metadata,
+        client_writable: clientWritable,
       }
       if (isStackable) {
         body.max_stack_size = maxStack === "" ? null : Number(maxStack)
@@ -958,55 +961,100 @@ function CreateItemDialog({
             </div>
           </div>
 
-          {/* Stackable */}
-          <div className="flex items-center gap-3">
-            <Switch
-              id="stackable"
-              checked={isStackable}
-              onCheckedChange={setIsStackable}
-            />
-            <Label htmlFor="stackable">Stackable</Label>
+          {/* Grid size */}
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="grid-w">Grid Width</Label>
+                <Input
+                  id="grid-w"
+                  type="number"
+                  min={0}
+                  value={gridW}
+                  onChange={(e) => setGridW(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="grid-h">Grid Height</Label>
+                <Input
+                  id="grid-h"
+                  type="number"
+                  min={0}
+                  value={gridH}
+                  onChange={(e) => setGridH(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground pl-1">
+              {(Number(gridW) || 0) === 0 || (Number(gridH) || 0) === 0
+                ? "0×0 — item has no grid size, it won't occupy any inventory space (virtual item)."
+                : (Number(gridW) || 1) === 1 && (Number(gridH) || 1) === 1
+                  ? "1×1 — item occupies a single inventory cell."
+                  : `${Number(gridW) || 1}×${Number(gridH) || 1} — item occupies ${(Number(gridW) || 1) * (Number(gridH) || 1)} cells in the inventory grid.`}
+            </p>
           </div>
 
-          {isStackable && (
-            <div className="space-y-1">
-              <Label htmlFor="max-stack">Max Stack Size (leave blank = unlimited)</Label>
-              <Input
-                id="max-stack"
-                type="number"
-                min={1}
-                placeholder="999"
-                value={maxStack}
-                onChange={(e) => setMaxStack(e.target.value)}
+          {/* Stackable */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="stackable"
+                checked={isStackable}
+                onCheckedChange={setIsStackable}
               />
-              {errors.maxStack && (
-                <p className="text-xs text-destructive">{errors.maxStack}</p>
+              <Label htmlFor="stackable">Stackable</Label>
+              {isStackable && (
+                <div className="relative">
+                  <Input
+                    id="max-stack"
+                    type="number"
+                    min={1}
+                    value={maxStack}
+                    onChange={(e) => setMaxStack(e.target.value)}
+                    className="h-8 w-36 pr-8"
+                  />
+                  {maxStack && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setMaxStack("")}
+                      title="Clear"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-          )}
+            <p className="text-[11px] text-muted-foreground pl-1">
+              {!isStackable
+                ? "Not stackable — each item occupies its own inventory slot."
+                : maxStack === "" || maxStack === "0"
+                  ? "Stackable with no limit — items stack infinitely in one slot."
+                  : Number(maxStack) === 1
+                    ? "Stackable but max 1 — effectively behaves like non-stackable."
+                    : `Stackable up to ${Number(maxStack).toLocaleString()} per slot.`}
+            </p>
+            {errors.maxStack && (
+              <p className="text-xs text-destructive pl-1">{errors.maxStack}</p>
+            )}
+          </div>
 
-          {/* Grid size */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="grid-w">Grid Width</Label>
-              <Input
-                id="grid-w"
-                type="number"
-                min={1}
-                value={gridW}
-                onChange={(e) => setGridW(e.target.value)}
+          {/* Client Writable */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="client-writable"
+                checked={clientWritable}
+                onCheckedChange={setClientWritable}
               />
+              <Label htmlFor="client-writable">Allow client to write player properties</Label>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="grid-h">Grid Height</Label>
-              <Input
-                id="grid-h"
-                type="number"
-                min={1}
-                value={gridH}
-                onChange={(e) => setGridH(e.target.value)}
-              />
-            </div>
+            {clientWritable && (
+              <p className="text-xs text-muted-foreground pl-1">
+                When enabled, the game client can update <code className="font-mono text-[11px] bg-muted px-1 rounded">public_properties</code> on inventory items owned by the player (e.g. skin, nickname). Max 50 properties total including nested keys.
+              </p>
+            )}
           </div>
 
           {/* Generator Config */}
@@ -1267,6 +1315,7 @@ function CreateItemDialog({
             onChange={setMeta}
             label="Metadata (e.g. icon = sword_iron)"
           />
+
         </div>
 
         <div className="shrink-0 border-t px-6 py-4 flex justify-end gap-2">

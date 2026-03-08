@@ -37,6 +37,7 @@ export interface ItemDefinition {
   grid_height: number
   base_stats: Record<string, number>
   metadata: Record<string, unknown>
+  client_writable: boolean
   created_at: string
   updated_at: string
 }
@@ -52,6 +53,7 @@ export interface CreateItemRequest {
   grid_height?: number
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
+  client_writable?: boolean
 }
 
 export interface UpdateItemRequest {
@@ -64,6 +66,7 @@ export interface UpdateItemRequest {
   grid_height?: number
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
+  client_writable?: boolean
 }
 
 export interface GachaPoolEntry {
