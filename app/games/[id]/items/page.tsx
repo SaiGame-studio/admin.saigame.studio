@@ -76,6 +76,7 @@ import {
   getEquipmentSlot,
   createEquipmentSlot,
   updateEquipmentSlot,
+  deleteEquipmentSlot,
   type ListItemsParams,
 } from "@/lib/inventory-api"
 import type {
@@ -1351,7 +1352,6 @@ function emptySlotForm() {
     description: "",
     allowed_categories: [] as string[],
     allowed_item_definition_ids: [] as string[],
-    sort_order: "0",
     is_active: true,
     meta: [] as KVEntry[],
   }
@@ -1406,7 +1406,6 @@ function EquipmentSlotSheet({
         description: editing.description ?? "",
         allowed_categories: editing.allowed_categories ?? [],
         allowed_item_definition_ids: editing.allowed_item_definition_ids ?? [],
-        sort_order: String(editing.sort_order ?? 0),
         is_active: editing.is_active,
         meta: Object.entries(editing.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })),
       })
@@ -1456,9 +1455,8 @@ function EquipmentSlotSheet({
         result = await updateEquipmentSlot({ gameId }, editing.slot_key, {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
-          allowed_categories: form.allowed_categories.length > 0 ? form.allowed_categories : undefined,
+          allowed_categories: form.allowed_categories,
           allowed_item_definition_ids: form.allowed_item_definition_ids.length > 0 ? form.allowed_item_definition_ids : null,
-          sort_order: Number(form.sort_order) || 0,
           is_active: form.is_active,
           metadata,
         })
@@ -1468,9 +1466,8 @@ function EquipmentSlotSheet({
           slot_key: form.slot_key.trim(),
           name: form.name.trim(),
           description: form.description.trim() || undefined,
-          allowed_categories: form.allowed_categories.length > 0 ? form.allowed_categories : undefined,
+          allowed_categories: form.allowed_categories,
           allowed_item_definition_ids: form.allowed_item_definition_ids.length > 0 ? form.allowed_item_definition_ids : undefined,
-          sort_order: Number(form.sort_order) || 0,
           metadata,
         })
         toast({ title: "Equipment slot created" })
@@ -1711,20 +1708,6 @@ function EquipmentSlotSheet({
             </Popover>
           </div>
 
-          {/* Sort Order */}
-          <div className="space-y-1">
-            <Label htmlFor="eq-sort">Sort Order</Label>
-            <Input
-              id="eq-sort"
-              type="number"
-              min={0}
-              value={form.sort_order}
-              onChange={(e) => patch("sort_order", e.target.value)}
-              disabled={saving}
-              className="w-32"
-            />
-          </div>
-
           {/* Is Active — only shown when editing */}
           {editing && (
             <div className="flex items-center gap-3">
@@ -1782,8 +1765,9 @@ function EquipmentsTab({
   const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
   const [subTab, setSubTab] = useState<"grid" | "list">("grid")
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const [draggingPos, setDraggingPos] = useState<{ slotKey: string; x: number; y: number } | null>(null)
-  const dragRef = useRef<{ slotKey: string; startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const [snapBonds, setSnapBonds] = useState<Record<string, string[]>>({}) // adjacency list: slotKey -> bonded keys
+  const [draggingPos, setDraggingPos] = useState<Record<string, { x: number; y: number }> | null>(null)
+  const dragRef = useRef<{ slotKey: string; startX: number; startY: number; origPositions: Record<string, { x: number; y: number }> } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [gridZoom, setGridZoom] = useState<number>(1)
 
@@ -1794,6 +1778,8 @@ function EquipmentsTab({
       if (raw) setPositions(JSON.parse(raw))
       const z = localStorage.getItem(`eq-slots-zoom-${gameId}`)
       if (z) setGridZoom(parseFloat(z))
+      const bonds = localStorage.getItem(`eq-slots-bonds-${gameId}`)
+      if (bonds) setSnapBonds(JSON.parse(bonds))
     } catch {}
   }, [gameId])
 
@@ -1862,6 +1848,36 @@ function EquipmentsTab({
     e.stopPropagation()
     setEditingSlot(slot)
     setSheetOpen(true)
+  }
+
+  const [pendingDeleteSlot, setPendingDeleteSlot] = useState<string | null>(null)
+  const [deleteSlotLoading, setDeleteSlotLoading] = useState(false)
+
+  function handleDelete(slotKey: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setPendingDeleteSlot(slotKey)
+  }
+
+  function confirmDeleteSlot() {
+    if (!pendingDeleteSlot) return
+    const slotKey = pendingDeleteSlot
+    setDeleteSlotLoading(true)
+    deleteEquipmentSlot({ gameId }, slotKey)
+      .then(() => {
+        setSlots(slots.filter((s) => s.slot_key !== slotKey))
+        setDetailCache((prev) => { const n = { ...prev }; delete n[slotKey]; return n })
+        setPositions((prev) => { const n = { ...prev }; delete n[slotKey]; return n })
+        setSnapBonds((prev) => {
+          const n = { ...prev }
+          ;(n[slotKey] ?? []).forEach((b) => { n[b] = (n[b] ?? []).filter((k) => k !== slotKey); if (!n[b].length) delete n[b] })
+          delete n[slotKey]
+          try { localStorage.setItem(`eq-slots-bonds-${gameId}`, JSON.stringify(n)) } catch {}
+          return n
+        })
+        setPendingDeleteSlot(null)
+      })
+      .catch((err: unknown) => alert((err as Error)?.message ?? "Failed to delete slot"))
+      .finally(() => setDeleteSlotLoading(false))
   }
 
   function handleSaved(saved: EquipmentSlot) {
@@ -1947,49 +1963,119 @@ function EquipmentsTab({
             const CARD_W = 116
             const CARD_H_EST = 96
             const GAP = 12
-            const getColX = () => ((canvasRef.current?.clientWidth ?? 900) / gridZoom) - CARD_W - GAP
+            const COLS = 6
             const getDefaultPos = (idx: number) => ({
-              x: getColX(),
-              y: idx * (CARD_H_EST + GAP) + GAP,
+              x: (idx % COLS) * (CARD_W + GAP) + GAP,
+              y: Math.floor(idx / COLS) * (CARD_H_EST + GAP) + GAP,
             })
+            const SNAP_DIST = 24
+            const BOND_TOL = 20
+            const getGroupMembers = (startKey: string): string[] => {
+              const visited = new Set<string>(); const queue = [startKey]
+              while (queue.length) { const k = queue.shift()!; if (visited.has(k)) continue; visited.add(k); for (const b of snapBonds[k] ?? []) if (!visited.has(b)) queue.push(b) }
+              return [...visited]
+            }
+            const getBondedNeighbor = (slotKey: string, dir: "left" | "right" | "top" | "bottom"): string | null => {
+              const si = slots.findIndex((s) => s.slot_key === slotKey)
+              const posA = positions[slotKey] ?? getDefaultPos(si)
+              for (const bKey of snapBonds[slotKey] ?? []) {
+                const bi = slots.findIndex((s) => s.slot_key === bKey)
+                const posB = positions[bKey] ?? getDefaultPos(bi)
+                const dx = posB.x - posA.x, dy = posB.y - posA.y, T = BOND_TOL
+                if (dir === "right"  && Math.abs(dx - (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
+                if (dir === "left"   && Math.abs(dx + (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
+                if (dir === "bottom" && Math.abs(dy - (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
+                if (dir === "top"    && Math.abs(dy + (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
+              }
+              return null
+            }
+            const detachBond = (a: string, b: string) => {
+              setSnapBonds((prev) => {
+                const n = { ...prev }
+                n[a] = (n[a] ?? []).filter((k) => k !== b); n[b] = (n[b] ?? []).filter((k) => k !== a)
+                if (!n[a].length) delete n[a]; if (!n[b].length) delete n[b]
+                try { localStorage.setItem(`eq-slots-bonds-${gameId}`, JSON.stringify(n)) } catch {}
+                return n
+              })
+            }
             const rawCanvasH = Math.max(400, ...slots.map((s, i) => {
-              const p = draggingPos?.slotKey === s.slot_key
-                ? { y: draggingPos.y }
-                : (positions[s.slot_key] ?? getDefaultPos(i))
+              const p = draggingPos?.[s.slot_key] ?? (positions[s.slot_key] ?? getDefaultPos(i))
               return p.y + CARD_H_EST + GAP
             }))
             const canvasH = rawCanvasH * gridZoom
             const startDrag = (e: React.PointerEvent<HTMLDivElement>, slotKey: string, idx: number) => {
               e.preventDefault()
               e.currentTarget.setPointerCapture(e.pointerId)
-              const cur = positions[slotKey] ?? getDefaultPos(idx)
-              dragRef.current = { slotKey, startX: e.clientX, startY: e.clientY, origX: cur.x, origY: cur.y }
+              const members = getGroupMembers(slotKey)
+              const origPositions: Record<string, { x: number; y: number }> = {}
+              members.forEach((k) => {
+                const si = slots.findIndex((s) => s.slot_key === k)
+                origPositions[k] = positions[k] ?? getDefaultPos(si < 0 ? idx : si)
+              })
+              dragRef.current = { slotKey, startX: e.clientX, startY: e.clientY, origPositions }
             }
             const onDragMove = (e: React.PointerEvent<HTMLDivElement>, slotKey: string) => {
               if (!dragRef.current || dragRef.current.slotKey !== slotKey) return
               const dx = (e.clientX - dragRef.current.startX) / gridZoom
               const dy = (e.clientY - dragRef.current.startY) / gridZoom
-              setDraggingPos({
-                slotKey,
-                x: Math.max(0, dragRef.current.origX + dx),
-                y: Math.max(0, dragRef.current.origY + dy),
+              const next: Record<string, { x: number; y: number }> = {}
+              Object.entries(dragRef.current.origPositions).forEach(([k, orig]) => {
+                next[k] = { x: Math.max(0, orig.x + dx), y: Math.max(0, orig.y + dy) }
               })
+              setDraggingPos(next)
             }
             const onDragEnd = (e: React.PointerEvent<HTMLDivElement>, slotKey: string) => {
               if (!dragRef.current || dragRef.current.slotKey !== slotKey) return
               const dx = (e.clientX - dragRef.current.startX) / gridZoom
               const dy = (e.clientY - dragRef.current.startY) / gridZoom
-              const newPos = {
-                x: Math.max(0, dragRef.current.origX + dx),
-                y: Math.max(0, dragRef.current.origY + dy),
+              const draggingKeys = new Set(Object.keys(dragRef.current.origPositions))
+              const movedPos: Record<string, { x: number; y: number }> = {}
+              Object.entries(dragRef.current.origPositions).forEach(([k, orig]) => {
+                movedPos[k] = { x: Math.max(0, orig.x + dx), y: Math.max(0, orig.y + dy) }
+              })
+              if (!draggingKeys.has(slotKey)) { dragRef.current = null; setDraggingPos(null); return }
+              // find nearest static card to snap to
+              const primary = movedPos[slotKey]
+              let snapOffset = { x: 0, y: 0 }
+              let snapTarget: string | null = null
+              for (let si = 0; si < slots.length && snapTarget === null; si++) {
+                const s = slots[si]
+                if (draggingKeys.has(s.slot_key)) continue
+                const cp = positions[s.slot_key] ?? getDefaultPos(si)
+                const candidates = [
+                  { x: cp.x + CARD_W + GAP, y: cp.y },
+                  { x: cp.x - CARD_W - GAP, y: cp.y },
+                  { x: cp.x, y: cp.y + CARD_H_EST + GAP },
+                  { x: cp.x, y: cp.y - CARD_H_EST - GAP },
+                ]
+                for (const c of candidates) {
+                  if (Math.abs(primary.x - c.x) < SNAP_DIST && Math.abs(primary.y - c.y) < SNAP_DIST) {
+                    snapOffset = { x: c.x - primary.x, y: c.y - primary.y }
+                    snapTarget = s.slot_key
+                    break
+                  }
+                }
               }
+              const finalPos: Record<string, { x: number; y: number }> = {}
+              draggingKeys.forEach((k) => {
+                finalPos[k] = { x: Math.max(0, movedPos[k].x + snapOffset.x), y: Math.max(0, movedPos[k].y + snapOffset.y) }
+              })
               dragRef.current = null
               setDraggingPos(null)
               setPositions((prev) => {
-                const next = { ...prev, [slotKey]: newPos }
+                const next = { ...prev, ...finalPos }
                 try { localStorage.setItem(`eq-slots-pos-${gameId}`, JSON.stringify(next)) } catch {}
                 return next
               })
+              if (snapTarget !== null) {
+                setSnapBonds((prev) => {
+                  const n = { ...prev }
+                  if (!(n[slotKey] ?? []).includes(snapTarget!)) n[slotKey] = [...(n[slotKey] ?? []), snapTarget!]
+                  if (!(n[snapTarget!] ?? []).includes(slotKey)) n[snapTarget!] = [...(n[snapTarget!] ?? []), slotKey]
+                  try { localStorage.setItem(`eq-slots-bonds-${gameId}`, JSON.stringify(n)) } catch {}
+                  return n
+                })
+              }
             }
             return (
               <>
@@ -2016,9 +2102,22 @@ function EquipmentsTab({
                   <Button
                     variant="outline" size="sm" className="h-7 text-xs"
                     onClick={() => {
-                      const colX = getColX()
                       const reset: Record<string, { x: number; y: number }> = {}
-                      slots.forEach((s, i) => { reset[s.slot_key] = { x: colX, y: i * (CARD_H_EST + GAP) + GAP } })
+                      // preserve pinned positions and bonded positions
+                      const locked = new Set<string>()
+                      Object.entries(snapBonds).forEach(([k, v]) => { if (v.length > 0) locked.add(k) })
+                      locked.forEach((key) => { if (positions[key]) reset[key] = positions[key] })
+                      // fill non-locked slots sequentially from position 0
+                      let freeIdx = 0
+                      slots.forEach((s) => {
+                        if (!locked.has(s.slot_key)) {
+                          reset[s.slot_key] = {
+                            x: (freeIdx % COLS) * (CARD_W + GAP) + GAP,
+                            y: Math.floor(freeIdx / COLS) * (CARD_H_EST + GAP) + GAP,
+                          }
+                          freeIdx++
+                        }
+                      })
                       setPositions(reset)
                       try { localStorage.setItem(`eq-slots-pos-${gameId}`, JSON.stringify(reset)) } catch {}
                     }}
@@ -2038,10 +2137,15 @@ function EquipmentsTab({
                     style={{ transform: `scale(${gridZoom})`, transformOrigin: "top left", width: `${100 / gridZoom}%` }}
                   >
                     {slots.map((slot, i) => {
-                      const isDragging = draggingPos?.slotKey === slot.slot_key
-                      const pos = isDragging
-                        ? { x: draggingPos!.x, y: draggingPos!.y }
-                        : (positions[slot.slot_key] ?? getDefaultPos(i))
+                      const isDragging = !!draggingPos?.[slot.slot_key]
+                      const pos = draggingPos?.[slot.slot_key] ?? (positions[slot.slot_key] ?? getDefaultPos(i))
+                      const bondedEdges = {
+                        top: getBondedNeighbor(slot.slot_key, "top"),
+                        right: getBondedNeighbor(slot.slot_key, "right"),
+                        bottom: getBondedNeighbor(slot.slot_key, "bottom"),
+                        left: getBondedNeighbor(slot.slot_key, "left"),
+                      }
+                      const hasBond = Object.values(bondedEdges).some(Boolean)
                       return (
                         <div
                           key={slot.id}
@@ -2052,20 +2156,61 @@ function EquipmentsTab({
                           onPointerUp={(e) => onDragEnd(e, slot.slot_key)}
                           onPointerCancel={() => { dragRef.current = null; setDraggingPos(null) }}
                         >
-                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}`}>
-                            <CardContent className="p-1.5 space-y-1">
-                              {/* name + status + edit */}
-                              <div className="flex items-start justify-between gap-0.5">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[10px] font-semibold truncate leading-tight">{slot.name}</p>
+                          {/* Bond edge detach indicators */}
+                          {(Object.entries(bondedEdges) as ["top"|"right"|"bottom"|"left", string|null][]).map(([dir, neighbor]) => {
+                            if (!neighbor) return null
+                            const edgeStyle: React.CSSProperties = dir === "top"
+                              ? { position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)", zIndex: 20 }
+                              : dir === "right"
+                              ? { position: "absolute", top: "50%", right: -5, transform: "translateY(-50%)", zIndex: 20 }
+                              : dir === "bottom"
+                              ? { position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)", zIndex: 20 }
+                              : { position: "absolute", top: "50%", left: -5, transform: "translateY(-50%)", zIndex: 20 }
+                            return (
+                              <button
+                                key={dir}
+                                style={edgeStyle}
+                                className="w-2.5 h-2.5 rounded-full bg-blue-400 hover:bg-red-400 cursor-pointer transition-colors border border-background"
+                                title={`Detach from ${neighbor}`}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); detachBond(slot.slot_key, neighbor) }}
+                              />
+                            )
+                          })}
+                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}`}>
+                            <CardContent className="p-1.5">
+                              <div className="flex gap-0.5">
+                                {/* left: main info */}
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  {/* name + status */}
+                                  <div className="flex items-start gap-0.5">
+                                    {slot.is_active
+                                      ? <span className="text-[8px] text-green-500 font-medium leading-none mt-0.5 shrink-0">●</span>
+                                      : <span className="text-[8px] text-muted-foreground leading-none mt-0.5 shrink-0">○</span>}
+                                    <p className="text-[10px] font-semibold truncate leading-tight">{slot.name}</p>
+                                  </div>
                                   <code className="text-[8px] bg-muted px-0.5 py-px rounded font-mono inline-block leading-tight truncate max-w-full">
                                     {slot.slot_key}
                                   </code>
+                                  {/* categories */}
+                                  <div className="flex flex-wrap gap-0.5">
+                                    {slot.allowed_categories && slot.allowed_categories.length > 0
+                                      ? slot.allowed_categories.length === 1
+                                        ? <Badge variant="outline" className="text-[8px] capitalize px-0.5 py-0 leading-tight">{slot.allowed_categories[0]}</Badge>
+                                        : <span className="text-[8px] text-muted-foreground">{slot.allowed_categories.length}× types</span>
+                                      : <span className="text-[8px] text-muted-foreground italic">Any type</span>}
+                                  </div>
+                                  {/* items */}
+                                  <div className="flex text-[8px] text-muted-foreground">
+                                    <span>
+                                      {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0
+                                        ? `${slot.allowed_item_definition_ids.length}× item${slot.allowed_item_definition_ids.length > 1 ? "s" : ""}`
+                                        : "Any items"}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-0 shrink-0">
-                                  {slot.is_active
-                                    ? <span className="text-[8px] text-green-500 font-medium leading-none">●</span>
-                                    : <span className="text-[8px] text-muted-foreground leading-none">○</span>}
+                                {/* right: action buttons column */}
+                                <div className="flex flex-col items-center justify-between shrink-0">
                                   <Button
                                     variant="ghost" size="icon" className="h-4 w-4"
                                     onPointerDown={(e) => e.stopPropagation()}
@@ -2073,24 +2218,17 @@ function EquipmentsTab({
                                   >
                                     <Pencil className="h-2 w-2" />
                                   </Button>
+                                  <Button
+                                    variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(slot.slot_key, e) }}
+                                    disabled={deleteSlotLoading && pendingDeleteSlot === slot.slot_key}
+                                  >
+                                    {deleteSlotLoading && pendingDeleteSlot === slot.slot_key
+                                      ? <Loader2 className="h-2 w-2 animate-spin" />
+                                      : <Trash2 className="h-2 w-2" />}
+                                  </Button>
                                 </div>
-                              </div>
-                              {/* categories */}
-                              <div className="flex flex-wrap gap-0.5">
-                                {slot.allowed_categories && slot.allowed_categories.length > 0
-                                  ? slot.allowed_categories.map((cat) => (
-                                    <Badge key={cat} variant="outline" className="text-[8px] capitalize px-0.5 py-0 leading-tight">{cat}</Badge>
-                                  ))
-                                  : <span className="text-[8px] text-muted-foreground italic">Any</span>}
-                              </div>
-                              {/* items + sort */}
-                              <div className="flex justify-between text-[8px] text-muted-foreground">
-                                <span>
-                                  {slot.allowed_item_definition_ids?.length
-                                    ? `${slot.allowed_item_definition_ids.length}×`
-                                    : "Any"}
-                                </span>
-                                <span>#{slot.sort_order}</span>
                               </div>
                             </CardContent>
                           </Card>
@@ -2116,7 +2254,6 @@ function EquipmentsTab({
                     <TableHead>Slot Key</TableHead>
                     <TableHead>Allowed Categories</TableHead>
                     <TableHead>Allowed Items</TableHead>
-                    <TableHead>Sort</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -2154,18 +2291,15 @@ function EquipmentsTab({
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground italic">Any</span>
+                              <span className="text-xs text-muted-foreground italic">Any type</span>
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0 ? (
                               <span>{slot.allowed_item_definition_ids.length} item{slot.allowed_item_definition_ids.length !== 1 ? "s" : ""}</span>
                             ) : (
-                              <span className="italic">Any</span>
+                              <span className="italic">Any items</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {slot.sort_order}
                           </TableCell>
                           <TableCell>
                             {slot.is_active ? (
@@ -2181,6 +2315,16 @@ function EquipmentsTab({
                               onClick={(e) => openEdit(detail ?? slot, e)}
                             >
                               <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Delete"
+                              onClick={(e) => handleDelete(slot.slot_key, e)}
+                              disabled={deleteSlotLoading && pendingDeleteSlot === slot.slot_key}
+                            >
+                              {deleteSlotLoading && pendingDeleteSlot === slot.slot_key
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Trash2 className="h-4 w-4" />}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -2222,10 +2366,6 @@ function EquipmentsTab({
 
                                     {/* Core info grid */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                                      <div>
-                                        <span className="text-muted-foreground">Sort Order: </span>
-                                        <span className="font-medium">{detail.sort_order}</span>
-                                      </div>
                                       <div>
                                         <span className="text-muted-foreground">Status: </span>
                                         <span className={detail.is_active ? "text-green-500 font-medium" : "font-medium"}>
@@ -2322,6 +2462,28 @@ function EquipmentsTab({
         onSaved={handleSaved}
         onClose={() => setSheetOpen(false)}
       />
+
+      <AlertDialog open={!!pendingDeleteSlot} onOpenChange={(o) => { if (!o && !deleteSlotLoading) setPendingDeleteSlot(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete slot "{pendingDeleteSlot}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the equipment slot configuration. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSlotLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={confirmDeleteSlot}
+              disabled={deleteSlotLoading}
+            >
+              {deleteSlotLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

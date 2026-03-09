@@ -277,7 +277,6 @@ export interface CreateEquipmentSlotRequest {
   description?: string
   allowed_categories?: string[]
   allowed_item_definition_ids?: string[] | null
-  sort_order?: number
   metadata?: Record<string, unknown>
 }
 
@@ -286,7 +285,6 @@ export interface UpdateEquipmentSlotRequest {
   description?: string
   allowed_categories?: string[]
   allowed_item_definition_ids?: string[] | null
-  sort_order?: number
   metadata?: Record<string, unknown>
   is_active?: boolean
 }
@@ -306,4 +304,12 @@ export async function updateEquipmentSlot(
   body: UpdateEquipmentSlotRequest,
 ): Promise<EquipmentSlot> {
   return api.put(`/api/v1/games/${ctx.gameId}/equipment-slots/${slotKey}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/equipment-slots/:slotKey */
+export async function deleteEquipmentSlot(
+  ctx: TenantCtx,
+  slotKey: string,
+): Promise<void> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/equipment-slots/${slotKey}`)
 }
