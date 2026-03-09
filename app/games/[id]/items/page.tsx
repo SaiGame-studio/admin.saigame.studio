@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2 } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -1780,6 +1780,30 @@ function EquipmentsTab({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<EquipmentSlot | null>(null)
   const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
+  const [subTab, setSubTab] = useState<"grid" | "list">("grid")
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [draggingPos, setDraggingPos] = useState<{ slotKey: string; x: number; y: number } | null>(null)
+  const dragRef = useRef<{ slotKey: string; startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [gridZoom, setGridZoom] = useState<number>(1)
+
+  useEffect(() => {
+    if (!gameId) return
+    try {
+      const raw = localStorage.getItem(`eq-slots-pos-${gameId}`)
+      if (raw) setPositions(JSON.parse(raw))
+      const z = localStorage.getItem(`eq-slots-zoom-${gameId}`)
+      if (z) setGridZoom(parseFloat(z))
+    } catch {}
+  }, [gameId])
+
+  function changeZoom(delta: number) {
+    setGridZoom((prev) => {
+      const next = Math.min(2, Math.max(0.4, parseFloat((prev + delta).toFixed(2))))
+      try { localStorage.setItem(`eq-slots-zoom-${gameId}`, String(next)) } catch {}
+      return next
+    })
+  }
 
   function fetchItemNames(ids: string[] | null | undefined) {
     if (!ids || ids.length === 0) return
@@ -1901,218 +1925,395 @@ function EquipmentsTab({
         <div>
           <h2 className="text-lg font-semibold">Equipment Slots</h2>
           <p className="text-sm text-muted-foreground">
-            {slots.length} slot{slots.length !== 1 ? "s" : ""} defined
+            {slots.length}{" "}
+            <span className={slots.length >= 50 ? "text-destructive font-medium" : ""}>
+              / 50
+            </span>{" "}
+            slot{slots.length !== 1 ? "s" : ""} defined
           </p>
         </div>
         {headerActions}
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-6" />
-                <TableHead>Name</TableHead>
-                <TableHead>Slot Key</TableHead>
-                <TableHead>Allowed Categories</TableHead>
-                <TableHead>Allowed Items</TableHead>
-                <TableHead>Sort</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {slots.map((slot) => {
-                const isExpanded = expandedSlotKey === slot.slot_key
-                const detail = detailCache[slot.slot_key]
-                const isLoadingDetail = detailLoading === slot.slot_key
-                const detailErr = detailError[slot.slot_key]
-                return (
-                  <Fragment key={slot.id}>
-                    <TableRow
-                      className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
-                      onClick={() => handleRowClick(slot)}
+      <Tabs value={subTab} onValueChange={(v) => setSubTab(v as "grid" | "list")}>
+        <TabsList className="mb-2">
+          <TabsTrigger value="grid">Grid</TabsTrigger>
+          <TabsTrigger value="list">List</TabsTrigger>
+        </TabsList>
+
+        {/* ── Grid (drag-and-drop canvas) ── */}
+        <TabsContent value="grid" className="mt-0">
+          {(() => {
+            const CARD_W = 116
+            const CARD_H_EST = 96
+            const GAP = 12
+            const getColX = () => ((canvasRef.current?.clientWidth ?? 900) / gridZoom) - CARD_W - GAP
+            const getDefaultPos = (idx: number) => ({
+              x: getColX(),
+              y: idx * (CARD_H_EST + GAP) + GAP,
+            })
+            const rawCanvasH = Math.max(400, ...slots.map((s, i) => {
+              const p = draggingPos?.slotKey === s.slot_key
+                ? { y: draggingPos.y }
+                : (positions[s.slot_key] ?? getDefaultPos(i))
+              return p.y + CARD_H_EST + GAP
+            }))
+            const canvasH = rawCanvasH * gridZoom
+            const startDrag = (e: React.PointerEvent<HTMLDivElement>, slotKey: string, idx: number) => {
+              e.preventDefault()
+              e.currentTarget.setPointerCapture(e.pointerId)
+              const cur = positions[slotKey] ?? getDefaultPos(idx)
+              dragRef.current = { slotKey, startX: e.clientX, startY: e.clientY, origX: cur.x, origY: cur.y }
+            }
+            const onDragMove = (e: React.PointerEvent<HTMLDivElement>, slotKey: string) => {
+              if (!dragRef.current || dragRef.current.slotKey !== slotKey) return
+              const dx = (e.clientX - dragRef.current.startX) / gridZoom
+              const dy = (e.clientY - dragRef.current.startY) / gridZoom
+              setDraggingPos({
+                slotKey,
+                x: Math.max(0, dragRef.current.origX + dx),
+                y: Math.max(0, dragRef.current.origY + dy),
+              })
+            }
+            const onDragEnd = (e: React.PointerEvent<HTMLDivElement>, slotKey: string) => {
+              if (!dragRef.current || dragRef.current.slotKey !== slotKey) return
+              const dx = (e.clientX - dragRef.current.startX) / gridZoom
+              const dy = (e.clientY - dragRef.current.startY) / gridZoom
+              const newPos = {
+                x: Math.max(0, dragRef.current.origX + dx),
+                y: Math.max(0, dragRef.current.origY + dy),
+              }
+              dragRef.current = null
+              setDraggingPos(null)
+              setPositions((prev) => {
+                const next = { ...prev, [slotKey]: newPos }
+                try { localStorage.setItem(`eq-slots-pos-${gameId}`, JSON.stringify(next)) } catch {}
+                return next
+              })
+            }
+            return (
+              <>
+                {/* toolbar */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(-0.1)} disabled={gridZoom <= 0.4} title="Zoom out">
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                    <button
+                      className="text-xs tabular-nums w-11 text-center text-muted-foreground hover:text-foreground transition-colors"
+                      title="Reset zoom"
+                      onClick={() => {
+                        setGridZoom(1)
+                        try { localStorage.setItem(`eq-slots-zoom-${gameId}`, "1") } catch {}
+                      }}
                     >
-                      <TableCell className="pr-0">
-                        {isExpanded
-                          ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {slot.name}
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                          {slot.slot_key}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        {slot.allowed_categories && slot.allowed_categories.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {slot.allowed_categories.map((cat) => (
-                              <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">Any</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0 ? (
-                          <span>{slot.allowed_item_definition_ids.length} item{slot.allowed_item_definition_ids.length !== 1 ? "s" : ""}</span>
-                        ) : (
-                          <span className="italic">Any</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {slot.sort_order}
-                      </TableCell>
-                      <TableCell>
-                        {slot.is_active ? (
-                          <span className="text-green-500 text-sm font-medium">Active</span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Inactive</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost" size="icon" className="h-8 w-8"
-                          title="Edit"
-                          onClick={(e) => openEdit(detail ?? slot, e)}
+                      {Math.round(gridZoom * 100)}%
+                    </button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(0.1)} disabled={gridZoom >= 2} title="Zoom in">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline" size="sm" className="h-7 text-xs"
+                    onClick={() => {
+                      const colX = getColX()
+                      const reset: Record<string, { x: number; y: number }> = {}
+                      slots.forEach((s, i) => { reset[s.slot_key] = { x: colX, y: i * (CARD_H_EST + GAP) + GAP } })
+                      setPositions(reset)
+                      try { localStorage.setItem(`eq-slots-pos-${gameId}`, JSON.stringify(reset)) } catch {}
+                    }}
+                  >
+                    Reset Positions
+                  </Button>
+                </div>
+
+                {/* canvas */}
+                <div
+                  ref={canvasRef}
+                  className="relative border rounded-md bg-muted/10 overflow-auto"
+                  style={{ height: canvasH }}
+                >
+                  <div
+                    className="absolute top-0 left-0"
+                    style={{ transform: `scale(${gridZoom})`, transformOrigin: "top left", width: `${100 / gridZoom}%` }}
+                  >
+                    {slots.map((slot, i) => {
+                      const isDragging = draggingPos?.slotKey === slot.slot_key
+                      const pos = isDragging
+                        ? { x: draggingPos!.x, y: draggingPos!.y }
+                        : (positions[slot.slot_key] ?? getDefaultPos(i))
+                      return (
+                        <div
+                          key={slot.id}
+                          className={`absolute touch-none select-none${isDragging ? " opacity-90" : ""}`}
+                          style={{ left: pos.x, top: pos.y, width: CARD_W, zIndex: isDragging ? 50 : 1 }}
+                          onPointerDown={(e) => startDrag(e, slot.slot_key, i)}
+                          onPointerMove={(e) => onDragMove(e, slot.slot_key)}
+                          onPointerUp={(e) => onDragEnd(e, slot.slot_key)}
+                          onPointerCancel={() => { dragRef.current = null; setDraggingPos(null) }}
                         >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-
-                    {isExpanded && (
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableCell colSpan={8} className="p-0">
-                          <div className="px-6 py-4 space-y-4">
-                            {isLoadingDetail ? (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Loading slot detail…
+                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}`}>
+                            <CardContent className="p-1.5 space-y-1">
+                              {/* name + status + edit */}
+                              <div className="flex items-start justify-between gap-0.5">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-semibold truncate leading-tight">{slot.name}</p>
+                                  <code className="text-[8px] bg-muted px-0.5 py-px rounded font-mono inline-block leading-tight truncate max-w-full">
+                                    {slot.slot_key}
+                                  </code>
+                                </div>
+                                <div className="flex items-center gap-0 shrink-0">
+                                  {slot.is_active
+                                    ? <span className="text-[8px] text-green-500 font-medium leading-none">●</span>
+                                    : <span className="text-[8px] text-muted-foreground leading-none">○</span>}
+                                  <Button
+                                    variant="ghost" size="icon" className="h-4 w-4"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); openEdit(detailCache[slot.slot_key] ?? slot, e) }}
+                                  >
+                                    <Pencil className="h-2 w-2" />
+                                  </Button>
+                                </div>
                               </div>
-                            ) : detailErr ? (
-                              <p className="text-sm text-destructive">{detailErr}</p>
-                            ) : detail ? (
-                              <>
-                                {/* IDs */}
-                                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold text-foreground">Slot ID:</span>
-                                    <span className="text-xs font-mono text-muted-foreground">{detail.id}</span>
-                                    <CopyButton text={detail.id} />
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold text-foreground">Slot Key:</span>
-                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{detail.slot_key}</code>
-                                    <CopyButton text={detail.slot_key} />
-                                  </div>
-                                </div>
+                              {/* categories */}
+                              <div className="flex flex-wrap gap-0.5">
+                                {slot.allowed_categories && slot.allowed_categories.length > 0
+                                  ? slot.allowed_categories.map((cat) => (
+                                    <Badge key={cat} variant="outline" className="text-[8px] capitalize px-0.5 py-0 leading-tight">{cat}</Badge>
+                                  ))
+                                  : <span className="text-[8px] text-muted-foreground italic">Any</span>}
+                              </div>
+                              {/* items + sort */}
+                              <div className="flex justify-between text-[8px] text-muted-foreground">
+                                <span>
+                                  {slot.allowed_item_definition_ids?.length
+                                    ? `${slot.allowed_item_definition_ids.length}×`
+                                    : "Any"}
+                                </span>
+                                <span>#{slot.sort_order}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+        </TabsContent>
 
-                                {/* Description */}
-                                {detail.description && (
-                                  <div className="space-y-0.5">
-                                    <p className="text-xs font-semibold text-foreground">Description</p>
-                                    <p className="text-sm text-muted-foreground">{detail.description}</p>
-                                  </div>
-                                )}
+        {/* ── List ── */}
+        <TabsContent value="list" className="mt-0">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-6" />
+                    <TableHead>Name</TableHead>
+                    <TableHead>Slot Key</TableHead>
+                    <TableHead>Allowed Categories</TableHead>
+                    <TableHead>Allowed Items</TableHead>
+                    <TableHead>Sort</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {slots.map((slot) => {
+                    const isExpanded = expandedSlotKey === slot.slot_key
+                    const detail = detailCache[slot.slot_key]
+                    const isLoadingDetail = detailLoading === slot.slot_key
+                    const detailErr = detailError[slot.slot_key]
+                    return (
+                      <Fragment key={slot.id}>
+                        <TableRow
+                          className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
+                          onClick={() => handleRowClick(slot)}
+                        >
+                          <TableCell className="pr-0">
+                            {isExpanded
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {slot.name}
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                              {slot.slot_key}
+                            </code>
+                          </TableCell>
+                          <TableCell>
+                            {slot.allowed_categories && slot.allowed_categories.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {slot.allowed_categories.map((cat) => (
+                                  <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Any</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0 ? (
+                              <span>{slot.allowed_item_definition_ids.length} item{slot.allowed_item_definition_ids.length !== 1 ? "s" : ""}</span>
+                            ) : (
+                              <span className="italic">Any</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {slot.sort_order}
+                          </TableCell>
+                          <TableCell>
+                            {slot.is_active ? (
+                              <span className="text-green-500 text-sm font-medium">Active</span>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">Inactive</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8"
+                              title="Edit"
+                              onClick={(e) => openEdit(detail ?? slot, e)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
 
-                                {/* Core info grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                                  <div>
-                                    <span className="text-muted-foreground">Sort Order: </span>
-                                    <span className="font-medium">{detail.sort_order}</span>
+                        {isExpanded && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="px-6 py-4 space-y-4">
+                                {isLoadingDetail ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading slot detail…
                                   </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Status: </span>
-                                    <span className={detail.is_active ? "text-green-500 font-medium" : "font-medium"}>
-                                      {detail.is_active ? "Active" : "Inactive"}
-                                    </span>
-                                  </div>
-                                  <div className="col-span-2">
-                                    <span className="text-muted-foreground">Created by: </span>
-                                    <span className="font-mono">{detail.created_by}</span>
-                                  </div>
-                                </div>
-
-                                {/* Allowed Categories */}
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Allowed Categories</p>
-                                  {detail.allowed_categories && detail.allowed_categories.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {detail.allowed_categories.map((cat) => (
-                                        <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
-                                      ))}
+                                ) : detailErr ? (
+                                  <p className="text-sm text-destructive">{detailErr}</p>
+                                ) : detail ? (
+                                  <>
+                                    {/* IDs */}
+                                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-foreground">Slot ID:</span>
+                                        <span className="text-xs font-mono text-muted-foreground">{detail.id}</span>
+                                        <CopyButton text={detail.id} />
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-foreground">Slot Key:</span>
+                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{detail.slot_key}</code>
+                                        <CopyButton text={detail.slot_key} />
+                                      </div>
                                     </div>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground italic">Any category allowed</span>
-                                  )}
-                                </div>
 
-                                {/* Allowed Item Definition IDs */}
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Allowed Item Definitions</p>
-                                  {detail.allowed_item_definition_ids && detail.allowed_item_definition_ids.length > 0 ? (
-                                    <div className="flex flex-col gap-1">
-                                      {detail.allowed_item_definition_ids.map((id) => {
-                                        const def = itemInfoCache[id]
-                                        return (
-                                          <div key={id} className="flex items-center gap-2">
-                                            <Link
-                                              href={`/games/${gameId}/items/${id}`}
-                                              className="text-sm font-medium text-primary hover:underline"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              {def?.name ?? <span className="font-mono text-xs">{id}</span>}
-                                            </Link>
-                                            {def?.item_code && (
-                                              <span className="text-xs text-muted-foreground font-mono">({def.item_code})</span>
-                                            )}
-                                            {def?.category && (
-                                              <Badge variant="outline" className="text-xs capitalize">{def.category}</Badge>
-                                            )}
-                                            <CopyButton text={id} />
-                                          </div>
-                                        )
-                                      })}
+                                    {/* Description */}
+                                    {detail.description && (
+                                      <div className="space-y-0.5">
+                                        <p className="text-xs font-semibold text-foreground">Description</p>
+                                        <p className="text-sm text-muted-foreground">{detail.description}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Core info grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Sort Order: </span>
+                                        <span className="font-medium">{detail.sort_order}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Status: </span>
+                                        <span className={detail.is_active ? "text-green-500 font-medium" : "font-medium"}>
+                                          {detail.is_active ? "Active" : "Inactive"}
+                                        </span>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <span className="text-muted-foreground">Created by: </span>
+                                        <span className="font-mono">{detail.created_by}</span>
+                                      </div>
                                     </div>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground italic">Any item definition allowed</span>
-                                  )}
-                                </div>
 
-                                {/* Metadata */}
-                                {detail.metadata && Object.keys(detail.metadata).length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-foreground">Metadata</p>
-                                    <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
-                                      {JSON.stringify(detail.metadata, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
+                                    {/* Allowed Categories */}
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-semibold text-foreground">Allowed Categories</p>
+                                      {detail.allowed_categories && detail.allowed_categories.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {detail.allowed_categories.map((cat) => (
+                                            <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground italic">Any category allowed</span>
+                                      )}
+                                    </div>
 
-                                {/* Timestamps */}
-                                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                                  <span>Created: {new Date(detail.created_at).toLocaleString()}</span>
-                                  <span>Updated: {new Date(detail.updated_at).toLocaleString()}</span>
-                                </div>
-                              </>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                                    {/* Allowed Item Definition IDs */}
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-semibold text-foreground">Allowed Item Definitions</p>
+                                      {detail.allowed_item_definition_ids && detail.allowed_item_definition_ids.length > 0 ? (
+                                        <div className="flex flex-col gap-1">
+                                          {detail.allowed_item_definition_ids.map((id) => {
+                                            const def = itemInfoCache[id]
+                                            return (
+                                              <div key={id} className="flex items-center gap-2">
+                                                <Link
+                                                  href={`/games/${gameId}/items/${id}`}
+                                                  className="text-sm font-medium text-primary hover:underline"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {def?.name ?? <span className="font-mono text-xs">{id}</span>}
+                                                </Link>
+                                                {def?.item_code && (
+                                                  <span className="text-xs text-muted-foreground font-mono">({def.item_code})</span>
+                                                )}
+                                                {def?.category && (
+                                                  <Badge variant="outline" className="text-xs capitalize">{def.category}</Badge>
+                                                )}
+                                                <CopyButton text={id} />
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground italic">Any item definition allowed</span>
+                                      )}
+                                    </div>
+
+                                    {/* Metadata */}
+                                    {detail.metadata && Object.keys(detail.metadata).length > 0 && (
+                                      <div className="space-y-1">
+                                        <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                        <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
+                                          {JSON.stringify(detail.metadata, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {/* Timestamps */}
+                                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                      <span>Created: {new Date(detail.created_at).toLocaleString()}</span>
+                                      <span>Updated: {new Date(detail.updated_at).toLocaleString()}</span>
+                                    </div>
+                                  </>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <EquipmentSlotSheet
         open={sheetOpen}
