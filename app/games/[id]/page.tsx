@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { getGame, fetchGameTeams } from "@/lib/game-api"
+import { getGame, fetchGameTeams, getGameCcu, getAllGameTags, updateGame, type GameCcu } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -24,6 +24,8 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useToast } from "@/hooks/use-toast"
 import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api"
 
 const fmt = (n: number) => n.toLocaleString()
@@ -35,10 +37,12 @@ const GEM_TIERS_MINI = [
   { image: "/materias/legendary.png", label: "Legendary", text: "text-yellow-400" },
 ]
 
-export default function GameDetailsPage({ params }: { params: { id: string } }) {
+export default function GameDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: gameId } = React.use(params)
     const router = useRouter()
     const { locale } = useLanguage()
     const { t } = useTranslation(locale)
+    const { toast } = useToast()
     const [game, setGame] = useState<Game | null>(null)
     const [studio, setStudio] = useState<Studio | null>(null)
     const [teams, setTeams] = useState<Team[]>([])
@@ -48,8 +52,13 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const [copied, setCopied] = useState(false)
     const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null)
     const [catalog, setCatalog] = useState<Plugin[]>([])
+    const [ccu, setCcu] = useState<GameCcu | null>(null)
+    const [ccuRefreshing, setCcuRefreshing] = useState(false)
+    const [allTags, setAllTags] = useState<string[]>([])
+    const [tagsOpen, setTagsOpen] = useState(false)
+    const [tagsSaving, setTagsSaving] = useState(false)
+    const [tagSearch, setTagSearch] = useState("")
     const hasFetched = useRef(false)
-    const gameId = params.id
 
     useEffect(() => {
         if (hasFetched.current) return
@@ -105,10 +114,81 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             }
         }
 
+        async function loadCcu() {
+            try {
+                const ccuData = await getGameCcu(gameId)
+                setCcu(ccuData)
+            } catch (err) {
+                console.error("Failed to load CCU:", err)
+            }
+        }
+
+        async function loadTags() {
+            try {
+                const tags = await getAllGameTags()
+                setAllTags(tags)
+            } catch (err) {
+                console.error("Failed to load game tags:", err)
+            }
+        }
+
         loadGame().then();
         loadTeams().then();
         loadPlugins().then();
+        loadCcu().then();
+        loadTags().then();
     }, [gameId])
+
+    const refreshCcu = async () => {
+        setCcuRefreshing(true)
+        try {
+            const ccuData = await getGameCcu(gameId)
+            setCcu(ccuData)
+        } catch (err) {
+            console.error("Failed to refresh CCU:", err)
+        } finally {
+            setCcuRefreshing(false)
+        }
+    }
+
+    const handleAddTag = async (tag: string) => {
+        if (!game) return
+        const currentTags = game.tags ?? []
+        const normalized = tag.trim().toLowerCase()
+        if (currentTags.includes(normalized)) return
+        if (currentTags.length >= 10) {
+            toast({ title: "Limit reached", description: "Maximum 10 tags per game", variant: "destructive" })
+            return
+        }
+        const newTags = [...currentTags, normalized]
+        setTagsSaving(true)
+        try {
+            const updated = await updateGame(gameId, { tags: newTags })
+            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev)
+            setTagsOpen(false)
+            setTagSearch("")
+        } catch (err) {
+            console.error("Failed to add tag:", err)
+            toast({ title: "Error", description: "Failed to add tag", variant: "destructive" })
+        } finally {
+            setTagsSaving(false)
+        }
+    }
+
+    const handleRemoveTag = async (tag: string) => {
+        if (!game) return
+        const newTags = (game.tags ?? []).filter(t => t !== tag)
+        setTagsSaving(true)
+        try {
+            const updated = await updateGame(gameId, { tags: newTags })
+            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev)
+        } catch (err) {
+            console.error("Failed to remove tag:", err)
+            toast({ title: "Error", description: "Failed to remove tag", variant: "destructive" })
+        } finally {
+            setTagsSaving(false)
+        }
+    }
 
     const handleTeamRemoved = () => {
         fetchGameTeams(gameId)
@@ -343,6 +423,65 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                                         </Link>
                                     </p>
                                 </div>
+                                <div>
+                                    <h3 className="text-sm font-medium flex items-center gap-1 mb-2">
+                                        <Tag className="h-3.5 w-3.5" />
+                                        Tags
+                                        <span className="text-xs text-muted-foreground font-normal">
+                                            {(game.tags ?? []).length}/10
+                                        </span>
+                                    </h3>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {(game.tags ?? []).map(tag => (
+                                            <Badge key={tag} variant="secondary" className="gap-1 pr-1 text-xs">
+                                                {tag}
+                                                <button
+                                                    onClick={() => handleRemoveTag(tag)}
+                                                    disabled={tagsSaving}
+                                                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors disabled:opacity-50"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </Badge>
+                                        ))}
+                                        {(game.tags ?? []).length < 10 && (
+                                            <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" size="sm" className="h-6 gap-1 text-xs px-2" disabled={tagsSaving}>
+                                                        {tagsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-60 p-2" align="start">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search tags..."
+                                                        value={tagSearch}
+                                                        onChange={e => setTagSearch(e.target.value)}
+                                                        className="w-full px-2 py-1.5 text-sm border rounded-md bg-transparent outline-none focus:ring-1 focus:ring-ring mb-2"
+                                                    />
+                                                    <div className="max-h-48 overflow-y-auto space-y-0.5">
+                                                        {allTags
+                                                            .filter(t => !(game.tags ?? []).includes(t))
+                                                            .filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase()))
+                                                            .map(tag => (
+                                                                <button
+                                                                    key={tag}
+                                                                    onClick={() => handleAddTag(tag)}
+                                                                    disabled={tagsSaving}
+                                                                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {tag}
+                                                                </button>
+                                                            ))}
+                                                        {allTags.filter(t => !(game.tags ?? []).includes(t)).filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
+                                                            <p className="text-xs text-muted-foreground px-2 py-1.5">No tags available</p>
+                                                        )}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Mini Equipment Panel — 3rd column */}
@@ -418,20 +557,28 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Concurrent Users */}
+                                {/* Concurrent Users (CCU) */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{t('game.onlineUsers')}</span>
-                                        <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
-                                            {fmt(game.usage?.concurrent_users ?? 0)} / {game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞'}
-                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ` (${t('game.limitReached')})`}
+                                        <span className="font-medium inline-flex items-center gap-1">
+                                            {t('game.onlineUsers')}
+                                            <button
+                                                onClick={refreshCcu}
+                                                disabled={ccuRefreshing}
+                                                className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                                title="Refresh"
+                                            >
+                                                <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
+                                            </button>
+                                        </span>
+                                        <span className={`text-muted-foreground ${ccu && ccu.ccu.current >= ccu.ccu.limit ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(ccu?.ccu.current ?? 0)} / {ccu ? fmt(ccu.ccu.limit) : (game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞')}
+                                            {ccu && ccu.ccu.current >= ccu.ccu.limit && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
-                                        value={game.limits?.max_concurrent_users
-                                            ? Math.min(((game.usage?.concurrent_users ?? 0) / game.limits.max_concurrent_users) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? '[&>div]:bg-destructive' : ''}`}
+                                        value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0}
+                                        className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                                 {/* Player Profiles (Total Players) */}

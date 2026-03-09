@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ScrollText, Send, User, Mail, MailOpen, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, CornerDownLeft, ExternalLink } from "lucide-react"
+import { ScrollText, Send, User, Mail, MailOpen, Gift, Coins, ArrowLeft, Inbox, RefreshCw, Package, X, ChevronDown, ChevronRight, CornerDownLeft, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -779,7 +779,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
                         onClick={toggle}
                         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
                       >
-                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        {isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                         <span className="flex-1 font-medium truncate">{msg.subject}</span>
                         <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{formatDate(msg.created_at)}</span>
                         {msg.attachments && msg.attachments.length > 0 && (

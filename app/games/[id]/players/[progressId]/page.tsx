@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -501,6 +501,7 @@ export default function GameUserProgressDetailPage({
   const [containersType, setContainersType] = useState<"" | "inventory" | "shulker_box">("")
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
+  const [expandedContainerIds, setExpandedContainerIds] = useState<Set<string>>(new Set())
 
   // Container map used in the Items tab (id → container)
   const [containerMapForItems, setContainerMapForItems] = useState<Record<string, PlayerContainer>>({})
@@ -1197,7 +1198,7 @@ export default function GameUserProgressDetailPage({
                           >
                             <TableCell>
                               <div className="font-medium whitespace-nowrap flex items-center gap-1">
-                                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                {isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                                 {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
                                 <a
                                   href={`/games/${gameId}/items/${item.item_definition_id}`}
@@ -1207,10 +1208,6 @@ export default function GameUserProgressDetailPage({
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" />
                                 </a>
-                              </div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[10px] text-muted-foreground/60 font-mono" title="Definition ID">def: {item.item_definition_id.slice(0, 8)}…</span>
-                                <CopyButton text={item.item_definition_id} />
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1276,6 +1273,13 @@ export default function GameUserProgressDetailPage({
                                 <span className="text-xs font-semibold text-foreground">Instance ID:</span>
                                 <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
                                 <CopyButton text={item.id} />
+                              </div>
+
+                              {/* Definition ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
+                                <CopyButton text={item.item_definition_id} />
                               </div>
 
                               {/* Full Metadata */}
@@ -2143,10 +2147,24 @@ export default function GameUserProgressDetailPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {containers.map((c) => (
-                      <TableRow key={c.id}>
+                    {containers.map((c) => {
+                      const cExpanded = expandedContainerIds.has(c.id)
+                      return (
+                      <Fragment key={c.id}>
+                      <TableRow
+                        className={`cursor-pointer hover:bg-muted/40 ${cExpanded ? "bg-muted/30" : ""}`}
+                        onClick={() => {
+                          setExpandedContainerIds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(c.id)) next.delete(c.id)
+                            else next.add(c.id)
+                            return next
+                          })
+                        }}
+                      >
                         <TableCell className="font-mono text-xs">
-                          <span className="flex items-center gap-0.5">
+                          <span className="flex items-center gap-1">
+                            {cExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                             {c.id.slice(0, 8)}…
                             <CopyButton text={c.id} size="h-3 w-3" />
                           </span>
@@ -2199,7 +2217,7 @@ export default function GameUserProgressDetailPage({
                             const qs = q.toString()
                             const href = `/games/${gameId}/players/${progressId}/containers/${c.id}${qs ? `?${qs}` : ""}`
                             return (
-                              <Button variant="outline" size="icon" asChild title="View items">
+                              <Button variant="outline" size="icon" asChild title="View items" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                                 <a href={href}>
                                   <Eye className="h-4 w-4" />
                                 </a>
@@ -2208,7 +2226,133 @@ export default function GameUserProgressDetailPage({
                           })()}
                         </TableCell>
                       </TableRow>
-                    ))}
+
+                      {/* Expanded detail row */}
+                      {cExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/40">
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="px-6 py-4 space-y-3">
+                              {/* Container ID */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-foreground">Container ID:</span>
+                                <span className="text-xs font-mono text-muted-foreground">{c.id}</span>
+                                <CopyButton text={c.id} />
+                              </div>
+
+                              {/* Owner */}
+                              {c.owner_user_id && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Owner User ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{c.owner_user_id}</span>
+                                  <CopyButton text={c.owner_user_id} />
+                                </div>
+                              )}
+
+                              {/* Definition ID */}
+                              {c.item_container_definition_id && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{c.item_container_definition_id}</span>
+                                  <CopyButton text={c.item_container_definition_id} />
+                                </div>
+                              )}
+
+                              {/* Container Info */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Type: </span>
+                                  <span className="font-medium capitalize">{c.container_type || "—"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Grid: </span>
+                                  <span className="font-medium">{c.definition ? `${c.definition.grid_cols}×${c.definition.grid_rows}` : "—"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Portable: </span>
+                                  <span className="font-medium">{c.definition == null ? "—" : c.definition.is_portable ? "Yes" : "No"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Created: </span>
+                                  <span className="font-medium">{c.created_at ? formatISODate(c.created_at) : "—"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Updated: </span>
+                                  <span className="font-medium">{c.updated_at ? formatISODate(c.updated_at) : "—"}</span>
+                                </div>
+                                {c.deleted_at && (
+                                  <div>
+                                    <span className="text-muted-foreground">Deleted: </span>
+                                    <span className="font-medium text-destructive">{formatISODate(c.deleted_at)}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Position Data */}
+                              {c.position_data && Object.keys(c.position_data).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Position Data</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(c.position_data, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Container Metadata */}
+                              {c.metadata && Object.keys(c.metadata).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Container Metadata</p>
+                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                    {JSON.stringify(c.metadata, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Container Definition */}
+                              {c.definition && (
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-semibold text-foreground">Container Definition</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Name: </span>
+                                      <span className="font-medium">{c.definition.name}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Type: </span>
+                                      <span className="font-medium capitalize">{c.definition.container_type}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Grid: </span>
+                                      <span className="font-medium">{c.definition.grid_cols}×{c.definition.grid_rows}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Portable: </span>
+                                      <span className="font-medium">{c.definition.is_portable ? "Yes" : "No"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Def Created: </span>
+                                      <span className="font-medium">{formatISODate(c.definition.created_at)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Def Updated: </span>
+                                      <span className="font-medium">{formatISODate(c.definition.updated_at)}</span>
+                                    </div>
+                                  </div>
+                                  {c.definition.metadata && Object.keys(c.definition.metadata).length > 0 && (
+                                    <div className="space-y-1 mt-1">
+                                      <p className="text-xs font-semibold text-foreground">Definition Metadata</p>
+                                      <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
+                                        {JSON.stringify(c.definition.metadata, null, 2)}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
+                    )})}
                   </TableBody>
                 </Table>
               )}

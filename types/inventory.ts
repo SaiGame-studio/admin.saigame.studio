@@ -37,6 +37,7 @@ export interface ItemDefinition {
   grid_height: number
   base_stats: Record<string, number>
   metadata: Record<string, unknown>
+  client_writable: boolean
   created_at: string
   updated_at: string
 }
@@ -52,6 +53,7 @@ export interface CreateItemRequest {
   grid_height?: number
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
+  client_writable?: boolean
 }
 
 export interface UpdateItemRequest {
@@ -64,6 +66,7 @@ export interface UpdateItemRequest {
   grid_height?: number
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
+  client_writable?: boolean
 }
 
 export interface GachaPoolEntry {
@@ -183,6 +186,23 @@ export interface UpdateContainerDefinitionRequest {
   grid_rows?: number
   linked_item_definition_id?: string
   metadata?: Record<string, unknown>
+}
+
+export interface EquipmentSlot {
+  id: string
+  studio_id: string
+  game_id: string
+  slot_key: string
+  name: string
+  description: string
+  allowed_categories: string[]
+  allowed_item_definition_ids: string[] | null
+  sort_order: number
+  metadata: Record<string, unknown>
+  is_active: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
 }
 
 /** Suggested rarity colour mapping */

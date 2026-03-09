@@ -25,6 +25,7 @@ export interface Game {
   slug: string
   description?: string
   game_type: string
+  tags?: string[]
   config: {
     max_players: number
     server_region: string

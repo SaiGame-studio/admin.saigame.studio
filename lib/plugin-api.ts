@@ -71,7 +71,7 @@ export interface GamePluginsResult {
  * Returns all active subscribable standard plugins.
  */
 export async function getPluginCatalog(): Promise<Plugin[]> {
-  const data = await apiRequest("/api/v1/plugins", { requireAuth: false })
+  const data = await apiRequest("/api/v1/plugins")
   return data?.plugins ?? []
 }
 

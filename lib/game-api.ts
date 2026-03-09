@@ -49,6 +49,7 @@ export async function updateGame(
         description?: string
         is_active?: boolean
         status?: string
+        tags?: string[]
         config?: {
             max_players?: number
             server_region?: string
@@ -110,4 +111,28 @@ export async function assignTeamToGame(
     await api.post(`/api/v1/teams/${teamId}/games`, {
         game_id: gameId,
     })
+}
+
+export interface GameCcu {
+    game_id: string
+    ccu: {
+        current: number
+        limit: number
+        utilization_pct: number
+    }
+}
+
+/**
+ * Get CCU (concurrent connected users) for a game
+ */
+export async function getGameCcu(gameId: string): Promise<GameCcu> {
+    return await api.get(`/api/v1/games/${gameId}/ccu`)
+}
+
+/**
+ * Get all available game tags
+ */
+export async function getAllGameTags(): Promise<string[]> {
+    const data = await api.get(`/api/v1/game-tags`)
+    return Array.isArray(data) ? data : (data?.tags ?? [])
 }

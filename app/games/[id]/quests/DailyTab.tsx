@@ -1055,9 +1055,9 @@ export function DailyTab({ game }: { game: Game | null }) {
                                         {q.description && <p className="truncate text-[10px] text-muted-foreground">{q.description}</p>}
                                       </div>
                                       {!isWeekly && (
-                                        <ChevronDown className={`h-3.5 w-3.5 text-primary shrink-0 transition-transform ${
-                                          isSelected ? "rotate-180" : "opacity-30"
-                                        }`} />
+                                        isSelected
+                                          ? <ChevronDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                                          : <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 opacity-30" />
                                       )}
                                     </div>
                                     {/* Expanded config + add */}

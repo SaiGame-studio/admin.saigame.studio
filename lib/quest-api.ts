@@ -31,7 +31,7 @@ export interface QuestConditionLeaf {
   type: string
   /** Required for counter types: login */
   target?: number
-  /** Required for collect_and_keep / collect_and_submit */
+  /** Required for collect_and_keep / collect_and_submit / not_have_item */
   items?: ItemRequirement[]
   /** Required for gacha_opened — specifies pack + required open count */
   packs?: { gacha_pack_id: string; quantity: number }

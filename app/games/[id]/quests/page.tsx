@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
+import React, { useEffect, useState, useCallback, useRef, useMemo, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy, ChevronDown, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -122,6 +122,7 @@ const CONDITION_TYPE_OPTIONS = [
   { value: "login",              label: "Login",              description: "Satisfied when the player authenticates" },
   { value: "collect_and_keep",   label: "Collect & Keep",     description: "Player must hold items (not removed)" },
   { value: "collect_and_submit", label: "Collect & Submit",   description: "Player must have items (deducted on completion)" },
+  { value: "not_have_item",      label: "Not Have Item",      description: "Player must NOT possess specified items" },
   { value: "gacha_opened",       label: "Gacha Opened",       description: "Player must open a gacha pack N times" },
 ]
 
@@ -163,6 +164,7 @@ function genClauseId(type: string) {
     login: "login",
     collect_and_keep: "hold",
     collect_and_submit: "submit",
+    not_have_item: "nohave",
     gacha_opened: "gacha",
   }
   const p = prefix[type] ?? type.split("_")[0]
@@ -238,7 +240,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
     const clause = conditions.clauses[i]
     if (!isConditionLeaf(clause)) return
     const clause_id = genClauseId(v)
-    if (v === "collect_and_keep" || v === "collect_and_submit") {
+    if (v === "collect_and_keep" || v === "collect_and_submit" || v === "not_have_item") {
       updateLeaf(i, { type: v, clause_id, target: undefined, items: clause.items ?? [], packs: undefined, details: undefined })
     } else if (v === "gacha_opened") {
       updateLeaf(i, { type: v, clause_id, items: undefined, target: undefined, packs: clause.packs ?? { gacha_pack_id: "", quantity: 1 }, details: undefined })
@@ -319,7 +321,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
             </div>
 
             {/* Row 2: type-specific fields */}
-            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit") ? (
+            {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit" || clause.type === "not_have_item") ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Required Items</Label>
@@ -658,6 +660,25 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null)
+  const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null)
+
+  // Item definitions for expanded row display
+  const [rowItemDefs, setRowItemDefs] = useState<ItemDefinition[]>([])
+  const [rowGachaPacks, setRowGachaPacks] = useState<GachaPack[]>([])
+
+  useEffect(() => {
+    if (!gameId) return
+    listItemDefinitions({ gameId }, { limit: 200 })
+      .then((res) => setRowItemDefs(res.items ?? []))
+      .catch(() => setRowItemDefs([]))
+  }, [gameId])
+
+  useEffect(() => {
+    if (!gameId) return
+    listGachaPacks({ gameId })
+      .then((res) => setRowGachaPacks(res.packs ?? []))
+      .catch(() => setRowGachaPacks([]))
+  }, [gameId])
 
   // Pagination
   const offset = 0
@@ -940,24 +961,11 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   return (
     <>
       {/* Sub-header */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refresh}
-            disabled={loading || refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
-          <Button onClick={openCreate} disabled={loading || !game}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Quest
-          </Button>
-        </div>
+      <div className="flex items-center justify-end">
+        <Button onClick={openCreate} disabled={loading || !game}>
+          <Plus className="h-4 w-4 mr-1" />
+          New Quest
+        </Button>
       </div>
 
       {/* Error */}
@@ -970,7 +978,10 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       {/* Filters */}
       {!loading && quests.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <p className="text-sm text-muted-foreground mr-auto">
+            {`${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
+          </p>
+          <div className="relative min-w-[200px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Search by name, description…"
@@ -1015,6 +1026,15 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
               <SelectItem value="updated_at:asc">Least Recently Updated</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={refresh}
+            disabled={loading || refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
               <X className="h-3.5 w-3.5 mr-1" /> Clear
@@ -1067,9 +1087,16 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
               </TableHeader>
               <TableBody>
                 {filteredQuests.map((q) => (
-                  <TableRow key={q.id}>
+                  <React.Fragment key={q.id}>
+                  <TableRow
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-1.5">
+                        {expandedQuestId === q.id
+                          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                         <span className="font-medium">{q.name}</span>
                         <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
                         <button
@@ -1111,11 +1138,6 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                             : <Copy className="h-3 w-3" />}
                         </button>
                       </div>
-                      {q.description && (
-                        <div className="text-xs text-muted-foreground line-clamp-1">
-                          {q.description}
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={questTypeBadgeVariant(q.quest_type)}>
@@ -1140,7 +1162,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                       {q.rewards?.length ?? 0}
                     </TableCell>
                     <TableCell className="text-sm">{q.sort_order}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={q.is_active}
                         onCheckedChange={() => toggleActive(q)}
@@ -1152,7 +1174,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8"
-                          onClick={() => openEdit(q)}
+                          onClick={(e) => { e.stopPropagation(); openEdit(q) }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -1160,13 +1182,165 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteQuest(q)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteQuest(q) }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
+                  {/* Expanded detail row */}
+                  {expandedQuestId === q.id && (
+                    <TableRow className="bg-muted/20 hover:bg-muted/20">
+                      <TableCell colSpan={7} className="p-0">
+                        <div className="px-6 py-4 space-y-4 border-t border-dashed">
+                          {/* Row 1: Basic info */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Quest ID</p>
+                              <p className="font-mono text-xs break-all">{q.id}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Type</p>
+                              <Badge variant={questTypeBadgeVariant(q.quest_type)}>{q.quest_type}</Badge>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Sort Order</p>
+                              <p>{q.sort_order}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Active</p>
+                              <Badge variant={q.is_active ? "default" : "secondary"}>{q.is_active ? "Yes" : "No"}</Badge>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          {q.description && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+                              <p className="text-sm">{q.description}</p>
+                            </div>
+                          )}
+
+                          {/* Conditions */}
+                          {q.conditions && q.conditions.clauses?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Conditions <Badge variant="outline" className="ml-1 font-mono text-xs">{q.conditions.operator}</Badge></p>
+                              <div className="space-y-1.5">
+                                {q.conditions.clauses.map((clause, ci) => {
+                                  if (!isConditionLeaf(clause)) {
+                                    return <div key={ci} className="text-xs text-muted-foreground border rounded px-2 py-1">Nested group ({(clause as QuestConditionGroup).operator})</div>
+                                  }
+                                  const typeLabel = CONDITION_TYPE_OPTIONS.find(o => o.value === clause.type)?.label ?? clause.type
+                                  return (
+                                    <div key={ci} className="border rounded px-3 py-2 bg-background text-sm space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">{typeLabel}</Badge>
+                                        <span className="font-mono text-xs text-muted-foreground">{clause.clause_id}</span>
+                                      </div>
+                                      {/* Items for collect_and_keep / collect_and_submit / not_have_item */}
+                                      {clause.items && clause.items.length > 0 && (
+                                        <div className="pl-2 space-y-0.5">
+                                          {clause.items.map((item, ii) => {
+                                            const def = rowItemDefs.find(d => d.id === item.item_definition_id)
+                                            return (
+                                              <div key={ii} className="flex items-center gap-2 text-xs">
+                                                <span className="text-muted-foreground">•</span>
+                                                <span className="font-medium">{def?.name ?? item.item_definition_id}</span>
+                                                {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
+                                                <span className="text-muted-foreground">× {item.quantity}</span>
+                                                <Link
+                                                  href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                                  target="_blank"
+                                                  className="text-muted-foreground hover:text-foreground transition-colors"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  title="Open item definition"
+                                                >
+                                                  <ExternalLink className="h-3 w-3" />
+                                                </Link>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                      {/* Gacha pack */}
+                                      {clause.packs && clause.packs.gacha_pack_id && (
+                                        <div className="pl-2 text-xs flex items-center gap-2">
+                                          <span className="text-muted-foreground">•</span>
+                                          <span className="font-medium">
+                                            {rowGachaPacks.find(p => p.id === clause.packs?.gacha_pack_id)?.name ?? clause.packs.gacha_pack_id}
+                                          </span>
+                                          <span className="text-muted-foreground">× {clause.packs.quantity}</span>
+                                          <Link
+                                            href={`/games/${gameId}/items?tab=gacha&editPack=${clause.packs.gacha_pack_id}`}
+                                            target="_blank"
+                                            className="text-muted-foreground hover:text-foreground transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title="Open gacha pack"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                          </Link>
+                                        </div>
+                                      )}
+                                      {/* Target for login etc */}
+                                      {clause.target != null && (
+                                        <div className="pl-2 text-xs text-muted-foreground">Target: {clause.target}</div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Rewards */}
+                          {q.rewards && q.rewards.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Rewards ({q.rewards.length})</p>
+                              <div className="space-y-1">
+                                {q.rewards.map((r, ri) => (
+                                  <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
+                                    {r.reward_type === "coin" && r.amount != null && (
+                                      <span className="text-xs">{r.amount} coins</span>
+                                    )}
+                                    {r.reward_type === "item" && r.item_definition_id && (() => {
+                                      const def = rowItemDefs.find(d => d.id === r.item_definition_id)
+                                      return (
+                                        <span className="flex items-center gap-1.5 text-xs">
+                                          <span className="font-medium">{def?.name ?? r.item_definition_id}</span>
+                                          {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
+                                          <span className="text-muted-foreground">
+                                            {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
+                                          </span>
+                                          <Link
+                                            href={`/games/${gameId}/items/${r.item_definition_id}`}
+                                            target="_blank"
+                                            className="text-muted-foreground hover:text-foreground transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title="Open item definition"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                          </Link>
+                                        </span>
+                                      )
+                                    })()}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Timestamps */}
+                          <div className="flex gap-6 text-xs text-muted-foreground">
+                            <span>Created: {new Date(q.created_at).toLocaleString()}</span>
+                            <span>Updated: {new Date(q.updated_at).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
