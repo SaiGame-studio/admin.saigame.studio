@@ -1961,7 +1961,7 @@ function EquipmentsTab({
         <TabsContent value="grid" className="mt-0">
           {(() => {
             const CARD_W = 116
-            const CARD_H_EST = 96
+            const CARD_H_EST = 80
             const GAP = 12
             const COLS = 6
             const getDefaultPos = (idx: number) => ({
@@ -2177,7 +2177,7 @@ function EquipmentsTab({
                               />
                             )
                           })}
-                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}`}>
+                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}`} style={{ height: CARD_H_EST }}>
                             <CardContent className="p-1.5">
                               <div className="flex gap-0.5">
                                 {/* left: main info */}
