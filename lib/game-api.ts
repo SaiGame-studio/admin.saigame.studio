@@ -111,3 +111,19 @@ export async function assignTeamToGame(
         game_id: gameId,
     })
 }
+
+export interface GameCcu {
+    game_id: string
+    ccu: {
+        current: number
+        limit: number
+        utilization_pct: number
+    }
+}
+
+/**
+ * Get CCU (concurrent connected users) for a game
+ */
+export async function getGameCcu(gameId: string): Promise<GameCcu> {
+    return await api.get(`/api/v1/games/${gameId}/ccu`)
+}

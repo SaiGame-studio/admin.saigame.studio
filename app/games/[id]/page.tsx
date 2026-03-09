@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { getGame, fetchGameTeams } from "@/lib/game-api"
+import { getGame, fetchGameTeams, getGameCcu, type GameCcu } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
@@ -11,7 +11,7 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -48,6 +48,8 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
     const [copied, setCopied] = useState(false)
     const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null)
     const [catalog, setCatalog] = useState<Plugin[]>([])
+    const [ccu, setCcu] = useState<GameCcu | null>(null)
+    const [ccuRefreshing, setCcuRefreshing] = useState(false)
     const hasFetched = useRef(false)
     const gameId = params.id
 
@@ -105,10 +107,32 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
             }
         }
 
+        async function loadCcu() {
+            try {
+                const ccuData = await getGameCcu(gameId)
+                setCcu(ccuData)
+            } catch (err) {
+                console.error("Failed to load CCU:", err)
+            }
+        }
+
         loadGame().then();
         loadTeams().then();
         loadPlugins().then();
+        loadCcu().then();
     }, [gameId])
+
+    const refreshCcu = async () => {
+        setCcuRefreshing(true)
+        try {
+            const ccuData = await getGameCcu(gameId)
+            setCcu(ccuData)
+        } catch (err) {
+            console.error("Failed to refresh CCU:", err)
+        } finally {
+            setCcuRefreshing(false)
+        }
+    }
 
     const handleTeamRemoved = () => {
         fetchGameTeams(gameId)
@@ -418,20 +442,28 @@ export default function GameDetailsPage({ params }: { params: { id: string } }) 
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Concurrent Users */}
+                                {/* Concurrent Users (CCU) */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{t('game.onlineUsers')}</span>
-                                        <span className={`text-muted-foreground ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? 'text-destructive font-semibold' : ''}`}>
-                                            {fmt(game.usage?.concurrent_users ?? 0)} / {game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞'}
-                                            {game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users && ` (${t('game.limitReached')})`}
+                                        <span className="font-medium inline-flex items-center gap-1">
+                                            {t('game.onlineUsers')}
+                                            <button
+                                                onClick={refreshCcu}
+                                                disabled={ccuRefreshing}
+                                                className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                                title="Refresh"
+                                            >
+                                                <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
+                                            </button>
+                                        </span>
+                                        <span className={`text-muted-foreground ${ccu && ccu.ccu.current >= ccu.ccu.limit ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(ccu?.ccu.current ?? 0)} / {ccu ? fmt(ccu.ccu.limit) : (game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞')}
+                                            {ccu && ccu.ccu.current >= ccu.ccu.limit && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
                                     <Progress
-                                        value={game.limits?.max_concurrent_users
-                                            ? Math.min(((game.usage?.concurrent_users ?? 0) / game.limits.max_concurrent_users) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_concurrent_users != null && (game.usage?.concurrent_users ?? 0) >= game.limits.max_concurrent_users ? '[&>div]:bg-destructive' : ''}`}
+                                        value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0}
+                                        className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
                                 {/* Player Profiles (Total Players) */}
