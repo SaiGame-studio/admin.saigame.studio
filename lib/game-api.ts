@@ -49,6 +49,7 @@ export async function updateGame(
         description?: string
         is_active?: boolean
         status?: string
+        tags?: string[]
         config?: {
             max_players?: number
             server_region?: string
@@ -126,4 +127,12 @@ export interface GameCcu {
  */
 export async function getGameCcu(gameId: string): Promise<GameCcu> {
     return await api.get(`/api/v1/games/${gameId}/ccu`)
+}
+
+/**
+ * Get all available game tags
+ */
+export async function getAllGameTags(): Promise<string[]> {
+    const data = await api.get(`/api/v1/game-tags`)
+    return Array.isArray(data) ? data : (data?.tags ?? [])
 }
