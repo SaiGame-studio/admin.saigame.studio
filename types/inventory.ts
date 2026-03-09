@@ -188,6 +188,23 @@ export interface UpdateContainerDefinitionRequest {
   metadata?: Record<string, unknown>
 }
 
+export interface EquipmentSlot {
+  id: string
+  studio_id: string
+  game_id: string
+  slot_key: string
+  name: string
+  description: string
+  allowed_categories: string[]
+  allowed_item_definition_ids: string[] | null
+  sort_order: number
+  metadata: Record<string, unknown>
+  is_active: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 /** Suggested rarity colour mapping */
 export const RARITY_COLORS: Record<ItemRarity, { text: string; border: string; bg: string }> = {
   common: {

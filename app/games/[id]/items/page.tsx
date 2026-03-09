@@ -72,6 +72,10 @@ import {
   updateGachaPack,
   deleteGachaPack,
   setGachaPackEnabled,
+  listEquipmentSlots,
+  getEquipmentSlot,
+  createEquipmentSlot,
+  updateEquipmentSlot,
   type ListItemsParams,
 } from "@/lib/inventory-api"
 import type {
@@ -86,6 +90,7 @@ import type {
   GachaPack,
   GachaPoolEntry,
   KeyRequirement,
+  EquipmentSlot,
 } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
 import type { GameLimits } from "@/types/game"
@@ -1329,6 +1334,797 @@ function CreateItemDialog({
   )
 }
 
+// ─── Equipment Slot Sheet (Create / Edit) ─────────────────────────────────────
+function slugify(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+}
+
+function emptySlotForm() {
+  return {
+    slot_key: "",
+    name: "",
+    description: "",
+    allowed_categories: [] as string[],
+    allowed_item_definition_ids: [] as string[],
+    sort_order: "0",
+    is_active: true,
+    meta: [] as KVEntry[],
+  }
+}
+
+function EquipmentSlotSheet({
+  open,
+  gameId,
+  editing,
+  onSaved,
+  onClose,
+}: {
+  open: boolean
+  gameId: string
+  editing: EquipmentSlot | null
+  onSaved: (slot: EquipmentSlot) => void
+  onClose: () => void
+}) {
+  const { toast } = useToast()
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(emptySlotForm())
+  const [autoSlug, setAutoSlug] = useState(true)
+  const [allCategories, setAllCategories] = useState<string[]>([])
+  const [catOpen, setCatOpen] = useState(false)
+  const [catSearch, setCatSearch] = useState("")
+  // item def multi-select
+  const [itemDefOpen, setItemDefOpen] = useState(false)
+  const [itemDefSearch, setItemDefSearch] = useState("")
+  const [itemDefResults, setItemDefResults] = useState<ItemDefinition[]>([])
+  const [itemDefLoading, setItemDefLoading] = useState(false)
+  const [itemDefCache, setItemDefCache] = useState<Record<string, ItemDefinition>>({})
+  const itemDefSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    fetchItemCategories().then(setAllCategories).catch(() => {})
+    // pre-load first page of items for the picker
+    setItemDefLoading(true)
+    listItemDefinitions({ gameId }, { limit: 30 })
+      .then((res) => {
+        const items = res.items ?? []
+        setItemDefResults(items)
+        setItemDefCache((prev) => { const n = { ...prev }; items.forEach((d) => { n[d.id] = d }); return n })
+      })
+      .catch(() => {})
+      .finally(() => setItemDefLoading(false))
+    if (editing) {
+      setAutoSlug(false)
+      setForm({
+        slot_key: editing.slot_key,
+        name: editing.name,
+        description: editing.description ?? "",
+        allowed_categories: editing.allowed_categories ?? [],
+        allowed_item_definition_ids: editing.allowed_item_definition_ids ?? [],
+        sort_order: String(editing.sort_order ?? 0),
+        is_active: editing.is_active,
+        meta: Object.entries(editing.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+      })
+    } else {
+      setAutoSlug(true)
+      setForm(emptySlotForm())
+    }
+  }, [open, editing]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleItemDefSearch(q: string) {
+    setItemDefSearch(q)
+    if (itemDefSearchRef.current) clearTimeout(itemDefSearchRef.current)
+    itemDefSearchRef.current = setTimeout(() => {
+      setItemDefLoading(true)
+      listItemDefinitions({ gameId }, { limit: 30, name: q || undefined })
+        .then((res) => {
+          const items = res.items ?? []
+          setItemDefResults(items)
+          setItemDefCache((prev) => { const n = { ...prev }; items.forEach((d) => { n[d.id] = d }); return n })
+        })
+        .catch(() => {})
+        .finally(() => setItemDefLoading(false))
+    }, 300)
+  }
+
+  function patch<K extends keyof ReturnType<typeof emptySlotForm>>(key: K, value: ReturnType<typeof emptySlotForm>[K]) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function handleNameChange(value: string) {
+    if (autoSlug && !editing) {
+      setForm((f) => ({ ...f, name: value, slot_key: slugify(value) }))
+    } else {
+      patch("name", value)
+    }
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) { toast({ variant: "destructive", title: "Name is required" }); return }
+    if (!editing && !form.slot_key.trim()) { toast({ variant: "destructive", title: "Slot key is required" }); return }
+    const metadata: Record<string, unknown> = {}
+    form.meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+    setSaving(true)
+    try {
+      let result: EquipmentSlot
+      if (editing) {
+        result = await updateEquipmentSlot({ gameId }, editing.slot_key, {
+          name: form.name.trim(),
+          description: form.description.trim() || undefined,
+          allowed_categories: form.allowed_categories.length > 0 ? form.allowed_categories : undefined,
+          allowed_item_definition_ids: form.allowed_item_definition_ids.length > 0 ? form.allowed_item_definition_ids : null,
+          sort_order: Number(form.sort_order) || 0,
+          is_active: form.is_active,
+          metadata,
+        })
+        toast({ title: "Equipment slot updated" })
+      } else {
+        result = await createEquipmentSlot({ gameId }, {
+          slot_key: form.slot_key.trim(),
+          name: form.name.trim(),
+          description: form.description.trim() || undefined,
+          allowed_categories: form.allowed_categories.length > 0 ? form.allowed_categories : undefined,
+          allowed_item_definition_ids: form.allowed_item_definition_ids.length > 0 ? form.allowed_item_definition_ids : undefined,
+          sort_order: Number(form.sort_order) || 0,
+          metadata,
+        })
+        toast({ title: "Equipment slot created" })
+      }
+      onSaved(result)
+      onClose()
+    } catch (err: any) {
+      toast({ variant: "destructive", title: editing ? "Failed to update" : "Failed to create", description: err?.message ?? "Unknown error" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>{editing ? `Edit: ${editing.name}` : "New Equipment Slot"}</SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-4 py-2">
+          {/* Name */}
+          <div className="space-y-1">
+            <Label htmlFor="eq-name">Name <span className="text-destructive">*</span></Label>
+            <Input
+              id="eq-name"
+              placeholder="e.g. Helmet"
+              value={form.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          {/* Slot Key — immutable on edit, auto-slug on create */}
+          <div className="space-y-1">
+            <Label htmlFor="eq-slot-key">Slot Key {!editing && <span className="text-destructive">*</span>}</Label>
+            <div className="flex gap-1">
+              <Input
+                id="eq-slot-key"
+                placeholder="e.g. helmet"
+                value={form.slot_key}
+                onChange={(e) => { setAutoSlug(false); patch("slot_key", e.target.value) }}
+                disabled={!!editing || saving}
+                className={editing ? "font-mono bg-muted flex-1" : "font-mono flex-1"}
+              />
+              {!editing && (
+                <Button
+                  type="button"
+                  variant={autoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  title={autoSlug ? "Auto-slug enabled — click to disable" : "Auto-slug disabled — click to enable"}
+                  onClick={() => setAutoSlug((v) => !v)}
+                  disabled={saving}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {editing
+              ? <p className="text-xs text-muted-foreground">Slot key cannot be changed after creation.</p>
+              : <p className="text-xs text-muted-foreground">{autoSlug ? "Auto-generated from name." : "Manual input."}</p>
+            }
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1">
+            <Label htmlFor="eq-desc">Description</Label>
+            <Input
+              id="eq-desc"
+              placeholder="e.g. Head armour slot."
+              value={form.description}
+              onChange={(e) => patch("description", e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          {/* Allowed Categories */}
+          <div className="space-y-1">
+            <Label>Allowed Categories</Label>
+            <Popover open={catOpen} onOpenChange={setCatOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  disabled={saving}
+                  className="w-full justify-between font-normal h-auto min-h-10 py-2"
+                >
+                  <div className="flex flex-wrap gap-1 flex-1">
+                    {form.allowed_categories.length > 0 ? (
+                      form.allowed_categories.map((cat) => (
+                        <span
+                          key={cat}
+                          className="inline-flex items-center gap-1 rounded bg-secondary text-secondary-foreground text-xs px-1.5 py-0.5 capitalize"
+                        >
+                          {cat}
+                          <button
+                            type="button"
+                            className="hover:text-destructive"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              patch("allowed_categories", form.allowed_categories.filter((c) => c !== cat))
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">Any category (leave empty to allow all)</span>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Search categories…"
+                    value={catSearch}
+                    onValueChange={setCatSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>No category found.</CommandEmpty>
+                    <CommandGroup>
+                      {allCategories
+                        .filter((c) => !catSearch || c.toLowerCase().includes(catSearch.toLowerCase()))
+                        .map((cat) => {
+                          const selected = form.allowed_categories.includes(cat)
+                          return (
+                            <CommandItem
+                              key={cat}
+                              value={cat}
+                              onSelect={() => {
+                                patch(
+                                  "allowed_categories",
+                                  selected
+                                    ? form.allowed_categories.filter((c) => c !== cat)
+                                    : [...form.allowed_categories, cat],
+                                )
+                              }}
+                            >
+                              <Check className={`mr-2 h-4 w-4 shrink-0 ${selected ? "opacity-100" : "opacity-0"}`} />
+                              <span className="capitalize">{cat}</span>
+                            </CommandItem>
+                          )
+                        })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Allowed Item Definitions */}
+          <div className="space-y-1">
+            <Label>Allowed Item Definitions</Label>
+            <Popover open={itemDefOpen} onOpenChange={setItemDefOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  disabled={saving}
+                  className="w-full justify-between font-normal h-auto min-h-10 py-2"
+                >
+                  <div className="flex flex-wrap gap-1 flex-1">
+                    {form.allowed_item_definition_ids.length > 0 ? (
+                      form.allowed_item_definition_ids.map((id) => {
+                        const def = itemDefCache[id]
+                        return (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-1 rounded bg-secondary text-secondary-foreground text-xs px-1.5 py-0.5"
+                          >
+                            <span className="font-medium">{def?.name ?? id}</span>
+                            {def?.item_code && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
+                            <button
+                              type="button"
+                              className="hover:text-destructive"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                patch("allowed_item_definition_ids", form.allowed_item_definition_ids.filter((i) => i !== id))
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )
+                      })
+                    ) : (
+                      <span className="text-muted-foreground">Any item (leave empty to allow all)</span>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Search by name or code…"
+                    value={itemDefSearch}
+                    onValueChange={handleItemDefSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>{itemDefLoading ? "Loading…" : "No items found."}</CommandEmpty>
+                    <CommandGroup>
+                      {itemDefResults.map((def) => {
+                        const selected = form.allowed_item_definition_ids.includes(def.id)
+                        return (
+                          <CommandItem
+                            key={def.id}
+                            value={def.id}
+                            onSelect={() => {
+                              patch(
+                                "allowed_item_definition_ids",
+                                selected
+                                  ? form.allowed_item_definition_ids.filter((i) => i !== def.id)
+                                  : [...form.allowed_item_definition_ids, def.id],
+                              )
+                              setItemDefCache((prev) => ({ ...prev, [def.id]: def }))
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 shrink-0 ${selected ? "opacity-100" : "opacity-0"}`} />
+                            <span className="flex-1 truncate">{def.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground font-mono capitalize">{def.category}</span>
+                            {def.item_code && <span className="ml-2 text-xs text-muted-foreground font-mono">{def.item_code}</span>}
+                          </CommandItem>
+                        )
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Sort Order */}
+          <div className="space-y-1">
+            <Label htmlFor="eq-sort">Sort Order</Label>
+            <Input
+              id="eq-sort"
+              type="number"
+              min={0}
+              value={form.sort_order}
+              onChange={(e) => patch("sort_order", e.target.value)}
+              disabled={saving}
+              className="w-32"
+            />
+          </div>
+
+          {/* Is Active — only shown when editing */}
+          {editing && (
+            <div className="flex items-center gap-3">
+              <Switch
+                id="eq-active"
+                checked={form.is_active}
+                onCheckedChange={(v) => patch("is_active", v)}
+                disabled={saving}
+              />
+              <Label htmlFor="eq-active">Active</Label>
+            </div>
+          )}
+
+          {/* Metadata */}
+          <KVEditor entries={form.meta} onChange={(v) => patch("meta", v)} label="Metadata (e.g. icon = slot_helmet)" />
+        </div>
+
+        <SheetFooter className="pt-4">
+          <Button variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{editing ? "Saving…" : "Creating…"}</> : editing ? "Save Changes" : "Create Slot"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ─── Equipments Tab ──────────────────────────────────────────────────────────
+function EquipmentsTab({
+  gameId,
+  slots,
+  setSlots,
+  loading,
+  setLoading,
+  error,
+  setError,
+  activeTab,
+}: {
+  gameId: string
+  slots: EquipmentSlot[]
+  setSlots: (v: EquipmentSlot[]) => void
+  loading: boolean
+  setLoading: (v: boolean) => void
+  error: string | null
+  setError: (v: string | null) => void
+  activeTab: string
+}) {
+  const [expandedSlotKey, setExpandedSlotKey] = useState<string | null>(null)
+  const [detailCache, setDetailCache] = useState<Record<string, EquipmentSlot>>({})
+  const [detailLoading, setDetailLoading] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState<Record<string, string>>({})
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingSlot, setEditingSlot] = useState<EquipmentSlot | null>(null)
+  const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
+
+  function fetchItemNames(ids: string[] | null | undefined) {
+    if (!ids || ids.length === 0) return
+    const missing = ids.filter((id) => !itemInfoCache[id])
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => getItemDefinition({ gameId }, id).catch(() => null)))
+      .then((results) => {
+        const updates: Record<string, ItemDefinition> = {}
+        results.forEach((r) => { if (r) updates[r.item.id] = r.item })
+        if (Object.keys(updates).length > 0)
+          setItemInfoCache((prev) => ({ ...prev, ...updates }))
+      })
+  }
+
+  const fetchSlots = useCallback(() => {
+    if (!gameId) return
+    setLoading(true)
+    setError(null)
+    listEquipmentSlots({ gameId }, { limit: 100, offset: 0, is_active: true })
+      .then((res) => setSlots(res.slots ?? []))
+      .catch((e) => setError(e?.message ?? "Failed to load equipment slots"))
+      .finally(() => setLoading(false))
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== "equipments" || !gameId) return
+    if (slots.length > 0 || loading) return
+    fetchSlots()
+  }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleRowClick(slot: EquipmentSlot) {
+    const key = slot.slot_key
+    if (expandedSlotKey === key) {
+      setExpandedSlotKey(null)
+      return
+    }
+    setExpandedSlotKey(key)
+    if (detailCache[key]) return
+    setDetailLoading(key)
+    setDetailError((prev) => { const n = { ...prev }; delete n[key]; return n })
+    getEquipmentSlot({ gameId }, key)
+      .then((data) => {
+        setDetailCache((prev) => ({ ...prev, [key]: data }))
+        fetchItemNames(data.allowed_item_definition_ids)
+      })
+      .catch((e) => setDetailError((prev) => ({ ...prev, [key]: e?.message ?? "Failed to load slot detail" })))
+      .finally(() => setDetailLoading(null))
+  }
+
+  function openCreate() {
+    setEditingSlot(null)
+    setSheetOpen(true)
+  }
+
+  function openEdit(slot: EquipmentSlot, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingSlot(slot)
+    setSheetOpen(true)
+  }
+
+  function handleSaved(saved: EquipmentSlot) {
+    // update detail cache
+    setDetailCache((prev) => ({ ...prev, [saved.slot_key]: saved }))
+    fetchItemNames(saved.allowed_item_definition_ids)
+    // update list
+    setSlots(
+      slots.some((s) => s.slot_key === saved.slot_key)
+        ? slots.map((s) => s.slot_key === saved.slot_key ? { ...s, ...saved } : s)
+        : [saved, ...slots]
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading equipment slots…</span>
+      </div>
+    )
+  }
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSlots} disabled={loading} title="Refresh">
+        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+      </Button>
+      <Button size="sm" className="h-8" onClick={openCreate}>
+        <Plus className="h-4 w-4 mr-1" />
+        New Slot
+      </Button>
+    </div>
+  )
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">{headerActions}</div>
+        <div className="text-center py-12 text-sm text-destructive">{error}</div>
+        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
+      </div>
+    )
+  }
+
+  if (slots.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">{headerActions}</div>
+        <div className="text-center py-12 text-sm text-muted-foreground">
+          No active equipment slots found.
+        </div>
+        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Equipment Slots</h2>
+          <p className="text-sm text-muted-foreground">
+            {slots.length} slot{slots.length !== 1 ? "s" : ""} defined
+          </p>
+        </div>
+        {headerActions}
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-6" />
+                <TableHead>Name</TableHead>
+                <TableHead>Slot Key</TableHead>
+                <TableHead>Allowed Categories</TableHead>
+                <TableHead>Allowed Items</TableHead>
+                <TableHead>Sort</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {slots.map((slot) => {
+                const isExpanded = expandedSlotKey === slot.slot_key
+                const detail = detailCache[slot.slot_key]
+                const isLoadingDetail = detailLoading === slot.slot_key
+                const detailErr = detailError[slot.slot_key]
+                return (
+                  <Fragment key={slot.id}>
+                    <TableRow
+                      className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
+                      onClick={() => handleRowClick(slot)}
+                    >
+                      <TableCell className="pr-0">
+                        {isExpanded
+                          ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {slot.name}
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                          {slot.slot_key}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {slot.allowed_categories && slot.allowed_categories.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {slot.allowed_categories.map((cat) => (
+                              <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Any</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0 ? (
+                          <span>{slot.allowed_item_definition_ids.length} item{slot.allowed_item_definition_ids.length !== 1 ? "s" : ""}</span>
+                        ) : (
+                          <span className="italic">Any</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {slot.sort_order}
+                      </TableCell>
+                      <TableCell>
+                        {slot.is_active ? (
+                          <span className="text-green-500 text-sm font-medium">Active</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Inactive</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost" size="icon" className="h-8 w-8"
+                          title="Edit"
+                          onClick={(e) => openEdit(detail ?? slot, e)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+
+                    {isExpanded && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={8} className="p-0">
+                          <div className="px-6 py-4 space-y-4">
+                            {isLoadingDetail ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading slot detail…
+                              </div>
+                            ) : detailErr ? (
+                              <p className="text-sm text-destructive">{detailErr}</p>
+                            ) : detail ? (
+                              <>
+                                {/* IDs */}
+                                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Slot ID:</span>
+                                    <span className="text-xs font-mono text-muted-foreground">{detail.id}</span>
+                                    <CopyButton text={detail.id} />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Slot Key:</span>
+                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{detail.slot_key}</code>
+                                    <CopyButton text={detail.slot_key} />
+                                  </div>
+                                </div>
+
+                                {/* Description */}
+                                {detail.description && (
+                                  <div className="space-y-0.5">
+                                    <p className="text-xs font-semibold text-foreground">Description</p>
+                                    <p className="text-sm text-muted-foreground">{detail.description}</p>
+                                  </div>
+                                )}
+
+                                {/* Core info grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground">Sort Order: </span>
+                                    <span className="font-medium">{detail.sort_order}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Status: </span>
+                                    <span className={detail.is_active ? "text-green-500 font-medium" : "font-medium"}>
+                                      {detail.is_active ? "Active" : "Inactive"}
+                                    </span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="text-muted-foreground">Created by: </span>
+                                    <span className="font-mono">{detail.created_by}</span>
+                                  </div>
+                                </div>
+
+                                {/* Allowed Categories */}
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Allowed Categories</p>
+                                  {detail.allowed_categories && detail.allowed_categories.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {detail.allowed_categories.map((cat) => (
+                                        <Badge key={cat} variant="outline" className="text-xs capitalize">{cat}</Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">Any category allowed</span>
+                                  )}
+                                </div>
+
+                                {/* Allowed Item Definition IDs */}
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Allowed Item Definitions</p>
+                                  {detail.allowed_item_definition_ids && detail.allowed_item_definition_ids.length > 0 ? (
+                                    <div className="flex flex-col gap-1">
+                                      {detail.allowed_item_definition_ids.map((id) => {
+                                        const def = itemInfoCache[id]
+                                        return (
+                                          <div key={id} className="flex items-center gap-2">
+                                            <Link
+                                              href={`/games/${gameId}/items/${id}`}
+                                              className="text-sm font-medium text-primary hover:underline"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {def?.name ?? <span className="font-mono text-xs">{id}</span>}
+                                            </Link>
+                                            {def?.item_code && (
+                                              <span className="text-xs text-muted-foreground font-mono">({def.item_code})</span>
+                                            )}
+                                            {def?.category && (
+                                              <Badge variant="outline" className="text-xs capitalize">{def.category}</Badge>
+                                            )}
+                                            <CopyButton text={id} />
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">Any item definition allowed</span>
+                                  )}
+                                </div>
+
+                                {/* Metadata */}
+                                {detail.metadata && Object.keys(detail.metadata).length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                    <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
+                                      {JSON.stringify(detail.metadata, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+
+                                {/* Timestamps */}
+                                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                  <span>Created: {new Date(detail.created_at).toLocaleString()}</span>
+                                  <span>Updated: {new Date(detail.updated_at).toLocaleString()}</span>
+                                </div>
+                              </>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <EquipmentSlotSheet
+        open={sheetOpen}
+        gameId={gameId}
+        editing={editingSlot}
+        onSaved={handleSaved}
+        onClose={() => setSheetOpen(false)}
+      />
+    </div>
+  )
+}
+
 // ─── Generator Tab ────────────────────────────────────────────────────────────
 function GeneratorTab({
   studioId,
@@ -1611,6 +2407,11 @@ export default function GameItemsPage() {
   const [generatorLoading, setGeneratorLoading] = useState(false)
   const [generatorError, setGeneratorError] = useState<string | null>(null)
 
+  // equipments tab state
+  const [equipmentSlots, setEquipmentSlots] = useState<EquipmentSlot[]>([])
+  const [equipmentLoading, setEquipmentLoading] = useState(false)
+  const [equipmentError, setEquipmentError] = useState<string | null>(null)
+
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaAllItems, setGachaAllItems] = useState<ItemDefinition[]>([])
@@ -1629,7 +2430,7 @@ export default function GameItemsPage() {
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators") {
+    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments") {
       setActiveTab(tab)
     }
     // initialize container search from URL `q` param
@@ -2065,6 +2866,7 @@ export default function GameItemsPage() {
             <TabsTrigger value="containers">Containers</TabsTrigger>
             <TabsTrigger value="gacha">Gacha</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
+            <TabsTrigger value="equipments">Equipments</TabsTrigger>
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
@@ -2759,6 +3561,20 @@ export default function GameItemsPage() {
               setCreateInitCategory("generator" as ItemCategory)
               setShowCreate(true)
             }}
+          />
+        </TabsContent>
+
+        {/* ═══════════ EQUIPMENTS TAB ═══════════ */}
+        <TabsContent value="equipments" className="space-y-4">
+          <EquipmentsTab
+            gameId={gameId}
+            slots={equipmentSlots}
+            setSlots={setEquipmentSlots}
+            loading={equipmentLoading}
+            setLoading={setEquipmentLoading}
+            error={equipmentError}
+            setError={setEquipmentError}
+            activeTab={activeTab}
           />
         </TabsContent>
       </Tabs>

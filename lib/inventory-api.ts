@@ -26,6 +26,7 @@ import type {
   ContainerType,
   CreateContainerDefinitionRequest,
   UpdateContainerDefinitionRequest,
+  EquipmentSlot,
 } from '@/types/inventory'
 
 /** Tenant context required by every call to the inventory/gacha service */
@@ -239,4 +240,70 @@ export async function deleteContainerDefinition(
   definitionId: string,
 ): Promise<{ message: string }> {
   return api.delete(`/api/v1/games/${ctx.gameId}/container-definitions/${definitionId}`)
+}
+
+// ─── Equipment Slots ──────────────────────────────────────────────────────────
+
+export interface ListEquipmentSlotsParams {
+  limit?: number
+  offset?: number
+  is_active?: boolean
+}
+
+/** GET /api/v1/games/:gameId/equipment-slots */
+export async function listEquipmentSlots(
+  ctx: TenantCtx,
+  params: ListEquipmentSlotsParams = {},
+): Promise<{ slots: EquipmentSlot[]; total: number }> {
+  const qs = new URLSearchParams()
+  if (params.limit    != null) qs.set('limit',     String(params.limit))
+  if (params.offset   != null) qs.set('offset',    String(params.offset))
+  if (params.is_active != null) qs.set('is_active', String(params.is_active))
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${ctx.gameId}/equipment-slots${query ? `?${query}` : ''}`)
+}
+
+/** GET /api/v1/games/:gameId/equipment-slots/:slotKey */
+export async function getEquipmentSlot(
+  ctx: TenantCtx,
+  slotKey: string,
+): Promise<EquipmentSlot> {
+  return api.get(`/api/v1/games/${ctx.gameId}/equipment-slots/${slotKey}`)
+}
+
+export interface CreateEquipmentSlotRequest {
+  slot_key: string
+  name: string
+  description?: string
+  allowed_categories?: string[]
+  allowed_item_definition_ids?: string[] | null
+  sort_order?: number
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateEquipmentSlotRequest {
+  name?: string
+  description?: string
+  allowed_categories?: string[]
+  allowed_item_definition_ids?: string[] | null
+  sort_order?: number
+  metadata?: Record<string, unknown>
+  is_active?: boolean
+}
+
+/** POST /api/v1/games/:gameId/equipment-slots */
+export async function createEquipmentSlot(
+  ctx: TenantCtx,
+  body: CreateEquipmentSlotRequest,
+): Promise<EquipmentSlot> {
+  return api.post(`/api/v1/games/${ctx.gameId}/equipment-slots`, body)
+}
+
+/** PUT /api/v1/games/:gameId/equipment-slots/:slotKey */
+export async function updateEquipmentSlot(
+  ctx: TenantCtx,
+  slotKey: string,
+  body: UpdateEquipmentSlotRequest,
+): Promise<EquipmentSlot> {
+  return api.put(`/api/v1/games/${ctx.gameId}/equipment-slots/${slotKey}`, body)
 }
