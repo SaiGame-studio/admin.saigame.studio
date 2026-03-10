@@ -1969,7 +1969,6 @@ function EquipmentsTab({
               y: Math.floor(idx / COLS) * (CARD_H_EST + GAP) + GAP,
             })
             const SNAP_DIST = 24
-            const BOND_TOL = 20
             const getGroupMembers = (startKey: string): string[] => {
               const visited = new Set<string>(); const queue = [startKey]
               while (queue.length) { const k = queue.shift()!; if (visited.has(k)) continue; visited.add(k); for (const b of snapBonds[k] ?? []) if (!visited.has(b)) queue.push(b) }
@@ -1977,15 +1976,16 @@ function EquipmentsTab({
             }
             const getBondedNeighbor = (slotKey: string, dir: "left" | "right" | "top" | "bottom"): string | null => {
               const si = slots.findIndex((s) => s.slot_key === slotKey)
-              const posA = positions[slotKey] ?? getDefaultPos(si)
+              const posA = draggingPos?.[slotKey] ?? positions[slotKey] ?? getDefaultPos(si)
               for (const bKey of snapBonds[slotKey] ?? []) {
                 const bi = slots.findIndex((s) => s.slot_key === bKey)
-                const posB = positions[bKey] ?? getDefaultPos(bi)
-                const dx = posB.x - posA.x, dy = posB.y - posA.y, T = BOND_TOL
-                if (dir === "right"  && Math.abs(dx - (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
-                if (dir === "left"   && Math.abs(dx + (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
-                if (dir === "bottom" && Math.abs(dy - (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
-                if (dir === "top"    && Math.abs(dy + (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
+                const posB = draggingPos?.[bKey] ?? positions[bKey] ?? getDefaultPos(bi)
+                const dx = posB.x - posA.x, dy = posB.y - posA.y
+                if (dx === 0 && dy === 0) continue
+                if (dir === "right"  && dx > 0 && Math.abs(dx) >= Math.abs(dy)) return bKey
+                if (dir === "left"   && dx < 0 && Math.abs(dx) >= Math.abs(dy)) return bKey
+                if (dir === "bottom" && dy > 0 && Math.abs(dy) >  Math.abs(dx)) return bKey
+                if (dir === "top"    && dy < 0 && Math.abs(dy) >  Math.abs(dx)) return bKey
               }
               return null
             }
