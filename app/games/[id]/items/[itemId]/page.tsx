@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown } from "lucide-react"
+import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
-import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions } from "@/lib/inventory-api"
+import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions, listItemTags, getItemDefinitionTags, assignTagsToItemDefinition, removeTagsFromItemDefinition, type ItemTag } from "@/lib/inventory-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,7 @@ import {
 import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack, ContainerDefinition } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,14 @@ export default function ItemDefinitionDetailPage() {
   const [genPoolNames, setGenPoolNames] = useState<Record<string, string>>({})
   const [genPoolLoading, setGenPoolLoading] = useState(false)
 
+  // tags
+  const [itemTagsList, setItemTagsList] = useState<ItemTag[]>([])
+  const [allTags, setAllTags] = useState<ItemTag[]>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [tagPickerOpen, setTagPickerOpen] = useState(false)
+  const [tagPickerSearch, setTagPickerSearch] = useState("")
+  const [tagActionLoading, setTagActionLoading] = useState<string | null>(null)
+
   // generator config editing
   interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string; collect_cap: string; initial_output: string }
   const [editingGenConfig, setEditingGenConfig] = useState(false)
@@ -145,6 +154,53 @@ export default function ItemDefinitionDetailPage() {
       .then(([cats, rars]) => { setCategories(cats); setRarities(rars) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!gameId || !itemId) return
+    setTagsLoading(true)
+    Promise.all([
+      getItemDefinitionTags({ gameId }, itemId),
+      listItemTags({ gameId }, { limit: 100 }),
+    ])
+      .then(([assigned, catalogue]) => {
+        setItemTagsList(assigned.tags ?? [])
+        setAllTags(catalogue.tags ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setTagsLoading(false))
+  }, [gameId, itemId])
+
+  async function handleAddTag(tag: ItemTag) {
+    if (tagActionLoading) return
+    const alreadyAssigned = itemTagsList.some((t) => t.tag_key === tag.tag_key)
+    if (alreadyAssigned) return
+    setTagActionLoading(tag.tag_key)
+    try {
+      const res = await assignTagsToItemDefinition({ gameId }, itemId, [tag.tag_key])
+      setItemTagsList((prev) => [...prev, ...(res.tags ?? []).filter((t) => !prev.some((p) => p.tag_key === t.tag_key))])
+      setTagPickerOpen(false)
+      setTagPickerSearch("")
+      toast({ title: `Tag "${tag.label}" added` })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to add tag", description: err?.message })
+    } finally {
+      setTagActionLoading(null)
+    }
+  }
+
+  async function handleRemoveTag(tag: ItemTag) {
+    if (tagActionLoading) return
+    setTagActionLoading(tag.tag_key)
+    try {
+      await removeTagsFromItemDefinition({ gameId }, itemId, [tag.tag_key])
+      setItemTagsList((prev) => prev.filter((t) => t.tag_key !== tag.tag_key))
+      toast({ title: `Tag "${tag.label}" removed` })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to remove tag", description: err?.message })
+    } finally {
+      setTagActionLoading(null)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -446,11 +502,35 @@ export default function ItemDefinitionDetailPage() {
         </div>
       </div>
 
+      {/* Item sub-tabs */}
+      <Tabs value="catalogue" className="mb-2">
+        <TabsList>
+          <TabsTrigger value="catalogue" asChild>
+            <Link href={`/games/${gameId}/items?tab=catalogue`}>Items</Link>
+          </TabsTrigger>
+          <TabsTrigger value="containers" asChild>
+            <Link href={`/games/${gameId}/items?tab=containers`}>Containers</Link>
+          </TabsTrigger>
+          <TabsTrigger value="gacha" asChild>
+            <Link href={`/games/${gameId}/items?tab=gacha`}>Gacha</Link>
+          </TabsTrigger>
+          <TabsTrigger value="generators" asChild>
+            <Link href={`/games/${gameId}/items?tab=generators`}>Generators</Link>
+          </TabsTrigger>
+          <TabsTrigger value="equipments" asChild>
+            <Link href={`/games/${gameId}/items?tab=equipments`}>Equipments</Link>
+          </TabsTrigger>
+          <TabsTrigger value="tags" asChild>
+            <Link href={`/games/${gameId}/items?tab=tags`}>Tags</Link>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* ── Identity ────────────────────────────────────────────────────── */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Identity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
@@ -476,6 +556,89 @@ export default function ItemDefinitionDetailPage() {
                 <CopyUUID value={item.item_code} />
               </div>
             )}
+
+            {/* Tags */}
+            <div className="pt-2 border-t border-muted/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-1.5 shrink-0">
+                  <Tag className="h-3 w-3" /> Tags
+                </span>
+                <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen} modal>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" disabled={tagsLoading}>
+                      <Plus className="h-3 w-3" /> Add
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="end">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search tags…"
+                        value={tagPickerSearch}
+                        onValueChange={setTagPickerSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No tags found.</CommandEmpty>
+                        <CommandGroup>
+                          {allTags
+                            .filter((t) => {
+                              const q = tagPickerSearch.toLowerCase()
+                              return (!q || t.label.toLowerCase().includes(q) || t.tag_key.toLowerCase().includes(q))
+                                && !itemTagsList.some((a) => a.tag_key === t.tag_key)
+                            })
+                            .map((tag) => (
+                              <CommandItem
+                                key={tag.tag_key}
+                                value={tag.tag_key}
+                                onSelect={() => handleAddTag(tag)}
+                                disabled={tagActionLoading === tag.tag_key}
+                                className="gap-2"
+                              >
+                                {tagActionLoading === tag.tag_key
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                                  : <span className="inline-block h-3 w-3 rounded-full shrink-0 border border-black/10" style={{ backgroundColor: tag.color }} />
+                                }
+                                <span className="flex-1 truncate">{tag.label}</span>
+                                <span className="text-xs font-mono text-muted-foreground">{tag.tag_key}</span>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {tagsLoading ? (
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-12 rounded-full" />
+                </div>
+              ) : itemTagsList.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No tags assigned.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {itemTagsList.map((tag) => (
+                    <span
+                      key={tag.tag_key}
+                      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+                      style={{ borderColor: tag.color + "80", backgroundColor: tag.color + "20", color: tag.color }}
+                    >
+                      {tag.label}
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        disabled={tagActionLoading === tag.tag_key}
+                        className="rounded-full hover:opacity-70 disabled:opacity-40 transition-opacity"
+                        title={`Remove tag "${tag.label}"`}
+                      >
+                        {tagActionLoading === tag.tag_key
+                          ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          : <X className="h-2.5 w-2.5" />
+                        }
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
