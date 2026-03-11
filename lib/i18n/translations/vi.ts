@@ -777,7 +777,7 @@ export const vi = {
     fieldItemsGrant: "Vật phẩm cấp",
     fieldShopsGrant: "Cửa hàng cấp",
     fieldDurationDays: "Thời hạn (ngày)",
-    fieldIsTemplate: "Là mẫu",
+    fieldIsTemplate: "Reusable",
     fieldNote: "Ghi chú",
     fieldGameId: "ID Game",
     fieldPluginId: "Plugin",

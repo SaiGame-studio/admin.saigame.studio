@@ -783,7 +783,7 @@ export const en = {
     fieldItemsGrant: "Items Grant",
     fieldShopsGrant: "Shops Grant",
     fieldDurationDays: "Duration (days)",
-    fieldIsTemplate: "Is Template",
+    fieldIsTemplate: "Reusable",
     fieldNote: "Note",
     fieldGameId: "Game ID",
     fieldPluginId: "Plugin",

@@ -375,7 +375,7 @@ export async function deleteCustomPlugin(pluginId: string): Promise<void> {
 
 export interface AdminGameGrant {
   grant: GamePluginSubscription
-  plugin: Plugin
+  plugin?: Plugin
 }
 
 export async function grantPluginToGame(
@@ -391,7 +391,7 @@ export async function grantPluginToGame(
 
 export async function listGameGrants(gameId: string): Promise<AdminGameGrant[]> {
   const data = await api.get(`/api/v1/admin/games/${gameId}/plugins`)
-  return data?.grants ?? []
+  return (data?.grants ?? []).map((g: GamePluginSubscription) => ({ grant: g }))
 }
 
 export async function revokeGameGrant(gameId: string, grantId: string): Promise<void> {

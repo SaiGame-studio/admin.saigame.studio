@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Check,
+  ChevronsUpDown,
   Edit,
   Loader2,
   Plus,
@@ -24,9 +25,11 @@ import {
   grantPluginToGame,
   listGameGrants,
   revokeGameGrant,
+  getAllGamesAdmin,
   type CreateCustomPluginBody,
   type UpdateCustomPluginBody,
   type AdminGameGrant,
+  type AdminGame,
 } from "@/lib/admin-api"
 import type { Plugin } from "@/lib/plugin-api"
 import { formatISODate } from "@/lib/utils/date-utils"
@@ -74,7 +77,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useRouter } from "next/navigation"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { CopyButton } from "@/components/CopyButton"
 
 // ---------------------------------------------------------------------------
@@ -125,6 +137,15 @@ export default function AdminPluginsPage() {
   const { toast } = useToast()
   const { t } = useTranslation()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get("tab") ?? "plugins"
+
+  function setActiveTab(tab: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", tab)
+    router.replace(`${pathname}?${params.toString()}`)
+  }
 
   // ---------------------------------------------------------------------------
   // Custom plugins state
@@ -146,9 +167,14 @@ export default function AdminPluginsPage() {
   // Grant state
   // ---------------------------------------------------------------------------
   const [grantGameId, setGrantGameId] = useState("")
+  const [grantGameOpen, setGrantGameOpen] = useState(false)
   const [grantPluginId, setGrantPluginId] = useState("")
   const [grantNote, setGrantNote] = useState("")
   const [granting, setGranting] = useState(false)
+
+  // All games for searchable dropdown
+  const [allGames, setAllGames] = useState<AdminGame[]>([])
+  const [loadingGames, setLoadingGames] = useState(false)
 
   // View grants for a game
   const [viewGrantsGameId, setViewGrantsGameId] = useState("")
@@ -188,6 +214,15 @@ export default function AdminPluginsPage() {
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => { loadPlugins() }, [loadPlugins])
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    setLoadingGames(true)
+    getAllGamesAdmin({ sort_by: "name", sort_order: "asc" })
+      .then((res) => setAllGames(res.games ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingGames(false))
+  }, [])
 
   // ---------------------------------------------------------------------------
   // Create / Update plugin
@@ -266,6 +301,7 @@ export default function AdminPluginsPage() {
       setGrantGameId("")
       setGrantPluginId("")
       setGrantNote("")
+      setGrantGameOpen(false)
     } catch (err: any) {
       toast({ variant: "destructive", title: t('plugins.grantFailed') || "Grant failed.", description: err?.message })
     } finally {
@@ -323,10 +359,10 @@ export default function AdminPluginsPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="plugins">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="plugins">{t('plugins.tabCustomPlugins') || "Custom Plugins"}</TabsTrigger>
-          <TabsTrigger value="grants">{t('plugins.tabGrantToGame') || "Grant to Game"}</TabsTrigger>
+          <TabsTrigger value="plugins">Custom</TabsTrigger>
+          <TabsTrigger value="grants">Grant</TabsTrigger>
         </TabsList>
 
         {/* ---------------------------------------------------------------- */}
@@ -361,7 +397,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Items</TableHead>
                     <TableHead>Shops</TableHead>
                     <TableHead>Duration</TableHead>
-                    <TableHead>Template</TableHead>
+                    <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -404,6 +440,7 @@ export default function AdminPluginsPage() {
         {/* Tab: Grant to Game */}
         {/* ---------------------------------------------------------------- */}
         <TabsContent value="grants" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* Grant form */}
           <Card>
             <CardHeader>
@@ -413,13 +450,49 @@ export default function AdminPluginsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="grant-game-id">{t('plugins.fieldGameId') || "Game ID"}</Label>
-                  <Input
-                    id="grant-game-id"
-                    value={grantGameId}
-                    onChange={(e) => setGrantGameId(e.target.value)}
-                    placeholder="game-uuid"
-                  />
+                  <Label>Game</Label>
+                  <Popover open={grantGameOpen} onOpenChange={setGrantGameOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={grantGameOpen}
+                        className="w-full justify-between font-normal"
+                        disabled={loadingGames}
+                      >
+                        {loadingGames
+                          ? "Loading games..."
+                          : grantGameId
+                            ? (allGames.find((g) => g.id === grantGameId)?.name ?? grantGameId)
+                            : "Select game..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search games..." />
+                        <CommandList>
+                          <CommandEmpty>No games found.</CommandEmpty>
+                          <CommandGroup>
+                            {allGames.map((g) => (
+                              <CommandItem
+                                key={g.id}
+                                value={`${g.name} ${g.id}`}
+                                onSelect={() => {
+                                  setGrantGameId(g.id)
+                                  setGrantGameOpen(false)
+                                }}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${grantGameId === g.id ? "opacity-100" : "opacity-0"}`} />
+                                <span className="truncate">{g.name}</span>
+                                <span className="ml-auto text-xs text-muted-foreground font-mono truncate max-w-[120px]">{g.id}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>{t('plugins.fieldPluginId') || "Plugin"}</Label>
@@ -430,7 +503,12 @@ export default function AdminPluginsPage() {
                     <SelectContent>
                       {plugins.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.display_name}
+                          <span className="flex items-center gap-2">
+                            {p.display_name}
+                            {p.is_template && (
+                              <span className="text-xs font-medium text-primary border border-primary/40 rounded px-1 py-0 leading-tight">Reusable</span>
+                            )}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -452,8 +530,6 @@ export default function AdminPluginsPage() {
               </Button>
             </CardContent>
           </Card>
-
-          <Separator />
 
           {/* View grants for a game */}
           <Card>
@@ -489,7 +565,9 @@ export default function AdminPluginsPage() {
                   <TableBody>
                     {grants.map((g) => (
                       <TableRow key={g.grant.id}>
-                        <TableCell className="font-medium">{g.plugin.display_name}</TableCell>
+                        <TableCell className="font-medium">
+                          {plugins.find((p) => p.id === g.grant.plugin_id)?.display_name ?? g.grant.plugin_id}
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-sm">{g.grant.note ?? "—"}</TableCell>
                         <TableCell>
                           <Badge variant={!g.grant.is_revoked ? "default" : "secondary"}>
@@ -519,6 +597,7 @@ export default function AdminPluginsPage() {
               )}
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -594,7 +673,7 @@ export default function AdminPluginsPage() {
                 checked={form.is_template}
                 onCheckedChange={(v) => setForm((f) => ({ ...f, is_template: Boolean(v) }))}
               />
-              <Label htmlFor="dp-template">{t('plugins.fieldIsTemplate') || "Is Template"}</Label>
+              <Label htmlFor="dp-template">{t('plugins.fieldIsTemplate') || "Reusable"}</Label>
             </div>
           </div>
 
