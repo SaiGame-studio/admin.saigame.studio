@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   ChevronsUpDown,
   Edit,
   Loader2,
@@ -26,13 +28,18 @@ import {
   listGameGrants,
   revokeGameGrant,
   getAllGamesAdmin,
+  recalculateGameLimits,
   type CreateCustomPluginBody,
   type UpdateCustomPluginBody,
   type AdminGameGrant,
   type AdminGame,
+  type RecalcResult,
 } from "@/lib/admin-api"
+import { getGame } from "@/lib/game-api"
+import { getGamePlugins } from "@/lib/plugin-api"
+import type { Game } from "@/types/game"
 import type { Plugin } from "@/lib/plugin-api"
-import { formatISODate } from "@/lib/utils/date-utils"
+import { formatISODate, timeAgo } from "@/lib/utils/date-utils"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -141,9 +148,21 @@ export default function AdminPluginsPage() {
   const searchParams = useSearchParams()
   const activeTab = searchParams.get("tab") ?? "plugins"
 
+  const selectedGameId = searchParams.get("game") ?? ""
+
   function setActiveTab(tab: string) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", tab)
+    router.replace(`${pathname}?${params.toString()}`)
+  }
+
+  function setSelectedGameInUrl(gameId: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (gameId) {
+      params.set("game", gameId)
+    } else {
+      params.delete("game")
+    }
     router.replace(`${pathname}?${params.toString()}`)
   }
 
@@ -166,24 +185,33 @@ export default function AdminPluginsPage() {
   // ---------------------------------------------------------------------------
   // Grant state
   // ---------------------------------------------------------------------------
-  const [grantGameId, setGrantGameId] = useState("")
-  const [grantGameOpen, setGrantGameOpen] = useState(false)
-  const [grantPluginId, setGrantPluginId] = useState("")
-  const [grantNote, setGrantNote] = useState("")
-  const [granting, setGranting] = useState(false)
-
   // All games for searchable dropdown
   const [allGames, setAllGames] = useState<AdminGame[]>([])
   const [loadingGames, setLoadingGames] = useState(false)
 
-  // View grants for a game
-  const [viewGrantsGameId, setViewGrantsGameId] = useState("")
-  const [grants, setGrants] = useState<AdminGameGrant[]>([])
-  const [loadingGrants, setLoadingGrants] = useState(false)
+  // Selected game details panel
+  const [gameSearchOpen, setGameSearchOpen] = useState(false)
+  const [selectedGame, setSelectedGame] = useState<AdminGame | null>(null)
+  const [gameLimits, setGameLimits] = useState<Game | null>(null)
+  const [gameGrants, setGameGrants] = useState<AdminGameGrant[]>([])
+  const [loadingGameDetail, setLoadingGameDetail] = useState(false)
+
+  // Add plugin inline form
+  const [showAddPlugin, setShowAddPlugin] = useState(false)
+  const [addPluginId, setAddPluginId] = useState("")
+  const [addPluginNote, setAddPluginNote] = useState("")
+  const [addingPlugin, setAddingPlugin] = useState(false)
+
+  // Expanded grant row
+  const [expandedGrantId, setExpandedGrantId] = useState<string | null>(null)
 
   // Revoke dialog
-  const [revokeTarget, setRevokeTarget] = useState<{ gameId: string; grant: AdminGameGrant } | null>(null)
+  const [revokeTarget, setRevokeTarget] = useState<{ grant: AdminGameGrant } | null>(null)
   const [revoking, setRevoking] = useState(false)
+
+  // Recalculate limits
+  const [recalcing, setRecalcing] = useState(false)
+  const [recalcResult, setRecalcResult] = useState<RecalcResult | null>(null)
 
   // ---------------------------------------------------------------------------
   // Guard
@@ -219,9 +247,18 @@ export default function AdminPluginsPage() {
   useEffect(() => {
     setLoadingGames(true)
     getAllGamesAdmin({ sort_by: "name", sort_order: "asc" })
-      .then((res) => setAllGames(res.games ?? []))
+      .then((res) => {
+        const games = res.games ?? []
+        setAllGames(games)
+        // Auto-select game from URL param after games load
+        if (selectedGameId) {
+          const found = games.find((g) => g.id === selectedGameId)
+          if (found) selectGame(found)
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingGames(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ---------------------------------------------------------------------------
@@ -290,53 +327,121 @@ export default function AdminPluginsPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Refresh displayed limits after grant/revoke
+  // effective_limits from getGamePlugins is the authoritative combined capacity
+  // ---------------------------------------------------------------------------
+  async function recalcAndPersistLimits(gameId: string) {
+    try {
+      const [fresh, pluginsResult] = await Promise.all([
+        getGame(gameId),
+        getGamePlugins(gameId),
+      ])
+      const el = pluginsResult.effective_limits
+      // Overlay effective_limits onto the game object so the UI reflects plugin contributions
+      setGameLimits({
+        ...fresh,
+        limits: {
+          ...fresh.limits,
+          max_concurrent_users: el.max_concurrent_users,
+          max_player_profiles: el.max_profiles,
+          max_items: el.max_items,
+          max_shops: el.max_shops,
+          max_gacha_packs: el.max_gacha_packs ?? fresh.limits?.max_gacha_packs ?? 0,
+        },
+      })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to refresh limits", description: err?.message })
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Grant plugin to game
   // ---------------------------------------------------------------------------
-  async function handleGrant() {
-    if (!grantGameId.trim() || !grantPluginId) return
-    setGranting(true)
+  async function selectGame(game: AdminGame) {
+    setSelectedGame(game)
+    setGameSearchOpen(false)
+    setGameLimits(null)
+    setGameGrants([])
+    setShowAddPlugin(false)
+    setAddPluginId("")
+    setAddPluginNote("")
+    setSelectedGameInUrl(game.id)
+    setLoadingGameDetail(true)
     try {
-      await grantPluginToGame(grantGameId.trim(), grantPluginId, grantNote.trim() || undefined)
+      const [limitsData, grantsData] = await Promise.all([
+        getGame(game.id),
+        listGameGrants(game.id),
+      ])
+      setGameLimits(limitsData)
+      setGameGrants(grantsData)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to load game details", description: err?.message })
+    } finally {
+      setLoadingGameDetail(false)
+    }
+  }
+
+  async function handleAddPlugin() {
+    if (!selectedGame || !addPluginId) return
+    setAddingPlugin(true)
+    try {
+      await grantPluginToGame(selectedGame.id, addPluginId, addPluginNote.trim() || undefined)
       toast({ title: t('plugins.grantSuccess') || "Plugin granted." })
-      setGrantGameId("")
-      setGrantPluginId("")
-      setGrantNote("")
-      setGrantGameOpen(false)
+      setAddPluginId("")
+      setAddPluginNote("")
+      setShowAddPlugin(false)
+      const data = await listGameGrants(selectedGame.id)
+      setGameGrants(data)
+      await recalcAndPersistLimits(selectedGame.id)
     } catch (err: any) {
       toast({ variant: "destructive", title: t('plugins.grantFailed') || "Grant failed.", description: err?.message })
     } finally {
-      setGranting(false)
+      setAddingPlugin(false)
     }
   }
 
   // ---------------------------------------------------------------------------
   // View / revoke grants
   // ---------------------------------------------------------------------------
-  async function handleViewGrants() {
-    if (!viewGrantsGameId.trim()) return
-    setLoadingGrants(true)
-    try {
-      const data = await listGameGrants(viewGrantsGameId.trim())
-      setGrants(data)
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to load grants", description: err?.message })
-    } finally {
-      setLoadingGrants(false)
-    }
-  }
-
   async function handleRevoke() {
-    if (!revokeTarget) return
+    if (!revokeTarget || !selectedGame) return
     setRevoking(true)
     try {
-      await revokeGameGrant(revokeTarget.gameId, revokeTarget.grant.grant.id)
-      setGrants((prev) => prev.filter((g) => g.grant.id !== revokeTarget.grant.grant.id))
-      toast({ title: t('plugins.revokeSuccess') || "Grant revoked." })
+      await revokeGameGrant(selectedGame.id, revokeTarget.grant.grant.id)
       setRevokeTarget(null)
+      toast({ title: t('plugins.revokeSuccess') || "Grant revoked." })
+      const freshGrants = await listGameGrants(selectedGame.id)
+      setGameGrants(freshGrants)
+      await recalcAndPersistLimits(selectedGame.id)
     } catch (err: any) {
       toast({ variant: "destructive", title: t('plugins.revokeFailed') || "Revoke failed.", description: err?.message })
     } finally {
       setRevoking(false)
+    }
+  }
+
+  async function handleRecalculate() {
+    if (!selectedGame) return
+    setRecalcing(true)
+    try {
+      const result = await recalculateGameLimits(selectedGame.id)
+      setRecalcResult(result)
+      // Also refresh the displayed limits from the recalc totals
+      setGameLimits((prev) => prev ? {
+        ...prev,
+        limits: {
+          ...prev.limits,
+          max_concurrent_users: result.totals.max_concurrent_users,
+          max_player_profiles: result.totals.max_player_profiles,
+          max_items: result.totals.max_items,
+          max_shops: result.totals.max_shops,
+          max_quests: result.totals.max_quests,
+        },
+      } : prev)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Recalculate failed", description: err?.message })
+    } finally {
+      setRecalcing(false)
     }
   }
 
@@ -440,164 +545,458 @@ export default function AdminPluginsPage() {
         {/* Tab: Grant to Game */}
         {/* ---------------------------------------------------------------- */}
         <TabsContent value="grants" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Grant form */}
+          {/* Game selector */}
           <Card>
-            <CardHeader>
-              <CardTitle>{t('plugins.grantToGame') || "Grant Plugin to Game"}</CardTitle>
-              <CardDescription>Grant a custom plugin to a specific game for free.</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Select Game</CardTitle>
+              <CardDescription>Choose a game to view its details, limits, and manage plugin grants.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Game</Label>
-                  <Popover open={grantGameOpen} onOpenChange={setGrantGameOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={grantGameOpen}
-                        className="w-full justify-between font-normal"
-                        disabled={loadingGames}
-                      >
-                        {loadingGames
-                          ? "Loading games..."
-                          : grantGameId
-                            ? (allGames.find((g) => g.id === grantGameId)?.name ?? grantGameId)
-                            : "Select game..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search games..." />
-                        <CommandList>
-                          <CommandEmpty>No games found.</CommandEmpty>
-                          <CommandGroup>
-                            {allGames.map((g) => (
-                              <CommandItem
-                                key={g.id}
-                                value={`${g.name} ${g.id}`}
-                                onSelect={() => {
-                                  setGrantGameId(g.id)
-                                  setGrantGameOpen(false)
-                                }}
-                              >
-                                <Check className={`mr-2 h-4 w-4 ${grantGameId === g.id ? "opacity-100" : "opacity-0"}`} />
-                                <span className="truncate">{g.name}</span>
-                                <span className="ml-auto text-xs text-muted-foreground font-mono truncate max-w-[120px]">{g.id}</span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('plugins.fieldPluginId') || "Plugin"}</Label>
-                  <Select value={grantPluginId} onValueChange={setGrantPluginId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select plugin..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plugins.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          <span className="flex items-center gap-2">
-                            {p.display_name}
-                            {p.is_template && (
-                              <span className="text-xs font-medium text-primary border border-primary/40 rounded px-1 py-0 leading-tight">Reusable</span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="grant-note">{t('plugins.fieldNote') || "Note"} (optional)</Label>
-                <Input
-                  id="grant-note"
-                  value={grantNote}
-                  onChange={(e) => setGrantNote(e.target.value)}
-                  placeholder="Why this grant..."
-                />
-              </div>
-              <Button onClick={handleGrant} disabled={granting || !grantGameId.trim() || !grantPluginId}>
-                {granting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                {t('plugins.grantToGame') || "Grant"}
-              </Button>
+            <CardContent>
+              <Popover open={gameSearchOpen} onOpenChange={setGameSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={gameSearchOpen}
+                    className="w-full justify-between font-normal"
+                    disabled={loadingGames}
+                  >
+                    {loadingGames
+                      ? "Loading games..."
+                      : selectedGame
+                        ? selectedGame.name
+                        : "Select a game to view details and manage plugins..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search games..." />
+                    <CommandList>
+                      <CommandEmpty>No games found.</CommandEmpty>
+                      <CommandGroup>
+                        {allGames.map((g) => (
+                          <CommandItem
+                            key={g.id}
+                            value={`${g.name} ${g.id}`}
+                            onSelect={() => selectGame(g)}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${selectedGame?.id === g.id ? "opacity-100" : "opacity-0"}`} />
+                            <span className="truncate">{g.name}</span>
+                            <span className="ml-auto text-xs text-muted-foreground font-mono truncate max-w-[120px]">{g.id}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </CardContent>
           </Card>
 
-          {/* View grants for a game */}
-          <Card>
-            <CardHeader>
-              <CardTitle>View Game Grants</CardTitle>
-              <CardDescription>Look up all plugin grants for a specific game.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  value={viewGrantsGameId}
-                  onChange={(e) => setViewGrantsGameId(e.target.value)}
-                  placeholder="Game ID..."
-                  onKeyDown={(e) => e.key === "Enter" && handleViewGrants()}
-                />
-                <Button onClick={handleViewGrants} disabled={loadingGrants || !viewGrantsGameId.trim()}>
-                  {loadingGrants ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Look up
-                </Button>
-              </div>
-
-              {grants.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Plugin</TableHead>
-                      <TableHead>Note</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {grants.map((g) => (
-                      <TableRow key={g.grant.id}>
-                        <TableCell className="font-medium">
-                          {plugins.find((p) => p.id === g.grant.plugin_id)?.display_name ?? g.grant.plugin_id}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{g.grant.note ?? "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={!g.grant.is_revoked ? "default" : "secondary"}>
-                            {g.grant.is_revoked ? "revoked" : "active"}
+          {/* Game detail panel */}
+          {selectedGame && (
+            <>
+              {loadingGameDetail ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+                  </div>
+                  <div className="lg:col-span-2 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                  {/* Left: Game info + Limits */}
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Game Info</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
+                        <div>
+                          <p className="text-muted-foreground text-xs uppercase tracking-wide mb-0.5">Name</p>
+                          <p className="font-medium">{selectedGame.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs uppercase tracking-wide mb-0.5">ID</p>
+                          <div className="flex items-center gap-1 font-mono text-xs break-all">
+                            {selectedGame.id}
+                            <CopyButton text={selectedGame.id} />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs uppercase tracking-wide mb-0.5">Studio</p>
+                          <p>{selectedGame.studio_name ?? selectedGame.studio_id}</p>
+                        </div>
+                        <div>
+                          <Badge variant={selectedGame.is_active ? "default" : "secondary"}>
+                            {selectedGame.is_active ? "Active" : "Inactive"}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {g.grant.expires_at
-                            ? formatISODate(g.grant.expires_at)
-                            : "Permanent"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {!g.grant.is_revoked && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setRevokeTarget({ gameId: viewGrantsGameId, grant: g })}
-                            >
-                              <XCircle className="h-4 w-4 text-destructive" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {gameLimits && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-base">Limits</CardTitle>
+                            <Button size="sm" variant="outline" onClick={handleRecalculate} disabled={recalcing}>
+                              {recalcing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+                              Recalculate
                             </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm">
+                          {([
+                            { label: "Max CCU", value: gameLimits.limits?.max_concurrent_users, usage: gameLimits.usage?.concurrent_users },
+                            { label: "Max Profiles", value: gameLimits.limits?.max_player_profiles, usage: gameLimits.usage?.player_profiles },
+                            { label: "Max Items", value: gameLimits.limits?.max_items },
+                            { label: "Max Shops", value: gameLimits.limits?.max_shops },
+                          ] as { label: string; value?: number | null; usage?: number | null }[]).map(({ label, value, usage }) => (
+                            <div key={label} className="flex items-center justify-between">
+                              <span className="text-muted-foreground">{label}</span>
+                              <span className="font-mono font-medium">
+                                {usage != null ? `${usage} / ` : ""}{value ?? "∞"}
+                              </span>
+                            </div>
+                          ))}
+
+                          {/* Recalculate result inline */}
+                          {recalcResult && (
+                            <div className="border-t border-border/60 pt-3 mt-1 space-y-3">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Recalculate Result</p>
+
+                              {/* Totals */}
+                              <div className="grid grid-cols-5 gap-1 text-center">
+                                {([
+                                  { icon: "👥", label: "CCU", val: recalcResult.totals.max_concurrent_users },
+                                  { icon: "👤", label: "Profiles", val: recalcResult.totals.max_player_profiles },
+                                  { icon: "📦", label: "Items", val: recalcResult.totals.max_items },
+                                  { icon: "🏪", label: "Shops", val: recalcResult.totals.max_shops },
+                                  { icon: "📜", label: "Quests", val: recalcResult.totals.max_quests },
+                                ]).map((r) => (
+                                  <div key={r.label} className="rounded-md bg-muted/60 px-1 py-1.5">
+                                    <p className="text-xs">{r.icon}</p>
+                                    <p className="font-bold tabular-nums text-xs">{r.val.toLocaleString()}</p>
+                                    <p className="text-[9px] text-muted-foreground">{r.label}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Subscriptions */}
+                              <div className="space-y-1">
+                                {recalcResult.subscriptions.map((sub) => {
+                                  const isActive = sub.status === "active"
+                                  const isRevoked = sub.status === "revoked"
+                                  return (
+                                    <div
+                                      key={sub.subscription_id}
+                                      className={`rounded-md border px-2 py-1.5 text-xs ${isRevoked ? "opacity-40" : isActive ? "border-green-500/20 bg-green-500/5" : "border-orange-500/20 bg-orange-500/5"}`}
+                                    >
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          <span className="font-medium truncate">{sub.display_name}</span>
+                                          <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded-full border ${
+                                            isActive ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                                            isRevoked ? "bg-muted text-muted-foreground border-border" :
+                                            "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                                          }`}>{sub.status}</span>
+                                          <span className="text-muted-foreground">×{sub.stack_count}</span>
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-5 gap-1 text-center">
+                                        {([
+                                          { label: "CCU", val: sub.contribution.max_concurrent_users },
+                                          { label: "Profiles", val: sub.contribution.max_player_profiles },
+                                          { label: "Items", val: sub.contribution.max_items },
+                                          { label: "Shops", val: sub.contribution.max_shops },
+                                          { label: "Quests", val: sub.contribution.max_quests },
+                                        ]).map((r) => (
+                                          <div key={r.label}>
+                                            <p className={`font-semibold tabular-nums ${r.val > 0 && isActive ? "text-green-400" : "text-muted-foreground"}`}>
+                                              {r.val > 0 ? `+${r.val.toLocaleString()}` : "—"}
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground">{r.label}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Right: Plugins */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">Plugins</CardTitle>
+                          <CardDescription className="text-xs mt-0.5">Plugin grants for this game</CardDescription>
+                        </div>
+                        {!showAddPlugin && (
+                          <Button size="sm" onClick={() => setShowAddPlugin(true)}>
+                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                            Add Plugin
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Add plugin inline form */}
+                      {showAddPlugin && (
+                        <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                          <p className="text-sm font-medium">Grant Plugin</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Plugin</Label>
+                              <Select value={addPluginId} onValueChange={setAddPluginId}>
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Select plugin..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {plugins.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                      <span className="flex items-center gap-2">
+                                        {p.display_name}
+                                        {p.is_template && (
+                                          <span className="text-xs font-medium text-primary border border-primary/40 rounded px-1 py-0 leading-tight">Reusable</span>
+                                        )}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Note (optional)</Label>
+                              <Input
+                                className="h-8"
+                                value={addPluginNote}
+                                onChange={(e) => setAddPluginNote(e.target.value)}
+                                placeholder="e.g. special deal"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleAddPlugin} disabled={addingPlugin || !addPluginId}>
+                              {addingPlugin && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                              Grant
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setShowAddPlugin(false); setAddPluginId(""); setAddPluginNote("") }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {gameGrants.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No plugins granted to this game yet.</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-6" />
+                              <TableHead>Plugin</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Stack</TableHead>
+                              <TableHead>Expires</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {gameGrants.map((g) => {
+                              const expanded = expandedGrantId === g.grant.id
+                              const pluginDef = plugins.find((p) => p.id === g.grant.plugin_id)
+                              const pluginName = pluginDef?.display_name
+                              const now = new Date()
+                              const cancelledAt = g.grant.cancelled_at ? new Date(g.grant.cancelled_at) : null
+                              const revokedAt = g.grant.revoked_at ? new Date(g.grant.revoked_at) : null
+                              // cancelled_at set on an otherwise-active grant = subscription won't renew / will end
+                              const isCancelPending = !g.grant.is_revoked && !!cancelledAt
+                              const cancelIsFuture = isCancelPending && cancelledAt! > now
+                              // revoked_at set but is_revoked still false = revoke scheduled in the future
+                              const isRevokePending = !g.grant.is_revoked && !!revokedAt && revokedAt > now
+                              return (
+                                <>
+                                  {/* Compact row */}
+                                  <TableRow
+                                    key={g.grant.id}
+                                    className={`cursor-pointer hover:bg-muted/50 ${isCancelPending || isRevokePending ? "bg-orange-500/5" : ""}`}
+                                    onClick={() => setExpandedGrantId(expanded ? null : g.grant.id)}
+                                  >
+                                    <TableCell className="pr-0">
+                                      {expanded
+                                        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    </TableCell>
+                                    <TableCell className="font-medium text-sm">
+                                      {pluginName ?? <span className="font-mono text-xs text-muted-foreground">{g.grant.plugin_id}</span>}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-col gap-1 items-start">
+                                        <Badge variant={!g.grant.is_revoked ? "default" : "secondary"}>
+                                          {g.grant.is_revoked ? "revoked" : "active"}
+                                        </Badge>
+                                        {isCancelPending && (
+                                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 whitespace-nowrap">
+                                            {cancelIsFuture ? `cancels ${timeAgo(g.grant.cancelled_at!)}` : "cancelled"}
+                                          </span>
+                                        )}
+                                        {isRevokePending && (
+                                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 whitespace-nowrap">
+                                            revoke {timeAgo(g.grant.revoked_at!)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm">{g.grant.stack_count}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                      <div className="flex flex-col gap-0.5">
+                                        <span>{g.grant.expires_at ? formatISODate(g.grant.expires_at) : "Permanent"}</span>
+                                        {g.grant.expires_at && <span className="text-[10px] text-muted-foreground/60">{timeAgo(g.grant.expires_at)}</span>}
+                                        {isRevokePending && (
+                                          <span className="text-red-400">revoke: {formatISODate(g.grant.revoked_at!)}</span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                      {!g.grant.is_revoked && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => setRevokeTarget({ grant: g })}
+                                        >
+                                          <XCircle className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                  {/* Expanded detail row */}
+                                  {expanded && (
+                                    <TableRow key={`${g.grant.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                                      <TableCell />
+                                      <TableCell colSpan={5} className="py-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-xs">
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Grant ID</p>
+                                            <div className="flex items-center gap-1 font-mono break-all">{g.grant.id}<CopyButton text={g.grant.id} /></div>
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Plugin ID</p>
+                                            <div className="flex items-center gap-1 font-mono break-all">{g.grant.plugin_id}<CopyButton text={g.grant.plugin_id} /></div>
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Stack</p>
+                                            <p>{g.grant.stack_count}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Coins/month</p>
+                                            <p>{g.grant.coins_per_month}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Activated At</p>
+                                            {g.grant.activated_at ? (<><p>{formatISODate(g.grant.activated_at)}</p><p className="text-muted-foreground/70 text-[10px]">{timeAgo(g.grant.activated_at)}</p></>) : <p>—</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Renewed At</p>
+                                            {g.grant.renewed_at ? (<><p>{formatISODate(g.grant.renewed_at)}</p><p className="text-muted-foreground/70 text-[10px]">{timeAgo(g.grant.renewed_at)}</p></>) : <p>—</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Expires At</p>
+                                            {g.grant.expires_at ? (<><p>{formatISODate(g.grant.expires_at)}</p><p className="text-muted-foreground/70 text-[10px]">{timeAgo(g.grant.expires_at)}</p></>) : <p>Permanent</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Cancelled At</p>
+                                            {g.grant.cancelled_at ? (
+                                              <>
+                                                <p className={cancelledAt && cancelledAt > now ? "text-orange-400 font-semibold" : "text-orange-300"}>
+                                                  {formatISODate(g.grant.cancelled_at)}
+                                                </p>
+                                                <p className={`text-[10px] ${cancelledAt && cancelledAt > now ? "text-orange-400/70" : "text-muted-foreground/70"}`}>{timeAgo(g.grant.cancelled_at)}</p>
+                                              </>
+                                            ) : <p>—</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Revoked At</p>
+                                            {g.grant.revoked_at ? (
+                                              <>
+                                                <p className={revokedAt && revokedAt > now ? "text-red-400 font-semibold" : "text-muted-foreground"}>
+                                                  {formatISODate(g.grant.revoked_at)}
+                                                </p>
+                                                <p className={`text-[10px] ${revokedAt && revokedAt > now ? "text-red-400/70" : "text-muted-foreground/70"}`}>{timeAgo(g.grant.revoked_at)}</p>
+                                              </>
+                                            ) : <p>—</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Activated By</p>
+                                            {g.grant.activated_by
+                                              ? <div className="flex items-center gap-1 font-mono">{g.grant.activated_by.slice(0, 8)}…<CopyButton text={g.grant.activated_by} /></div>
+                                              : <p>—</p>}
+                                          </div>
+                                          <div>
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Revoked By</p>
+                                            {g.grant.revoked_by
+                                              ? <div className="flex items-center gap-1 font-mono">{g.grant.revoked_by.slice(0, 8)}…<CopyButton text={g.grant.revoked_by} /></div>
+                                              : <p>—</p>}
+                                          </div>
+                                          <div className="col-span-2">
+                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Note</p>
+                                            <p>{g.grant.note || "—"}</p>
+                                          </div>
+                                          {pluginDef && (
+                                            <div className="col-span-2 md:col-span-3 border-t border-border/40 pt-2 mt-1">
+                                              <p className="text-muted-foreground uppercase tracking-wide mb-1.5">Grants (per stack × {g.grant.stack_count})</p>
+                                              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                                                {([
+                                                  { icon: "👥", label: "CCU", val: pluginDef.ccu_grant },
+                                                  { icon: "👤", label: "Profiles", val: pluginDef.profiles_grant },
+                                                  { icon: "📦", label: "Items", val: pluginDef.items_grant },
+                                                  { icon: "🏪", label: "Shops", val: pluginDef.shops_grant },
+                                                  { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
+                                                ] as { icon: string; label: string; val: number }[])
+                                                  .filter((r) => r.val > 0)
+                                                  .map((r) => (
+                                                    <div key={r.label} className="flex items-center gap-1">
+                                                      <span>{r.icon}</span>
+                                                      <span className="text-muted-foreground">{r.label}:</span>
+                                                      <span className="font-semibold">+{r.val.toLocaleString()}</span>
+                                                      {g.grant.stack_count > 1 && (
+                                                        <span className="text-green-400 font-bold">= +{(r.val * g.grant.stack_count).toLocaleString()} total</span>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               )}
-            </CardContent>
-          </Card>
-          </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -736,6 +1135,8 @@ export default function AdminPluginsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+
     </div>
   )
 }

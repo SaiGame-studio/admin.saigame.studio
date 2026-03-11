@@ -57,6 +57,7 @@ export interface GamePluginsResult {
     subscription: GamePluginSubscription
     plugin: Plugin
     is_cancelled: boolean
+    status?: string
   }>
   effective_limits: EffectiveLimits
   pending_limits?: EffectiveLimits | null

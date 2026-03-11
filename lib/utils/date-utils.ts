@@ -104,6 +104,41 @@ export function fromUserDatetime(localDt: string): string {
 }
 
 /**
+ * Returns a short relative time string: "3 minutes ago", "in 2 days", etc.
+ */
+export function timeAgo(date: Date | string | null | undefined): string {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) return ''
+  const diffMs = d.getTime() - Date.now()
+  const abs = Math.abs(diffMs)
+  const isFuture = diffMs > 0
+
+  let str: string
+  if (abs < 60_000) {
+    str = 'just now'
+  } else if (abs < 3_600_000) {
+    const m = Math.round(abs / 60_000)
+    str = `${m} minute${m !== 1 ? 's' : ''}`
+  } else if (abs < 86_400_000) {
+    const h = Math.round(abs / 3_600_000)
+    str = `${h} hour${h !== 1 ? 's' : ''}`
+  } else if (abs < 30 * 86_400_000) {
+    const days = Math.round(abs / 86_400_000)
+    str = `${days} day${days !== 1 ? 's' : ''}`
+  } else if (abs < 365 * 86_400_000) {
+    const mo = Math.round(abs / (30 * 86_400_000))
+    str = `${mo} month${mo !== 1 ? 's' : ''}`
+  } else {
+    const y = Math.round(abs / (365 * 86_400_000))
+    str = `${y} year${y !== 1 ? 's' : ''}`
+  }
+
+  if (str === 'just now') return str
+  return isFuture ? `in ${str}` : `${str} ago`
+}
+
+/**
  * Returns the current hour (0-23) in the user's timezone.
  */
 export function getUserLocalHour(): number {

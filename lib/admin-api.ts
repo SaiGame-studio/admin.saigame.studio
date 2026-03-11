@@ -204,8 +204,37 @@ export async function updateGameLimits(
   return await api.put(`/api/v1/admin/games/${gameId}/limits`, { limits })
 }
 
-// ---------------------------------------------------------------------------
-// Gift Codes
+export interface RecalcLimitSet {
+  max_concurrent_users: number
+  max_items: number
+  max_player_profiles: number
+  max_quests: number
+  max_shops: number
+}
+
+export interface RecalcSubscription {
+  subscription_id: string
+  plugin_id: string
+  display_name: string
+  status: string
+  stack_count: number
+  contribution: RecalcLimitSet
+}
+
+export interface RecalcResult {
+  game_id: string
+  base: RecalcLimitSet
+  subscriptions: RecalcSubscription[]
+  overrides: Record<string, unknown>
+  totals: RecalcLimitSet
+}
+
+/**
+ * Recalculate game limits from subscriptions (super admin only)
+ */
+export async function recalculateGameLimits(gameId: string): Promise<RecalcResult> {
+  return await api.post(`/api/v1/admin/games/${gameId}/limits/recalculate`, {})
+}
 // ---------------------------------------------------------------------------
 
 export interface GiftCode {
