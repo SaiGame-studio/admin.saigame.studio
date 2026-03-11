@@ -5,9 +5,9 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
-  BadgeDollarSign,
   BarChart2,
   Check,
+  ChevronDown,
   Loader2,
   Plus,
   RefreshCw,
@@ -32,6 +32,7 @@ import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,6 +128,26 @@ function formatNumber(n: number): string {
   return String(n)
 }
 
+function timeAgo(date: Date): string {
+  const diffMs = Date.now() - date.getTime()
+  const isFuture = diffMs < 0
+  const abs = Math.abs(diffMs)
+  const secs = Math.floor(abs / 1000)
+  const mins = Math.floor(secs / 60)
+  const hours = Math.floor(mins / 60)
+  const days = Math.floor(hours / 24)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
+  let rel: string
+  if (secs < 60) rel = `${secs}s`
+  else if (mins < 60) rel = `${mins}m`
+  else if (hours < 24) rel = `${hours}h`
+  else if (days < 30) rel = `${days}d`
+  else if (months < 12) rel = `${months}mo`
+  else rel = `${years}y`
+  return isFuture ? `in ${rel}` : `${rel} ago`
+}
+
 function ExpiryBadge({ expiresAt }: { expiresAt?: string | null }) {
   const { t } = useTranslation()
   if (!expiresAt) return <span className="text-xs text-muted-foreground">{t('plugins.permanent')}</span>
@@ -218,6 +239,7 @@ export default function GamePluginsPage() {
 
   const [unsubTarget, setUnsubTarget] = useState<{ plugin: Plugin; idx: number } | null>(null)
   const [unsubbing, setUnsubbing] = useState<string | null>(null)
+  const [expandedSubId, setExpandedSubId] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -430,43 +452,84 @@ export default function GamePluginsPage() {
 
           {/* Stats row */}
           {game && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
-              {([
-                { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥" },
-                { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤" },
-                { label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦" },
-                { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪" },
-                { label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜" },
-              ] as { label: string; max: number | null; reduction?: number; used: number | undefined; icon: string }[]).map((row) => {
-                const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
-                const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
-                const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
-                return (
-                  <div key={row.label} className="rounded-xl bg-muted/40 px-3 py-2">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-sm">{row.icon}</span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{row.label}</span>
-                    </div>
-                    <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
-                      {row.used != null ? (
-                        <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
-                      ) : (row.max != null ? formatNumber(row.max) : '∞')}
-                      {hasPending && (
-                        <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - (row.reduction ?? 0))} {t('plugins.materia.afterExpiry')}</span>
+            <TooltipProvider delayDuration={200}>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
+                {([
+                  { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
+                  { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
+                  { label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
+                  { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
+                  { label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
+                ] as { label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]).map((row) => {
+                  const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
+                  const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
+                  const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
+                  const contributions = activeSubs_
+                    .map(({ subscription, plugin, is_cancelled }) => ({
+                      name: plugin.display_name,
+                      stacks: subscription.stack_count,
+                      amount: row.grantField(plugin) * (subscription.stack_count ?? 0),
+                      isCancelled: is_cancelled,
+                    }))
+                    .filter(c => c.amount > 0)
+                  const totalFromPlugins = contributions.reduce((s, c) => s + c.amount, 0)
+                  const base = Math.max(0, (row.max ?? 0) - totalFromPlugins)
+                  return (
+                    <Tooltip key={row.label}>
+                      <TooltipTrigger asChild>
+                        <div className="rounded-xl bg-muted/40 px-3 py-2 cursor-default">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-sm">{row.icon}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{row.label}</span>
+                          </div>
+                          <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
+                            {row.used != null ? (
+                              <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
+                            ) : (row.max != null ? formatNumber(row.max) : '∞')}
+                            {hasPending && (
+                              <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - (row.reduction ?? 0))} {t('plugins.materia.afterExpiry')}</span>
+                            )}
+                          </p>
+                          {pct != null && (
+                            <div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      {(contributions.length > 0 || base > 0) && (
+                        <TooltipContent side="bottom" className="p-0 overflow-hidden min-w-[200px]">
+                          <div className="px-3 py-2 bg-muted/60 border-b border-border/60">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{row.label} breakdown</p>
+                          </div>
+                          <div className="px-3 py-2 space-y-1">
+                            {base > 0 && (
+                              <div className="flex items-center justify-between gap-6 text-xs">
+                                <span className="text-muted-foreground">Base</span>
+                                <span className="font-semibold tabular-nums">+{formatNumber(base)}</span>
+                              </div>
+                            )}
+                            {contributions.map((c, ci) => (
+                              <div key={ci} className={`flex items-center justify-between gap-6 text-xs ${c.isCancelled ? "opacity-50" : ""}`}>
+                                <span className={c.isCancelled ? "line-through text-muted-foreground" : ""}>{c.name} <span className="text-muted-foreground">×{c.stacks}</span></span>
+                                <span className="font-semibold tabular-nums text-green-400">+{formatNumber(c.amount)}</span>
+                              </div>
+                            ))}
+                            <div className="border-t border-border/60 pt-1 flex items-center justify-between gap-6 text-xs">
+                              <span className="text-muted-foreground font-semibold">Total</span>
+                              <span className="font-bold tabular-nums">{row.max != null ? formatNumber(row.max) : '∞'}</span>
+                            </div>
+                          </div>
+                        </TooltipContent>
                       )}
-                    </p>
-                    {pct != null && (
-                      <div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            </TooltipProvider>
           )}
         </div>
       </div>
@@ -622,38 +685,6 @@ export default function GamePluginsPage() {
         )}
       </div>
 
-      {/* Admin custom grants */}
-      {subs.some((s) => s.plugin.plugin_type === "custom") && (
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <BadgeDollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.adminGrants')}</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="space-y-2">
-            {subs.filter((s) => s.plugin.plugin_type === "custom").map(({ subscription, plugin }) => (
-              <div key={subscription.id} className="flex items-center justify-between rounded-xl border px-4 py-3 bg-muted/30">
-                <div>
-                  <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded-full">{t('plugins.materia.customBadge')}</span>
-                    <span className="font-medium text-sm">{plugin.display_name}</span>
-                  </div>
-                  {subscription.note?.trim() && <p className="text-xs text-muted-foreground mt-0.5">{subscription.note}</p>}
-                  <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                    {plugin.ccu_grant > 0 && <span>+{formatNumber(plugin.ccu_grant)} CCU</span>}
-                    {plugin.profiles_grant > 0 && <span>+{formatNumber(plugin.profiles_grant)} profiles</span>}
-                    {plugin.items_grant > 0 && <span>+{formatNumber(plugin.items_grant)} items</span>}
-                    {plugin.shops_grant > 0 && <span>+{plugin.shops_grant} shops</span>}
-                    {(plugin.quests_grant ?? 0) > 0 && <span>+{formatNumber(plugin.quests_grant)} quests</span>}
-                  </div>
-                </div>
-                <ExpiryBadge expiresAt={subscription.expires_at} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ──────────────────────────────────────────
           ACTIVE SUBSCRIPTIONS LIST
          ────────────────────────────────────────── */}
@@ -666,78 +697,242 @@ export default function GamePluginsPage() {
             <span className="text-[10px] text-muted-foreground">{activeSubs_.length} {t('plugins.activeSubscriptions').toLowerCase()}</span>
           </div>
           <div className="space-y-2">
-            {activeSubs_.map(({ subscription, plugin, is_cancelled }, i) => {
+            {activeSubs_.map(({ subscription, plugin, is_cancelled, status }, i) => {
               const isExpired = subscription.expires_at ? new Date(subscription.expires_at) < new Date() : false
               const isRevoked = subscription.is_revoked
               const isCancelled = is_cancelled
               const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
               const activatedAt = new Date(subscription.activated_at)
               const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
+              const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null
+              const renewedAt = new Date(subscription.renewed_at)
               const daysLeft = expiresAt
                 ? Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000)
                 : null
+              const isExpanded = expandedSubId === subscription.id
 
               return (
                 <div
                   key={subscription.id}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 gap-4 ${
-                    isCancelled ? "bg-orange-500/5 border-orange-500/20" : isExpired ? "bg-muted/20 opacity-60" : "bg-card"
+                  className={`rounded-xl border overflow-hidden ${
+                    isCancelled ? "border-orange-500/20" : isExpired ? "border-border/50" : "border-border"
                   }`}
                 >
-                  {/* Left: index + plugin name */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">{plugin.display_name}</span>
-                        {isCancelled && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
-                        )}
-                        {!isCancelled && isExpired && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>
-                        )}
-                        {subscription.coins_per_month > 0 && (
-                          <span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
-                        <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                        {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
-                        {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
+                  {/* Row header — clickable */}
+                  <div
+                    className={`flex items-center justify-between px-4 py-3 gap-4 cursor-pointer select-none transition-colors hover:bg-muted/40 ${
+                      isCancelled ? "bg-orange-500/5" : isExpired ? "bg-muted/20 opacity-60" : "bg-card"
+                    }`}
+                    onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}
+                  >
+                    {/* Left: index + plugin name */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{plugin.display_name}</span>
+                          {plugin.plugin_type === "custom" && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>
+                          )}
+                          {isCancelled && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
+                          )}
+                          {!isCancelled && isExpired && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>
+                          )}
+                          {subscription.coins_per_month > 0 && (
+                            <span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
+                          <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                          {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                          {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Right: expiry info */}
-                  <div className="text-right shrink-0">
-                    {isCancelled ? (
-                      <>
-                        <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
-                        {expiresAt && (
+                    {/* Right: expiry info + chevron */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        {isCancelled ? (
                           <>
-                            <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                            <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
+                            {expiresAt && (
+                              <>
+                                <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                                  {isExpired
+                                    ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
+                                    : `${daysLeft}${t('plugins.materia.daysLeft')}`}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                              </>
+                            )}
+                          </>
+                        ) : expiresAt ? (
+                          <>
+                            <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
                               {isExpired
                                 ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
                                 : `${daysLeft}${t('plugins.materia.daysLeft')}`}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                           </>
+                        ) : (
+                          <p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>
                         )}
-                      </>
-                    ) : expiresAt ? (
-                      <>
-                        <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
-                          {isExpired
-                            ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
-                            : `${daysLeft}${t('plugins.materia.daysLeft')}`}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>
-                    )}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                    </div>
                   </div>
+
+                  {/* Expanded detail panel */}
+                  {isExpanded && (
+                    <div className="border-t border-border/60 bg-muted/20 px-5 py-4 space-y-4">
+                      {/* Subscription details */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Subscription</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">ID</span>
+                            <span className="font-mono text-[10px] break-all">{subscription.id}</span>
+                            <CopyButton text={subscription.id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Plugin ID</span>
+                            <span className="font-mono text-[10px] break-all">{subscription.plugin_id}</span>
+                            <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
+                            <span className="font-semibold">{subscription.stack_count}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
+                            <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Status</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${
+                              status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                              status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                              status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
+                              "bg-muted text-muted-foreground border-border"
+                            }`}>{status ?? "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Activated by</span>
+                            <span className="font-mono text-[10px]">{subscription.activated_by.slice(0, 8)}…</span>
+                            <CopyButton text={subscription.activated_by} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Activated at</span>
+                            <span>{activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(activatedAt)}</span></span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Renewed at</span>
+                            <span>{renewedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(renewedAt)}</span></span>
+                          </div>
+                          {expiresAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Expires at</span>
+                              <span className={isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-500" : ""}>{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(expiresAt)}</span></span>
+                            </div>
+                          )}
+                          {cancelledAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Cancelled at</span>
+                              <span className="text-orange-400">{cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(cancelledAt)}</span></span>
+                            </div>
+                          )}
+                          {revokedAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Revoked at</span>
+                              <span className="text-destructive">{revokedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(revokedAt)}</span></span>
+                            </div>
+                          )}
+                          {subscription.revoked_by && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Revoked by</span>
+                              <span className="font-mono text-[10px]">{subscription.revoked_by.slice(0, 8)}…</span>
+                              <CopyButton text={subscription.revoked_by} size="h-3 w-3" />
+                            </div>
+                          )}
+                          {subscription.note?.trim() && (
+                            <div className="flex items-center gap-1.5 col-span-2">
+                              <span className="text-muted-foreground w-28 shrink-0">Note</span>
+                              <span className="italic">{subscription.note}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Plugin details */}
+                      <div className="border-t border-border/40 pt-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Plugin</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">ID</span>
+                            <span className="font-mono text-[10px] break-all">{plugin.id}</span>
+                            <CopyButton text={plugin.id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Type</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${plugin.plugin_type === "standard" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" : "bg-muted text-muted-foreground border-border"}`}>{plugin.plugin_type}</span>
+                          </div>
+                          {plugin.description?.trim() && (
+                            <div className="flex items-start gap-1.5 col-span-2">
+                              <span className="text-muted-foreground w-28 shrink-0">Description</span>
+                              <span>{plugin.description}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">CCU grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.ccu_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Profiles grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.profiles_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Items grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.items_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Shops grant</span>
+                            <span className="font-semibold">+{plugin.shops_grant}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Quests grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
+                            <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
+                            <span className="font-semibold">{plugin.max_stacks || "∞"}</span>
+                          </div>
+                          {plugin.is_template !== undefined && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Is template</span>
+                              <span className="font-semibold">{plugin.is_template ? "Yes" : "No"}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Created at</span>
+                            <span>{new Date(plugin.created_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.created_at))}</span></span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Updated at</span>
+                            <span>{new Date(plugin.updated_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.updated_at))}</span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -757,48 +952,210 @@ export default function GamePluginsPage() {
             <span className="text-[10px] text-muted-foreground">{historySubs.length}</span>
           </div>
           <div className="space-y-2">
-            {historySubs.map(({ subscription, plugin, is_cancelled }, i) => {
+            {historySubs.map(({ subscription, plugin, is_cancelled, status }, i) => {
               const isRevoked = subscription.is_revoked
               const isCancelled = is_cancelled
               const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
               const activatedAt = new Date(subscription.activated_at)
               const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
+              const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null
+              const renewedAt = new Date(subscription.renewed_at)
+              const isExpanded = expandedSubId === subscription.id
 
               return (
                 <div
                   key={subscription.id}
-                  className="flex items-center justify-between rounded-xl border px-4 py-3 gap-4 bg-muted/10 opacity-50 hover:opacity-80 transition-opacity"
+                  className="rounded-xl border border-border/50 overflow-hidden"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm text-muted-foreground">{plugin.display_name}</span>
-                        {isCancelled && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
-                        )}
-                        {isRevoked && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
-                        )}
-                        {subscription.coins_per_month > 0 && (
-                          <span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
-                        <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                        {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
-                        {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
+                  {/* Row header — clickable */}
+                  <div
+                    className="flex items-center justify-between px-4 py-3 gap-4 bg-muted/10 opacity-50 hover:opacity-80 transition-opacity cursor-pointer select-none hover:bg-muted/30"
+                    onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-muted-foreground">{plugin.display_name}</span>
+                          {plugin.plugin_type === "custom" && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>
+                          )}
+                          {isCancelled && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
+                          )}
+                          {isRevoked && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
+                          )}
+                          {subscription.coins_per_month > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
+                          <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                          {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                          {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        {expiresAt ? (
+                          <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}</p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground">{t('plugins.permanent')}</p>
+                        )}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    {expiresAt ? (
-                      <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}</p>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground">{t('plugins.permanent')}</p>
-                    )}
-                  </div>
+
+                  {/* Expanded detail panel */}
+                  {isExpanded && (
+                    <div className="border-t border-border/40 bg-muted/10 px-5 py-4 space-y-4">
+                      {/* Subscription details */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Subscription</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">ID</span>
+                            <span className="font-mono text-[10px] break-all">{subscription.id}</span>
+                            <CopyButton text={subscription.id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Plugin ID</span>
+                            <span className="font-mono text-[10px] break-all">{subscription.plugin_id}</span>
+                            <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
+                            <span className="font-semibold">{subscription.stack_count}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
+                            <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Status</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${
+                              status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                              status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                              status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
+                              "bg-muted text-muted-foreground border-border"
+                            }`}>{status ?? "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Activated by</span>
+                            <span className="font-mono text-[10px]">{subscription.activated_by.slice(0, 8)}…</span>
+                            <CopyButton text={subscription.activated_by} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Activated at</span>
+                            <span>{activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(activatedAt)}</span></span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Renewed at</span>
+                            <span>{renewedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(renewedAt)}</span></span>
+                          </div>
+                          {expiresAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Expires at</span>
+                              <span>{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(expiresAt)}</span></span>
+                            </div>
+                          )}
+                          {cancelledAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Cancelled at</span>
+                              <span className="text-orange-400">{cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(cancelledAt)}</span></span>
+                            </div>
+                          )}
+                          {revokedAt && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Revoked at</span>
+                              <span className="text-destructive">{revokedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(revokedAt)}</span></span>
+                            </div>
+                          )}
+                          {subscription.revoked_by && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Revoked by</span>
+                              <span className="font-mono text-[10px]">{subscription.revoked_by.slice(0, 8)}…</span>
+                              <CopyButton text={subscription.revoked_by} size="h-3 w-3" />
+                            </div>
+                          )}
+                          {subscription.note?.trim() && (
+                            <div className="flex items-center gap-1.5 col-span-2">
+                              <span className="text-muted-foreground w-28 shrink-0">Note</span>
+                              <span className="italic">{subscription.note}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Plugin details */}
+                      <div className="border-t border-border/40 pt-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Plugin</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">ID</span>
+                            <span className="font-mono text-[10px] break-all">{plugin.id}</span>
+                            <CopyButton text={plugin.id} size="h-3 w-3" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Type</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${plugin.plugin_type === "standard" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" : "bg-muted text-muted-foreground border-border"}`}>{plugin.plugin_type}</span>
+                          </div>
+                          {plugin.description?.trim() && (
+                            <div className="flex items-start gap-1.5 col-span-2">
+                              <span className="text-muted-foreground w-28 shrink-0">Description</span>
+                              <span>{plugin.description}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">CCU grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.ccu_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Profiles grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.profiles_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Items grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.items_grant)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Shops grant</span>
+                            <span className="font-semibold">+{plugin.shops_grant}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Quests grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
+                            <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
+                            <span className="font-semibold">{plugin.max_stacks || "∞"}</span>
+                          </div>
+                          {plugin.is_template !== undefined && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-28 shrink-0">Is template</span>
+                              <span className="font-semibold">{plugin.is_template ? "Yes" : "No"}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Created at</span>
+                            <span>{new Date(plugin.created_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.created_at))}</span></span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Updated at</span>
+                            <span>{new Date(plugin.updated_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.updated_at))}</span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
