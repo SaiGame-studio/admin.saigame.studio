@@ -3760,6 +3760,7 @@ export default function GameItemsPage() {
                       <TableHead>Item Code</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Rarity</TableHead>
+                      <TableHead>Tags</TableHead>
                       <TableHead>Stackable</TableHead>
                       <TableHead>Grid</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -3843,6 +3844,16 @@ export default function GameItemsPage() {
                           <RarityBadge rarity={item.rarity} />
                         </TableCell>
                         <TableCell>
+                          {item.tags && item.tags.length > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              <Tag className="h-3 w-3" />
+                              {item.tags.length}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {item.is_stackable ? (
                             <span className="text-green-500 text-sm font-medium">
                               ✓ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
@@ -3866,7 +3877,7 @@ export default function GameItemsPage() {
                       {/* Expanded detail row */}
                       {isExpanded && (
                         <TableRow className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={7} className="p-0">
+                          <TableCell colSpan={8} className="p-0">
                             <div className="px-6 py-4 space-y-4">
                               {/* Definition ID */}
                               <div className="flex items-center gap-2">
@@ -3920,6 +3931,29 @@ export default function GameItemsPage() {
                                         <span className="text-muted-foreground">{k}:</span>
                                         <span className="font-semibold">{String(v)}</span>
                                       </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Tags */}
+                              {item.tags && item.tags.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Tags</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {item.tags.map((tag) => (
+                                      <span
+                                        key={tag.tag_key}
+                                        className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                                        style={{
+                                          borderColor: tag.color ?? "#A855F7",
+                                          color: tag.color ?? "#A855F7",
+                                          background: `${tag.color ?? "#A855F7"}18`,
+                                        }}
+                                        title={tag.tag_key}
+                                      >
+                                        {tag.label || tag.tag_key}
+                                      </span>
                                     ))}
                                   </div>
                                 </div>
