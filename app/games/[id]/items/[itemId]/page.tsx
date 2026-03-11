@@ -174,6 +174,10 @@ export default function ItemDefinitionDetailPage() {
     if (tagActionLoading) return
     const alreadyAssigned = itemTagsList.some((t) => t.tag_key === tag.tag_key)
     if (alreadyAssigned) return
+    if (itemTagsList.length >= 20) {
+      toast({ variant: "destructive", title: "Tag limit reached", description: "Maximum 20 tags per item." })
+      return
+    }
     setTagActionLoading(tag.tag_key)
     try {
       const res = await assignTagsToItemDefinition({ gameId }, itemId, [tag.tag_key])
@@ -562,10 +566,15 @@ export default function ItemDefinitionDetailPage() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground flex items-center gap-1.5 shrink-0">
                   <Tag className="h-3 w-3" /> Tags
+                  {itemTagsList.length > 0 && (
+                    <span className={`text-[11px] font-mono ${itemTagsList.length >= 20 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {itemTagsList.length}/20
+                    </span>
+                  )}
                 </span>
                 <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen} modal>
                   <PopoverTrigger asChild>
-                    <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" disabled={tagsLoading}>
+                    <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" disabled={tagsLoading || itemTagsList.length >= 20}>
                       <Plus className="h-3 w-3" /> Add
                     </Button>
                   </PopoverTrigger>

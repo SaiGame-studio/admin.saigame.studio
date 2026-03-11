@@ -2525,6 +2525,7 @@ function TagsTab({
   const [form, setForm] = useState<{ tag_key: string; label: string; color: string; metadata: string }>({
     tag_key: "", label: "", color: "#A855F7", metadata: "{}",
   })
+  const [autoSlug, setAutoSlug] = useState(true)
   const [formErr, setFormErr] = useState<string | null>(null)
   const [search, setSearch] = useState("")
 
@@ -2547,6 +2548,7 @@ function TagsTab({
   function openCreate() {
     setEditingTag(null)
     setForm({ tag_key: "", label: "", color: "#A855F7", metadata: "{}" })
+    setAutoSlug(true)
     setFormErr(null)
     setSheetOpen(true)
   }
@@ -2560,13 +2562,28 @@ function TagsTab({
       color: tag.color ?? "#A855F7",
       metadata: tag.metadata ? JSON.stringify(tag.metadata, null, 2) : "{}",
     })
+    setAutoSlug(false)
     setFormErr(null)
     setSheetOpen(true)
   }
 
+  const TAG_KEY_RE = /^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]{1}$/
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setFormErr(null)
+
+    if (!editingTag) {
+      const key = form.tag_key
+      if (form.label.trim().length > 20) { setFormErr("Label must be at most 20 characters."); return }
+      if (key.length < 2) { setFormErr("Tag key must be at least 2 characters."); return }
+      if (key.length > 20) { setFormErr("Tag key must be at most 20 characters."); return }
+      if (!/^[a-z0-9][a-z0-9\-]*[a-z0-9]$/.test(key)) {
+        setFormErr("Tag key must start and end with a letter or number, and contain only lowercase letters, numbers, or hyphens (-)."); return
+      }
+      if (tags.length >= 50) { setFormErr("Maximum 50 tags per game reached."); return }
+    }
+
     let parsedMeta: Record<string, unknown> = {}
     try {
       parsedMeta = JSON.parse(form.metadata || "{}")
@@ -2634,7 +2651,9 @@ function TagsTab({
         <div>
           <h2 className="text-lg font-semibold">Item Tags</h2>
           <p className="text-sm text-muted-foreground">
-            {tags.length > 0 ? `${tags.length} tag${tags.length !== 1 ? "s" : ""} defined` : "No tags yet"}
+            {tags.length > 0
+              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 tags defined</span></>
+              : "No tags yet — max 50 per game"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -2659,7 +2678,7 @@ function TagsTab({
           <Button variant="outline" size="sm" onClick={fetchTags} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button size="sm" onClick={openCreate} disabled={tags.length >= 50}>
             <Plus className="h-3.5 w-3.5 mr-1" /> New Tag
           </Button>
         </div>
@@ -2674,7 +2693,7 @@ function TagsTab({
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
@@ -2698,12 +2717,33 @@ function TagsTab({
 
       {/* Tags grid */}
       {!loading && filtered.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filtered.map((tag) => (
             <Card key={tag.id} className="relative group">
+              {/* actions — top right */}
+              <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => openEdit(tag, e)}
+                  title="Edit"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); setDeletingTag(tag) }}
+                  title="Delete"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <CardContent className="pt-4 pb-4 px-4 space-y-2">
                 {/* Color swatch + label */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pr-16">
                   <span
                     className="inline-block h-4 w-4 rounded-full shrink-0 border border-black/10"
                     style={{ backgroundColor: tag.color }}
@@ -2723,25 +2763,6 @@ function TagsTab({
                     {JSON.stringify(tag.metadata)}
                   </p>
                 )}
-                {/* actions */}
-                <div className="flex items-center gap-1 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={(e) => openEdit(tag, e)}
-                  >
-                    <Pencil className="h-3 w-3 mr-1" /> Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs text-destructive hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); setDeletingTag(tag) }}
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" /> Delete
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           ))}
@@ -2758,29 +2779,93 @@ function TagsTab({
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSave} className="space-y-4 mt-4">
-            {!editingTag && (
-              <div className="space-y-1.5">
-                <Label htmlFor="tag_key">Tag Key <span className="text-destructive">*</span></Label>
-                <Input
-                  id="tag_key"
-                  placeholder="e.g. rare1"
-                  value={form.tag_key}
-                  onChange={(e) => setForm((f) => ({ ...f, tag_key: e.target.value }))}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">Unique, immutable key. Lowercase letters, numbers, underscores.</p>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
-              <Input
-                id="label"
-                placeholder="e.g. Rare"
-                value={form.label}
-                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                required
-              />
+            {/* Tag Key Rules info */}
+            <div className="rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
+              <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3" /> Tag Key Rules</p>
+              <ul className="space-y-0.5 pl-1">
+                <li>• Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
+                <li>• Lowercase letters, numbers and hyphens only — no spaces</li>
+                <li>• Must start and end with a letter or number</li>
+                <li>• Length: 2–20 characters</li>
+                <li>• <span className="text-amber-500 font-medium">Immutable</span> after creation — rename via the <em>Label</em> field</li>
+                <li>• Max <span className="font-medium">50 tags</span> per game · max <span className="font-medium">20 tags</span> per item</li>
+              </ul>
             </div>
+            {!editingTag && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="label"
+                    placeholder="e.g. Rare"
+                    value={form.label}
+                    maxLength={20}
+                    onChange={(e) => {
+                      const label = e.target.value
+                      setForm((f) => ({
+                        ...f,
+                        label,
+                        ...(autoSlug ? { tag_key: label.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "").replace(/^-+|-+$/g, "").slice(0, 20) } : {}),
+                      }))
+                    }}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tag_key">Tag Key <span className="text-destructive">*</span></Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="tag_key"
+                      placeholder="e.g. rare-starter"
+                      value={form.tag_key}
+                      maxLength={20}
+                      onChange={(e) => {
+                        setAutoSlug(false)
+                        setForm((f) => ({ ...f, tag_key: e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, "") }))
+                      }}
+                      required
+                      className="font-mono"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant={autoSlug ? "default" : "outline"}
+                      className="h-9 w-9 shrink-0"
+                      title={autoSlug ? "Auto-slug from label (on)" : "Auto-slug from label (off)"}
+                      onClick={() => setAutoSlug((v) => !v)}
+                    >
+                      <Wand2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{autoSlug ? <span className="text-primary">Auto-generating from label</span> : <span>Lowercase, only <code className="font-mono">a-z 0-9 -</code> allowed</span>}</span>
+                    <span className={form.tag_key.length > 18 ? "text-amber-500" : ""}>{form.tag_key.length}/20</span>
+                  </div>
+                </div>
+              </>
+            )}
+            {editingTag && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="label"
+                    placeholder="e.g. Rare"
+                    value={form.label}
+                    maxLength={20}
+                    onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tag Key</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono text-muted-foreground">{editingTag.tag_key}</code>
+                    <span className="text-[11px] text-amber-500 font-medium whitespace-nowrap">Immutable</span>
+                  </div>
+                </div>
+              </>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="color">Color</Label>
               <div className="flex items-center gap-2">
@@ -2798,18 +2883,6 @@ function TagsTab({
                   className="font-mono"
                 />
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="metadata">Metadata (JSON)</Label>
-              <textarea
-                id="metadata"
-                value={form.metadata}
-                onChange={(e) => setForm((f) => ({ ...f, metadata: e.target.value }))}
-                rows={5}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring resize-y"
-                placeholder="{}"
-              />
-              <p className="text-xs text-muted-foreground">Arbitrary JSON. Example: {"{"}"tier": 3, "glow": true{"}"}</p>
             </div>
             {formErr && (
               <p className="text-sm text-destructive">{formErr}</p>
