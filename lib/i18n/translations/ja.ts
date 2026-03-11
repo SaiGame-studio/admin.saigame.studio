@@ -766,7 +766,7 @@ export const ja = {
     fieldItemsGrant: "アイテム付与",
     fieldShopsGrant: "ショップ付与",
     fieldDurationDays: "有効期間（日）",
-    fieldIsTemplate: "テンプレート",
+    fieldIsTemplate: "Reusable",
     fieldNote: "メモ",
     fieldGameId: "ゲームID",
     fieldPluginId: "プラグイン",

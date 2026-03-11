@@ -51,6 +51,7 @@ export interface ListItemsParams {
   category?: ItemCategory
   rarity?: ItemRarity
   name?: string
+  tags?: string[]
 }
 
 /** GET /api/v1/games/:gameId/items — List item definitions with optional filtering */
@@ -64,6 +65,7 @@ export async function listItemDefinitions(
   if (params.category)         qs.set('category', params.category)
   if (params.rarity)           qs.set('rarity',   params.rarity)
   if (params.name)             qs.set('name',     params.name)
+  if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
 
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/items${query ? `?${query}` : ''}`)
@@ -312,4 +314,111 @@ export async function deleteEquipmentSlot(
   slotKey: string,
 ): Promise<void> {
   return api.delete(`/api/v1/games/${ctx.gameId}/equipment-slots/${slotKey}`)
+}
+
+// ─── Item Tags ────────────────────────────────────────────────────────────────
+
+export interface ItemTag {
+  id: string
+  studio_id: string
+  game_id: string
+  tag_key: string
+  label: string
+  color: string
+  metadata: Record<string, unknown>
+  created_by: string
+  created_at: string
+  updated_at: string
+  item_count: number
+}
+
+export interface ListItemTagsParams {
+  limit?: number
+  offset?: number
+}
+
+export interface CreateItemTagRequest {
+  tag_key: string
+  label: string
+  color?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateItemTagRequest {
+  label?: string
+  color?: string
+  metadata?: Record<string, unknown>
+}
+
+/** GET /api/v1/games/:gameId/item-tags */
+export async function listItemTags(
+  ctx: TenantCtx,
+  params: ListItemTagsParams = {},
+): Promise<{ tags: ItemTag[]; total: number; limit: number; offset: number }> {
+  const qs = new URLSearchParams()
+  if (params.limit  != null) qs.set('limit',  String(params.limit))
+  if (params.offset != null) qs.set('offset', String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${ctx.gameId}/item-tags${query ? `?${query}` : ''}`)
+}
+
+/** GET /api/v1/games/:gameId/item-tags/:tagId */
+export async function getItemTag(
+  ctx: TenantCtx,
+  tagId: string,
+): Promise<ItemTag> {
+  return api.get(`/api/v1/games/${ctx.gameId}/item-tags/${tagId}`)
+}
+
+/** POST /api/v1/games/:gameId/item-tags */
+export async function createItemTag(
+  ctx: TenantCtx,
+  body: CreateItemTagRequest,
+): Promise<ItemTag> {
+  return api.post(`/api/v1/games/${ctx.gameId}/item-tags`, body)
+}
+
+/** PUT /api/v1/games/:gameId/item-tags/:tagId */
+export async function updateItemTag(
+  ctx: TenantCtx,
+  tagId: string,
+  body: UpdateItemTagRequest,
+): Promise<ItemTag> {
+  return api.put(`/api/v1/games/${ctx.gameId}/item-tags/${tagId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/item-tags/:tagId — returns 204 No Content */
+export async function deleteItemTag(
+  ctx: TenantCtx,
+  tagId: string,
+): Promise<void> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/item-tags/${tagId}`)
+}
+
+// ─── Tag Assignments (per Item Definition) ────────────────────────────────────
+
+/** GET /api/v1/games/:gameId/items/:itemId/tags */
+export async function getItemDefinitionTags(
+  ctx: TenantCtx,
+  itemId: string,
+): Promise<{ tags: ItemTag[] }> {
+  return api.get(`/api/v1/games/${ctx.gameId}/items/${itemId}/tags`)
+}
+
+/** PUT /api/v1/games/:gameId/items/:itemId/tags — assign (replace) tags */
+export async function assignTagsToItemDefinition(
+  ctx: TenantCtx,
+  itemId: string,
+  tag_keys: string[],
+): Promise<{ tags: ItemTag[] }> {
+  return api.put(`/api/v1/games/${ctx.gameId}/items/${itemId}/tags`, { tag_keys })
+}
+
+/** DELETE /api/v1/games/:gameId/items/:itemId/tags — remove specific tag_keys */
+export async function removeTagsFromItemDefinition(
+  ctx: TenantCtx,
+  itemId: string,
+  tag_keys: string[],
+): Promise<void> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/items/${itemId}/tags`, { body: { tag_keys } })
 }

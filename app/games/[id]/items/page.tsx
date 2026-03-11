@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -77,7 +77,15 @@ import {
   createEquipmentSlot,
   updateEquipmentSlot,
   deleteEquipmentSlot,
+  listItemTags,
+  getItemTag,
+  createItemTag,
+  updateItemTag,
+  deleteItemTag,
   type ListItemsParams,
+  type ItemTag,
+  type CreateItemTagRequest,
+  type UpdateItemTagRequest,
 } from "@/lib/inventory-api"
 import type {
   ItemDefinition,
@@ -1969,7 +1977,6 @@ function EquipmentsTab({
               y: Math.floor(idx / COLS) * (CARD_H_EST + GAP) + GAP,
             })
             const SNAP_DIST = 24
-            const BOND_TOL = 20
             const getGroupMembers = (startKey: string): string[] => {
               const visited = new Set<string>(); const queue = [startKey]
               while (queue.length) { const k = queue.shift()!; if (visited.has(k)) continue; visited.add(k); for (const b of snapBonds[k] ?? []) if (!visited.has(b)) queue.push(b) }
@@ -1977,15 +1984,16 @@ function EquipmentsTab({
             }
             const getBondedNeighbor = (slotKey: string, dir: "left" | "right" | "top" | "bottom"): string | null => {
               const si = slots.findIndex((s) => s.slot_key === slotKey)
-              const posA = positions[slotKey] ?? getDefaultPos(si)
+              const posA = draggingPos?.[slotKey] ?? positions[slotKey] ?? getDefaultPos(si)
               for (const bKey of snapBonds[slotKey] ?? []) {
                 const bi = slots.findIndex((s) => s.slot_key === bKey)
-                const posB = positions[bKey] ?? getDefaultPos(bi)
-                const dx = posB.x - posA.x, dy = posB.y - posA.y, T = BOND_TOL
-                if (dir === "right"  && Math.abs(dx - (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
-                if (dir === "left"   && Math.abs(dx + (CARD_W + GAP)) < T && Math.abs(dy) < T) return bKey
-                if (dir === "bottom" && Math.abs(dy - (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
-                if (dir === "top"    && Math.abs(dy + (CARD_H_EST + GAP)) < T && Math.abs(dx) < T) return bKey
+                const posB = draggingPos?.[bKey] ?? positions[bKey] ?? getDefaultPos(bi)
+                const dx = posB.x - posA.x, dy = posB.y - posA.y
+                if (dx === 0 && dy === 0) continue
+                if (dir === "right"  && dx > 0 && Math.abs(dx) >= Math.abs(dy)) return bKey
+                if (dir === "left"   && dx < 0 && Math.abs(dx) >= Math.abs(dy)) return bKey
+                if (dir === "bottom" && dy > 0 && Math.abs(dy) >  Math.abs(dx)) return bKey
+                if (dir === "top"    && dy < 0 && Math.abs(dy) >  Math.abs(dx)) return bKey
               }
               return null
             }
@@ -2488,6 +2496,437 @@ function EquipmentsTab({
   )
 }
 
+// ─── Tags Tab ─────────────────────────────────────────────────────────────────
+function TagsTab({
+  gameId,
+  tags,
+  setTags,
+  loading,
+  setLoading,
+  error,
+  setError,
+  activeTab,
+}: {
+  gameId: string
+  tags: ItemTag[]
+  setTags: (v: ItemTag[]) => void
+  loading: boolean
+  setLoading: (v: boolean) => void
+  error: string | null
+  setError: (v: string | null) => void
+  activeTab: string
+}) {
+  const { toast } = useToast()
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingTag, setEditingTag] = useState<ItemTag | null>(null)
+  const [deletingTag, setDeletingTag] = useState<ItemTag | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<{ tag_key: string; label: string; color: string; metadata: string }>({
+    tag_key: "", label: "", color: "#A855F7", metadata: "{}",
+  })
+  const [autoSlug, setAutoSlug] = useState(true)
+  const [formErr, setFormErr] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+
+  const fetchTags = useCallback(() => {
+    if (!gameId) return
+    setLoading(true)
+    setError(null)
+    listItemTags({ gameId }, { limit: 100, offset: 0 })
+      .then((res) => setTags(res.tags ?? []))
+      .catch((e) => setError(e?.message ?? "Failed to load item tags"))
+      .finally(() => setLoading(false))
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== "tags" || !gameId) return
+    if (tags.length > 0 || loading) return
+    fetchTags()
+  }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function openCreate() {
+    setEditingTag(null)
+    setForm({ tag_key: "", label: "", color: "#A855F7", metadata: "{}" })
+    setAutoSlug(true)
+    setFormErr(null)
+    setSheetOpen(true)
+  }
+
+  function openEdit(tag: ItemTag, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingTag(tag)
+    setForm({
+      tag_key: tag.tag_key,
+      label: tag.label,
+      color: tag.color ?? "#A855F7",
+      metadata: tag.metadata ? JSON.stringify(tag.metadata, null, 2) : "{}",
+    })
+    setAutoSlug(false)
+    setFormErr(null)
+    setSheetOpen(true)
+  }
+
+  const TAG_KEY_RE = /^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]{1}$/
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setFormErr(null)
+
+    if (!editingTag) {
+      const key = form.tag_key
+      if (form.label.trim().length > 20) { setFormErr("Label must be at most 20 characters."); return }
+      if (key.length < 2) { setFormErr("Tag key must be at least 2 characters."); return }
+      if (key.length > 20) { setFormErr("Tag key must be at most 20 characters."); return }
+      if (!/^[a-z0-9][a-z0-9\-]*[a-z0-9]$/.test(key)) {
+        setFormErr("Tag key must start and end with a letter or number, and contain only lowercase letters, numbers, or hyphens (-)."); return
+      }
+      if (tags.length >= 50) { setFormErr("Maximum 50 tags per game reached."); return }
+    }
+
+    let parsedMeta: Record<string, unknown> = {}
+    try {
+      parsedMeta = JSON.parse(form.metadata || "{}")
+    } catch {
+      setFormErr("Metadata must be valid JSON")
+      return
+    }
+    setSaving(true)
+    try {
+      if (editingTag) {
+        const updated = await updateItemTag({ gameId }, editingTag.id, {
+          label: form.label,
+          color: form.color,
+          metadata: parsedMeta,
+        })
+        setTags(tags.map((t) => (t.id === updated.id ? updated : t)))
+        toast({ title: "Tag updated" })
+      } else {
+        const created = await createItemTag({ gameId }, {
+          tag_key: form.tag_key,
+          label: form.label,
+          color: form.color,
+          metadata: parsedMeta,
+        })
+        setTags([...tags, created])
+        toast({ title: "Tag created" })
+      }
+      setSheetOpen(false)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save tag"
+      setFormErr(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deletingTag) return
+    setDeleteLoading(true)
+    try {
+      await deleteItemTag({ gameId }, deletingTag.id)
+      setTags(tags.filter((t) => t.id !== deletingTag.id))
+      toast({ title: "Tag deleted" })
+      setDeletingTag(null)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete tag"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const filtered = search
+    ? tags.filter(
+        (t) =>
+          t.tag_key.toLowerCase().includes(search.toLowerCase()) ||
+          t.label.toLowerCase().includes(search.toLowerCase()),
+      )
+    : tags
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold">Item Tags</h2>
+          <p className="text-sm text-muted-foreground">
+            {tags.length > 0
+              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 tags defined</span></>
+              : "No tags yet — max 50 per game"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search tags…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            {search && (
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchTags} disabled={loading}>
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" onClick={openCreate} disabled={tags.length >= 50}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> New Tag
+          </Button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+          <Tag className="h-10 w-10 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">
+            {search ? "No tags match your search." : "No tags yet. Create your first tag."}
+          </p>
+          {!search && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> New Tag
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Tags grid */}
+      {!loading && filtered.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {filtered.map((tag) => (
+            <Card key={tag.id} className="relative group">
+              {/* actions — top right */}
+              <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => openEdit(tag, e)}
+                  title="Edit"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); setDeletingTag(tag) }}
+                  title="Delete"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <CardContent className="pt-4 pb-4 px-4 space-y-2">
+                {/* Color swatch + label */}
+                <div className="flex items-center gap-2 pr-16">
+                  <span
+                    className="inline-block h-4 w-4 rounded-full shrink-0 border border-black/10"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <span className="font-semibold text-sm truncate">{tag.label}</span>
+                </div>
+                {/* tag_key */}
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
+                    {tag.tag_key}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground ml-auto">{tag.item_count} item{tag.item_count !== 1 ? "s" : ""}</span>
+                </div>
+                {/* metadata preview */}
+                {tag.metadata && Object.keys(tag.metadata).length > 0 && (
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {JSON.stringify(tag.metadata)}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create / Edit Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingTag ? "Edit Tag" : "Create Tag"}</SheetTitle>
+            <SheetDescription>
+              {editingTag ? `Editing "${editingTag.label}"` : "Define a new item tag for this game."}
+            </SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSave} className="space-y-4 mt-4">
+            {/* Tag Key Rules info */}
+            <div className="rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
+              <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3" /> Tag Key Rules</p>
+              <ul className="space-y-0.5 pl-1">
+                <li>• Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
+                <li>• Lowercase letters, numbers and hyphens only — no spaces</li>
+                <li>• Must start and end with a letter or number</li>
+                <li>• Length: 2–20 characters</li>
+                <li>• <span className="text-amber-500 font-medium">Immutable</span> after creation — rename via the <em>Label</em> field</li>
+                <li>• Max <span className="font-medium">50 tags</span> per game · max <span className="font-medium">20 tags</span> per item</li>
+              </ul>
+            </div>
+            {!editingTag && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="label"
+                    placeholder="e.g. Rare"
+                    value={form.label}
+                    maxLength={20}
+                    onChange={(e) => {
+                      const label = e.target.value
+                      setForm((f) => ({
+                        ...f,
+                        label,
+                        ...(autoSlug ? { tag_key: label.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "").replace(/^-+|-+$/g, "").slice(0, 20) } : {}),
+                      }))
+                    }}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tag_key">Tag Key <span className="text-destructive">*</span></Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="tag_key"
+                      placeholder="e.g. rare-starter"
+                      value={form.tag_key}
+                      maxLength={20}
+                      onChange={(e) => {
+                        setAutoSlug(false)
+                        setForm((f) => ({ ...f, tag_key: e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, "") }))
+                      }}
+                      required
+                      className="font-mono"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant={autoSlug ? "default" : "outline"}
+                      className="h-9 w-9 shrink-0"
+                      title={autoSlug ? "Auto-slug from label (on)" : "Auto-slug from label (off)"}
+                      onClick={() => setAutoSlug((v) => !v)}
+                    >
+                      <Wand2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{autoSlug ? <span className="text-primary">Auto-generating from label</span> : <span>Lowercase, only <code className="font-mono">a-z 0-9 -</code> allowed</span>}</span>
+                    <span className={form.tag_key.length > 18 ? "text-amber-500" : ""}>{form.tag_key.length}/20</span>
+                  </div>
+                </div>
+              </>
+            )}
+            {editingTag && (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="label"
+                    placeholder="e.g. Rare"
+                    value={form.label}
+                    maxLength={20}
+                    onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tag Key</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono text-muted-foreground">{editingTag.tag_key}</code>
+                    <span className="text-[11px] text-amber-500 font-medium whitespace-nowrap">Immutable</span>
+                  </div>
+                </div>
+              </>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="color">Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="color"
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                  className="h-9 w-14 cursor-pointer rounded-md border border-input p-1"
+                />
+                <Input
+                  value={form.color}
+                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                  placeholder="#A855F7"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            {formErr && (
+              <p className="text-sm text-destructive">{formErr}</p>
+            )}
+            <SheetFooter className="gap-2 flex-wrap">
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                {editingTag ? "Save changes" : "Create tag"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>
+                Cancel
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deletingTag} onOpenChange={(open) => { if (!open) setDeletingTag(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete tag "{deletingTag?.label}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the tag. Items currently using this tag will lose it.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLoading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 // ─── Generator Tab ────────────────────────────────────────────────────────────
 function GeneratorTab({
   studioId,
@@ -2736,6 +3175,8 @@ export default function GameItemsPage() {
   const [filterRarity, setFilterRarity] = useState<string>("all")
   const [searchName, setSearchName] = useState("")
   const [debouncedName, setDebouncedName] = useState("")
+  const [selectedTagKeys, setSelectedTagKeys] = useState<string[]>([])
+  const [tagFilterOpen, setTagFilterOpen] = useState(false)
 
   // pagination
   const LIMIT = 50
@@ -2775,6 +3216,11 @@ export default function GameItemsPage() {
   const [equipmentLoading, setEquipmentLoading] = useState(false)
   const [equipmentError, setEquipmentError] = useState<string | null>(null)
 
+  // tags tab state
+  const [itemTags, setItemTags] = useState<ItemTag[]>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [tagsError, setTagsError] = useState<string | null>(null)
+
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaAllItems, setGachaAllItems] = useState<ItemDefinition[]>([])
@@ -2793,7 +3239,7 @@ export default function GameItemsPage() {
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments") {
+    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags") {
       setActiveTab(tab)
     }
     // initialize container search from URL `q` param
@@ -2841,12 +3287,19 @@ export default function GameItemsPage() {
     }
   }, [searchParams])
 
-  // fetch categories & rarities from API
+  // fetch categories, rarities & tags from API on mount
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
       .then(([cats, rars]) => { setCategories(cats); setRarities(rars) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!gameId) return
+    listItemTags({ gameId }, { limit: 200, offset: 0 })
+      .then((res) => setItemTags(res.tags ?? []))
+      .catch(() => {})
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // load game info — also used to refresh usage after mutations
   const loadGameInfo = useCallback(async () => {
@@ -2876,6 +3329,7 @@ export default function GameItemsPage() {
       if (filterCategory !== "all") params.category = filterCategory as ItemCategory
       if (filterRarity !== "all") params.rarity = filterRarity as ItemRarity
       if (debouncedName) params.name = debouncedName
+      if (selectedTagKeys.length > 0) params.tags = selectedTagKeys
 
       const result = await listItemDefinitions({ studioId, gameId }, params)
       setItems(result.items ?? [])
@@ -2891,7 +3345,7 @@ export default function GameItemsPage() {
     } finally {
       setLoading(false)
     }
-  }, [studioId, gameId, filterCategory, filterRarity, debouncedName, offset])
+  }, [studioId, gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, offset])
 
   useEffect(() => {
     fetchItems()
@@ -2900,7 +3354,7 @@ export default function GameItemsPage() {
   // reset offset when filters change
   useEffect(() => {
     setOffset(0)
-  }, [filterCategory, filterRarity, debouncedName])
+  }, [filterCategory, filterRarity, debouncedName, selectedTagKeys])
 
   // ─── Containers ──────────────────────────────────────────────────────────────
   const fetchContainerDefs = useCallback(async () => {
@@ -3230,6 +3684,7 @@ export default function GameItemsPage() {
             <TabsTrigger value="gacha">Gacha</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
             <TabsTrigger value="equipments">Equipments</TabsTrigger>
+            <TabsTrigger value="tags">Tags</TabsTrigger>
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
@@ -3283,11 +3738,58 @@ export default function GameItemsPage() {
                   <option key={r} value={r} className="capitalize">{r}</option>
                 ))}
               </select>
+              {/* Tags filter */}
+              {itemTags.length > 0 && (
+                <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                      <Tag className="h-3.5 w-3.5" />
+                      Tags
+                      {selectedTagKeys.length > 0 && (
+                        <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-semibold">
+                          {selectedTagKeys.length}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search tags…" />
+                      <CommandList>
+                        <CommandEmpty>No tags found.</CommandEmpty>
+                        <CommandGroup>
+                          {itemTags.map((tag) => {
+                            const active = selectedTagKeys.includes(tag.tag_key)
+                            return (
+                              <CommandItem
+                                key={tag.tag_key}
+                                value={tag.label || tag.tag_key}
+                                onSelect={() => {
+                                  setSelectedTagKeys((prev) =>
+                                    active ? prev.filter((k) => k !== tag.tag_key) : [...prev, tag.tag_key]
+                                  )
+                                }}
+                              >
+                                <span
+                                  className="mr-2 h-3 w-3 shrink-0 rounded-full border"
+                                  style={{ background: tag.color ?? "#A855F7", borderColor: tag.color ?? "#A855F7" }}
+                                />
+                                <span className="flex-1 truncate">{tag.label || tag.tag_key}</span>
+                                {active && <Check className="h-3.5 w-3.5 ml-1 shrink-0" />}
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
               {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all") && (
+              {(searchName || filterCategory !== "all" || filterRarity !== "all" || selectedTagKeys.length > 0) && (
                 <button
                   className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all") }}
+                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setSelectedTagKeys([]) }}
                 >
                   Clear
                 </button>
@@ -3318,7 +3820,7 @@ export default function GameItemsPage() {
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">No items found</p>
                   <p className="text-sm mt-1">
-                    {(filterCategory !== "all" || filterRarity !== "all" || debouncedName)
+                    {(filterCategory !== "all" || filterRarity !== "all" || debouncedName || selectedTagKeys.length > 0)
                       ? "Try clearing your filters."
                       : "Click \"New Item\" to add the first item definition."}
                   </p>
@@ -3331,6 +3833,7 @@ export default function GameItemsPage() {
                       <TableHead>Item Code</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Rarity</TableHead>
+                      <TableHead>Tags</TableHead>
                       <TableHead>Stackable</TableHead>
                       <TableHead>Grid</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -3414,6 +3917,16 @@ export default function GameItemsPage() {
                           <RarityBadge rarity={item.rarity} />
                         </TableCell>
                         <TableCell>
+                          {item.tags && item.tags.length > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              <Tag className="h-3 w-3" />
+                              {item.tags.length}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {item.is_stackable ? (
                             <span className="text-green-500 text-sm font-medium">
                               ✓ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
@@ -3437,7 +3950,7 @@ export default function GameItemsPage() {
                       {/* Expanded detail row */}
                       {isExpanded && (
                         <TableRow className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={7} className="p-0">
+                          <TableCell colSpan={8} className="p-0">
                             <div className="px-6 py-4 space-y-4">
                               {/* Definition ID */}
                               <div className="flex items-center gap-2">
@@ -3491,6 +4004,29 @@ export default function GameItemsPage() {
                                         <span className="text-muted-foreground">{k}:</span>
                                         <span className="font-semibold">{String(v)}</span>
                                       </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Tags */}
+                              {item.tags && item.tags.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Tags</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {item.tags.map((tag) => (
+                                      <span
+                                        key={tag.tag_key}
+                                        className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                                        style={{
+                                          borderColor: tag.color ?? "#A855F7",
+                                          color: tag.color ?? "#A855F7",
+                                          background: `${tag.color ?? "#A855F7"}18`,
+                                        }}
+                                        title={tag.tag_key}
+                                      >
+                                        {tag.label || tag.tag_key}
+                                      </span>
                                     ))}
                                   </div>
                                 </div>
@@ -3937,6 +4473,20 @@ export default function GameItemsPage() {
             setLoading={setEquipmentLoading}
             error={equipmentError}
             setError={setEquipmentError}
+            activeTab={activeTab}
+          />
+        </TabsContent>
+
+        {/* ═══════════ TAGS TAB ═══════════ */}
+        <TabsContent value="tags" className="space-y-4">
+          <TagsTab
+            gameId={gameId}
+            tags={itemTags}
+            setTags={setItemTags}
+            loading={tagsLoading}
+            setLoading={setTagsLoading}
+            error={tagsError}
+            setError={setTagsError}
             activeTab={activeTab}
           />
         </TabsContent>

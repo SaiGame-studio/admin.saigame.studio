@@ -38,6 +38,7 @@ export interface ItemDefinition {
   base_stats: Record<string, number>
   metadata: Record<string, unknown>
   client_writable: boolean
+  tags?: import('@/lib/inventory-api').ItemTag[]
   created_at: string
   updated_at: string
 }
