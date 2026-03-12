@@ -1590,7 +1590,7 @@ function QuestsPageInner() {
         </TabsContent>
 
         <TabsContent value="daily" className="mt-6">
-          <DailyTab game={game} />
+          <DailyTab game={game} onGameUpdate={setGame} />
         </TabsContent>
 
         <TabsContent value="battle-pass" className="mt-6">

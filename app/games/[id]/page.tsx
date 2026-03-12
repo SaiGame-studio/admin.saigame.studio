@@ -24,6 +24,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -538,39 +539,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         <Label htmlFor="daily-quest-days" className="text-sm font-medium">
                                             Daily quest max advance days
                                         </Label>
-                                        <Select
-                                            value={String(game.settings?.daily_quest_max_advance_days ?? 30)}
-                                            onValueChange={async (value) => {
-                                                try {
-                                                    const updated = await updateGame(game.id, {
-                                                        settings: {
-                                                            ...game.settings,
-                                                            daily_quest_max_advance_days: Number(value)
-                                                        }
-                                                    })
-                                                    setGame(updated)
-                                                    toast({
-                                                        title: "Settings updated",
-                                                        description: `Daily quest advance days set to ${value} days`
-                                                    })
-                                                } catch (err) {
-                                                    toast({
-                                                        title: "Error",
-                                                        description: "Failed to update settings",
-                                                        variant: "destructive"
-                                                    })
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger id="daily-quest-days" className="w-[100px] h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="7">7 days</SelectItem>
-                                                <SelectItem value="14">14 days</SelectItem>
-                                                <SelectItem value="30">30 days</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
                                         Maximum number of days players can advance daily quests
