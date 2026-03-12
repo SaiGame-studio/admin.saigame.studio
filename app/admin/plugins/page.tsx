@@ -182,6 +182,9 @@ export default function AdminPluginsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Plugin | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Expanded plugin row
+  const [expandedPluginId, setExpandedPluginId] = useState<string | null>(null)
+
   // ---------------------------------------------------------------------------
   // Grant state
   // ---------------------------------------------------------------------------
@@ -496,45 +499,144 @@ export default function AdminPluginsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-6" />
                     <TableHead>Name</TableHead>
                     <TableHead>CCU</TableHead>
                     <TableHead>Profiles</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Shops</TableHead>
+                    <TableHead>Quests</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {plugins.map((plugin) => (
-                    <TableRow key={plugin.id}>
-                      <TableCell className="font-medium">
-                        <div>{plugin.display_name}</div>
-                        <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
-                      </TableCell>
-                      <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{(plugin.items_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{plugin.shops_grant ?? 0}</TableCell>
-                      <TableCell>
-                        {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
-                      </TableCell>
-                      <TableCell>
-                        {plugin.is_template ? <Check className="h-4 w-4 text-green-600" /> : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(plugin)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(plugin)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {plugins.map((plugin) => {
+                    const expanded = expandedPluginId === plugin.id
+                    return (
+                      <>
+                        <TableRow
+                          key={plugin.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setExpandedPluginId(expanded ? null : plugin.id)}
+                        >
+                          <TableCell className="pr-0">
+                            {expanded
+                              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div>{plugin.display_name}</div>
+                            <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
+                          </TableCell>
+                          <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.items_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.shops_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>
+                            {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
+                          </TableCell>
+                          <TableCell>
+                            {plugin.is_template ? <Check className="h-4 w-4 text-green-600" /> : null}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(plugin)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(plugin)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {expanded && (
+                          <TableRow key={`${plugin.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell />
+                            <TableCell colSpan={9} className="py-4">
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3 text-xs">
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Plugin ID</p>
+                                  <div className="flex items-center gap-1 font-mono break-all">{plugin.id}<CopyButton text={plugin.id} /></div>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Type</p>
+                                  <p className="capitalize">{plugin.plugin_type}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Status</p>
+                                  <Badge variant={plugin.is_active ? "default" : "secondary"}>{plugin.is_active ? "Active" : "Inactive"}</Badge>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Sort Order</p>
+                                  <p>{plugin.sort_order}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Duration</p>
+                                  <p>{plugin.duration_days ? `${plugin.duration_days} days` : "Permanent"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Max Stacks</p>
+                                  <p>{plugin.max_stacks}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Cost (coins)</p>
+                                  <p>{(plugin.cost_coins ?? 0).toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Reusable</p>
+                                  <p>{plugin.is_template ? "Yes" : "No"}</p>
+                                </div>
+                                {plugin.description && (
+                                  <div className="col-span-2 md:col-span-3 lg:col-span-4">
+                                    <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Description</p>
+                                    <p className="text-sm">{plugin.description}</p>
+                                  </div>
+                                )}
+                                <div className="col-span-2 md:col-span-3 lg:col-span-4 border-t border-border/40 pt-3 mt-1">
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-2">Grants</p>
+                                  <div className="flex flex-wrap gap-x-8 gap-y-2">
+                                    {([
+                                      { icon: "👥", label: "CCU", val: plugin.ccu_grant },
+                                      { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
+                                      { icon: "📦", label: "Items", val: plugin.items_grant },
+                                      { icon: "🏪", label: "Shops", val: plugin.shops_grant },
+                                      { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
+                                      { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
+                                    ] as { icon: string; label: string; val: number }[]).map((r) => (
+                                      <div key={r.label} className="flex items-center gap-1.5">
+                                        <span>{r.icon}</span>
+                                        <span className="text-muted-foreground">{r.label}:</span>
+                                        <span className={`font-semibold ${r.val > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                                          {r.val > 0 ? `+${r.val.toLocaleString()}` : "—"}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Created At</p>
+                                  <p>{formatISODate(plugin.created_at)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Updated At</p>
+                                  <p>{formatISODate(plugin.updated_at)}</p>
+                                </div>
+                                {plugin.created_by && (
+                                  <div>
+                                    <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Created By</p>
+                                    <div className="flex items-center gap-1 font-mono">{plugin.created_by.slice(0, 8)}…<CopyButton text={plugin.created_by} /></div>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </Card>

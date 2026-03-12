@@ -357,6 +357,17 @@ export default function GamePluginsPage() {
     subsByPluginId[plugin.id].push(subscription)
   })
 
+  // Custom (admin-granted) plugins grouped by plugin ID
+  const customGrantPlugins = Object.values(
+    activeSubs_
+      .filter((s) => s.plugin.plugin_type === "custom")
+      .reduce((acc, { plugin, subscription }) => {
+        if (!acc[plugin.id]) acc[plugin.id] = { plugin, totalStacks: 0 }
+        acc[plugin.id].totalStacks += subscription.stack_count ?? 0
+        return acc
+      }, {} as Record<string, { plugin: Plugin; totalStacks: number }>)
+  )
+
   return (
     <div className="container mx-auto py-6 space-y-8">
       {/* Breadcrumb */}
@@ -422,31 +433,48 @@ export default function GamePluginsPage() {
 
         <div className="relative p-5 flex flex-col gap-4">
 
-          {/* Materia Slot Visualizer — one row per catalog tier */}
+          {/* Materia Slot Visualizer — two columns: standard tiers | admin grants */}
           {!catalogLoading && catalog.length > 0 && gamePlugins && (
-            <div className="flex flex-col gap-2">
-              {catalog.map((plugin, idx) => {
-                const gem = getGemTier(idx)
-                const remaining = getRemainingStacks(plugin, subs)
-                const owned = plugin.max_stacks - remaining
-                const cancelledOwned2 = subs
-                  .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                  .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
-                const activeOwned2 = owned - cancelledOwned2
-                return (
-                  <div key={plugin.id} className="flex items-center gap-2">
-                    <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                        <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
-                      ))}
+            <div className="flex gap-6 flex-wrap">
+              {/* Left column: standard catalog tiers */}
+              <div className="flex flex-col gap-2">
+                {catalog.map((plugin, idx) => {
+                  const gem = getGemTier(idx)
+                  const remaining = getRemainingStacks(plugin, subs)
+                  const owned = plugin.max_stacks - remaining
+                  const cancelledOwned2 = subs
+                    .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
+                    .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+                  const activeOwned2 = owned - cancelledOwned2
+                  return (
+                    <div key={plugin.id} className="flex items-center gap-2">
+                      <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
+                          <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
+                        ))}
+                      </div>
+                      {owned > 0 && (
+                        <span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>
+                      )}
                     </div>
-                    {owned > 0 && (
-                      <span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+              {/* Right column: admin grant rows */}
+              {customGrantPlugins.length > 0 && (
+                <div className="flex flex-col gap-2 border-l border-border/30 pl-6">
+                  {customGrantPlugins.map(({ plugin, totalStacks }) => (
+                    <div key={plugin.id} className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs font-semibold text-purple-400">{plugin.display_name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-full px-2 py-0.5">×{totalStacks}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">Admin Grant</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -681,6 +709,76 @@ export default function GamePluginsPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+        {/* Admin Grant plugin cards */}
+        {customGrantPlugins.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Admin Grants</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {customGrantPlugins.map(({ plugin, totalStacks }) => (
+                <div
+                  key={plugin.id}
+                  className="relative flex flex-col rounded-2xl border-2 overflow-hidden border-purple-500/40 hover:border-purple-400/70 transition-all duration-300"
+                >
+                  {/* Hero */}
+                  <div className="flex flex-col items-center justify-center py-7 gap-3 bg-purple-500/10">
+                    <div
+                      className="w-24 h-24 flex items-center justify-center rounded-full bg-purple-500/20 border-2 border-purple-500/40"
+                      style={{ boxShadow: "0 0 24px rgba(168,85,247,0.35)" }}
+                    >
+                      <Zap className="h-12 w-12 text-purple-400" style={{ filter: "drop-shadow(0 0 8px #a855f7)" }} />
+                    </div>
+                    <span className="text-xs font-extrabold uppercase tracking-widest text-purple-400">{plugin.display_name}</span>
+                  </div>
+                  {/* Admin badge */}
+                  <div className="px-4 pt-3 pb-1 text-center">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-full px-3 py-1">
+                      🛡️ Admin Grant
+                    </span>
+                  </div>
+                  {/* Stack count */}
+                  <div className="px-4 py-2 flex flex-col items-center gap-1">
+                    <span className="text-2xl font-extrabold text-purple-400 tabular-nums">×{totalStacks}</span>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {totalStacks === 1 ? "stack granted" : "stacks granted"}
+                    </p>
+                  </div>
+                  {/* Grants breakdown */}
+                  <div className="mx-4 my-2 rounded-xl bg-muted/40 px-3 py-2 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                      Grants (total ×{totalStacks})
+                    </p>
+                    <div className="space-y-1 text-xs">
+                      {([
+                        { icon: "👥", label: "CCU", val: plugin.ccu_grant },
+                        { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
+                        { icon: "📦", label: "Items", val: plugin.items_grant },
+                        { icon: "🏪", label: "Shops", val: plugin.shops_grant },
+                        { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
+                      ] as { icon: string; label: string; val: number }[]).map((r) => (
+                        <div key={r.label} className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{r.icon} {r.label}</span>
+                          <span className={`font-semibold tabular-nums ${r.val > 0 ? "text-purple-400" : "text-muted-foreground"}`}>
+                            {r.val > 0 ? `+${formatNumber(r.val * totalStacks)}` : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {plugin.description && (
+                      <p className="mt-2 text-[10px] text-muted-foreground italic border-t border-border/40 pt-2">{plugin.description}</p>
+                    )}
+                  </div>
+                  {/* Footer */}
+                  <div className="px-4 pb-4 pt-1 text-center">
+                    <p className="text-[10px] text-muted-foreground">Granted by admin · Read-only</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
