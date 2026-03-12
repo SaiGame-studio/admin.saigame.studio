@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
-  Route, Check, X, Wand2,
+  Route, Check, X, Wand2, ChevronDown, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +64,7 @@ import {
   type UpdateJourneyRequest,
 } from "@/lib/journey-api"
 import { CopyButton } from "@/components/CopyButton"
+import { JourneyDagView } from "@/components/JourneyDagView"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,9 @@ function JourneyTab({ gameId }: JourneyTabProps) {
   const [editJourney, setEditJourney] = useState<Journey | null>(null)
   const [editForm, setEditForm] = useState<UpdateJourneyRequest>({})
   const [editSaving, setEditSaving] = useState(false)
+
+  // Expanded DAG row
+  const [expandedJourneyId, setExpandedJourneyId] = useState<string | null>(null)
 
   // Delete dialog
   const [deleteJourneyItem, setDeleteJourneyItem] = useState<Journey | null>(null)
@@ -356,56 +360,75 @@ function JourneyTab({ gameId }: JourneyTabProps) {
             </TableHeader>
             <TableBody>
               {journeys.map(j => (
-                <TableRow key={j.id}>
-                  <TableCell className="font-medium">
-                    <div>{j.name}</div>
-                    {j.description && (
-                      <p className="text-xs text-muted-foreground truncate max-w-xs">{j.description}</p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{j.journey_key}</code>
-                      <CopyButton text={j.journey_key} />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={j.is_active}
-                      onCheckedChange={() => handleToggleActive(j)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {j.is_published ? (
-                      <Badge variant="default" className="gap-1">
-                        <Check className="h-3 w-3" />
-                        Published
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Draft</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(j.created_at).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(j)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteJourneyItem(j)}
-                        disabled={j.journey_key === "main_story"}
-                        title={j.journey_key === "main_story" ? "Main story journey cannot be deleted" : undefined}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <React.Fragment key={j.id}>
+                  <TableRow
+                    className="cursor-pointer"
+                    onClick={() => setExpandedJourneyId(prev => prev === j.id ? null : j.id)}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {expandedJourneyId === j.id
+                          ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                          : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <div>
+                          <div>{j.name}</div>
+                          {j.description && (
+                            <p className="text-xs text-muted-foreground truncate max-w-xs">{j.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">{j.journey_key}</code>
+                        <CopyButton text={j.journey_key} />
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Switch
+                        checked={j.is_active}
+                        onCheckedChange={() => handleToggleActive(j)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {j.is_published ? (
+                        <Badge variant="default" className="gap-1">
+                          <Check className="h-3 w-3" />
+                          Published
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Draft</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(j.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(j)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteJourneyItem(j)}
+                          disabled={j.journey_key === "main_story"}
+                          title={j.journey_key === "main_story" ? "Main story journey cannot be deleted" : undefined}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {expandedJourneyId === j.id && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="p-4 bg-muted/10">
+                        <JourneyDagView gameId={gameId} journeyId={j.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
