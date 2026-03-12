@@ -250,7 +250,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
     name: "",
     node_key: "",
     description: "",
-    event_type: "",
+    event_type: "arrive",
   })
   const [createMetaRows, setCreateMetaRows] = useState<{ k: string; v: string }[]>([])
   const [createSaving, setCreateSaving] = useState(false)
@@ -361,7 +361,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               size="sm"
               className="h-7 text-xs px-2"
               onClick={() => {
-                setCreateForm({ name: "", node_key: "", description: "", event_type: "" })
+                setCreateForm({ name: "", node_key: "", description: "", event_type: "arrive" })
                 setCreateMetaRows([])
                 setAutoSlug(true)
                 setCreateOpen(true)
