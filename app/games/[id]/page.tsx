@@ -11,6 +11,9 @@ import type { Team } from "@/types/team"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
@@ -484,64 +487,113 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 </div>
                             </div>
 
-                            {/* Mini Equipment Panel — 3rd column */}
-                            {catalog.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                            {t('plugins.materia.equipment')}
-                                        </p>
-                                        <Link
-                                            href={`/games/${game.id}/plugins`}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                                        >
-                                            <Hammer className="h-3.5 w-3.5" />
-                                        </Link>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {catalog.filter(p => p.max_stacks > 0).map((plugin, idx) => {
-                                            const tier = GEM_TIERS_MINI[idx % 4]
-                                            const subs = gamePlugins?.subscriptions.filter(s => s.plugin.id === plugin.id) ?? []
-                                            const owned = subs.reduce((sum, s) => sum + s.subscription.stack_count, 0)
-                                            const cancelledOwned = subs.filter(s => s.is_cancelled).reduce((sum, s) => sum + s.subscription.stack_count, 0)
-                                            const activeOwned = owned - cancelledOwned
-                                            return (
-                                                <div key={plugin.id} className="flex items-center gap-3">
-                                                    <span className={`text-xs font-semibold w-20 shrink-0 ${tier.text}`}>{plugin.display_name}</span>
-                                                    <div className="flex gap-1">
-                                                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                                                            <span key={si} className="relative inline-flex w-5 h-5">
-                                                                <img
-                                                                    src={tier.image}
-                                                                    alt=""
-                                                                    className="w-full h-full rounded-full"
-                                                                    style={
-                                                                        si < activeOwned
-                                                                            ? undefined
-                                                                            : si < owned
-                                                                            ? { filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }
-                                                                            : { filter: "grayscale(1) brightness(0.3)", opacity: 0.3 }
-                                                                    }
-                                                                />
-                                                                {si >= activeOwned && si < owned && (
-                                                                    <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
-                                                                )}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground">{owned}/{plugin.max_stacks}</span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                    <Button asChild variant="outline" size="sm" className="mt-4 w-full flex items-center gap-2">
-                                        <Link href={`/games/${game.id}/plugins`}>
-                                            <Hammer className="h-4 w-4" />
-                                            Upgrade This Game
-                                        </Link>
-                                    </Button>
+                            {/* Settings Panel — 3rd column */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                        Settings
+                                    </p>
                                 </div>
-                            )}
+                                
+                                {/* Toggle 1: Allow player trading and mailbox */}
+                                <div className="flex flex-col gap-2 py-2 border-b border-border">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
+                                            Allow player trading and mailbox
+                                        </Label>
+                                        <Switch
+                                            id="allow-trading"
+                                            checked={game.settings?.allow_player_trading ?? false}
+                                            onCheckedChange={async (checked) => {
+                                                try {
+                                                    const updated = await updateGame(game.id, {
+                                                        settings: {
+                                                            ...game.settings,
+                                                            allow_player_trading: checked
+                                                        }
+                                                    })
+                                                    setGame(updated)
+                                                    toast({
+                                                        title: "Settings updated",
+                                                        description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}`
+                                                    })
+                                                } catch (err) {
+                                                    toast({
+                                                        title: "Error",
+                                                        description: "Failed to update settings",
+                                                        variant: "destructive"
+                                                    })
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Enable trading between players and mailbox system
+                                    </p>
+                                </div>
+
+                                {/* Daily Quest Max Advance Days */}
+                                <div className="flex flex-col gap-2 py-2 border-b border-border">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="daily-quest-days" className="text-sm font-medium">
+                                            Daily quest max advance days
+                                        </Label>
+                                        <Select
+                                            value={String(game.settings?.daily_quest_max_advance_days ?? 30)}
+                                            onValueChange={async (value) => {
+                                                try {
+                                                    const updated = await updateGame(game.id, {
+                                                        settings: {
+                                                            ...game.settings,
+                                                            daily_quest_max_advance_days: Number(value)
+                                                        }
+                                                    })
+                                                    setGame(updated)
+                                                    toast({
+                                                        title: "Settings updated",
+                                                        description: `Daily quest advance days set to ${value} days`
+                                                    })
+                                                } catch (err) {
+                                                    toast({
+                                                        title: "Error",
+                                                        description: "Failed to update settings",
+                                                        variant: "destructive"
+                                                    })
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger id="daily-quest-days" className="w-[100px] h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="7">7 days</SelectItem>
+                                                <SelectItem value="14">14 days</SelectItem>
+                                                <SelectItem value="30">30 days</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Maximum number of days players can advance daily quests
+                                    </p>
+                                </div>
+
+                                {/* Toggle 2: Coming soon */}
+                                <div className="flex flex-col gap-2 py-2 opacity-50">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="coming-soon" className="text-sm font-medium">
+                                            Coming soon
+                                        </Label>
+                                        <Switch
+                                            id="coming-soon"
+                                            disabled
+                                            checked={false}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        New feature will be available soon
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

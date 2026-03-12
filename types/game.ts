@@ -31,6 +31,10 @@ export interface Game {
     server_region: string
     [key: string]: any
   }
+  settings?: {
+    allow_player_trading?: boolean
+    [key: string]: any
+  }
   is_active: boolean
   created_at: number
   updated_at: number

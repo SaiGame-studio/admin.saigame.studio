@@ -55,6 +55,10 @@ export async function updateGame(
             server_region?: string
             [key: string]: any
         }
+        settings?: {
+            allow_player_trading?: boolean
+            [key: string]: any
+        }
     }
 ): Promise<Game> {
     return await api.patch(`/api/v1/games/${gameId}`, gameData)
