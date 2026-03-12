@@ -556,33 +556,35 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Concurrent Users (CCU) */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="font-medium inline-flex items-center gap-1">
-                                            {t('game.onlineUsers')}
-                                            <button
-                                                onClick={refreshCcu}
-                                                disabled={ccuRefreshing}
-                                                className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                                title="Refresh"
-                                            >
-                                                <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
-                                            </button>
-                                        </span>
-                                        <span className={`text-muted-foreground ${ccu && ccu.ccu.current >= ccu.ccu.limit ? 'text-destructive font-semibold' : ''}`}>
-                                            {fmt(ccu?.ccu.current ?? 0)} / {ccu ? fmt(ccu.ccu.limit) : (game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞')}
-                                            {ccu && ccu.ccu.current >= ccu.ccu.limit && ` (${t('game.limitReached')})`}
-                                        </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {/* Column 1: First set of limits */}
+                                <div className="space-y-6">
+                                    {/* Concurrent Users (CCU) */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="font-medium inline-flex items-center gap-1">
+                                                {t('game.onlineUsers')}
+                                                <button
+                                                    onClick={refreshCcu}
+                                                    disabled={ccuRefreshing}
+                                                    className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                                    title="Refresh"
+                                                >
+                                                    <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
+                                                </button>
+                                            </span>
+                                            <span className={`text-muted-foreground ${ccu && ccu.ccu.current >= ccu.ccu.limit ? 'text-destructive font-semibold' : ''}`}>
+                                                {fmt(ccu?.ccu.current ?? 0)} / {ccu ? fmt(ccu.ccu.limit) : (game.limits?.max_concurrent_users != null ? fmt(game.limits.max_concurrent_users) : '∞')}
+                                                {ccu && ccu.ccu.current >= ccu.ccu.limit && ` (${t('game.limitReached')})`}
+                                            </span>
+                                        </div>
+                                        <Progress
+                                            value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0}
+                                            className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}
+                                        />
                                     </div>
-                                    <Progress
-                                        value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0}
-                                        className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}
-                                    />
-                                </div>
-                                {/* Player Profiles (Total Players) */}
-                                <div className="space-y-2">
+                                    {/* Player Profiles (Total Players) */}
+                                    <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/players`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.totalPlayer')}
@@ -619,6 +621,10 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                            </div>
+
+                            {/* Column 2: Second set of limits */}
+                            <div className="space-y-6">
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -658,6 +664,66 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     />
                                 </div>
                             </div>
+
+                            {/* Column 3: Equipment Panel */}
+                            {catalog.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-medium text-sm">
+                                            {t('plugins.materia.equipment')}
+                                        </span>
+                                        <Link
+                                            href={`/games/${game.id}/plugins`}
+                                            className="text-muted-foreground hover:text-foreground"
+                                        >
+                                            <Hammer className="h-3.5 w-3.5" />
+                                        </Link>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {catalog.filter(p => p.max_stacks > 0).map((plugin, idx) => {
+                                            const tier = GEM_TIERS_MINI[idx % 4]
+                                            const subs = gamePlugins?.subscriptions.filter(s => s.plugin.id === plugin.id) ?? []
+                                            const owned = subs.reduce((sum, s) => sum + s.subscription.stack_count, 0)
+                                            const cancelledOwned = subs.filter(s => s.is_cancelled).reduce((sum, s) => sum + s.subscription.stack_count, 0)
+                                            const activeOwned = owned - cancelledOwned
+                                            return (
+                                                <div key={plugin.id} className="flex items-center gap-2">
+                                                    <span className={`text-xs font-semibold w-20 shrink-0 ${tier.text}`}>{plugin.display_name}</span>
+                                                    <div className="flex gap-1">
+                                                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
+                                                            <span key={si} className="relative inline-flex w-5 h-5">
+                                                                <img
+                                                                    src={tier.image}
+                                                                    alt=""
+                                                                    className="w-full h-full rounded-full"
+                                                                    style={
+                                                                        si < activeOwned
+                                                                            ? undefined
+                                                                            : si < owned
+                                                                            ? { filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }
+                                                                            : { filter: "grayscale(1) brightness(0.3)", opacity: 0.3 }
+                                                                    }
+                                                                />
+                                                                {si >= activeOwned && si < owned && (
+                                                                    <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">{owned}/{plugin.max_stacks}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                    <Button asChild variant="outline" size="sm" className="mt-3 w-full flex items-center gap-2">
+                                        <Link href={`/games/${game.id}/plugins`}>
+                                            <Hammer className="h-4 w-4" />
+                                            Upgrade This Game
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                         </CardContent>
                     </Card>
                 )}
