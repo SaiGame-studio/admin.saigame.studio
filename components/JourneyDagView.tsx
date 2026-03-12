@@ -72,7 +72,7 @@ import {
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 const NODE_W = 200
-const NODE_H = 80
+const NODE_H = 92
 
 function getLayoutedNodes(nodes: Node<JourneyNodeData>[], edges: Edge[]): Node<JourneyNodeData>[] {
   const g = new dagre.graphlib.Graph()
@@ -95,9 +95,11 @@ function getLayoutedNodes(nodes: Node<JourneyNodeData>[], edges: Edge[]): Node<J
 const DagNodeActionsContext = React.createContext<{
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onChangeType: (id: string, type: "staging" | "start" | "end") => void
 }>({
   onEdit: () => {},
   onDelete: () => {},
+  onChangeType: () => {},
 })
 
 // ─── Custom Node ──────────────────────────────────────────────────────────────
@@ -109,8 +111,14 @@ type JourneyNodeData = {
   nodeDefId?: string
 }
 
+const NODE_TYPE_OPTIONS = [
+  { value: "staging", label: "—",     activeClass: "bg-muted text-foreground" },
+  { value: "start",   label: "Start", activeClass: "bg-green-600 text-white" },
+  { value: "end",     label: "End",   activeClass: "bg-orange-500 text-white" },
+] as const
+
 function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
-  const { onEdit, onDelete } = useContext(DagNodeActionsContext)
+  const { onEdit, onDelete, onChangeType } = useContext(DagNodeActionsContext)
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
 
@@ -129,20 +137,30 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background"
       />
       <p className="text-sm font-medium leading-tight truncate">{data.name}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1">
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-          {data.eventType}
-        </Badge>
-        {isStart && (
-          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-green-600 text-white hover:bg-green-600">
-            Start
-          </Badge>
-        )}
-        {isEnd && (
-          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-orange-500 text-white hover:bg-orange-500">
-            End
-          </Badge>
-        )}
+      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+        <span className="font-medium">event:</span> {data.eventType}
+      </p>
+      {/* Node type toggle */}
+      <div className="mt-1.5 flex gap-1 items-center">
+        <span className="text-[10px] text-muted-foreground mr-0.5">type:</span>
+        {NODE_TYPE_OPTIONS.map((opt) => {
+          const active = data.nodeType === opt.value
+          return (
+            <button
+              key={opt.value}
+              onClick={(e) => { e.stopPropagation(); onChangeType(id, opt.value) }}
+              title={opt.value}
+              className={cn(
+                "text-[10px] font-bold rounded px-1.5 py-0 h-4 leading-4 transition-colors border",
+                active
+                  ? cn(opt.activeClass, "border-transparent")
+                  : "bg-background text-muted-foreground border-border hover:border-foreground/40",
+              )}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
       </div>
       {/* Edit / Delete buttons */}
       <div className="absolute bottom-1.5 right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -825,6 +843,18 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
     [setRfNodes, setUsedDefIds, setRfEdges, scheduleSave],
   )
 
+  const handleChangeNodeType = useCallback(
+    (nodeId: string, newType: "staging" | "start" | "end") => {
+      setRfNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, nodeType: newType } } : n,
+        ),
+      )
+      scheduleSave()
+    },
+    [setRfNodes, scheduleSave],
+  )
+
   const nodeActions = React.useMemo(
     () => ({
       onEdit: (nodeId: string) => {
@@ -834,8 +864,9 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
         if (def) setEditDef(def)
       },
       onDelete: handleDeleteNode,
+      onChangeType: handleChangeNodeType,
     }),
-    [allDefs, handleDeleteNode],
+    [allDefs, handleDeleteNode, handleChangeNodeType],
   )
 
   const handleAutoLayout = useCallback(() => {

@@ -47,6 +47,12 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
           Quests
         </Link>
       </Button>
+      <Button asChild variant={btn("analytic")} className="flex items-center gap-2">
+        <Link href={`/games/${gameId}/analytic`}>
+          <BarChart2 className="h-4 w-4" />
+          Analytic
+        </Link>
+      </Button>
       <Button asChild variant={btn("plugins")} className="flex items-center gap-2">
         <Link href={`/games/${gameId}/plugins`}>
           <Hammer className="h-4 w-4" />
@@ -57,12 +63,6 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         <Link href={`/games/${gameId}/mailbox`}>
           <Mail className="h-4 w-4" />
           Mailbox
-        </Link>
-      </Button>
-      <Button asChild variant={btn("analytic")} className="flex items-center gap-2">
-        <Link href={`/games/${gameId}/analytic`}>
-          <BarChart2 className="h-4 w-4" />
-          Analytic
         </Link>
       </Button>
     </div>
