@@ -348,7 +348,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Key</TableHead>
-                <TableHead>Version</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead>Published</TableHead>
                 <TableHead>Created</TableHead>
@@ -369,9 +368,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">{j.journey_key}</code>
                       <CopyButton text={j.journey_key} />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">v{j.version}</Badge>
                   </TableCell>
                   <TableCell>
                     <Switch
@@ -514,8 +510,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
             <div className="space-y-4 mt-6">
               <div className="text-sm text-muted-foreground">
                 <code className="text-xs">{editJourney.journey_key}</code>
-                {" · "}
-                v{editJourney.version}
               </div>
               <div className="space-y-1.5">
                 <Label>Name</Label>
