@@ -73,6 +73,8 @@ export function AdminGameLimitsDialog({ game }: Props) {
     { key: "max_items", label: "Items", usage: u?.items ?? 0, limit: l?.max_items },
     { key: "max_shops", label: "Shops", usage: u?.shops ?? 0, limit: l?.max_shops },
     { key: "max_gacha_packs", label: "Gacha Packs", usage: u?.gacha_packs ?? 0, limit: l?.max_gacha_packs },
+    { key: "max_node_definitions", label: "Node Definitions", usage: u?.node_definitions ?? 0, limit: l?.max_node_definitions },
+    { key: "max_event_types", label: "Event Types", usage: u?.event_types ?? 0, limit: l?.max_event_types },
   ]
 
   function startEdit(key: string, currentLimit: number | null | undefined) {

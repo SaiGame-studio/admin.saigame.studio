@@ -362,9 +362,10 @@ interface NodeDefsPanelProps {
   onAddToDag: (def: JourneyDagNodeDefinition) => void
   editDef: JourneyDagNodeDefinition | null
   setEditDef: (def: JourneyDagNodeDefinition | null) => void
+  maxNodeDefinitions?: number
 }
 
-function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDag, editDef, setEditDef }: NodeDefsPanelProps) {
+function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDag, editDef, setEditDef, maxNodeDefinitions }: NodeDefsPanelProps) {
   const { toast } = useToast()
 
   // Create
@@ -483,6 +484,8 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             <Button
               size="sm"
               className="h-7 text-xs px-2"
+              disabled={maxNodeDefinitions != null && defs.length >= maxNodeDefinitions}
+              title={maxNodeDefinitions != null && defs.length >= maxNodeDefinitions ? `Limit reached (${maxNodeDefinitions})` : undefined}
               onClick={() => {
                 setCreateForm({ name: "", node_key: "", description: "", event_type: "arrive" })
                 setCreateMetaRows([])
@@ -748,9 +751,10 @@ interface Props {
   gameId: string
   journeyId: string
   description?: string
+  maxNodeDefinitions?: number
 }
 
-function JourneyDagInner({ gameId, journeyId, description }: Props) {
+function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { toast } = useToast()
 
@@ -1139,6 +1143,7 @@ function JourneyDagInner({ gameId, journeyId, description }: Props) {
         onAddToDag={handlePanelAddToDag}
         editDef={editDef}
         setEditDef={setEditDef}
+        maxNodeDefinitions={maxNodeDefinitions}
       />
 
     </div>
@@ -1150,10 +1155,10 @@ function JourneyDagInner({ gameId, journeyId, description }: Props) {
 
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function JourneyDagView({ gameId, journeyId, description }: Props) {
+export function JourneyDagView({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
   return (
     <ReactFlowProvider>
-      <JourneyDagInner gameId={gameId} journeyId={journeyId} description={description} />
+      <JourneyDagInner gameId={gameId} journeyId={journeyId} description={description} maxNodeDefinitions={maxNodeDefinitions} />
     </ReactFlowProvider>
   )
 }

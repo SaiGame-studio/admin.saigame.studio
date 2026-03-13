@@ -5,6 +5,8 @@ export interface GameLimits {
   max_player_profiles: number
   max_shops: number
   max_quests?: number
+  max_node_definitions?: number
+  max_event_types?: number
   max_daily_quest_sets?: number
   max_battle_pass_sets?: number
 }
@@ -16,6 +18,8 @@ export interface GameUsage {
   player_profiles: number
   shops: number
   quests?: number
+  node_definitions?: number
+  event_types?: number
 }
 
 export interface Game {

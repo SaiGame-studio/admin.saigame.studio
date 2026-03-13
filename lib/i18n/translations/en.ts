@@ -197,6 +197,7 @@ export const en = {
   game: {
     shops: "Shops",
     quests: "Quests",
+    nodeDefinitions: "Node Definitions",
     itemProfiles: "Item Profiles",
     users: "Players",
     createNew: "Create New Game",
@@ -746,7 +747,7 @@ export const en = {
     items: "Items",
     shops: "Shops",
     quests: "Quests",
-    // Active subscriptions
+    nodeDefinitions: "Node Definitions",
     activeSubscriptions: "Active Subscriptions",
     history: "Subscription History",
     noSubscriptions: "No active subscriptions yet.",
@@ -782,6 +783,8 @@ export const en = {
     fieldProfilesGrant: "Profiles Grant",
     fieldItemsGrant: "Items Grant",
     fieldShopsGrant: "Shops Grant",
+    fieldQuestsGrant: "Quests Grant",
+    fieldNodeDefsGrant: "Node Defs Grant",
     fieldDurationDays: "Duration (days)",
     fieldIsTemplate: "Reusable",
     fieldNote: "Note",
@@ -818,6 +821,7 @@ export const en = {
       labelItems: "Items",
       labelShops: "Shops",
       labelQuests: "Quests",
+      labelNodeDefs: "Node Definitions",
       labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",

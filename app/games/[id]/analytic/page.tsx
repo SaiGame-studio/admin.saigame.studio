@@ -80,9 +80,10 @@ const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
 
 interface JourneyTabProps {
   gameId: string
+  maxNodeDefinitions?: number
 }
 
-function JourneyTab({ gameId }: JourneyTabProps) {
+function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   const { toast } = useToast()
   const [journeys, setJourneys] = useState<Journey[]>([])
   const [loading, setLoading] = useState(true)
@@ -409,7 +410,7 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                   {expandedJourneyId === j.id && (
                     <TableRow>
                       <TableCell colSpan={5} className="p-4 bg-muted/10">
-                        <JourneyDagView gameId={gameId} journeyId={j.id} description={j.description} />
+                        <JourneyDagView gameId={gameId} journeyId={j.id} description={j.description} maxNodeDefinitions={maxNodeDefinitions} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -704,7 +705,7 @@ export default function AnalyticPage() {
           </TabsList>
 
           <TabsContent value="journey" className="mt-6">
-            <JourneyTab gameId={gameId} />
+            <JourneyTab gameId={gameId} maxNodeDefinitions={game?.limits?.max_node_definitions} />
           </TabsContent>
         </Tabs>
       </div>

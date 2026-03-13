@@ -153,6 +153,8 @@ export interface GameLimits {
   max_items?: number | null
   max_gacha_packs?: number | null
   max_shops?: number | null
+  max_node_definitions?: number | null
+  max_event_types?: number | null
 }
 
 export interface StudioLimitsDetail {
@@ -360,6 +362,7 @@ export interface CreateCustomPluginBody {
   profiles_grant?: number
   items_grant?: number
   shops_grant?: number
+  node_defs_grant?: number
   duration_days?: number | null
   is_template?: boolean
 }
@@ -371,6 +374,7 @@ export interface UpdateCustomPluginBody {
   profiles_grant?: number
   items_grant?: number
   shops_grant?: number
+  node_defs_grant?: number
   duration_days?: number | null
 }
 
