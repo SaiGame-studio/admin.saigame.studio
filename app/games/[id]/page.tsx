@@ -546,20 +546,20 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     </p>
                                 </div>
 
-                                {/* Toggle 2: Coming soon */}
-                                <div className="flex flex-col gap-2 py-2 opacity-50">
+                                {/* Toggle 2: Allow tracing player event (read-only) */}
+                                <div className="flex flex-col gap-2 py-2">
                                     <div className="flex items-center justify-between">
-                                        <Label htmlFor="coming-soon" className="text-sm font-medium">
-                                            Coming soon
+                                        <Label htmlFor="allow-tracing" className="text-sm font-medium">
+                                            Allow tracing player event
                                         </Label>
                                         <Switch
-                                            id="coming-soon"
+                                            id="allow-tracing"
+                                            checked={game.settings?.allow_tracing_player_event ?? false}
                                             disabled
-                                            checked={false}
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        New feature will be available soon
+                                        Automatically enabled when a <span className="font-medium text-blue-400">Rare</span> plugin or above is activated. Cannot be changed manually.
                                     </p>
                                 </div>
                             </div>
