@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
-  Route, X, Wand2, ChevronDown, ChevronRight,
+  Route, X, Wand2, ChevronDown, ChevronRight, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,10 +90,11 @@ const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
 
 interface JourneyTabProps {
   gameId: string
-  maxNodeDefinitions?: number
 }
 
-function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
+const JOURNEY_LIMIT = 1000
+
+function JourneyTab({ gameId }: JourneyTabProps) {
   const { toast } = useToast()
   const [journeys, setJourneys] = useState<Journey[]>([])
   const [loading, setLoading] = useState(true)
@@ -144,8 +145,8 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
     if (showRefresh) setRefreshing(true)
     else setLoading(true)
     try {
-      const data = await listJourneys(gameId)
-      setJourneys(data)
+      const journeyData = await listJourneys(gameId)
+      setJourneys(journeyData)
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
     } finally {
@@ -329,9 +330,31 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{journeys.length} journey{journeys.length !== 1 ? "s" : ""}</p>
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {(() => {
+            const used = journeys.length
+            const max = JOURNEY_LIMIT
+            const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+            return (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className={used >= max ? "text-destructive font-medium" : ""}>
+                  {used.toLocaleString()} / {max.toLocaleString()} journeys
+                </span>
+                <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                  <span
+                    className={`block h-full rounded-full transition-all ${
+                      used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </span>
+                <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+              </p>
+            )
+          })()}
+        </div>
+        <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
@@ -608,9 +631,10 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
 interface EventTypeTabProps {
   gameId: string
   autoCreate?: boolean
+  maxEventTypes?: number
 }
 
-function EventTypeTab({ gameId, autoCreate }: EventTypeTabProps) {
+function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -735,15 +759,44 @@ function EventTypeTab({ gameId, autoCreate }: EventTypeTabProps) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {eventTypes.length} event type{eventTypes.length !== 1 ? "s" : ""}
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground flex items-center gap-2">
+          {maxEventTypes != null
+            ? (() => {
+                const used = eventTypes.length
+                const max = maxEventTypes
+                const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                return (
+                  <>
+                    <span className={used >= max ? "text-destructive font-medium" : ""}>
+                      {used.toLocaleString()} / {max.toLocaleString()}
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
+                )
+              })()
+            : <span>{eventTypes.length.toLocaleString()} event type{eventTypes.length !== 1 ? "s" : ""}</span>
+          }
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
-          <Button size="sm" onClick={openCreate}>
+          <Button size="sm" onClick={openCreate} disabled={maxEventTypes != null && eventTypes.length >= maxEventTypes}>
             <Plus className="h-4 w-4 mr-1" />
             New Event Type
           </Button>
@@ -1032,32 +1085,32 @@ export default function AnalyticPage() {
         </div>
       </div>
 
-      {/* Allow tracing player event setting */}
-      <div className="flex justify-end mb-4">
-        <div className="rounded-lg border px-4 py-3 bg-muted/30 w-fit">
-          <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
-            {TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value}>
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList>
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {/* Allow tracing player event setting */}
+            <div className="rounded-lg border px-4 py-3 bg-muted/30 w-fit">
+              <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+            </div>
+          </div>
 
           <TabsContent value="journey" className="mt-6">
-            <JourneyTab gameId={gameId} maxNodeDefinitions={game?.limits?.max_node_definitions} />
+            <JourneyTab gameId={gameId} />
           </TabsContent>
 
           <TabsContent value="event-types" className="mt-6">
             <EventTypeTab
               gameId={gameId}
               autoCreate={activeTab === "event-types" && searchParams.get("create") === "1"}
+              maxEventTypes={game?.limits?.max_event_types}
             />
           </TabsContent>
         </Tabs>

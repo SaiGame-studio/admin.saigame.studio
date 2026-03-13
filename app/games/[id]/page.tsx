@@ -386,12 +386,12 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="text-sm font-medium ">{t('game.createdAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.created_at)}</p>
+                                    <h3 className="text-xs font-medium text-muted-foreground">{t('game.createdAt')}</h3>
+                                    <p className="text-sm">{formatTimestamp(game.created_at)}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium ">{t('game.updatedAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
+                                    <h3 className="text-xs font-medium text-muted-foreground">{t('game.updatedAt')}</h3>
+                                    <p className="text-sm">{formatTimestamp(game.updated_at)}</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
@@ -542,7 +542,9 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 </div>
 
                                 {/* Toggle 2: Allow tracing player event (read-only) */}
-                                <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                                <div className="mt-5">
+                                  <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -623,10 +625,6 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
-                            </div>
-
-                            {/* Column 2: Second set of limits */}
-                            <div className="space-y-6">
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -646,6 +644,10 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                            </div>
+
+                            {/* Column 2: Second set of limits */}
+                            <div className="space-y-6">
                                 {/* Quests */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">

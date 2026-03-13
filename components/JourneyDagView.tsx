@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Info } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -512,7 +512,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {maxNodeDefinitions != null && (
           <div className="px-3 py-1.5 border-b bg-muted/10">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Usage</span>
+              <span>Usage · <span className="italic">fixed limit, cannot be upgraded</span></span>
               <span className={defs.length >= maxNodeDefinitions ? "text-destructive font-semibold" : ""}>
                 {defs.length} / {maxNodeDefinitions}
               </span>
@@ -528,6 +528,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           </div>
         )}
+        {/* Permanent note: nodes cannot be deleted */}
+        <div className="px-3 py-1.5 border-b text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+          <Info className="h-3 w-3 shrink-0" />
+          Node definitions cannot be deleted once created
+        </div>
 
         {/* Drag hint */}
         {!loading && availableDefs.length > 0 && (
