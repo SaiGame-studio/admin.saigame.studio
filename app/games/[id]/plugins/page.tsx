@@ -773,7 +773,7 @@ export default function GamePluginsPage() {
                         { icon: "📦", label: "Items", val: plugin.items_grant },
                         { icon: "🏪", label: "Shops", val: plugin.shops_grant },
                         { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
-                        { icon: "🔗", label: "Node Defs", val: plugin.node_defs_grant ?? 0 },
+                        { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
                       ] as { icon: string; label: string; val: number }[]).map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1021,7 +1021,7 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Node Defs grant</span>
+                            <span className="text-muted-foreground w-28 shrink-0">Journey Node grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -1248,7 +1248,7 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Node Defs grant</span>
+                            <span className="text-muted-foreground w-28 shrink-0">Journey Node grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">

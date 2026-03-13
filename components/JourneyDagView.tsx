@@ -418,11 +418,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await createNodeDefinition(gameId, { ...createForm, metadata: meta })
-      toast({ title: "Node definition created" })
+      toast({ title: "Journey node created" })
       setCreateOpen(false)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to create node definition" })
+      toast({ variant: "destructive", title: "Error", description: "Failed to create journey node" })
     } finally {
       setCreateSaving(false)
     }
@@ -437,11 +437,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await updateNodeDefinition(gameId, editDef.id, { ...editForm, metadata: meta })
-      toast({ title: "Node definition updated" })
+      toast({ title: "Journey node updated" })
       setEditDef(null)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update node definition" })
+      toast({ variant: "destructive", title: "Error", description: "Failed to update journey node" })
     } finally {
       setEditSaving(false)
     }
@@ -452,11 +452,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
     setDeleteSaving(true)
     try {
       await deleteNodeDefinition(gameId, deleteDef.id)
-      toast({ title: "Node definition deleted" })
+      toast({ title: "Journey node deleted" })
       setDeleteDef(null)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete node definition" })
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete journey node" })
     } finally {
       setDeleteSaving(false)
     }
@@ -470,7 +470,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {/* Header */}
         <div className="px-3 py-2 border-b flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium">Node Definitions</span>
+            <span className="text-sm font-medium">Journey Node</span>
             {!loading && availableDefs.length > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                 {availableDefs.length}
@@ -516,7 +516,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           ) : defs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-muted-foreground gap-2">
-              <p className="text-xs">No node definitions yet.</p>
+              <p className="text-xs">No journey nodes yet.</p>
               <p className="text-xs">Create one to start building your journey.</p>
             </div>
           ) : availableDefs.length === 0 ? (
@@ -594,7 +594,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto" side="right">
           <SheetHeader>
-            <SheetTitle>New Node Definition</SheetTitle>
+            <SheetTitle>New Journey Node</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
@@ -676,7 +676,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <Sheet open={!!editDef} onOpenChange={(open) => { if (!open) setEditDef(null) }}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto" side="right">
           <SheetHeader>
-            <SheetTitle>Edit Node Definition</SheetTitle>
+            <SheetTitle>Edit Journey Node</SheetTitle>
           </SheetHeader>
           {editDef && (
             <div className="space-y-4 mt-6">
@@ -722,7 +722,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <AlertDialog open={!!deleteDef} onOpenChange={(open) => { if (!open) setDeleteDef(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Node Definition</AlertDialogTitle>
+            <AlertDialogTitle>Delete Journey Node</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete{" "}
               <span className="font-semibold">{deleteDef?.name}</span>? This action cannot be undone.
@@ -893,7 +893,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
       const data = await listNodeDefinitions(gameId)
       setAllDefs(data)
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load node definitions" })
+      toast({ variant: "destructive", title: "Error", description: "Failed to load journey nodes" })
     } finally {
       setDefsLoading(false)
     }

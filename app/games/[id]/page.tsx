@@ -684,11 +684,11 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
-                                {/* Node Definitions */}
+                                {/* Journey Node */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/analytic`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
-                                            {t('game.nodeDefinitions') ?? 'Node Definitions'}
+                                            {t('game.nodeDefinitions') ?? 'Journey Node'}
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions ? 'text-destructive font-semibold' : ''}`}>

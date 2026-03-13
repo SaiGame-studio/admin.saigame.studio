@@ -510,7 +510,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Items</TableHead>
                     <TableHead>Shops</TableHead>
                     <TableHead>Quests</TableHead>
-                    <TableHead>Node Defs</TableHead>
+                    <TableHead>Journey Node</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -611,7 +611,7 @@ export default function AdminPluginsPage() {
                                       { icon: "📦", label: "Items", val: plugin.items_grant },
                                       { icon: "🏪", label: "Shops", val: plugin.shops_grant },
                                       { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
-                                      { icon: "🔗", label: "Node Defs", val: plugin.node_defs_grant ?? 0 },
+                                      { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
                                       { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
                                     ] as { icon: string; label: string; val: number }[]).map((r) => (
                                       <div key={r.label} className="flex items-center gap-1.5">
@@ -1076,7 +1076,7 @@ export default function AdminPluginsPage() {
                                                   { icon: "📦", label: "Items", val: pluginDef.items_grant },
                                                   { icon: "🏪", label: "Shops", val: pluginDef.shops_grant },
                                                   { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
-                                                  { icon: "🔗", label: "Node Defs", val: pluginDef.node_defs_grant ?? 0 },
+                                                  { icon: "🔗", label: "Journey Node", val: pluginDef.node_defs_grant ?? 0 },
                                                 ] as { icon: string; label: string; val: number }[])
                                                   .filter((r) => r.val > 0)
                                                   .map((r) => (
@@ -1152,7 +1152,7 @@ export default function AdminPluginsPage() {
                   { key: "profiles_grant", label: t('plugins.fieldProfilesGrant') || "Profiles Grant" },
                   { key: "items_grant", label: t('plugins.fieldItemsGrant') || "Items Grant" },
                   { key: "shops_grant", label: t('plugins.fieldShopsGrant') || "Shops Grant" },
-                  { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Node Defs Grant" },
+                  { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Journey Node Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-1">
