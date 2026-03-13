@@ -15,7 +15,6 @@ export interface Journey {
   name: string
   description?: string
   is_active: boolean
-  is_published: boolean
   version: number
   start_node_id?: string
   metadata?: Record<string, string>
@@ -38,7 +37,6 @@ export interface UpdateJourneyRequest {
   name?: string
   description?: string
   is_active?: boolean
-  is_published?: boolean
   metadata?: Record<string, string>
 }
 
@@ -197,4 +195,36 @@ export async function addNodeToJourney(
   body: AddNodeToJourneyRequest,
 ): Promise<JourneyDagNode> {
   return api.post(`/api/v1/games/${gameId}/journeys/${journeyId}/nodes`, body)
+}
+
+// ─── Event Stats API ──────────────────────────────────────────────────────────
+
+export interface EventStat {
+  studio_id: string
+  game_id: string
+  event_type: string
+  stat_date: string
+  player_count: number
+  event_count: number
+  refreshed_at: string
+}
+
+export interface EventStatsResponse {
+  game_id: string
+  from: string | null
+  to: string | null
+  event_type: string
+  stats: EventStat[]
+}
+
+export async function getEventStats(
+  gameId: string,
+  params?: { from?: string; to?: string; event_type?: string },
+): Promise<EventStatsResponse> {
+  const q = new URLSearchParams()
+  if (params?.from) q.set("from", params.from)
+  if (params?.to) q.set("to", params.to)
+  if (params?.event_type) q.set("event_type", params.event_type)
+  const qs = q.toString()
+  return api.get(`/api/v1/games/${gameId}/event-stats${qs ? `?${qs}` : ""}`)
 }

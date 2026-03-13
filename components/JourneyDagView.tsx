@@ -23,8 +23,13 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap } from "lucide-react"
+import { format, subDays } from "date-fns"
+import { Calendar } from "@/components/ui/calendar"
+import type { DateRange } from "react-day-picker"
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,9 +70,85 @@ import {
   createNodeDefinition,
   updateNodeDefinition,
   deleteNodeDefinition,
+  getEventStats,
   type JourneyDagNodeDefinition,
   type SaveJourneyDagRequest,
+  type EventStat,
 } from "@/lib/journey-api"
+
+// ─── EventType Combobox ──────────────────────────────────────────────────────
+
+function EventTypeCombobox({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+
+  const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+  const canCreate = query.trim() !== "" && !options.some((o) => o.toLowerCase() === query.trim().toLowerCase())
+
+  const select = (v: string) => {
+    onChange(v)
+    setOpen(false)
+    setQuery("")
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={value ? "" : "text-muted-foreground"}>
+            {value || "Select or type event type…"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search or create…"
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            {filtered.length === 0 && !canCreate && (
+              <CommandEmpty>No results.</CommandEmpty>
+            )}
+            {filtered.length > 0 && (
+              <CommandGroup>
+                {filtered.map((opt) => (
+                  <CommandItem key={opt} value={opt} onSelect={() => select(opt)}>
+                    <Check className={cn("mr-2 h-4 w-4", value === opt ? "opacity-100" : "opacity-0")} />
+                    {opt}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {canCreate && (
+              <CommandGroup heading="Create new">
+                <CommandItem value={query.trim()} onSelect={() => select(query.trim())}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create "{query.trim()}"
+                </CommandItem>
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -89,6 +170,11 @@ function getLayoutedNodes(nodes: Node<JourneyNodeData>[], edges: Edge[]): Node<J
     return { ...n, position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 } }
   })
 }
+
+// ─── Node stats context ───────────────────────────────────────────────────────
+
+/** Maps event_type → { playerCount, eventCount } aggregated across the selected date range */
+const NodeStatsContext = React.createContext<Map<string, { playerCount: number; eventCount: number }>>(new Map())
 
 // ─── Node action context ─────────────────────────────────────────────────────
 
@@ -119,8 +205,10 @@ const NODE_TYPE_OPTIONS = [
 
 function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
   const { onEdit, onDelete, onChangeType } = useContext(DagNodeActionsContext)
+  const statsMap = useContext(NodeStatsContext)
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
+  const stats = statsMap.get(data.eventType)
 
   return (
     <div
@@ -136,11 +224,29 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         position={Position.Left}
         className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background"
       />
+      {stats && (
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 whitespace-nowrap">
+          <div
+            className="flex items-center gap-0.5 bg-blue-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md"
+            title={`${stats.playerCount.toLocaleString()} unique players`}
+          >
+            <Users className="h-3 w-3" />
+            {stats.playerCount.toLocaleString()}
+          </div>
+          <div
+            className="flex items-center gap-0.5 bg-violet-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md"
+            title={`${stats.eventCount.toLocaleString()} events`}
+          >
+            <Zap className="w-3 h-3" />
+            {stats.eventCount.toLocaleString()}
+          </div>
+        </div>
+      )}
       <p className="text-sm font-medium leading-tight truncate">{data.name}</p>
       <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
         <span className="font-medium">event:</span> {data.eventType}
       </p>
-      {/* Node type toggle */}
+      {/* Node type toggle + Edit / Delete */}
       <div className="mt-1.5 flex gap-1 items-center">
         <span className="text-[10px] text-muted-foreground mr-0.5">type:</span>
         {NODE_TYPE_OPTIONS.map((opt) => {
@@ -161,21 +267,20 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
             </button>
           )
         })}
-      </div>
-      {/* Edit / Delete buttons */}
-      <div className="absolute bottom-1.5 right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(id) }}
-          className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(id) }}
-          className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="h-3 w-3" />
-        </button>
+        <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(id) }}
+            className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(id) }}
+            className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
       </div>
       <Handle
         type="source"
@@ -537,10 +642,10 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
             <div className="space-y-1.5">
               <Label>Event Type <span className="text-destructive">*</span></Label>
-              <Input
+              <EventTypeCombobox
                 value={createForm.event_type}
-                onChange={(e) => setCreateForm((f) => ({ ...f, event_type: e.target.value }))}
-                placeholder="join_game"
+                onChange={(v) => setCreateForm((f) => ({ ...f, event_type: v }))}
+                options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
               />
             </div>
             <div className="space-y-1.5">
@@ -584,9 +689,10 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               </div>
               <div className="space-y-1.5">
                 <Label>Event Type</Label>
-                <Input
+                <EventTypeCombobox
                   value={editForm.event_type}
-                  onChange={(e) => setEditForm((f) => ({ ...f, event_type: e.target.value }))}
+                  onChange={(v) => setEditForm((f) => ({ ...f, event_type: v }))}
+                  options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
                 />
               </div>
               <div className="space-y-1.5">
@@ -641,9 +747,10 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
 interface Props {
   gameId: string
   journeyId: string
+  description?: string
 }
 
-function JourneyDagInner({ gameId, journeyId }: Props) {
+function JourneyDagInner({ gameId, journeyId, description }: Props) {
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { toast } = useToast()
 
@@ -656,6 +763,15 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
   const [allDefs, setAllDefs] = useState<JourneyDagNodeDefinition[]>([])
   const [defsLoading, setDefsLoading] = useState(true)
   const [editDef, setEditDef] = useState<JourneyDagNodeDefinition | null>(null)
+
+  // Event stats
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 7),
+    to: new Date(),
+  })
+  const [nodeStatsMap, setNodeStatsMap] = useState<Map<string, { playerCount: number; eventCount: number }>>(new Map())
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
 
   // Refs updated inline each render — lets the debounced callback read fresh state
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -779,7 +895,31 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
     }
   }, [gameId, toast])
 
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true)
+    try {
+      const params: { from?: string; to?: string } = {}
+      if (dateRange?.from) params.from = format(dateRange.from, "yyyy-MM-dd")
+      if (dateRange?.to) params.to = format(dateRange.to, "yyyy-MM-dd")
+      const res = await getEventStats(gameId, params)
+      const agg = new Map<string, { playerCount: number; eventCount: number }>()
+      for (const s of res.stats) {
+        const prev = agg.get(s.event_type) ?? { playerCount: 0, eventCount: 0 }
+        agg.set(s.event_type, {
+          playerCount: prev.playerCount + s.player_count,
+          eventCount: prev.eventCount + s.event_count,
+        })
+      }
+      setNodeStatsMap(agg)
+    } catch {
+      // silently ignore — stats are non-critical
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [gameId, dateRange])
+
   useEffect(() => { loadDag(); loadDefs() }, [loadDag, loadDefs])
+  useEffect(() => { loadStats() }, [loadStats])
 
   const addNodeToDag = useCallback(
     (def: JourneyDagNodeDefinition, x: number, y: number) => {
@@ -886,7 +1026,61 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
 
   return (
     <DagNodeActionsContext.Provider value={nodeActions}>
-    <div className="flex h-[480px] w-full rounded-md border bg-muted/10 overflow-hidden">
+    <NodeStatsContext.Provider value={nodeStatsMap}>
+    <div className="space-y-2">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2">
+        <p className="text-sm text-muted-foreground">{description || "No description"}</p>
+        <div className="ml-auto flex items-center gap-2">
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>{format(dateRange.from, "MMM d, yyyy")} – {format(dateRange.to, "MMM d, yyyy")}</>
+                  ) : (
+                    format(dateRange.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  "Pick date range"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                defaultMonth={dateRange?.from}
+                disabled={{ after: new Date() }}
+              />
+              <div className="flex gap-1 px-3 pb-3">
+                {[7, 14, 30].map((d) => (
+                  <Button
+                    key={d}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs flex-1"
+                    onClick={() => {
+                      setDateRange({ from: subDays(new Date(), d), to: new Date() })
+                      setDatePickerOpen(false)
+                    }}
+                  >
+                    {d}d
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadStats} disabled={statsLoading} title="Refresh stats">
+            {statsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex h-[480px] w-full rounded-md border bg-muted/10 overflow-hidden">
       {/* DAG canvas */}
       <div className="flex-1 min-w-0 relative">
         {dagLoading ? (
@@ -948,16 +1142,18 @@ function JourneyDagInner({ gameId, journeyId }: Props) {
       />
 
     </div>
+    </div>
+    </NodeStatsContext.Provider>
     </DagNodeActionsContext.Provider>
   )
 }
 
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function JourneyDagView({ gameId, journeyId }: Props) {
+export function JourneyDagView({ gameId, journeyId, description }: Props) {
   return (
     <ReactFlowProvider>
-      <JourneyDagInner gameId={gameId} journeyId={journeyId} />
+      <JourneyDagInner gameId={gameId} journeyId={journeyId} description={description} />
     </ReactFlowProvider>
   )
 }

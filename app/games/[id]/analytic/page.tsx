@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
-  Route, Check, X, Wand2, ChevronDown, ChevronRight,
+  Route, X, Wand2, ChevronDown, ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -184,7 +184,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
       name: j.name,
       description: j.description ?? "",
       is_active: j.is_active,
-      is_published: j.is_published,
       metadata: j.metadata ?? {},
     })
     const rows = Object.entries(j.metadata ?? {}).map(([k, v]) => ({ k, v }))
@@ -353,7 +352,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                 <TableHead>Name</TableHead>
                 <TableHead>Key</TableHead>
                 <TableHead>Active</TableHead>
-                <TableHead>Published</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -372,9 +370,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                           : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                         <div>
                           <div>{j.name}</div>
-                          {j.description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-xs">{j.description}</p>
-                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -389,16 +384,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                         checked={j.is_active}
                         onCheckedChange={() => handleToggleActive(j)}
                       />
-                    </TableCell>
-                    <TableCell>
-                      {j.is_published ? (
-                        <Badge variant="default" className="gap-1">
-                          <Check className="h-3 w-3" />
-                          Published
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">Draft</Badge>
-                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(j.created_at).toLocaleString()}
@@ -423,8 +408,8 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                   </TableRow>
                   {expandedJourneyId === j.id && (
                     <TableRow>
-                      <TableCell colSpan={6} className="p-4 bg-muted/10">
-                        <JourneyDagView gameId={gameId} journeyId={j.id} />
+                      <TableCell colSpan={5} className="p-4 bg-muted/10">
+                        <JourneyDagView gameId={gameId} journeyId={j.id} description={j.description} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -562,14 +547,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
                   id="edit-active"
                   checked={editForm.is_active ?? false}
                   onCheckedChange={v => setEditForm(f => ({ ...f, is_active: v }))}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="edit-published">Published</Label>
-                <Switch
-                  id="edit-published"
-                  checked={editForm.is_published ?? false}
-                  onCheckedChange={v => setEditForm(f => ({ ...f, is_published: v }))}
                 />
               </div>
               <div className="space-y-1.5">
