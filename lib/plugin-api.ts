@@ -16,6 +16,7 @@ export interface Plugin {
   shops_grant: number
   quests_grant: number
   node_defs_grant: number
+  event_types_grant: number
   gacha_grant: number
   cost_coins: number
   max_stacks: number

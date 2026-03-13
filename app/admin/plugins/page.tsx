@@ -108,6 +108,7 @@ interface PluginFormState {
   items_grant: string
   shops_grant: string
   node_defs_grant: string
+  event_types_grant: string
   duration_days: string
   is_template: boolean
 }
@@ -120,6 +121,7 @@ const defaultForm: PluginFormState = {
   items_grant: "0",
   shops_grant: "0",
   node_defs_grant: "0",
+  event_types_grant: "0",
   duration_days: "0",
   is_template: false,
 }
@@ -133,6 +135,7 @@ function pluginToForm(p: Plugin): PluginFormState {
     items_grant: String(p.items_grant ?? 0),
     shops_grant: String(p.shops_grant ?? 0),
     node_defs_grant: String(p.node_defs_grant ?? 0),
+    event_types_grant: String(p.event_types_grant ?? 0),
     duration_days: String(p.duration_days ?? 0),
     is_template: p.is_template ?? false,
   }
@@ -293,6 +296,7 @@ export default function AdminPluginsPage() {
         items_grant: Number(form.items_grant) || 0,
         shops_grant: Number(form.shops_grant) || 0,
         node_defs_grant: Number(form.node_defs_grant) || 0,
+        event_types_grant: Number(form.event_types_grant) || 0,
         duration_days: Number(form.duration_days) || null,
         is_template: form.is_template,
       }
@@ -511,6 +515,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Shops</TableHead>
                     <TableHead>Quests</TableHead>
                     <TableHead>Journey Node</TableHead>
+                    <TableHead>Event Types</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -542,6 +547,7 @@ export default function AdminPluginsPage() {
                           <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.event_types_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>
                             {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
                           </TableCell>
@@ -612,6 +618,7 @@ export default function AdminPluginsPage() {
                                       { icon: "🏪", label: "Shops", val: plugin.shops_grant },
                                       { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
                                       { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
+                                      { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
                                       { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
                                     ] as { icon: string; label: string; val: number }[]).map((r) => (
                                       <div key={r.label} className="flex items-center gap-1.5">
@@ -1071,6 +1078,7 @@ export default function AdminPluginsPage() {
                                                   { icon: "🏪", label: "Shops", val: pluginDef.shops_grant },
                                                   { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
                                                   { icon: "🔗", label: "Journey Node", val: pluginDef.node_defs_grant ?? 0 },
+                                                  { icon: "📡", label: "Event Types", val: pluginDef.event_types_grant ?? 0 },
                                                 ] as { icon: string; label: string; val: number }[])
                                                   .filter((r) => r.val > 0)
                                                   .map((r) => (
@@ -1145,6 +1153,7 @@ export default function AdminPluginsPage() {
                   { key: "items_grant", label: t('plugins.fieldItemsGrant') || "Items Grant" },
                   { key: "shops_grant", label: t('plugins.fieldShopsGrant') || "Shops Grant" },
                   { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Journey Node Grant" },
+                  { key: "event_types_grant", label: t('plugins.fieldEventTypesGrant') || "Event Types Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-1">

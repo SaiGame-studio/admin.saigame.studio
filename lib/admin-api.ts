@@ -362,6 +362,7 @@ export interface CreateCustomPluginBody {
   items_grant?: number
   shops_grant?: number
   node_defs_grant?: number
+  event_types_grant?: number
   duration_days?: number | null
   is_template?: boolean
 }
@@ -374,6 +375,7 @@ export interface UpdateCustomPluginBody {
   items_grant?: number
   shops_grant?: number
   node_defs_grant?: number
+  event_types_grant?: number
   duration_days?: number | null
 }
 
