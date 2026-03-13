@@ -198,6 +198,7 @@ export const ja = {
     shops: "ショップ",
     quests: "クエスト",
     nodeDefinitions: "ジャーニーノード",
+    eventTypes: "イベントタイプ",
     itemProfiles: "アイテムプロフィール",
     users: "ユーザー",
     createNew: "新しいゲームを作成",

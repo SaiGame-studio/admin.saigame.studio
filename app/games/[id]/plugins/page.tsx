@@ -616,7 +616,7 @@ export default function GamePluginsPage() {
             </div>
           )}
 
-          {/* Col 2 & 3: Stats — split into two columns; Col 4: reserved for future */}
+          {/* Col 2 & 3 & 4: Stats — split into three columns */}
           {game && (() => {
             const statsData = [
                   { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
@@ -628,7 +628,8 @@ export default function GamePluginsPage() {
                   { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
             const col2 = statsData.slice(0, 3)
-            const col3 = statsData.slice(3)
+            const col3 = statsData.slice(3, 5)
+            const col4 = statsData.slice(5)
             const renderStat = (row: typeof statsData[number]) => {
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -710,8 +711,8 @@ export default function GamePluginsPage() {
                 <div className="flex flex-col gap-2">{col2.map(renderStat)}</div>
                 {/* Col 3 */}
                 <div className="flex flex-col gap-2">{col3.map(renderStat)}</div>
-                {/* Col 4 — reserved for future limits */}
-                <div className="flex flex-col gap-2" />
+                {/* Col 4 */}
+                <div className="flex flex-col gap-2">{col4.map(renderStat)}</div>
               </TooltipProvider>
             )
           })()}

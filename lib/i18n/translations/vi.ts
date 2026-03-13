@@ -198,6 +198,7 @@ export const vi = {
     shops: "Cửa hàng",
     quests: "Nhiệm vụ",
     nodeDefinitions: "Journey Node",
+    eventTypes: "Event Types",
     itemProfiles: "Hồ sơ vật phẩm",
     users: "Người chơi",
     createNew: "Tạo Game mới",

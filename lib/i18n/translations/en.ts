@@ -198,6 +198,7 @@ export const en = {
     shops: "Shops",
     quests: "Quests",
     nodeDefinitions: "Journey Node",
+    eventTypes: "Event Types",
     itemProfiles: "Item Profiles",
     users: "Players",
     createNew: "Create New Game",
