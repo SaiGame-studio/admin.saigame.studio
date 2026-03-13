@@ -128,6 +128,10 @@ function formatNumber(n: number): string {
   return String(n)
 }
 
+function formatFull(n: number): string {
+  return n.toLocaleString()
+}
+
 function timeAgo(date: Date): string {
   const diffMs = Date.now() - date.getTime()
   const isFuture = diffMs < 0
@@ -541,18 +545,18 @@ export default function GamePluginsPage() {
                             {base > 0 && (
                               <div className="flex items-center justify-between gap-6 text-xs">
                                 <span className="text-muted-foreground">Base</span>
-                                <span className="font-semibold tabular-nums">+{formatNumber(base)}</span>
+                                <span className="font-semibold tabular-nums">+{formatFull(base)}</span>
                               </div>
                             )}
                             {contributions.map((c, ci) => (
                               <div key={ci} className={`flex items-center justify-between gap-6 text-xs ${c.isCancelled ? "opacity-50" : ""}`}>
                                 <span className={c.isCancelled ? "line-through text-muted-foreground" : ""}>{c.name} <span className="text-muted-foreground">×{c.stacks}</span></span>
-                                <span className="font-semibold tabular-nums text-green-400">+{formatNumber(c.amount)}</span>
+                                <span className="font-semibold tabular-nums text-green-400">+{formatFull(c.amount)}</span>
                               </div>
                             ))}
                             <div className="border-t border-border/60 pt-1 flex items-center justify-between gap-6 text-xs">
                               <span className="text-muted-foreground font-semibold">Total</span>
-                              <span className="font-bold tabular-nums">{row.max != null ? formatNumber(row.max) : '∞'}</span>
+                              <span className="font-bold tabular-nums">{row.max != null ? formatFull(row.max) : '∞'}</span>
                             </div>
                           </div>
                         </TooltipContent>
