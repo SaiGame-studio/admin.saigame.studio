@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Info } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -512,7 +512,18 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {maxNodeDefinitions != null && (
           <div className="px-3 py-1.5 border-b bg-muted/10">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Usage · <span className="italic">fixed limit, cannot be upgraded</span></span>
+              <span className="flex items-center gap-1">
+                Usage
+                <a
+                  href={`/games/${gameId}/plugins`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors"
+                  title="Manage plugins / raise limits"
+                >
+                  <Hammer className="h-2.5 w-2.5" />
+                </a>
+              </span>
               <span className={defs.length >= maxNodeDefinitions ? "text-destructive font-semibold" : ""}>
                 {defs.length} / {maxNodeDefinitions}
               </span>
@@ -528,12 +539,6 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           </div>
         )}
-        {/* Permanent note: nodes cannot be deleted */}
-        <div className="px-3 py-1.5 border-b text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
-          <Info className="h-3 w-3 shrink-0" />
-          Node definitions cannot be deleted once created
-        </div>
-
         {/* Drag hint */}
         {!loading && availableDefs.length > 0 && (
           <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/20">
@@ -608,14 +613,16 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => setDeleteDef(def)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {!["ending1", "join_game"].includes(def.event_type) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setDeleteDef(def)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

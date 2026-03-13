@@ -378,16 +378,16 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(j)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteJourneyItem(j)}
-                          disabled={j.journey_key === "main_story"}
-                          title={j.journey_key === "main_story" ? "Main story journey cannot be deleted" : undefined}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {j.journey_key !== "main_story" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteJourneyItem(j)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -726,7 +726,19 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {eventTypes.map((item) => (
+              {[...eventTypes]
+                .sort((a, b) => {
+                  const PINNED = ["join_game", "ending1"]
+                  const ai = PINNED.indexOf(a.event_type)
+                  const bi = PINNED.indexOf(b.event_type)
+                  if (ai !== -1 && bi !== -1) return ai - bi
+                  if (ai !== -1) return -1
+                  if (bi !== -1) return 1
+                  return 0
+                })
+                .map((item) => {
+                const isPinned = ["join_game", "ending1"].includes(item.event_type)
+                return (
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -745,18 +757,21 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteItem(item)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!isPinned && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteItem(item)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </div>
