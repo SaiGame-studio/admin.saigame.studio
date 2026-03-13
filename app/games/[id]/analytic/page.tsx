@@ -90,18 +90,20 @@ const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
 
 interface JourneyTabProps {
   gameId: string
+  journeys: Journey[]
+  loading: boolean
+  createOpen: boolean
+  setCreateOpen: (open: boolean) => void
+  onMutate: () => void
+  maxNodeDefinitions?: number
 }
 
 const JOURNEY_LIMIT = 1000
 
-function JourneyTab({ gameId }: JourneyTabProps) {
+function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions }: JourneyTabProps) {
   const { toast } = useToast()
-  const [journeys, setJourneys] = useState<Journey[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
 
   // Create sheet
-  const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateJourneyRequest>({
     name: "",
     journey_key: "",
@@ -141,30 +143,16 @@ function JourneyTab({ gameId }: JourneyTabProps) {
       .replace(/_+/g, "_") // Replace multiple underscores with single
   }
 
-  const load = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true)
-    else setLoading(true)
-    try {
-      const journeyData = await listJourneys(gameId)
-      setJourneys(journeyData)
-    } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
+  // Reset form when sheet opens
+  useEffect(() => {
+    if (createOpen) {
+      setCreateForm({ name: "", journey_key: "", description: "", metadata: {} })
+      setCreateMetaRows([])
+      setAutoSlug(true)
     }
-  }, [gameId, toast])
-
-  useEffect(() => { load() }, [load])
+  }, [createOpen])
 
   // ── Create ──────────────────────────────────────────────────────────────────
-
-  function openCreate() {
-    setCreateForm({ name: "", journey_key: "", description: "", metadata: {} })
-    setCreateMetaRows([])
-    setAutoSlug(true) // Reset auto-slug when opening form
-    setCreateOpen(true)
-  }
 
   const handleCreate = async () => {
     if (!createForm.name.trim() || !createForm.journey_key.trim()) {
@@ -180,7 +168,7 @@ function JourneyTab({ gameId }: JourneyTabProps) {
       await createJourney(gameId, { ...createForm, metadata: meta })
       toast({ title: "Journey created" })
       setCreateOpen(false)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to create journey" })
     } finally {
@@ -213,7 +201,7 @@ function JourneyTab({ gameId }: JourneyTabProps) {
       await updateJourney(gameId, editJourney.id, { ...editForm, metadata: meta })
       toast({ title: "Journey updated" })
       setEditJourney(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
     } finally {
@@ -230,7 +218,7 @@ function JourneyTab({ gameId }: JourneyTabProps) {
       await deleteJourney(gameId, deleteJourneyItem.id)
       toast({ title: "Journey deleted" })
       setDeleteJourneyItem(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete journey" })
     } finally {
@@ -243,7 +231,7 @@ function JourneyTab({ gameId }: JourneyTabProps) {
   const handleToggleActive = async (j: Journey) => {
     try {
       await updateJourney(gameId, j.id, { is_active: !j.is_active })
-      setJourneys(prev => prev.map(item => item.id === j.id ? { ...item, is_active: !j.is_active } : item))
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
     }
@@ -329,42 +317,6 @@ function JourneyTab({ gameId }: JourneyTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          {(() => {
-            const used = journeys.length
-            const max = JOURNEY_LIMIT
-            const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
-            return (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className={used >= max ? "text-destructive font-medium" : ""}>
-                  {used.toLocaleString()} / {max.toLocaleString()} journeys
-                </span>
-                <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                  <span
-                    className={`block h-full rounded-full transition-all ${
-                      used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </span>
-                <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
-              </p>
-            )
-          })()}
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Journey
-          </Button>
-        </div>
-      </div>
-
       {/* Table */}
       {loading ? (
         <div className="space-y-2">
@@ -632,26 +584,31 @@ interface EventTypeTabProps {
   gameId: string
   autoCreate?: boolean
   maxEventTypes?: number
+  eventTypes: EventType[]
+  loading: boolean
+  createOpen: boolean
+  setCreateOpen: (open: boolean) => void
+  onMutate: () => void
 }
 
-function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) {
+function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, createOpen, setCreateOpen, onMutate }: EventTypeTabProps) {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [eventTypes, setEventTypes] = useState<EventType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
 
-  // Create sheet
-  const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateEventTypeRequest>({ event_type: "", description: "" })
   const [createSaving, setCreateSaving] = useState(false)
 
   // Auto-open create panel when navigated with create=1
   useEffect(() => {
-    if (autoCreate) openCreate()
+    if (autoCreate) setCreateOpen(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCreate])
+
+  // Reset form when sheet opens
+  useEffect(() => {
+    if (createOpen) setCreateForm({ event_type: "", description: "" })
+  }, [createOpen])
 
   // Edit sheet
   const [editItem, setEditItem] = useState<EventType | null>(null)
@@ -663,20 +620,8 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
   const [deleteSaving, setDeleteSaving] = useState(false)
 
   const load = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true)
-    else setLoading(true)
-    try {
-      const data = await listEventTypes(gameId)
-      setEventTypes(data)
-    } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load event types" })
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [gameId, toast])
-
-  useEffect(() => { load() }, [load])
+    // no-op: load is managed by parent
+  }, [])
 
   // ── Validation ────────────────────────────────────────────────────────────
 
@@ -692,7 +637,6 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
   // ── Create ──────────────────────────────────────────────────────────────────
 
   function openCreate() {
-    setCreateForm({ event_type: "", description: "" })
     setCreateOpen(true)
   }
 
@@ -707,7 +651,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
       await createEventType(gameId, createForm)
       toast({ title: "Event type created" })
       setCreateOpen(false)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to create event type" })
     } finally {
@@ -729,7 +673,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
       await updateEventType(gameId, editItem.id, { description: editDescription })
       toast({ title: "Event type updated" })
       setEditItem(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to update event type" })
     } finally {
@@ -746,7 +690,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
       await deleteEventType(gameId, deleteItem.id)
       toast({ title: "Event type deleted" })
       setDeleteItem(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete event type" })
     } finally {
@@ -758,51 +702,6 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes }: EventTypeTabProps) 
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground flex items-center gap-2">
-          {maxEventTypes != null
-            ? (() => {
-                const used = eventTypes.length
-                const max = maxEventTypes
-                const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
-                return (
-                  <>
-                    <span className={used >= max ? "text-destructive font-medium" : ""}>
-                      {used.toLocaleString()} / {max.toLocaleString()}
-                    </span>
-                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                      <span
-                        className={`block h-full rounded-full transition-all ${
-                          used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </span>
-                    <Link
-                      href={`/games/${gameId}/plugins`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                      title="Manage plugins / raise limits"
-                    >
-                      <Hammer className="h-3.5 w-3.5" />
-                    </Link>
-                  </>
-                )
-              })()
-            : <span>{eventTypes.length.toLocaleString()} event type{eventTypes.length !== 1 ? "s" : ""}</span>
-          }
-        </p>
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
-          <Button size="sm" onClick={openCreate} disabled={maxEventTypes != null && eventTypes.length >= maxEventTypes}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Event Type
-          </Button>
-        </div>
-      </div>
-
       {/* Table */}
       {loading ? (
         <div className="space-y-2">
@@ -1002,6 +901,49 @@ export default function AnalyticPage() {
   const [studio, setStudio] = useState<Studio | null>(null)
   const [gameLoading, setGameLoading] = useState(true)
 
+  // Journey state (hoisted for layout: toolbar in header, table full-width below)
+  const [journeys, setJourneys] = useState<Journey[]>([])
+  const [journeysLoading, setJourneysLoading] = useState(true)
+  const [journeysRefreshing, setJourneysRefreshing] = useState(false)
+  const [journeyCreateOpen, setJourneyCreateOpen] = useState(false)
+
+  const loadJourneys = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setJourneysRefreshing(true)
+    else setJourneysLoading(true)
+    try {
+      const data = await listJourneys(gameId)
+      setJourneys(data)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
+    } finally {
+      setJourneysLoading(false)
+      setJourneysRefreshing(false)
+    }
+  }, [gameId, toast])
+
+  useEffect(() => { loadJourneys() }, [loadJourneys])
+
+  // Event type state (hoisted for layout)
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
+  const [eventTypesLoading, setEventTypesLoading] = useState(true)
+  const [eventTypesRefreshing, setEventTypesRefreshing] = useState(false)
+  const [eventTypeCreateOpen, setEventTypeCreateOpen] = useState(false)
+
+  const loadEventTypes = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setEventTypesRefreshing(true)
+    else setEventTypesLoading(true)
+    try {
+      const data = await listEventTypes(gameId)
+      setEventTypes(data)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to load event types" })
+    } finally {
+      setEventTypesLoading(false)
+      setEventTypesRefreshing(false)
+    }
+  }, [gameId, toast])
+
+  useEffect(() => { loadEventTypes() }, [loadEventTypes])
   useEffect(() => {
     setGameLoading(true)
     getGame(gameId)
@@ -1085,10 +1027,12 @@ export default function AnalyticPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <div className="flex items-center justify-between">
+      {/* Tabs: 2-col header (TabsList + journey toolbar | Allow tracing) + full-width content */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        {/* 2-col header */}
+        <div className="flex gap-6 items-start mb-4">
+          {/* Col 1: tab triggers + journey toolbar */}
+          <div className="flex-1 min-w-0 space-y-4">
             <TabsList>
               {TABS.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>
@@ -1096,25 +1040,119 @@ export default function AnalyticPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            {/* Allow tracing player event setting */}
-            <div className="rounded-lg border px-4 py-3 bg-muted/30 w-fit">
-              <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
-            </div>
+            {activeTab === "journey" && (
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  {(() => {
+                    const used = journeys.length
+                    const max = JOURNEY_LIMIT
+                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                    return (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className={used >= max ? "text-destructive font-medium" : ""}>
+                          {used.toLocaleString()} / {max.toLocaleString()}
+                        </span>
+                        <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                          <span
+                            className={`block h-full rounded-full transition-all ${
+                              used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+                      </p>
+                    )
+                  })()}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => loadJourneys(true)} disabled={journeysRefreshing}>
+                    <RefreshCw className={`h-4 w-4 ${journeysRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                  <Button size="sm" onClick={() => setJourneyCreateOpen(true)} disabled={journeys.length >= JOURNEY_LIMIT}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Journey
+                  </Button>
+                </div>
+              </div>
+            )}
+            {activeTab === "event-types" && (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  {game?.limits?.max_event_types != null
+                    ? (() => {
+                        const used = eventTypes.length
+                        const max = game.limits!.max_event_types!
+                        const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                        return (
+                          <>
+                            <span className={used >= max ? "text-destructive font-medium" : ""}>
+                              {used.toLocaleString()} / {max.toLocaleString()}
+                            </span>
+                            <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                              <span
+                                className={`block h-full rounded-full transition-all ${
+                                  used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </span>
+                            <Link
+                              href={`/games/${gameId}/plugins`}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                              title="Manage plugins / raise limits"
+                            >
+                              <Hammer className="h-3.5 w-3.5" />
+                            </Link>
+                          </>
+                        )
+                      })()
+                    : <span>{eventTypes.length.toLocaleString()}</span>
+                  }
+                </p>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => loadEventTypes(true)} disabled={eventTypesRefreshing}>
+                    <RefreshCw className={`h-4 w-4 ${eventTypesRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                  <Button size="sm" onClick={() => setEventTypeCreateOpen(true)} disabled={game?.limits?.max_event_types != null && eventTypes.length >= game.limits.max_event_types}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Event Type
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+          {/* Col 2: Allow tracing */}
+          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
+            <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+          </div>
+        </div>
 
-          <TabsContent value="journey" className="mt-6">
-            <JourneyTab gameId={gameId} />
-          </TabsContent>
-
-          <TabsContent value="event-types" className="mt-6">
-            <EventTypeTab
-              gameId={gameId}
-              autoCreate={activeTab === "event-types" && searchParams.get("create") === "1"}
-              maxEventTypes={game?.limits?.max_event_types}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+        {/* Full-width content */}
+        {activeTab === "journey" && (
+          <JourneyTab
+            gameId={gameId}
+            journeys={journeys}
+            loading={journeysLoading}
+            createOpen={journeyCreateOpen}
+            setCreateOpen={setJourneyCreateOpen}
+            onMutate={() => loadJourneys(true)}
+            maxNodeDefinitions={game?.limits?.max_node_definitions}
+          />
+        )}
+        {activeTab === "event-types" && (
+          <EventTypeTab
+            gameId={gameId}
+            autoCreate={searchParams.get("create") === "1"}
+            maxEventTypes={game?.limits?.max_event_types}
+            eventTypes={eventTypes}
+            loading={eventTypesLoading}
+            createOpen={eventTypeCreateOpen}
+            setCreateOpen={setEventTypeCreateOpen}
+            onMutate={() => loadEventTypes(true)}
+          />
+        )}
+      </Tabs>
     </div>
   )
 }
