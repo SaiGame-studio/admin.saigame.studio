@@ -343,7 +343,7 @@ export default function GamePluginsPage() {
   const pendingReduction = cancelledSubs.length > 0
     ? cancelledSubs.reduce(
         (acc, { subscription, plugin }) => {
-          const n = subscription.stack_count ?? 0
+          const n = 1
           return {
             max_concurrent_users: acc.max_concurrent_users + plugin.ccu_grant * n,
             max_profiles: acc.max_profiles + plugin.profiles_grant * n,
@@ -368,7 +368,7 @@ export default function GamePluginsPage() {
       .filter((s) => s.plugin.plugin_type === "custom")
       .reduce((acc, { plugin, subscription }) => {
         if (!acc[plugin.id]) acc[plugin.id] = { plugin, totalStacks: 0 }
-        acc[plugin.id].totalStacks += subscription.stack_count ?? 0
+        acc[plugin.id].totalStacks += 1
         return acc
       }, {} as Record<string, { plugin: Plugin; totalStacks: number }>)
   )
@@ -450,7 +450,7 @@ export default function GamePluginsPage() {
                   const owned = plugin.max_stacks - remaining
                   const cancelledOwned2 = subs
                     .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                    .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+                    .reduce((sum, _s) => sum + 1, 0)
                   const activeOwned2 = owned - cancelledOwned2
                   return (
                     <div key={plugin.id} className="flex items-center gap-2">
@@ -503,8 +503,8 @@ export default function GamePluginsPage() {
                   const contributions = activeSubs_
                     .map(({ subscription, plugin, is_cancelled }) => ({
                       name: plugin.display_name,
-                      stacks: subscription.stack_count,
-                      amount: row.grantField(plugin) * (subscription.stack_count ?? 0),
+                      stacks: 1,
+                      amount: row.grantField(plugin) * 1,
                       isCancelled: is_cancelled,
                     }))
                     .filter(c => c.amount > 0)
@@ -600,7 +600,7 @@ export default function GamePluginsPage() {
               const owned = plugin.max_stacks - remaining
               const cancelledOwned = subs
                 .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+                .reduce((sum, _s) => sum + 1, 0)
               const activeOwned = owned - cancelledOwned
               const cost = plugin.cost_coins
               const canAfford = walletBalance !== null ? walletBalance >= cost : true
@@ -922,10 +922,6 @@ export default function GamePluginsPage() {
                             <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
-                            <span className="font-semibold">{subscription.stack_count}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
                             <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1147,10 +1143,6 @@ export default function GamePluginsPage() {
                             <span className="text-muted-foreground w-28 shrink-0">Plugin ID</span>
                             <span className="font-mono text-[10px] break-all">{subscription.plugin_id}</span>
                             <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
-                            <span className="font-semibold">{subscription.stack_count}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>

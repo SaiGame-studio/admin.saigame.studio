@@ -499,6 +499,27 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
           </div>
         </div>
 
+        {/* Usage bar */}
+        {maxNodeDefinitions != null && (
+          <div className="px-3 py-1.5 border-b bg-muted/10">
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>Usage</span>
+              <span className={defs.length >= maxNodeDefinitions ? "text-destructive font-semibold" : ""}>
+                {defs.length} / {maxNodeDefinitions}
+              </span>
+            </div>
+            <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  defs.length >= maxNodeDefinitions ? "bg-destructive" :
+                  defs.length / maxNodeDefinitions >= 0.7 ? "bg-yellow-500" : "bg-primary"
+                }`}
+                style={{ width: `${Math.min(100, (defs.length / maxNodeDefinitions) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Drag hint */}
         {!loading && availableDefs.length > 0 && (
           <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/20">

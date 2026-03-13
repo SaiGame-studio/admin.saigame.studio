@@ -814,7 +814,6 @@ export default function AdminPluginsPage() {
                                             isRevoked ? "bg-muted text-muted-foreground border-border" :
                                             "bg-orange-500/15 text-orange-400 border-orange-500/30"
                                           }`}>{sub.status}</span>
-                                          <span className="text-muted-foreground">×{sub.stack_count}</span>
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-5 gap-1 text-center">
@@ -972,7 +971,6 @@ export default function AdminPluginsPage() {
                                         )}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-sm">{g.grant.stack_count}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                       <div className="flex flex-col gap-0.5">
                                         <span>{g.grant.expires_at ? formatISODate(g.grant.expires_at) : "Permanent"}</span>
@@ -1007,10 +1005,6 @@ export default function AdminPluginsPage() {
                                           <div>
                                             <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Plugin ID</p>
                                             <div className="flex items-center gap-1 font-mono break-all">{g.grant.plugin_id}<CopyButton text={g.grant.plugin_id} /></div>
-                                          </div>
-                                          <div>
-                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Stack</p>
-                                            <p>{g.grant.stack_count}</p>
                                           </div>
                                           <div>
                                             <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Coins/month</p>
@@ -1068,7 +1062,7 @@ export default function AdminPluginsPage() {
                                           </div>
                                           {pluginDef && (
                                             <div className="col-span-2 md:col-span-3 border-t border-border/40 pt-2 mt-1">
-                                              <p className="text-muted-foreground uppercase tracking-wide mb-1.5">Grants (per stack × {g.grant.stack_count})</p>
+                                              <p className="text-muted-foreground uppercase tracking-wide mb-1.5">Grants</p>
                                               <div className="flex flex-wrap gap-x-6 gap-y-1">
                                                 {([
                                                   { icon: "👥", label: "CCU", val: pluginDef.ccu_grant },
@@ -1084,9 +1078,7 @@ export default function AdminPluginsPage() {
                                                       <span>{r.icon}</span>
                                                       <span className="text-muted-foreground">{r.label}:</span>
                                                       <span className="font-semibold">+{r.val.toLocaleString()}</span>
-                                                      {g.grant.stack_count > 1 && (
-                                                        <span className="text-green-400 font-bold">= +{(r.val * g.grant.stack_count).toLocaleString()} total</span>
-                                                      )}
+
                                                     </div>
                                                   ))}
                                               </div>

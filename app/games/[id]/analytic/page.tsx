@@ -65,6 +65,7 @@ import {
 } from "@/lib/journey-api"
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
+import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
@@ -690,6 +691,13 @@ export default function AnalyticPage() {
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
           <GameNavButtons gameId={gameId} active="analytic" />
+        </div>
+      </div>
+
+      {/* Allow tracing player event setting */}
+      <div className="flex justify-end mb-4">
+        <div className="rounded-lg border px-4 py-3 bg-muted/30 w-fit">
+          <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
         </div>
       </div>
 

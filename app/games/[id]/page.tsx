@@ -25,6 +25,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
+import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -306,7 +307,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
-                    <GameNavButtons gameId={game.id} />
+                    <GameNavButtons gameId={game.id} active="detail" />
                     <DeleteGameDialog game={game} />
                 </div>
             </div>
@@ -547,21 +548,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 </div>
 
                                 {/* Toggle 2: Allow tracing player event (read-only) */}
-                                <div className="flex flex-col gap-2 py-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="allow-tracing" className="text-sm font-medium">
-                                            Allow tracing player event
-                                        </Label>
-                                        <Switch
-                                            id="allow-tracing"
-                                            checked={game.settings?.allow_tracing_player_event ?? false}
-                                            disabled
-                                        />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Automatically enabled when a <span className="font-medium text-blue-400">Rare</span> plugin or above is activated. Cannot be changed manually.
-                                    </p>
-                                </div>
+                                <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
                             </div>
                         </div>
                     </CardContent>

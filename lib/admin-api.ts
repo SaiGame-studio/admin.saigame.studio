@@ -219,7 +219,6 @@ export interface RecalcSubscription {
   plugin_id: string
   display_name: string
   status: string
-  stack_count: number
   contribution: RecalcLimitSet
 }
 
