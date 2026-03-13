@@ -22,6 +22,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // ── Quest progress data pretty-printer ──────────────────────────────────────
@@ -1652,6 +1653,15 @@ export default function GameUserProgressDetailPage({
                     </SelectContent>
                   </Select>
                 </div>
+                {game && (
+                  <div className="ml-auto flex items-end pb-0.5">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground border-l pl-3">
+                      <span>Game setting — max advance days</span>
+                      <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} compact />
+                      <span className="text-muted-foreground/50">· all players</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {!dailyAheadSelectedPoolId ? (

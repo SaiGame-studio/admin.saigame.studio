@@ -19,7 +19,9 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useItemProfilesCache } from "@/hooks/use-item-profiles-cache"
 import { CopyButton } from "@/components/CopyButton"
-import { getGame } from "@/lib/game-api"
+import { getGame, updateGame } from "@/lib/game-api"
+import { Switch } from "@/components/ui/switch"
+import type { Game } from "@/types/game"
 import { listItemDefinitions } from "@/lib/inventory-api"
 import type { ItemDefinition } from "@/types/inventory"
 import { getGameProgressList, getGameProgressDetail, GameProgress } from "@/lib/game-user-api"
@@ -123,7 +125,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
   const { t } = useTranslation(locale)
   
   const [loading, setLoading] = useState(false)
-  const [game, setGame] = useState<{ id: string; name: string } | null>(null)
+  const [game, setGame] = useState<Game | null>(null)
   const [form, setForm] = useState<SystemMailForm>({
     receiver_id: "",
     subject: "Thank You",
@@ -686,7 +688,31 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
         </CardContent>
       </Card>
 
-        {/* Column 2: Player Mailbox */}
+        {/* Column 2: Settings + Player Mailbox */}
+        <div className="flex flex-col gap-4">
+        {game && (
+          <div className="flex items-center justify-between rounded-lg border px-4 py-3 bg-muted/30">
+            <div>
+              <p className="text-sm font-medium">Allow player trading and mailbox</p>
+              <p className="text-xs text-muted-foreground">Enable trading between players and mailbox system</p>
+            </div>
+            <Switch
+              id="allow-trading"
+              checked={game.settings?.allow_player_trading ?? false}
+              onCheckedChange={async (checked) => {
+                try {
+                  const updated = await updateGame(game.id, {
+                    settings: { ...game.settings, allow_player_trading: checked }
+                  })
+                  setGame(updated)
+                  toast({ title: "Settings updated", description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}` })
+                } catch {
+                  toast({ title: "Error", description: "Failed to update settings", variant: "destructive" })
+                }
+              }}
+            />
+          </div>
+        )}
         <Card className="group">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -861,6 +887,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   )

@@ -8,6 +8,7 @@ import {
   BarChart2,
   Check,
   ChevronDown,
+  HelpCircle,
   Loader2,
   Plus,
   RefreshCw,
@@ -45,11 +46,140 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
+
+// ---------------------------------------------------------------------------
+// Limit explanations for the help panel
+// ---------------------------------------------------------------------------
+
+const LIMIT_EXPLANATIONS: Record<string, {
+  title: string
+  icon: string
+  tagline: string
+  description: string
+  details: string[]
+  grantTable: { tier: string; perStack: string }[]
+  tip?: string
+}> = {
+  ccu: {
+    title: "Concurrent Users (CCU)",
+    icon: "👥",
+    tagline: "How many players can be online simultaneously",
+    description: "CCU is the maximum number of players connected to your game at the same moment. It is enforced in real time via the HTTP middleware — when the limit is reached the server responds with HTTP 503 (server full). The counter comes from a live Redis value and refreshes automatically.",
+    details: [
+      "Default base limit: 20 CCU. Each plugin subscription adds on top of this base.",
+      "CCU sessions expire automatically after 30 minutes of inactivity — active players never get kicked mid-session.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+10 CCU" },
+      { tier: "Uncommon (×7 max)", perStack: "+60 CCU / stack" },
+      { tier: "Rare (×3 max)", perStack: "+4,000 CCU / stack" },
+      { tier: "Epic (×3 max)", perStack: "+10,000 CCU / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+100,000 CCU / stack" },
+    ],
+    tip: "CCU is the most time-sensitive limit — it blocks players in real time. If you hit it during peak hours, upgrading to Rare or above provides the biggest jump (up to 12,010 CCU with ×3 Rare).",
+  },
+  profiles: {
+    title: "Player Profiles",
+    icon: "👤",
+    tagline: "Total unique players who can register in your game",
+    description: "This is the total number of distinct player accounts that can be created in your game. When the limit is reached, new player registrations are blocked with HTTP 429. Each profile stores the player's progress, inventory, currency, and metadata.",
+    details: [
+      "Default base limit: 100 profiles. Plugins increase this significantly.",
+      "The limit counts all profiles ever created, including inactive or churned players.",
+      "HTTP 429 is returned before profile creation when the cap is reached.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+50 profiles" },
+      { tier: "Uncommon (×7 max)", perStack: "+300 profiles / stack" },
+      { tier: "Rare (×3 max)", perStack: "+20,000 profiles / stack" },
+      { tier: "Epic (×3 max)", perStack: "+200,000 profiles / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+5,000,000 profiles / stack" },
+    ],
+    tip: "Games expecting viral growth should upgrade early — going from Uncommon to Rare multiplies your profile cap by ~66×.",
+  },
+  items: {
+    title: "Items",
+    icon: "📦",
+    tagline: "Number of unique item definitions you can create",
+    description: "This limits how many unique item templates (blueprints) you can define in your game. Every distinct item type — weapons, armour, potions, keys — consumes one slot. When the limit is reached, new item definitions are blocked with HTTP 429.",
+    details: [
+      "Default base limit: 100 item definitions.",
+      "This controls item types (definitions), not item instances owned by players.",
+      "Each variation counts as a separate definition (e.g. Iron Sword and Steel Sword are two items).",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+50 items" },
+      { tier: "Uncommon (×7 max)", perStack: "+100 items / stack" },
+      { tier: "Rare (×3 max)", perStack: "+4,000 items / stack" },
+      { tier: "Epic (×3 max)", perStack: "+10,000 items / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+100,000 items / stack" },
+    ],
+    tip: "Consolidate item variants using item attributes (e.g. tier, color) rather than separate definitions to stay within limits.",
+  },
+  shops: {
+    title: "Shops",
+    icon: "🏪",
+    tagline: "Number of in-game stores you can set up",
+    description: "This is the maximum number of shop instances you can create. Each shop can have its own catalog, pricing rules, and access conditions. New shop creation is blocked with HTTP 429 when the limit is reached.",
+    details: [
+      "Default base limit: 2 shops.",
+      "Seasonal event shops, weekly rotating shops, and permanent shops each count as separate instances.",
+      "Shops can be scoped to specific game modes, regions, or player segments.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+1 shop" },
+      { tier: "Uncommon (×7 max)", perStack: "+2 shops / stack" },
+      { tier: "Rare (×3 max)", perStack: "+50 shops / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1,000 shops / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+70,000 shops / stack" },
+    ],
+    tip: "If you only need a few shops, Rare tier (up to 150 shops with ×3) is more than enough for most mid-size games.",
+  },
+  quests: {
+    title: "Quests",
+    icon: "📜",
+    tagline: "Number of quest definitions you can design",
+    description: "This controls how many quest definitions you can create across all quest types. New quest definitions are blocked with HTTP 429 when the limit is reached. Requires Rare tier or above to unlock Battle Pass functionality.",
+    details: [
+      "Default base limit: 30 quest definitions.",
+      "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
+      "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary).",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+30 quests" },
+      { tier: "Uncommon (×7 max)", perStack: "+30 quests / stack" },
+      { tier: "Rare (×3 max)", perStack: "+300 quests / stack" },
+      { tier: "Epic (×3 max)", perStack: "+3,000 quests / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+30,000 quests / stack" },
+    ],
+    tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
+  },
+  nodes: {
+    title: "Journey Node Definitions",
+    icon: "🔗",
+    tagline: "Milestones and gates in your player progression graph",
+    description: "Journey Node Definitions determine how many stages, milestones, or branching checkpoints you can create in your player journey (DAG). The limit `max_nodes_per_journey` uses MAX resolution — the highest active plugin tier wins (not sum). New node definitions are blocked with HTTP 429 when the cap is reached.",
+    details: [
+      "Default base limit: 100 node definitions.",
+      "`max_nodes_per_journey` uses MAX (not SUM): Common = 7, Uncommon = 15, Rare = 30, Epic = 100, Legendary = 500.",
+      "Journey count also scales with tier: Common = 1, Uncommon = 3, Rare = 10, Epic = 50, Legendary = 200 journeys/stack.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+10 node defs, 1 journey, max 7 nodes/journey" },
+      { tier: "Uncommon (×7 max)", perStack: "+15 node defs / stack, 3 journeys, max 15 nodes/journey" },
+      { tier: "Rare (×3 max)", perStack: "+50 node defs / stack, 10 journeys, max 30 nodes/journey" },
+      { tier: "Epic (×3 max)", perStack: "+200 node defs / stack, 50 journeys, max 100 nodes/journey" },
+      { tier: "Legendary (×3 max)", perStack: "+1,000 node defs / stack, 200 journeys, max 500 nodes/journey" },
+    ],
+    tip: "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap (100/500) is often more limiting than the total node definition count.",
+  },
+}
 
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
@@ -126,6 +256,10 @@ function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
   return String(n)
+}
+
+function formatFull(n: number): string {
+  return n.toLocaleString()
 }
 
 function timeAgo(date: Date): string {
@@ -240,6 +374,7 @@ export default function GamePluginsPage() {
   const [unsubTarget, setUnsubTarget] = useState<{ plugin: Plugin; idx: number } | null>(null)
   const [unsubbing, setUnsubbing] = useState<string | null>(null)
   const [expandedSubId, setExpandedSubId] = useState<string | null>(null)
+  const [openLimitSheet, setOpenLimitSheet] = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -339,16 +474,17 @@ export default function GamePluginsPage() {
   const pendingReduction = cancelledSubs.length > 0
     ? cancelledSubs.reduce(
         (acc, { subscription, plugin }) => {
-          const n = subscription.stack_count ?? 0
+          const n = 1
           return {
             max_concurrent_users: acc.max_concurrent_users + plugin.ccu_grant * n,
             max_profiles: acc.max_profiles + plugin.profiles_grant * n,
             max_items: acc.max_items + plugin.items_grant * n,
             max_shops: acc.max_shops + plugin.shops_grant * n,
             max_quests: acc.max_quests + (plugin.quests_grant ?? 0) * n,
+            max_node_definitions: acc.max_node_definitions + (plugin.node_defs_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -356,6 +492,17 @@ export default function GamePluginsPage() {
     if (!subsByPluginId[plugin.id]) subsByPluginId[plugin.id] = []
     subsByPluginId[plugin.id].push(subscription)
   })
+
+  // Custom (admin-granted) plugins grouped by plugin ID
+  const customGrantPlugins = Object.values(
+    activeSubs_
+      .filter((s) => s.plugin.plugin_type === "custom")
+      .reduce((acc, { plugin, subscription }) => {
+        if (!acc[plugin.id]) acc[plugin.id] = { plugin, totalStacks: 0 }
+        acc[plugin.id].totalStacks += 1
+        return acc
+      }, {} as Record<string, { plugin: Plugin; totalStacks: number }>)
+  )
 
   return (
     <div className="container mx-auto py-6 space-y-8">
@@ -422,53 +569,73 @@ export default function GamePluginsPage() {
 
         <div className="relative p-5 flex flex-col gap-4">
 
-          {/* Materia Slot Visualizer — one row per catalog tier */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Col 1: Materia Slot Visualizer — standard tiers | admin grants */}
           {!catalogLoading && catalog.length > 0 && gamePlugins && (
-            <div className="flex flex-col gap-2">
-              {catalog.map((plugin, idx) => {
-                const gem = getGemTier(idx)
-                const remaining = getRemainingStacks(plugin, subs)
-                const owned = plugin.max_stacks - remaining
-                const cancelledOwned2 = subs
-                  .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                  .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
-                const activeOwned2 = owned - cancelledOwned2
-                return (
-                  <div key={plugin.id} className="flex items-center gap-2">
-                    <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                        <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
-                      ))}
+            <div className="flex gap-6 flex-wrap">
+              {/* Left column: standard catalog tiers */}
+              <div className="flex flex-col gap-2">
+                {catalog.map((plugin, idx) => {
+                  const gem = getGemTier(idx)
+                  const remaining = getRemainingStacks(plugin, subs)
+                  const owned = plugin.max_stacks - remaining
+                  const cancelledOwned2 = subs
+                    .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
+                    .reduce((sum, _s) => sum + 1, 0)
+                  const activeOwned2 = owned - cancelledOwned2
+                  return (
+                    <div key={plugin.id} className="flex items-center gap-2">
+                      <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
+                          <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
+                        ))}
+                      </div>
+                      {owned > 0 && (
+                        <span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>
+                      )}
                     </div>
-                    {owned > 0 && (
-                      <span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+              {/* Right column: admin grant rows */}
+              {customGrantPlugins.length > 0 && (
+                <div className="flex flex-col gap-2 border-l border-border/30 pl-6">
+                  {customGrantPlugins.map(({ plugin, totalStacks }) => (
+                    <div key={plugin.id} className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs font-semibold text-purple-400">{plugin.display_name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-full px-2 py-0.5">×{totalStacks}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">Admin Grant</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Stats row */}
-          {game && (
-            <TooltipProvider delayDuration={200}>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 border-t border-border/50">
-                {([
-                  { label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
-                  { label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
-                  { label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
-                  { label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
-                  { label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
-                ] as { label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]).map((row) => {
+          {/* Col 2 & 3: Stats — split into two columns; Col 4: reserved for future */}
+          {game && (() => {
+            const statsData = [
+                  { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
+                  { key: "profiles", label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
+                  { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
+                  { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
+                  { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
+                  { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
+            ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
+            const col2 = statsData.slice(0, 3)
+            const col3 = statsData.slice(3)
+            const renderStat = (row: typeof statsData[number]) => {
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
                   const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
                   const contributions = activeSubs_
                     .map(({ subscription, plugin, is_cancelled }) => ({
                       name: plugin.display_name,
-                      stacks: subscription.stack_count,
-                      amount: row.grantField(plugin) * (subscription.stack_count ?? 0),
+                      stacks: 1,
+                      amount: row.grantField(plugin) * 1,
                       isCancelled: is_cancelled,
                     }))
                     .filter(c => c.amount > 0)
@@ -481,6 +648,13 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5 mb-1">
                             <span className="text-sm">{row.icon}</span>
                             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{row.label}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setOpenLimitSheet(row.key) }}
+                              className="ml-auto text-muted-foreground/50 hover:text-muted-foreground transition-colors rounded"
+                            >
+                              <HelpCircle className="h-3 w-3" />
+                            </button>
                           </div>
                           <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
                             {row.used != null ? (
@@ -509,28 +683,37 @@ export default function GamePluginsPage() {
                             {base > 0 && (
                               <div className="flex items-center justify-between gap-6 text-xs">
                                 <span className="text-muted-foreground">Base</span>
-                                <span className="font-semibold tabular-nums">+{formatNumber(base)}</span>
+                                <span className="font-semibold tabular-nums">+{formatFull(base)}</span>
                               </div>
                             )}
                             {contributions.map((c, ci) => (
                               <div key={ci} className={`flex items-center justify-between gap-6 text-xs ${c.isCancelled ? "opacity-50" : ""}`}>
                                 <span className={c.isCancelled ? "line-through text-muted-foreground" : ""}>{c.name} <span className="text-muted-foreground">×{c.stacks}</span></span>
-                                <span className="font-semibold tabular-nums text-green-400">+{formatNumber(c.amount)}</span>
+                                <span className="font-semibold tabular-nums text-green-400">+{formatFull(c.amount)}</span>
                               </div>
                             ))}
                             <div className="border-t border-border/60 pt-1 flex items-center justify-between gap-6 text-xs">
                               <span className="text-muted-foreground font-semibold">Total</span>
-                              <span className="font-bold tabular-nums">{row.max != null ? formatNumber(row.max) : '∞'}</span>
+                              <span className="font-bold tabular-nums">{row.max != null ? formatFull(row.max) : '∞'}</span>
                             </div>
                           </div>
                         </TooltipContent>
                       )}
                     </Tooltip>
                   )
-                })}
-              </div>
-            </TooltipProvider>
-          )}
+            }
+            return (
+              <TooltipProvider delayDuration={200}>
+                {/* Col 2 */}
+                <div className="flex flex-col gap-2">{col2.map(renderStat)}</div>
+                {/* Col 3 */}
+                <div className="flex flex-col gap-2">{col3.map(renderStat)}</div>
+                {/* Col 4 — reserved for future limits */}
+                <div className="flex flex-col gap-2" />
+              </TooltipProvider>
+            )
+          })()}
+          </div>
         </div>
       </div>
 
@@ -555,7 +738,7 @@ export default function GamePluginsPage() {
               const owned = plugin.max_stacks - remaining
               const cancelledOwned = subs
                 .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+                .reduce((sum, _s) => sum + 1, 0)
               const activeOwned = owned - cancelledOwned
               const cost = plugin.cost_coins
               const canAfford = walletBalance !== null ? walletBalance >= cost : true
@@ -628,6 +811,7 @@ export default function GamePluginsPage() {
                         { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
                         { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
+                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -681,6 +865,77 @@ export default function GamePluginsPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+        {/* Admin Grant plugin cards */}
+        {customGrantPlugins.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Admin Grants</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {customGrantPlugins.map(({ plugin, totalStacks }) => (
+                <div
+                  key={plugin.id}
+                  className="relative flex flex-col rounded-2xl border-2 overflow-hidden border-purple-500/40 hover:border-purple-400/70 transition-all duration-300"
+                >
+                  {/* Hero */}
+                  <div className="flex flex-col items-center justify-center py-7 gap-3 bg-purple-500/10">
+                    <div
+                      className="w-24 h-24 flex items-center justify-center rounded-full bg-purple-500/20 border-2 border-purple-500/40"
+                      style={{ boxShadow: "0 0 24px rgba(168,85,247,0.35)" }}
+                    >
+                      <Zap className="h-12 w-12 text-purple-400" style={{ filter: "drop-shadow(0 0 8px #a855f7)" }} />
+                    </div>
+                    <span className="text-xs font-extrabold uppercase tracking-widest text-purple-400">{plugin.display_name}</span>
+                  </div>
+                  {/* Admin badge */}
+                  <div className="px-4 pt-3 pb-1 text-center">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-full px-3 py-1">
+                      🛡️ Admin Grant
+                    </span>
+                  </div>
+                  {/* Stack count */}
+                  <div className="px-4 py-2 flex flex-col items-center gap-1">
+                    <span className="text-2xl font-extrabold text-purple-400 tabular-nums">×{totalStacks}</span>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                      {totalStacks === 1 ? "stack granted" : "stacks granted"}
+                    </p>
+                  </div>
+                  {/* Grants breakdown */}
+                  <div className="mx-4 my-2 rounded-xl bg-muted/40 px-3 py-2 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                      Grants (total ×{totalStacks})
+                    </p>
+                    <div className="space-y-1 text-xs">
+                      {([
+                        { icon: "👥", label: "CCU", val: plugin.ccu_grant },
+                        { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
+                        { icon: "📦", label: "Items", val: plugin.items_grant },
+                        { icon: "🏪", label: "Shops", val: plugin.shops_grant },
+                        { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
+                        { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
+                      ] as { icon: string; label: string; val: number }[]).map((r) => (
+                        <div key={r.label} className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{r.icon} {r.label}</span>
+                          <span className={`font-semibold tabular-nums ${r.val > 0 ? "text-purple-400" : "text-muted-foreground"}`}>
+                            {r.val > 0 ? `+${formatNumber(r.val * totalStacks)}` : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {plugin.description && (
+                      <p className="mt-2 text-[10px] text-muted-foreground italic border-t border-border/40 pt-2">{plugin.description}</p>
+                    )}
+                  </div>
+                  {/* Footer */}
+                  <div className="px-4 pb-4 pt-1 text-center">
+                    <p className="text-[10px] text-muted-foreground">Granted by admin · Read-only</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -805,10 +1060,6 @@ export default function GamePluginsPage() {
                             <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
-                            <span className="font-semibold">{subscription.stack_count}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
                             <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -906,6 +1157,10 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Quests grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Journey Node grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
@@ -1028,10 +1283,6 @@ export default function GamePluginsPage() {
                             <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground w-28 shrink-0">Stacks</span>
-                            <span className="font-semibold">{subscription.stack_count}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
                             <span className="font-semibold">{subscription.coins_per_month > 0 ? `🪙 ${subscription.coins_per_month.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1131,6 +1382,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.quests_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Journey Node grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1228,6 +1483,7 @@ export default function GamePluginsPage() {
                       { label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
                     ].map((r) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
@@ -1262,6 +1518,102 @@ export default function GamePluginsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Limit explanation sheet (slides from right) ── */}
+      <Sheet open={openLimitSheet !== null} onOpenChange={(open) => { if (!open) setOpenLimitSheet(null) }}>
+        <SheetContent side="right" className="w-[400px] sm:w-[480px] overflow-y-auto">
+          {openLimitSheet && LIMIT_EXPLANATIONS[openLimitSheet] && (() => {
+            const exp = LIMIT_EXPLANATIONS[openLimitSheet]
+            return (
+              <>
+                <SheetHeader className="mb-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-3xl">{exp.icon}</span>
+                    <div>
+                      <SheetTitle className="text-lg leading-tight">{exp.title}</SheetTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">{exp.tagline}</p>
+                    </div>
+                  </div>
+                  <SheetDescription className="text-sm leading-relaxed text-foreground/80">
+                    {exp.description}
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="space-y-5">
+                  {/* Key points */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Key Points</p>
+                    <ul className="space-y-2.5">
+                      {exp.details.map((detail, i) => (
+                        <li key={i} className="flex gap-2.5 text-sm">
+                          <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                          <span className="text-muted-foreground leading-relaxed">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Current usage */}
+                  {game && (() => {
+                    const row = [
+                      { key: "ccu", max: game.limits?.max_concurrent_users ?? null, used: game.usage?.concurrent_users },
+                      { key: "profiles", max: game.limits?.max_player_profiles ?? null, used: game.usage?.player_profiles },
+                      { key: "items", max: game.limits?.max_items ?? null, used: game.usage?.items },
+                      { key: "shops", max: game.limits?.max_shops ?? null, used: game.usage?.shops },
+                      { key: "quests", max: game.limits?.max_quests ?? null, used: game.usage?.quests ?? 0 },
+                      { key: "nodes", max: game.limits?.max_node_definitions ?? null, used: game.usage?.node_definitions ?? 0 },
+                    ].find(r => r.key === openLimitSheet)
+                    if (!row || row.max == null) return null
+                    const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0
+                    const barColor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"
+                    return (
+                      <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Current Usage</p>
+                        <div className="flex items-end justify-between mb-2">
+                          <span className="text-2xl font-extrabold tabular-nums">{row.used != null ? formatNumber(row.used) : "—"}</span>
+                          <span className="text-sm text-muted-foreground">/ {formatNumber(row.max)}</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">{pct.toFixed(1)}% used</p>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Grant table */}
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Materia Grant Table</p>
+                    <div className="space-y-1.5">
+                      {exp.grantTable.map((row, i) => (
+                        <div key={i} className="flex items-start justify-between gap-4 text-xs">
+                          <span className="text-muted-foreground shrink-0">{row.tier}</span>
+                          <span className="font-semibold text-right text-green-400">{row.perStack}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOpenLimitSheet(null)}
+                      className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                    >
+                      <Zap className="h-3 w-3" /> Browse available Materia ↑
+                    </button>
+                  </div>
+
+                  {/* Tip */}
+                  {exp.tip && (
+                    <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-yellow-500/70 mb-1">💡 Tip</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{exp.tip}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

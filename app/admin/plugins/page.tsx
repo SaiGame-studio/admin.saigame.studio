@@ -107,6 +107,7 @@ interface PluginFormState {
   profiles_grant: string
   items_grant: string
   shops_grant: string
+  node_defs_grant: string
   duration_days: string
   is_template: boolean
 }
@@ -118,6 +119,7 @@ const defaultForm: PluginFormState = {
   profiles_grant: "0",
   items_grant: "0",
   shops_grant: "0",
+  node_defs_grant: "0",
   duration_days: "0",
   is_template: false,
 }
@@ -130,6 +132,7 @@ function pluginToForm(p: Plugin): PluginFormState {
     profiles_grant: String(p.profiles_grant ?? 0),
     items_grant: String(p.items_grant ?? 0),
     shops_grant: String(p.shops_grant ?? 0),
+    node_defs_grant: String(p.node_defs_grant ?? 0),
     duration_days: String(p.duration_days ?? 0),
     is_template: p.is_template ?? false,
   }
@@ -181,6 +184,9 @@ export default function AdminPluginsPage() {
   // Delete dialog
   const [deleteTarget, setDeleteTarget] = useState<Plugin | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Expanded plugin row
+  const [expandedPluginId, setExpandedPluginId] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Grant state
@@ -286,6 +292,7 @@ export default function AdminPluginsPage() {
         profiles_grant: Number(form.profiles_grant) || 0,
         items_grant: Number(form.items_grant) || 0,
         shops_grant: Number(form.shops_grant) || 0,
+        node_defs_grant: Number(form.node_defs_grant) || 0,
         duration_days: Number(form.duration_days) || null,
         is_template: form.is_template,
       }
@@ -496,45 +503,148 @@ export default function AdminPluginsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-6" />
                     <TableHead>Name</TableHead>
                     <TableHead>CCU</TableHead>
                     <TableHead>Profiles</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Shops</TableHead>
+                    <TableHead>Quests</TableHead>
+                    <TableHead>Journey Node</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {plugins.map((plugin) => (
-                    <TableRow key={plugin.id}>
-                      <TableCell className="font-medium">
-                        <div>{plugin.display_name}</div>
-                        <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
-                      </TableCell>
-                      <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{(plugin.items_grant ?? 0).toLocaleString()}</TableCell>
-                      <TableCell>{plugin.shops_grant ?? 0}</TableCell>
-                      <TableCell>
-                        {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
-                      </TableCell>
-                      <TableCell>
-                        {plugin.is_template ? <Check className="h-4 w-4 text-green-600" /> : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(plugin)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(plugin)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {plugins.map((plugin) => {
+                    const expanded = expandedPluginId === plugin.id
+                    return (
+                      <>
+                        <TableRow
+                          key={plugin.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setExpandedPluginId(expanded ? null : plugin.id)}
+                        >
+                          <TableCell className="pr-0">
+                            {expanded
+                              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div>{plugin.display_name}</div>
+                            <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
+                          </TableCell>
+                          <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.items_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.shops_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>
+                            {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
+                          </TableCell>
+                          <TableCell>
+                            {plugin.is_template ? <Check className="h-4 w-4 text-green-600" /> : null}
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(plugin)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(plugin)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {expanded && (
+                          <TableRow key={`${plugin.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell />
+                            <TableCell colSpan={9} className="py-4">
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3 text-xs">
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Plugin ID</p>
+                                  <div className="flex items-center gap-1 font-mono break-all">{plugin.id}<CopyButton text={plugin.id} /></div>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Type</p>
+                                  <p className="capitalize">{plugin.plugin_type}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Status</p>
+                                  <Badge variant={plugin.is_active ? "default" : "secondary"}>{plugin.is_active ? "Active" : "Inactive"}</Badge>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Sort Order</p>
+                                  <p>{plugin.sort_order}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Duration</p>
+                                  <p>{plugin.duration_days ? `${plugin.duration_days} days` : "Permanent"}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Max Stacks</p>
+                                  <p>{plugin.max_stacks}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Cost (coins)</p>
+                                  <p>{(plugin.cost_coins ?? 0).toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Reusable</p>
+                                  <p>{plugin.is_template ? "Yes" : "No"}</p>
+                                </div>
+                                {plugin.description && (
+                                  <div className="col-span-2 md:col-span-3 lg:col-span-4">
+                                    <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Description</p>
+                                    <p className="text-sm">{plugin.description}</p>
+                                  </div>
+                                )}
+                                <div className="col-span-2 md:col-span-3 lg:col-span-4 border-t border-border/40 pt-3 mt-1">
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-2">Grants</p>
+                                  <div className="flex flex-wrap gap-x-8 gap-y-2">
+                                    {([
+                                      { icon: "👥", label: "CCU", val: plugin.ccu_grant },
+                                      { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
+                                      { icon: "📦", label: "Items", val: plugin.items_grant },
+                                      { icon: "🏪", label: "Shops", val: plugin.shops_grant },
+                                      { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
+                                      { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
+                                      { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
+                                    ] as { icon: string; label: string; val: number }[]).map((r) => (
+                                      <div key={r.label} className="flex items-center gap-1.5">
+                                        <span>{r.icon}</span>
+                                        <span className="text-muted-foreground">{r.label}:</span>
+                                        <span className={`font-semibold ${r.val > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                                          {r.val > 0 ? `+${r.val.toLocaleString()}` : "—"}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Created At</p>
+                                  <p>{formatISODate(plugin.created_at)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Updated At</p>
+                                  <p>{formatISODate(plugin.updated_at)}</p>
+                                </div>
+                                {plugin.created_by && (
+                                  <div>
+                                    <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Created By</p>
+                                    <div className="flex items-center gap-1 font-mono">{plugin.created_by.slice(0, 8)}…<CopyButton text={plugin.created_by} /></div>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </Card>
@@ -704,7 +814,6 @@ export default function AdminPluginsPage() {
                                             isRevoked ? "bg-muted text-muted-foreground border-border" :
                                             "bg-orange-500/15 text-orange-400 border-orange-500/30"
                                           }`}>{sub.status}</span>
-                                          <span className="text-muted-foreground">×{sub.stack_count}</span>
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-5 gap-1 text-center">
@@ -862,7 +971,6 @@ export default function AdminPluginsPage() {
                                         )}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-sm">{g.grant.stack_count}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                       <div className="flex flex-col gap-0.5">
                                         <span>{g.grant.expires_at ? formatISODate(g.grant.expires_at) : "Permanent"}</span>
@@ -897,10 +1005,6 @@ export default function AdminPluginsPage() {
                                           <div>
                                             <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Plugin ID</p>
                                             <div className="flex items-center gap-1 font-mono break-all">{g.grant.plugin_id}<CopyButton text={g.grant.plugin_id} /></div>
-                                          </div>
-                                          <div>
-                                            <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Stack</p>
-                                            <p>{g.grant.stack_count}</p>
                                           </div>
                                           <div>
                                             <p className="text-muted-foreground uppercase tracking-wide mb-0.5">Coins/month</p>
@@ -958,7 +1062,7 @@ export default function AdminPluginsPage() {
                                           </div>
                                           {pluginDef && (
                                             <div className="col-span-2 md:col-span-3 border-t border-border/40 pt-2 mt-1">
-                                              <p className="text-muted-foreground uppercase tracking-wide mb-1.5">Grants (per stack × {g.grant.stack_count})</p>
+                                              <p className="text-muted-foreground uppercase tracking-wide mb-1.5">Grants</p>
                                               <div className="flex flex-wrap gap-x-6 gap-y-1">
                                                 {([
                                                   { icon: "👥", label: "CCU", val: pluginDef.ccu_grant },
@@ -966,6 +1070,7 @@ export default function AdminPluginsPage() {
                                                   { icon: "📦", label: "Items", val: pluginDef.items_grant },
                                                   { icon: "🏪", label: "Shops", val: pluginDef.shops_grant },
                                                   { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
+                                                  { icon: "🔗", label: "Journey Node", val: pluginDef.node_defs_grant ?? 0 },
                                                 ] as { icon: string; label: string; val: number }[])
                                                   .filter((r) => r.val > 0)
                                                   .map((r) => (
@@ -973,9 +1078,7 @@ export default function AdminPluginsPage() {
                                                       <span>{r.icon}</span>
                                                       <span className="text-muted-foreground">{r.label}:</span>
                                                       <span className="font-semibold">+{r.val.toLocaleString()}</span>
-                                                      {g.grant.stack_count > 1 && (
-                                                        <span className="text-green-400 font-bold">= +{(r.val * g.grant.stack_count).toLocaleString()} total</span>
-                                                      )}
+
                                                     </div>
                                                   ))}
                                               </div>
@@ -1041,6 +1144,7 @@ export default function AdminPluginsPage() {
                   { key: "profiles_grant", label: t('plugins.fieldProfilesGrant') || "Profiles Grant" },
                   { key: "items_grant", label: t('plugins.fieldItemsGrant') || "Items Grant" },
                   { key: "shops_grant", label: t('plugins.fieldShopsGrant') || "Shops Grant" },
+                  { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Journey Node Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-1">

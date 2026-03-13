@@ -15,6 +15,7 @@ export interface Plugin {
   items_grant: number
   shops_grant: number
   quests_grant: number
+  node_defs_grant: number
   gacha_grant: number
   cost_coins: number
   max_stacks: number
@@ -31,7 +32,6 @@ export interface GamePluginSubscription {
   game_id: string
   plugin_id: string
   activated_by: string
-  stack_count: number
   coins_per_month: number
   activated_at: string
   expires_at?: string | null
@@ -139,7 +139,7 @@ export function getRemainingStacks(
 ): number {
   const totalStacks = subscriptions
     .filter((s) => s.plugin.id === plugin.id && !s.subscription.is_revoked)
-    .reduce((sum, s) => sum + (s.subscription.stack_count ?? 0), 0)
+    .reduce((sum, _s) => sum + 1, 0)
   return plugin.max_stacks - totalStacks
 }
 

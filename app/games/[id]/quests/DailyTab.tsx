@@ -65,6 +65,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api-client"
 import type { Game } from "@/types/game"
+import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import {
   listDailyQuestPools,
   getDailyQuestPool,
@@ -441,7 +442,7 @@ function strategyLabel(strategy: AssignmentStrategy) {
 
 // ─── Daily Tab (exported) ────────────────────────────────────────────────────
 
-export function DailyTab({ game }: { game: Game | null }) {
+export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpdate?: (g: Game) => void }) {
   const gameId = game?.id ?? ""
   const studioId = game?.studio_id ?? ""
   const router = useRouter()
@@ -751,7 +752,13 @@ export function DailyTab({ game }: { game: Game | null }) {
             Manage daily quest pools. Each pool assigns quests to players daily based on its strategy.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {game && onGameUpdate && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5">
+              <span className="whitespace-nowrap">Max advance days</span>
+              <DailyQuestMaxAdvanceDays game={game} onUpdate={onGameUpdate} compact />
+            </div>
+          )}
           {subTab === "list" && (
             <>
               <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>

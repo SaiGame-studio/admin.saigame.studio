@@ -5,6 +5,8 @@ export interface GameLimits {
   max_player_profiles: number
   max_shops: number
   max_quests?: number
+  max_node_definitions?: number
+  max_event_types?: number
   max_daily_quest_sets?: number
   max_battle_pass_sets?: number
 }
@@ -16,6 +18,8 @@ export interface GameUsage {
   player_profiles: number
   shops: number
   quests?: number
+  node_definitions?: number
+  event_types?: number
 }
 
 export interface Game {
@@ -29,6 +33,11 @@ export interface Game {
   config: {
     max_players: number
     server_region: string
+    [key: string]: any
+  }
+  settings?: {
+    allow_player_trading?: boolean
+    allow_tracing_player_event?: boolean
     [key: string]: any
   }
   is_active: boolean
