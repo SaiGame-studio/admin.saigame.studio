@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -75,23 +75,30 @@ import {
   type SaveJourneyDagRequest,
   type EventStat,
 } from "@/lib/journey-api"
+import { listEventTypes } from "@/lib/event-type-api"
 
 // ─── EventType Combobox ──────────────────────────────────────────────────────
 
 function EventTypeCombobox({
   value,
   onChange,
-  options,
+  gameId,
 }: {
   value: string
   onChange: (v: string) => void
-  options: string[]
+  gameId: string
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
+  const [options, setOptions] = useState<string[]>([])
+
+  useEffect(() => {
+    listEventTypes(gameId)
+      .then((data) => setOptions(data.map((et) => et.event_type)))
+      .catch(() => {})
+  }, [gameId])
 
   const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
-  const canCreate = query.trim() !== "" && !options.some((o) => o.toLowerCase() === query.trim().toLowerCase())
 
   const select = (v: string) => {
     onChange(v)
@@ -100,53 +107,55 @@ function EventTypeCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-normal"
-        >
-          <span className={value ? "" : "text-muted-foreground"}>
-            {value || "Select or type event type…"}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Search or create…"
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
-            {filtered.length === 0 && !canCreate && (
-              <CommandEmpty>No results.</CommandEmpty>
-            )}
-            {filtered.length > 0 && (
-              <CommandGroup>
-                {filtered.map((opt) => (
-                  <CommandItem key={opt} value={opt} onSelect={() => select(opt)}>
-                    <Check className={cn("mr-2 h-4 w-4", value === opt ? "opacity-100" : "opacity-0")} />
-                    {opt}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {canCreate && (
-              <CommandGroup heading="Create new">
-                <CommandItem value={query.trim()} onSelect={() => select(query.trim())}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Create "{query.trim()}"
-                </CommandItem>
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between font-normal"
+          >
+            <span className={value ? "" : "text-muted-foreground"}>
+              {value || "Select event type…"}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search…"
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
+              {filtered.length === 0 && (
+                <CommandEmpty>No results.</CommandEmpty>
+              )}
+              {filtered.length > 0 && (
+                <CommandGroup>
+                  {filtered.map((opt) => (
+                    <CommandItem key={opt} value={opt} onSelect={() => select(opt)}>
+                      <Check className={cn("mr-2 h-4 w-4", value === opt ? "opacity-100" : "opacity-0")} />
+                      {opt}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => window.open(`/games/${gameId}/analytic?tab=event-types&create=1`, "_blank")}
+      >
+        <ExternalLink className="h-3 w-3" />
+        Add new event type
+      </button>
+    </div>
   )
 }
 
@@ -669,7 +678,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               <EventTypeCombobox
                 value={createForm.event_type}
                 onChange={(v) => setCreateForm((f) => ({ ...f, event_type: v }))}
-                options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
+                gameId={gameId}
               />
             </div>
             <div className="space-y-1.5">
@@ -716,7 +725,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                 <EventTypeCombobox
                   value={editForm.event_type}
                   onChange={(v) => setEditForm((f) => ({ ...f, event_type: v }))}
-                  options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
+                  gameId={gameId}
                 />
               </div>
               <div className="space-y-1.5">

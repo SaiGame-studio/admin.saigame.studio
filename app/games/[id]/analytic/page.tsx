@@ -63,16 +63,25 @@ import {
   type CreateJourneyRequest,
   type UpdateJourneyRequest,
 } from "@/lib/journey-api"
+import {
+  listEventTypes,
+  createEventType,
+  updateEventType,
+  deleteEventType,
+  type EventType,
+  type CreateEventTypeRequest,
+} from "@/lib/event-type-api"
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "journey"
+type TabValue = "journey" | "event-types"
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "journey", label: "Journey" },
+  { value: "event-types", label: "Event Types" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -323,9 +332,8 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{journeys.length} journey{journeys.length !== 1 ? "s" : ""}</p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+          <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-1" />
@@ -595,6 +603,336 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   )
 }
 
+// ─── Event Type Tab ───────────────────────────────────────────────────────────
+
+interface EventTypeTabProps {
+  gameId: string
+  autoCreate?: boolean
+}
+
+function EventTypeTab({ gameId, autoCreate }: EventTypeTabProps) {
+  const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Create sheet
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<CreateEventTypeRequest>({ event_type: "", description: "" })
+  const [createSaving, setCreateSaving] = useState(false)
+
+  // Auto-open create panel when navigated with create=1
+  useEffect(() => {
+    if (autoCreate) openCreate()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCreate])
+
+  // Edit sheet
+  const [editItem, setEditItem] = useState<EventType | null>(null)
+  const [editDescription, setEditDescription] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
+
+  // Delete dialog
+  const [deleteItem, setDeleteItem] = useState<EventType | null>(null)
+  const [deleteSaving, setDeleteSaving] = useState(false)
+
+  const load = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const data = await listEventTypes(gameId)
+      setEventTypes(data)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to load event types" })
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [gameId, toast])
+
+  useEffect(() => { load() }, [load])
+
+  // ── Validation ────────────────────────────────────────────────────────────
+
+  const EVENT_TYPE_REGEX = /^[a-z][a-z0-9_]*$/
+
+  function validateEventType(value: string): string | null {
+    if (!value.trim()) return "Event Type is required."
+    if (!EVENT_TYPE_REGEX.test(value))
+      return "Must start with a letter and contain only lowercase letters, digits, and underscores."
+    return null
+  }
+
+  // ── Create ──────────────────────────────────────────────────────────────────
+
+  function openCreate() {
+    setCreateForm({ event_type: "", description: "" })
+    setCreateOpen(true)
+  }
+
+  const handleCreate = async () => {
+    const err = validateEventType(createForm.event_type)
+    if (err) {
+      toast({ variant: "destructive", title: "Validation", description: err })
+      return
+    }
+    setCreateSaving(true)
+    try {
+      await createEventType(gameId, createForm)
+      toast({ title: "Event type created" })
+      setCreateOpen(false)
+      load(true)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to create event type" })
+    } finally {
+      setCreateSaving(false)
+    }
+  }
+
+  // ── Edit ────────────────────────────────────────────────────────────────────
+
+  function openEdit(item: EventType) {
+    setEditItem(item)
+    setEditDescription(item.description ?? "")
+  }
+
+  const handleEdit = async () => {
+    if (!editItem) return
+    setEditSaving(true)
+    try {
+      await updateEventType(gameId, editItem.id, { description: editDescription })
+      toast({ title: "Event type updated" })
+      setEditItem(null)
+      load(true)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to update event type" })
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!deleteItem) return
+    setDeleteSaving(true)
+    try {
+      await deleteEventType(gameId, deleteItem.id)
+      toast({ title: "Event type deleted" })
+      setDeleteItem(null)
+      load(true)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete event type" })
+    } finally {
+      setDeleteSaving(false)
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {eventTypes.length} event type{eventTypes.length !== 1 ? "s" : ""}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => load(true)} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Event Type
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : eventTypes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+          <BarChart2 className="h-10 w-10 opacity-30" />
+          <p>No event types yet. Create your first event type.</p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {eventTypes.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{item.event_type}</code>
+                      <CopyButton text={item.event_type} />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                    {item.description || <span className="italic opacity-50">—</span>}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(item.created_at).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteItem(item)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ── Create Sheet ────────────────────────────────────────────────────── */}
+      <Sheet open={createOpen} onOpenChange={(open) => {
+        if (!open) {
+          const sp = new URLSearchParams(searchParams.toString())
+          sp.delete("create")
+          const qs = sp.toString()
+          router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
+        }
+        setCreateOpen(open)
+      }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>New Event Type</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 mt-6">
+            <div className="space-y-1.5">
+              <Label>Event Type <span className="text-destructive">*</span></Label>
+              <Input
+                value={createForm.event_type}
+                onChange={e => setCreateForm(f => ({ ...f, event_type: e.target.value }))}
+                placeholder="join_game"
+                className={createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? (
+                <p className="text-xs text-destructive">Must start with a letter and contain only lowercase letters, digits, and underscores.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Unique identifier for this event (e.g. join_game, ending1)</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Description</Label>
+                <span className="text-xs text-muted-foreground">
+                  {(createForm.description ?? "").length} / 500
+                </span>
+              </div>
+              <Textarea
+                value={createForm.description ?? ""}
+                onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Describe what this event represents..."
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <SheetFooter className="mt-6 flex gap-2">
+            <SheetClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </SheetClose>
+            <Button onClick={handleCreate} disabled={createSaving}>
+              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Create
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Edit Sheet ──────────────────────────────────────────────────────── */}
+      <Sheet open={!!editItem} onOpenChange={open => { if (!open) setEditItem(null) }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit Event Type</SheetTitle>
+          </SheetHeader>
+          {editItem && (
+            <div className="space-y-4 mt-6">
+              <div className="text-sm text-muted-foreground">
+                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{editItem.event_type}</code>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Description</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {editDescription.length} / 500
+                  </span>
+                </div>
+                <Textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  placeholder="Describe what this event represents..."
+                  rows={3}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+          )}
+          <SheetFooter className="mt-6 flex gap-2">
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Save
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Delete Dialog ────────────────────────────────────────────────────── */}
+      <AlertDialog open={!!deleteItem} onOpenChange={open => { if (!open) setDeleteItem(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteItem?.event_type}</span>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteSaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyticPage() {
@@ -714,6 +1052,13 @@ export default function AnalyticPage() {
 
           <TabsContent value="journey" className="mt-6">
             <JourneyTab gameId={gameId} maxNodeDefinitions={game?.limits?.max_node_definitions} />
+          </TabsContent>
+
+          <TabsContent value="event-types" className="mt-6">
+            <EventTypeTab
+              gameId={gameId}
+              autoCreate={activeTab === "event-types" && searchParams.get("create") === "1"}
+            />
           </TabsContent>
         </Tabs>
       </div>
