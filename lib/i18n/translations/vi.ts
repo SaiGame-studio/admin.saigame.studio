@@ -600,7 +600,17 @@ export const vi = {
     typePurchase: "Mua hàng",
     typeRefund: "Hoàn tiền",
     addCoins: "Thêm coins",
-    refreshBalance: "Làm mới số dư"
+    refreshBalance: "Làm mới số dư",
+    coinPackages: "Gói sCoin",
+    bonus: "Tặng",
+    bonusLabel: "tặng",
+    packagesError: "Không thể tải danh sách gói.",
+    noPackages: "Không có gói sCoin nào.",
+    methodsError: "Không thể tải phương thức thanh toán.",
+    noMethods: "Không có phương thức thanh toán khả dụng.",
+    supportsSubscription: "Hỗ trợ đăng ký định kỳ",
+    proceedToPayment: "Tiến hành thanh toán",
+    checkoutInitiated: "Đã khởi tạo thanh toán"
   },
   adminGiftCodes: {
     // Tiêu đề trang

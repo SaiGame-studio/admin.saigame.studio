@@ -589,7 +589,17 @@ export const ja = {
     typePurchase: "購入",
     typeRefund: "返金",
     addCoins: "コインを追加",
-    refreshBalance: "残高を更新"
+    refreshBalance: "残高を更新",
+    coinPackages: "sCoinパッケージ",
+    bonus: "ボーナス",
+    bonusLabel: "ボーナス",
+    packagesError: "パッケージの読み込みに失敗しました。",
+    noPackages: "sCoinパッケージがありません。",
+    methodsError: "お支払い方法の読み込みに失敗しました。",
+    noMethods: "利用可能なお支払い方法がありません。",
+    supportsSubscription: "サブスクリプション対応",
+    proceedToPayment: "お支払いへ進む",
+    checkoutInitiated: "お支払いを開始しました"
   },
   adminGiftCodes: {
     // ページヘッダー

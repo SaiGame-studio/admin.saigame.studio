@@ -598,7 +598,17 @@ export const en = {
     typePurchase: "Purchase",
     typeRefund: "Refund",
     addCoins: "Add coins",
-    refreshBalance: "Refresh balance"
+    refreshBalance: "Refresh balance",
+    coinPackages: "sCoin Packages",
+    bonus: "Bonus",
+    bonusLabel: "bonus",
+    packagesError: "Failed to load packages.",
+    noPackages: "No sCoin packages available.",
+    methodsError: "Failed to load payment methods.",
+    noMethods: "No payment methods available.",
+    supportsSubscription: "Supports subscription",
+    proceedToPayment: "Proceed to Payment",
+    checkoutInitiated: "Checkout initiated"
   },
   adminGiftCodes: {
     // Page header
