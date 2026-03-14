@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -218,6 +218,35 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
   const stats = statsMap.get(data.eventType)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyEventType = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const text = data.eventType
+    const doCopy = () => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(doCopy).catch(() => {
+        const el = document.createElement("textarea")
+        el.value = text
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand("copy")
+        document.body.removeChild(el)
+        doCopy()
+      })
+    } else {
+      const el = document.createElement("textarea")
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+      doCopy()
+    }
+  }
 
   return (
     <div
@@ -252,8 +281,18 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         </div>
       )}
       <p className="text-sm font-medium leading-tight truncate">{data.name}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-        <span className="font-medium">event:</span> {data.eventType}
+      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight flex items-center gap-0.5">
+        <span className="font-medium">event:</span>
+        <span className="truncate">{data.eventType}</span>
+        <button
+          onClick={handleCopyEventType}
+          className="shrink-0 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Copy event type"
+        >
+          {copied
+            ? <Check className="h-2.5 w-2.5 text-green-500" />
+            : <Copy className="h-2.5 w-2.5" />}
+        </button>
       </p>
       {/* Node type toggle + Edit / Delete */}
       <div className="mt-1.5 flex gap-1 items-center">

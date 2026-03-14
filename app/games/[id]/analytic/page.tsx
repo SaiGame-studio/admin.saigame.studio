@@ -96,11 +96,13 @@ interface JourneyTabProps {
   setCreateOpen: (open: boolean) => void
   onMutate: () => void
   maxNodeDefinitions?: number
+  expandedJourneyId: string | null
+  setExpandedJourneyId: (id: string | null) => void
 }
 
 const JOURNEY_LIMIT = 1000
 
-function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions }: JourneyTabProps) {
+function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId }: JourneyTabProps) {
   const { toast } = useToast()
 
   // Create sheet
@@ -117,9 +119,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
   const [editForm, setEditForm] = useState<UpdateJourneyRequest>({})
   const [editSaving, setEditSaving] = useState(false)
 
-  // Expanded DAG row
-  const [expandedJourneyId, setExpandedJourneyId] = useState<string | null>(null)
-
+  // Expanded DAG row — controlled by parent via props
   // Delete dialog
   const [deleteJourneyItem, setDeleteJourneyItem] = useState<Journey | null>(null)
   const [deleteSaving, setDeleteSaving] = useState(false)
@@ -346,7 +346,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                 <React.Fragment key={j.id}>
                   <TableRow
                     className="cursor-pointer"
-                    onClick={() => setExpandedJourneyId(prev => prev === j.id ? null : j.id)}
+                    onClick={() => setExpandedJourneyId(expandedJourneyId === j.id ? null : j.id)}
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -938,6 +938,22 @@ export default function AnalyticPage() {
 
   useEffect(() => { loadJourneys() }, [loadJourneys])
 
+  // Expanded journey — synced with URL param ?journey=<id>
+  const rawJourneyParam = searchParams.get("journey")
+  const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null)
+
+  const setExpandedJourneyId = useCallback((id: string | null) => {
+    setExpandedJourneyIdState(id)
+    const sp = new URLSearchParams(searchParams.toString())
+    if (id) {
+      sp.set("journey", id)
+    } else {
+      sp.delete("journey")
+    }
+    const qs = sp.toString()
+    router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [searchParams, router, gameId])
+
   // Event type state (hoisted for layout)
   const [eventTypes, setEventTypes] = useState<EventType[]>([])
   const [eventTypesLoading, setEventTypesLoading] = useState(true)
@@ -1153,6 +1169,8 @@ export default function AnalyticPage() {
             setCreateOpen={setJourneyCreateOpen}
             onMutate={() => loadJourneys(true)}
             maxNodeDefinitions={game?.limits?.max_node_definitions}
+            expandedJourneyId={expandedJourneyId}
+            setExpandedJourneyId={setExpandedJourneyId}
           />
         )}
         {activeTab === "event-types" && (
