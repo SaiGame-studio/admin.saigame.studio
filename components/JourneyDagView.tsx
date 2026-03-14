@@ -91,12 +91,17 @@ function EventTypeCombobox({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [options, setOptions] = useState<string[]>([])
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setRefreshing(true)
     listEventTypes(gameId)
       .then((data) => setOptions(data.map((et) => et.event_type)))
       .catch(() => {})
+      .finally(() => setRefreshing(false))
   }, [gameId])
+
+  useEffect(() => { loadOptions() }, [loadOptions])
 
   const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
 
@@ -108,13 +113,14 @@ function EventTypeCombobox({
 
   return (
     <div className="space-y-1">
+      <div className="flex gap-1">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal"
+            className="flex-1 justify-between font-normal"
           >
             <span className={value ? "" : "text-muted-foreground"}>
               {value || "Select event type…"}
@@ -147,6 +153,18 @@ function EventTypeCombobox({
           </Command>
         </PopoverContent>
       </Popover>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="shrink-0"
+        disabled={refreshing}
+        onClick={loadOptions}
+        title="Refresh event types"
+      >
+        <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+      </Button>
+      </div>
       <button
         type="button"
         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
