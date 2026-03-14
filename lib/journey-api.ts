@@ -228,3 +228,26 @@ export async function getEventStats(
   const qs = q.toString()
   return api.get(`/api/v1/games/${gameId}/event-stats${qs ? `?${qs}` : ""}`)
 }
+
+// ─── Journey Dashboard API ────────────────────────────────────────────────────
+
+export interface JourneyNodeStats {
+  total_reached: number
+  currently_at: number
+  drop_off_rate: number
+}
+
+export interface JourneyDashboardNode extends JourneyDagNode {
+  stats: JourneyNodeStats
+}
+
+export interface JourneyDashboard {
+  journey: Journey
+  nodes: JourneyDashboardNode[]
+  edges: JourneyDagEdge[]
+  refreshed_at: string
+}
+
+export async function getJourneyDashboard(gameId: string, journeyId: string): Promise<JourneyDashboard> {
+  return api.get(`/api/v1/games/${gameId}/journeys/${journeyId}/dashboard`)
+}
