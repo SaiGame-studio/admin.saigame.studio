@@ -115,7 +115,7 @@ export default function PaymentPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const activeTab = (searchParams.get("tab") === "transactions" ? "transactions" : "payment")
+  const activeTab = (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment")
 
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -207,8 +207,9 @@ export default function PaymentPage() {
 
       <div className="w-full">
           <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="w-auto inline-flex">
               <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
+              <TabsTrigger value="redeem">{t('payment.tabRedeemGiftCode')}</TabsTrigger>
               <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
             </TabsList>
 
@@ -244,7 +245,12 @@ export default function PaymentPage() {
                 </div>
               </section>
 
-              {/* Gift code */}
+            </TabsContent>
+
+            {/* ============================================================
+                TAB 3 – Redeem Gift Code
+            ============================================================ */}
+            <TabsContent value="redeem" className="mt-6">
               <section className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Gift className="h-5 w-5 text-primary" />

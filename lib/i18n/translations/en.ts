@@ -566,6 +566,7 @@ export const en = {
     subtitle: "Manage your coins, payments and transaction history.",
     tabPaymentMethod: "Payment Method",
     tabTransactions: "Transactions",
+    tabRedeemGiftCode: "Redeem Gift Code",
     paymentMethods: "Payment Methods",
     comingSoon: "Coming Soon",
     bankTransfer: "Bank Transfer",

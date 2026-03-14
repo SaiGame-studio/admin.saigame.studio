@@ -568,6 +568,7 @@ export const vi = {
     subtitle: "Quản lý coins, thanh toán và lịch sử giao dịch của bạn.",
     tabPaymentMethod: "Phương thức thanh toán",
     tabTransactions: "Giao dịch",
+    tabRedeemGiftCode: "Đổi Gift Code",
     paymentMethods: "Phương thức thanh toán",
     comingSoon: "Sắp ra mắt",
     bankTransfer: "Chuyển khoản ngân hàng",
