@@ -482,9 +482,10 @@ export default function GamePluginsPage() {
             max_shops: acc.max_shops + plugin.shops_grant * n,
             max_quests: acc.max_quests + (plugin.quests_grant ?? 0) * n,
             max_node_definitions: acc.max_node_definitions + (plugin.node_defs_grant ?? 0) * n,
+            max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -615,7 +616,7 @@ export default function GamePluginsPage() {
             </div>
           )}
 
-          {/* Col 2 & 3: Stats — split into two columns; Col 4: reserved for future */}
+          {/* Col 2 & 3 & 4: Stats — split into three columns */}
           {game && (() => {
             const statsData = [
                   { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
@@ -624,9 +625,11 @@ export default function GamePluginsPage() {
                   { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
                   { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
                   { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
+                  { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
             const col2 = statsData.slice(0, 3)
-            const col3 = statsData.slice(3)
+            const col3 = statsData.slice(3, 5)
+            const col4 = statsData.slice(5)
             const renderStat = (row: typeof statsData[number]) => {
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -708,8 +711,8 @@ export default function GamePluginsPage() {
                 <div className="flex flex-col gap-2">{col2.map(renderStat)}</div>
                 {/* Col 3 */}
                 <div className="flex flex-col gap-2">{col3.map(renderStat)}</div>
-                {/* Col 4 — reserved for future limits */}
-                <div className="flex flex-col gap-2" />
+                {/* Col 4 */}
+                <div className="flex flex-col gap-2">{col4.map(renderStat)}</div>
               </TooltipProvider>
             )
           })()}
@@ -812,6 +815,7 @@ export default function GamePluginsPage() {
                         { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
                         { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
                         { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
+                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -916,6 +920,7 @@ export default function GamePluginsPage() {
                         { icon: "🏪", label: "Shops", val: plugin.shops_grant },
                         { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
                         { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
+                        { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
                       ] as { icon: string; label: string; val: number }[]).map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1163,6 +1168,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Event Types grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.event_types_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1386,6 +1395,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.node_defs_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Event Types grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.event_types_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1484,6 +1497,7 @@ export default function GamePluginsPage() {
                       { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
                       { label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
+                      { label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
                     ].map((r) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>

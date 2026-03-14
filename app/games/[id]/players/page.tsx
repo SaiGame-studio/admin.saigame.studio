@@ -144,27 +144,6 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         </div>
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('gameUsers.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Button type="submit" variant="default" size="default">
-          {t('gameUsers.search')}
-        </Button>
-        {searchQuery && (
-          <Button type="button" variant="outline" size="default" onClick={handleClearSearch}>
-            {t('gameUsers.clear')}
-          </Button>
-        )}
-      </form>
-
       {/* Content */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -210,19 +189,43 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
         </Card>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <p className="text-sm text-muted-foreground shrink-0">
               {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
               {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
             </p>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => loadData(searchQuery || undefined)}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
+            <form onSubmit={handleSearch} className="flex items-center gap-1">
+              <div className="relative grid">
+                <span className="invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border" aria-hidden>
+                  {t('gameUsers.searchPlaceholder')}
+                </span>
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder={t('gameUsers.searchPlaceholder')}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="col-start-1 row-start-1 pl-8 h-8 w-full text-sm"
+                />
+              </div>
+              <Button type="submit" variant="default" size="icon" className="h-8 w-8">
+                <Search className="h-3.5 w-3.5" />
+              </Button>
+              {searchQuery && (
+                <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={handleClearSearch}>
+                  ×
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => loadData(searchQuery || undefined)}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </form>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {progressList.map((item) => {

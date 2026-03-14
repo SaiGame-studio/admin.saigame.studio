@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -75,23 +75,35 @@ import {
   type SaveJourneyDagRequest,
   type EventStat,
 } from "@/lib/journey-api"
+import { listEventTypes } from "@/lib/event-type-api"
 
 // ─── EventType Combobox ──────────────────────────────────────────────────────
 
 function EventTypeCombobox({
   value,
   onChange,
-  options,
+  gameId,
 }: {
   value: string
   onChange: (v: string) => void
-  options: string[]
+  gameId: string
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
+  const [options, setOptions] = useState<string[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+
+  const loadOptions = useCallback(() => {
+    setRefreshing(true)
+    listEventTypes(gameId)
+      .then((data) => setOptions(data.map((et) => et.event_type)))
+      .catch(() => {})
+      .finally(() => setRefreshing(false))
+  }, [gameId])
+
+  useEffect(() => { loadOptions() }, [loadOptions])
 
   const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
-  const canCreate = query.trim() !== "" && !options.some((o) => o.toLowerCase() === query.trim().toLowerCase())
 
   const select = (v: string) => {
     onChange(v)
@@ -100,53 +112,68 @@ function EventTypeCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-normal"
-        >
-          <span className={value ? "" : "text-muted-foreground"}>
-            {value || "Select or type event type…"}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Search or create…"
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
-            {filtered.length === 0 && !canCreate && (
-              <CommandEmpty>No results.</CommandEmpty>
-            )}
-            {filtered.length > 0 && (
-              <CommandGroup>
-                {filtered.map((opt) => (
-                  <CommandItem key={opt} value={opt} onSelect={() => select(opt)}>
-                    <Check className={cn("mr-2 h-4 w-4", value === opt ? "opacity-100" : "opacity-0")} />
-                    {opt}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {canCreate && (
-              <CommandGroup heading="Create new">
-                <CommandItem value={query.trim()} onSelect={() => select(query.trim())}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Create "{query.trim()}"
-                </CommandItem>
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-1">
+      <div className="flex gap-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="flex-1 justify-between font-normal"
+          >
+            <span className={value ? "" : "text-muted-foreground"}>
+              {value || "Select event type…"}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search…"
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
+              {filtered.length === 0 && (
+                <CommandEmpty>No results.</CommandEmpty>
+              )}
+              {filtered.length > 0 && (
+                <CommandGroup>
+                  {filtered.map((opt) => (
+                    <CommandItem key={opt} value={opt} onSelect={() => select(opt)}>
+                      <Check className={cn("mr-2 h-4 w-4", value === opt ? "opacity-100" : "opacity-0")} />
+                      {opt}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="shrink-0"
+        disabled={refreshing}
+        onClick={loadOptions}
+        title="Refresh event types"
+      >
+        <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+      </Button>
+      </div>
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => window.open(`/games/${gameId}/analytic?tab=event-types&create=1`, "_blank")}
+      >
+        <ExternalLink className="h-3 w-3" />
+        Add new event type
+      </button>
+    </div>
   )
 }
 
@@ -209,6 +236,35 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
   const stats = statsMap.get(data.eventType)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyEventType = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const text = data.eventType
+    const doCopy = () => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(doCopy).catch(() => {
+        const el = document.createElement("textarea")
+        el.value = text
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand("copy")
+        document.body.removeChild(el)
+        doCopy()
+      })
+    } else {
+      const el = document.createElement("textarea")
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+      doCopy()
+    }
+  }
 
   return (
     <div
@@ -243,8 +299,18 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         </div>
       )}
       <p className="text-sm font-medium leading-tight truncate">{data.name}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-        <span className="font-medium">event:</span> {data.eventType}
+      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight flex items-center gap-0.5">
+        <span className="font-medium">event:</span>
+        <span className="truncate">{data.eventType}</span>
+        <button
+          onClick={handleCopyEventType}
+          className="shrink-0 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Copy event type"
+        >
+          {copied
+            ? <Check className="h-2.5 w-2.5 text-green-500" />
+            : <Copy className="h-2.5 w-2.5" />}
+        </button>
       </p>
       {/* Node type toggle + Edit / Delete */}
       <div className="mt-1.5 flex gap-1 items-center">
@@ -503,7 +569,18 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {maxNodeDefinitions != null && (
           <div className="px-3 py-1.5 border-b bg-muted/10">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Usage</span>
+              <span className="flex items-center gap-1">
+                Usage
+                <a
+                  href={`/games/${gameId}/plugins`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors"
+                  title="Manage plugins / raise limits"
+                >
+                  <Hammer className="h-2.5 w-2.5" />
+                </a>
+              </span>
               <span className={defs.length >= maxNodeDefinitions ? "text-destructive font-semibold" : ""}>
                 {defs.length} / {maxNodeDefinitions}
               </span>
@@ -519,7 +596,6 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           </div>
         )}
-
         {/* Drag hint */}
         {!loading && availableDefs.length > 0 && (
           <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/20">
@@ -594,14 +670,16 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => setDeleteDef(def)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {!["ending1", "join_game"].includes(def.event_type) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setDeleteDef(def)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -669,7 +747,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               <EventTypeCombobox
                 value={createForm.event_type}
                 onChange={(v) => setCreateForm((f) => ({ ...f, event_type: v }))}
-                options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
+                gameId={gameId}
               />
             </div>
             <div className="space-y-1.5">
@@ -716,7 +794,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                 <EventTypeCombobox
                   value={editForm.event_type}
                   onChange={(v) => setEditForm((f) => ({ ...f, event_type: v }))}
-                  options={Array.from(new Set(defs.map((d) => d.event_type).filter(Boolean)))}
+                  gameId={gameId}
                 />
               </div>
               <div className="space-y-1.5">

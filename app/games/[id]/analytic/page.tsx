@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
-  Route, X, Wand2, ChevronDown, ChevronRight,
+  Route, X, Wand2, ChevronDown, ChevronRight, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,16 +63,25 @@ import {
   type CreateJourneyRequest,
   type UpdateJourneyRequest,
 } from "@/lib/journey-api"
+import {
+  listEventTypes,
+  createEventType,
+  updateEventType,
+  deleteEventType,
+  type EventType,
+  type CreateEventTypeRequest,
+} from "@/lib/event-type-api"
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "journey"
+type TabValue = "journey" | "event-types"
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "journey", label: "Journey" },
+  { value: "event-types", label: "Event Types" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -81,17 +90,22 @@ const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
 
 interface JourneyTabProps {
   gameId: string
+  journeys: Journey[]
+  loading: boolean
+  createOpen: boolean
+  setCreateOpen: (open: boolean) => void
+  onMutate: () => void
   maxNodeDefinitions?: number
+  expandedJourneyId: string | null
+  setExpandedJourneyId: (id: string | null) => void
 }
 
-function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
+const JOURNEY_LIMIT = 1000
+
+function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId }: JourneyTabProps) {
   const { toast } = useToast()
-  const [journeys, setJourneys] = useState<Journey[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
 
   // Create sheet
-  const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateJourneyRequest>({
     name: "",
     journey_key: "",
@@ -105,9 +119,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   const [editForm, setEditForm] = useState<UpdateJourneyRequest>({})
   const [editSaving, setEditSaving] = useState(false)
 
-  // Expanded DAG row
-  const [expandedJourneyId, setExpandedJourneyId] = useState<string | null>(null)
-
+  // Expanded DAG row — controlled by parent via props
   // Delete dialog
   const [deleteJourneyItem, setDeleteJourneyItem] = useState<Journey | null>(null)
   const [deleteSaving, setDeleteSaving] = useState(false)
@@ -131,30 +143,16 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
       .replace(/_+/g, "_") // Replace multiple underscores with single
   }
 
-  const load = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true)
-    else setLoading(true)
-    try {
-      const data = await listJourneys(gameId)
-      setJourneys(data)
-    } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
+  // Reset form when sheet opens
+  useEffect(() => {
+    if (createOpen) {
+      setCreateForm({ name: "", journey_key: "", description: "", metadata: {} })
+      setCreateMetaRows([])
+      setAutoSlug(true)
     }
-  }, [gameId, toast])
-
-  useEffect(() => { load() }, [load])
+  }, [createOpen])
 
   // ── Create ──────────────────────────────────────────────────────────────────
-
-  function openCreate() {
-    setCreateForm({ name: "", journey_key: "", description: "", metadata: {} })
-    setCreateMetaRows([])
-    setAutoSlug(true) // Reset auto-slug when opening form
-    setCreateOpen(true)
-  }
 
   const handleCreate = async () => {
     if (!createForm.name.trim() || !createForm.journey_key.trim()) {
@@ -170,7 +168,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
       await createJourney(gameId, { ...createForm, metadata: meta })
       toast({ title: "Journey created" })
       setCreateOpen(false)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to create journey" })
     } finally {
@@ -203,7 +201,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
       await updateJourney(gameId, editJourney.id, { ...editForm, metadata: meta })
       toast({ title: "Journey updated" })
       setEditJourney(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
     } finally {
@@ -220,7 +218,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
       await deleteJourney(gameId, deleteJourneyItem.id)
       toast({ title: "Journey deleted" })
       setDeleteJourneyItem(null)
-      load(true)
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete journey" })
     } finally {
@@ -233,7 +231,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   const handleToggleActive = async (j: Journey) => {
     try {
       await updateJourney(gameId, j.id, { is_active: !j.is_active })
-      setJourneys(prev => prev.map(item => item.id === j.id ? { ...item, is_active: !j.is_active } : item))
+      onMutate()
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
     }
@@ -319,21 +317,6 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{journeys.length} journey{journeys.length !== 1 ? "s" : ""}</p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Journey
-          </Button>
-        </div>
-      </div>
-
       {/* Table */}
       {loading ? (
         <div className="space-y-2">
@@ -363,7 +346,7 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
                 <React.Fragment key={j.id}>
                   <TableRow
                     className="cursor-pointer"
-                    onClick={() => setExpandedJourneyId(prev => prev === j.id ? null : j.id)}
+                    onClick={() => setExpandedJourneyId(expandedJourneyId === j.id ? null : j.id)}
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -395,16 +378,16 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(j)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteJourneyItem(j)}
-                          disabled={j.journey_key === "main_story"}
-                          title={j.journey_key === "main_story" ? "Main story journey cannot be deleted" : undefined}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {j.journey_key !== "main_story" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteJourneyItem(j)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -595,6 +578,328 @@ function JourneyTab({ gameId, maxNodeDefinitions }: JourneyTabProps) {
   )
 }
 
+// ─── Event Type Tab ───────────────────────────────────────────────────────────
+
+interface EventTypeTabProps {
+  gameId: string
+  autoCreate?: boolean
+  maxEventTypes?: number
+  eventTypes: EventType[]
+  loading: boolean
+  createOpen: boolean
+  setCreateOpen: (open: boolean) => void
+  onMutate: () => void
+}
+
+function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, createOpen, setCreateOpen, onMutate }: EventTypeTabProps) {
+  const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [createForm, setCreateForm] = useState<CreateEventTypeRequest>({ event_type: "", description: "" })
+  const [createSaving, setCreateSaving] = useState(false)
+
+  // Auto-open create panel when navigated with create=1
+  useEffect(() => {
+    if (autoCreate) setCreateOpen(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCreate])
+
+  // Reset form when sheet opens
+  useEffect(() => {
+    if (createOpen) setCreateForm({ event_type: "", description: "" })
+  }, [createOpen])
+
+  // Edit sheet
+  const [editItem, setEditItem] = useState<EventType | null>(null)
+  const [editDescription, setEditDescription] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
+
+  // Delete dialog
+  const [deleteItem, setDeleteItem] = useState<EventType | null>(null)
+  const [deleteSaving, setDeleteSaving] = useState(false)
+
+  const load = useCallback(async (showRefresh = false) => {
+    // no-op: load is managed by parent
+  }, [])
+
+  // ── Validation ────────────────────────────────────────────────────────────
+
+  const EVENT_TYPE_REGEX = /^[a-z][a-z0-9_]*$/
+
+  function validateEventType(value: string): string | null {
+    if (!value.trim()) return "Event Type is required."
+    if (!EVENT_TYPE_REGEX.test(value))
+      return "Must start with a letter and contain only lowercase letters, digits, and underscores."
+    return null
+  }
+
+  // ── Create ──────────────────────────────────────────────────────────────────
+
+  function openCreate() {
+    setCreateOpen(true)
+  }
+
+  const handleCreate = async () => {
+    const err = validateEventType(createForm.event_type)
+    if (err) {
+      toast({ variant: "destructive", title: "Validation", description: err })
+      return
+    }
+    setCreateSaving(true)
+    try {
+      await createEventType(gameId, createForm)
+      toast({ title: "Event type created" })
+      setCreateOpen(false)
+      onMutate()
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to create event type" })
+    } finally {
+      setCreateSaving(false)
+    }
+  }
+
+  // ── Edit ────────────────────────────────────────────────────────────────────
+
+  function openEdit(item: EventType) {
+    setEditItem(item)
+    setEditDescription(item.description ?? "")
+  }
+
+  const handleEdit = async () => {
+    if (!editItem) return
+    setEditSaving(true)
+    try {
+      await updateEventType(gameId, editItem.id, { description: editDescription })
+      toast({ title: "Event type updated" })
+      setEditItem(null)
+      onMutate()
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to update event type" })
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!deleteItem) return
+    setDeleteSaving(true)
+    try {
+      await deleteEventType(gameId, deleteItem.id)
+      toast({ title: "Event type deleted" })
+      setDeleteItem(null)
+      onMutate()
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete event type" })
+    } finally {
+      setDeleteSaving(false)
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-4">
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : eventTypes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+          <BarChart2 className="h-10 w-10 opacity-30" />
+          <p>No event types yet. Create your first event type.</p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...eventTypes]
+                .sort((a, b) => {
+                  const PINNED = ["join_game", "ending1"]
+                  const ai = PINNED.indexOf(a.event_type)
+                  const bi = PINNED.indexOf(b.event_type)
+                  if (ai !== -1 && bi !== -1) return ai - bi
+                  if (ai !== -1) return -1
+                  if (bi !== -1) return 1
+                  return 0
+                })
+                .map((item) => {
+                const isPinned = ["join_game", "ending1"].includes(item.event_type)
+                return (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">{item.event_type}</code>
+                      <CopyButton text={item.event_type} />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                    {item.description || <span className="italic opacity-50">—</span>}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(item.created_at).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {!isPinned && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteItem(item)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ── Create Sheet ────────────────────────────────────────────────────── */}
+      <Sheet open={createOpen} onOpenChange={(open) => {
+        if (!open) {
+          const sp = new URLSearchParams(searchParams.toString())
+          sp.delete("create")
+          const qs = sp.toString()
+          router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
+        }
+        setCreateOpen(open)
+      }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>New Event Type</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 mt-6">
+            <div className="space-y-1.5">
+              <Label>Event Type <span className="text-destructive">*</span></Label>
+              <Input
+                value={createForm.event_type}
+                onChange={e => setCreateForm(f => ({ ...f, event_type: e.target.value }))}
+                placeholder="join_game"
+                className={createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? (
+                <p className="text-xs text-destructive">Must start with a letter and contain only lowercase letters, digits, and underscores.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Unique identifier for this event (e.g. join_game, ending1)</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Description</Label>
+                <span className="text-xs text-muted-foreground">
+                  {(createForm.description ?? "").length} / 500
+                </span>
+              </div>
+              <Textarea
+                value={createForm.description ?? ""}
+                onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Describe what this event represents..."
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <SheetFooter className="mt-6 flex gap-2">
+            <SheetClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </SheetClose>
+            <Button onClick={handleCreate} disabled={createSaving}>
+              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Create
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Edit Sheet ──────────────────────────────────────────────────────── */}
+      <Sheet open={!!editItem} onOpenChange={open => { if (!open) setEditItem(null) }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit Event Type</SheetTitle>
+          </SheetHeader>
+          {editItem && (
+            <div className="space-y-4 mt-6">
+              <div className="text-sm text-muted-foreground">
+                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{editItem.event_type}</code>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Description</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {editDescription.length} / 500
+                  </span>
+                </div>
+                <Textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  placeholder="Describe what this event represents..."
+                  rows={3}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+          )}
+          <SheetFooter className="mt-6 flex gap-2">
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Save
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Delete Dialog ────────────────────────────────────────────────────── */}
+      <AlertDialog open={!!deleteItem} onOpenChange={open => { if (!open) setDeleteItem(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{deleteItem?.event_type}</span>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteSaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyticPage() {
@@ -611,6 +916,65 @@ export default function AnalyticPage() {
   const [studio, setStudio] = useState<Studio | null>(null)
   const [gameLoading, setGameLoading] = useState(true)
 
+  // Journey state (hoisted for layout: toolbar in header, table full-width below)
+  const [journeys, setJourneys] = useState<Journey[]>([])
+  const [journeysLoading, setJourneysLoading] = useState(true)
+  const [journeysRefreshing, setJourneysRefreshing] = useState(false)
+  const [journeyCreateOpen, setJourneyCreateOpen] = useState(false)
+
+  const loadJourneys = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setJourneysRefreshing(true)
+    else setJourneysLoading(true)
+    try {
+      const data = await listJourneys(gameId)
+      setJourneys(data)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
+    } finally {
+      setJourneysLoading(false)
+      setJourneysRefreshing(false)
+    }
+  }, [gameId, toast])
+
+  useEffect(() => { loadJourneys() }, [loadJourneys])
+
+  // Expanded journey — synced with URL param ?journey=<id>
+  const rawJourneyParam = searchParams.get("journey")
+  const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null)
+
+  const setExpandedJourneyId = useCallback((id: string | null) => {
+    setExpandedJourneyIdState(id)
+    const sp = new URLSearchParams(searchParams.toString())
+    if (id) {
+      sp.set("journey", id)
+    } else {
+      sp.delete("journey")
+    }
+    const qs = sp.toString()
+    router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [searchParams, router, gameId])
+
+  // Event type state (hoisted for layout)
+  const [eventTypes, setEventTypes] = useState<EventType[]>([])
+  const [eventTypesLoading, setEventTypesLoading] = useState(true)
+  const [eventTypesRefreshing, setEventTypesRefreshing] = useState(false)
+  const [eventTypeCreateOpen, setEventTypeCreateOpen] = useState(false)
+
+  const loadEventTypes = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setEventTypesRefreshing(true)
+    else setEventTypesLoading(true)
+    try {
+      const data = await listEventTypes(gameId)
+      setEventTypes(data)
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to load event types" })
+    } finally {
+      setEventTypesLoading(false)
+      setEventTypesRefreshing(false)
+    }
+  }, [gameId, toast])
+
+  useEffect(() => { loadEventTypes() }, [loadEventTypes])
   useEffect(() => {
     setGameLoading(true)
     getGame(gameId)
@@ -694,29 +1058,134 @@ export default function AnalyticPage() {
         </div>
       </div>
 
-      {/* Allow tracing player event setting */}
-      <div className="flex justify-end mb-4">
-        <div className="rounded-lg border px-4 py-3 bg-muted/30 w-fit">
-          <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+      {/* Tabs: 2-col header (TabsList + journey toolbar | Allow tracing) + full-width content */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        {/* 2-col header */}
+        <div className="flex gap-6 items-start mb-4">
+          {/* Col 1: tab triggers + journey toolbar */}
+          <div className="flex-1 min-w-0 space-y-4">
+            <TabsList>
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {activeTab === "journey" && (
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  {(() => {
+                    const used = journeys.length
+                    const max = JOURNEY_LIMIT
+                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                    return (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className={used >= max ? "text-destructive font-medium" : ""}>
+                          {used.toLocaleString()} / {max.toLocaleString()}
+                        </span>
+                        <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                          <span
+                            className={`block h-full rounded-full transition-all ${
+                              used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+                      </p>
+                    )
+                  })()}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => loadJourneys(true)} disabled={journeysRefreshing}>
+                    <RefreshCw className={`h-4 w-4 ${journeysRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                  <Button size="sm" onClick={() => setJourneyCreateOpen(true)} disabled={journeys.length >= JOURNEY_LIMIT}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Journey
+                  </Button>
+                </div>
+              </div>
+            )}
+            {activeTab === "event-types" && (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  {game?.limits?.max_event_types != null
+                    ? (() => {
+                        const used = eventTypes.length
+                        const max = game.limits!.max_event_types!
+                        const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                        return (
+                          <>
+                            <span className={used >= max ? "text-destructive font-medium" : ""}>
+                              {used.toLocaleString()} / {max.toLocaleString()}
+                            </span>
+                            <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                              <span
+                                className={`block h-full rounded-full transition-all ${
+                                  used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </span>
+                            <Link
+                              href={`/games/${gameId}/plugins`}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                              title="Manage plugins / raise limits"
+                            >
+                              <Hammer className="h-3.5 w-3.5" />
+                            </Link>
+                          </>
+                        )
+                      })()
+                    : <span>{eventTypes.length.toLocaleString()}</span>
+                  }
+                </p>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => loadEventTypes(true)} disabled={eventTypesRefreshing}>
+                    <RefreshCw className={`h-4 w-4 ${eventTypesRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                  <Button size="sm" onClick={() => setEventTypeCreateOpen(true)} disabled={game?.limits?.max_event_types != null && eventTypes.length >= game.limits.max_event_types}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Event Type
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Col 2: Allow tracing */}
+          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
+            <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+          </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
-            {TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value}>
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="journey" className="mt-6">
-            <JourneyTab gameId={gameId} maxNodeDefinitions={game?.limits?.max_node_definitions} />
-          </TabsContent>
-        </Tabs>
-      </div>
+        {/* Full-width content */}
+        {activeTab === "journey" && (
+          <JourneyTab
+            gameId={gameId}
+            journeys={journeys}
+            loading={journeysLoading}
+            createOpen={journeyCreateOpen}
+            setCreateOpen={setJourneyCreateOpen}
+            onMutate={() => loadJourneys(true)}
+            maxNodeDefinitions={game?.limits?.max_node_definitions}
+            expandedJourneyId={expandedJourneyId}
+            setExpandedJourneyId={setExpandedJourneyId}
+          />
+        )}
+        {activeTab === "event-types" && (
+          <EventTypeTab
+            gameId={gameId}
+            autoCreate={searchParams.get("create") === "1"}
+            maxEventTypes={game?.limits?.max_event_types}
+            eventTypes={eventTypes}
+            loading={eventTypesLoading}
+            createOpen={eventTypeCreateOpen}
+            setCreateOpen={setEventTypeCreateOpen}
+            onMutate={() => loadEventTypes(true)}
+          />
+        )}
+      </Tabs>
     </div>
   )
 }

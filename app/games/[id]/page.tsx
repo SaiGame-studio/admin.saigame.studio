@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, Hammer, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
@@ -32,15 +32,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
 import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api"
+import { EquipmentPanel } from "@/components/EquipmentPanel"
 
 const fmt = (n: number) => n.toLocaleString()
-
-const GEM_TIERS_MINI = [
-  { image: "/materias/common.png",    label: "Uncommon",  text: "text-green-400"  },
-  { image: "/materias/rare.png",      label: "Rare",      text: "text-blue-400"   },
-  { image: "/materias/epic.png",      label: "Epic",      text: "text-red-400"    },
-  { image: "/materias/legendary.png", label: "Legendary", text: "text-yellow-400" },
-]
 
 export default function GameDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: gameId } = React.use(params)
@@ -392,12 +386,12 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="text-sm font-medium ">{t('game.createdAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.created_at)}</p>
+                                    <h3 className="text-xs font-medium text-muted-foreground">{t('game.createdAt')}</h3>
+                                    <p className="text-sm">{formatTimestamp(game.created_at)}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-medium ">{t('game.updatedAt')}</h3>
-                                    <p className="text-lg">{formatTimestamp(game.updated_at)}</p>
+                                    <h3 className="text-xs font-medium text-muted-foreground">{t('game.updatedAt')}</h3>
+                                    <p className="text-sm">{formatTimestamp(game.updated_at)}</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
@@ -548,7 +542,9 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 </div>
 
                                 {/* Toggle 2: Allow tracing player event (read-only) */}
-                                <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                                <div className="mt-5">
+                                  <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -629,10 +625,6 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
-                            </div>
-
-                            {/* Column 2: Second set of limits */}
-                            <div className="space-y-6">
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -652,6 +644,10 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                            </div>
+
+                            {/* Column 2: Second set of limits */}
+                            <div className="space-y-6">
                                 {/* Quests */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -690,65 +686,34 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                                {/* Event Types */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <Link href={`/games/${game.id}/analytic?tab=event-types`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            {t('game.eventTypes') ?? 'Event Types'}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
+                                        <span className={`text-muted-foreground ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(game.usage?.event_types ?? 0)} / {game.limits?.max_event_types != null ? fmt(game.limits.max_event_types) : '∞'}
+                                            {game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types && ` (${t('game.limitReached')})`}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_event_types
+                                            ? Math.min(((game.usage?.event_types ?? 0) / game.limits.max_event_types) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
                             </div>
 
                             {/* Column 3: Equipment Panel */}
                             {catalog.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-medium text-sm">
-                                            {t('plugins.materia.equipment')}
-                                        </span>
-                                        <Link
-                                            href={`/games/${game.id}/plugins`}
-                                            className="text-muted-foreground hover:text-foreground"
-                                        >
-                                            <Hammer className="h-3.5 w-3.5" />
-                                        </Link>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {catalog.filter(p => p.max_stacks > 0).map((plugin, idx) => {
-                                            const tier = GEM_TIERS_MINI[idx % 4]
-                                            const subs = gamePlugins?.subscriptions.filter(s => s.plugin.id === plugin.id) ?? []
-                                            const owned = subs.reduce((sum, s) => sum + s.subscription.stack_count, 0)
-                                            const cancelledOwned = subs.filter(s => s.is_cancelled).reduce((sum, s) => sum + s.subscription.stack_count, 0)
-                                            const activeOwned = owned - cancelledOwned
-                                            return (
-                                                <div key={plugin.id} className="flex items-center gap-2">
-                                                    <span className={`text-xs font-semibold w-20 shrink-0 ${tier.text}`}>{plugin.display_name}</span>
-                                                    <div className="flex gap-1">
-                                                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                                                            <span key={si} className="relative inline-flex w-5 h-5">
-                                                                <img
-                                                                    src={tier.image}
-                                                                    alt=""
-                                                                    className="w-full h-full rounded-full"
-                                                                    style={
-                                                                        si < activeOwned
-                                                                            ? undefined
-                                                                            : si < owned
-                                                                            ? { filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }
-                                                                            : { filter: "grayscale(1) brightness(0.3)", opacity: 0.3 }
-                                                                    }
-                                                                />
-                                                                {si >= activeOwned && si < owned && (
-                                                                    <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
-                                                                )}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground">{owned}/{plugin.max_stacks}</span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                    <Button asChild variant="outline" size="sm" className="mt-3 w-full flex items-center gap-2">
-                                        <Link href={`/games/${game.id}/plugins`}>
-                                            <Hammer className="h-4 w-4" />
-                                            Upgrade This Game
-                                        </Link>
-                                    </Button>
-                                </div>
+                                <EquipmentPanel
+                                    gameId={game.id}
+                                    catalog={catalog}
+                                    gamePlugins={gamePlugins}
+                                />
                             )}
                         </div>
                         </CardContent>
