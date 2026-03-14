@@ -85,13 +85,14 @@ interface CoinPackage {
 // Helpers
 // ---------------------------------------------------------------------------
 function formatPrice(amount: number, currency: string): string {
+  const value = amount / 100
   if (currency === "VND") {
-    return amount.toLocaleString("vi-VN") + " ₫"
+    return value.toLocaleString("vi-VN") + " ₫"
   }
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount)
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
   } catch {
-    return `${amount.toLocaleString()} ${currency}`
+    return `${value.toLocaleString()} ${currency}`
   }
 }
 
@@ -348,7 +349,7 @@ export default function PaymentPage() {
                         {pkg.bonus_scoin > 0 && (
                           <div className="absolute left-0 top-0">
                             <Badge className="rounded-none rounded-br-md text-xs">
-                              +{pkg.bonus_scoin} {t('payment.bonus')}
+                              +{pkg.bonus_scoin.toLocaleString()} {t('payment.bonus')}
                             </Badge>
                           </div>
                         )}
