@@ -1200,10 +1200,10 @@ function TransactionsTab() {
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Updated At</p>
                                 <p className="text-xs">{new Date(tx.updated_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
                               </div>
-                              {Object.keys(tx.provider_data ?? {}).length > 0 && (
+                              {tx.provider_data?.transfer_info != null && (
                                 <div className="space-y-0.5 sm:col-span-2 lg:col-span-3">
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Provider Data</p>
-                                  <pre className="rounded bg-muted px-3 py-2 text-xs font-mono overflow-x-auto">{JSON.stringify(tx.provider_data, null, 2)}</pre>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Transfer Info</p>
+                                  <p className="font-mono text-xs break-all">{String(tx.provider_data.transfer_info)}</p>
                                 </div>
                               )}
                             </div>
