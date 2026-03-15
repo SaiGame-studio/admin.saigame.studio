@@ -580,3 +580,47 @@ export interface WorkersStatusResult {
 export async function getWorkersStatus(): Promise<WorkersStatusResult> {
   return api.get(`/api/v1/admin/workers/status`)
 }
+
+// ---------------------------------------------------------------------------
+// SuperAdmin — Payment Transactions
+// ---------------------------------------------------------------------------
+
+export type AdminTransactionStatus =
+  | "completed"
+  | "failed"
+  | "credit_failed"
+  | "processing"
+  | "awaiting_payment"
+  | "expired"
+
+export interface AdminTransaction {
+  id: string
+  idempotency_key: string
+  user_id: string
+  scoin_package_id: string
+  payment_method_config_id: string
+  provider_key: string
+  amount: number
+  currency: string
+  scoin_amount: number
+  status: AdminTransactionStatus
+  provider_data: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminTransactionsResult {
+  limit: number
+  transactions: AdminTransaction[]
+}
+
+export async function listAdminTransactions(params?: {
+  limit?: number
+  status?: AdminTransactionStatus | ""
+}): Promise<AdminTransactionsResult> {
+  const query = new URLSearchParams()
+  if (params?.limit) query.set("limit", String(params.limit))
+  if (params?.status) query.set("status", params.status)
+  const qs = query.toString()
+  return api.get(`/api/v1/superadmin/payment/transactions${qs ? `?${qs}` : ""}`)
+}

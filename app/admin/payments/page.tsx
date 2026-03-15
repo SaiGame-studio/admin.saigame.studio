@@ -18,9 +18,10 @@ import {
   Building2,
   ToggleLeft,
   ToggleRight,
-  ExternalLink,
   Package,
   Star,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
@@ -39,6 +40,9 @@ import {
   createSPackage,
   updateSPackage,
   deleteSPackage,
+  listAdminTransactions,
+  type AdminTransaction,
+  type AdminTransactionStatus,
 } from "@/lib/admin-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,9 +82,51 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { getUserTimezone } from "@/lib/utils/date-utils"
 
 const LIMIT = 20
+
+// ---------------------------------------------------------------------------
+// Transaction helpers
+// ---------------------------------------------------------------------------
+type StatusFilter = AdminTransactionStatus | ""
+
+const TX_STATUS_COLORS: Record<AdminTransactionStatus, string> = {
+  completed: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  failed: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+  credit_failed: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+  processing: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  awaiting_payment: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+  expired: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+}
+
+function TxStatusBadge({ status }: { status: AdminTransactionStatus }) {
+  const { t } = useTranslation()
+  const labelKey = `adminTransactions.status${status.split("_").map((s) => s[0].toUpperCase() + s.slice(1)).join("")}` as string
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TX_STATUS_COLORS[status] ?? ""}`}>
+      {t(labelKey)}
+    </span>
+  )
+}
+
+function formatTxAmount(amount: number, currency: string) {
+  if (currency === "VND") return amount.toLocaleString("vi-VN") + " ₫"
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount / 100)
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${currency}`
+  }
+}
+
+const TX_LIMIT = 50
 
 // ---------------------------------------------------------------------------
 // Status logic
@@ -945,6 +991,214 @@ function PackagesTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Transactions Tab
+// ---------------------------------------------------------------------------
+function TransactionsTab() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("")
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const load = useCallback(async (status: StatusFilter) => {
+    setLoading(true)
+    try {
+      const res = await listAdminTransactions({ limit: TX_LIMIT, status: status || undefined })
+      setTransactions(res.transactions ?? [])
+    } catch {
+      toast({ variant: "destructive", title: "Failed to load transactions." })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => { load(statusFilter) }, [load, statusFilter])
+
+  const STATUS_OPTIONS: { value: string; label: string }[] = [
+    { value: "_all", label: t("adminTransactions.filterAll") },
+    { value: "awaiting_payment", label: t("adminTransactions.filterAwaitingPayment") },
+    { value: "processing", label: t("adminTransactions.filterProcessing") },
+    { value: "completed", label: t("adminTransactions.filterCompleted") },
+    { value: "failed", label: t("adminTransactions.filterFailed") },
+    { value: "credit_failed", label: t("adminTransactions.filterCreditFailed") },
+    { value: "expired", label: t("adminTransactions.filterExpired") },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">{transactions.length} / {TX_LIMIT}</p>
+        <div className="flex items-center gap-2">
+          <Select
+            value={statusFilter === "" ? "_all" : statusFilter}
+            onValueChange={(v) => setStatusFilter(v === "_all" ? "" : v as AdminTransactionStatus)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder={t("adminTransactions.filterAll")} />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={() => load(statusFilter)} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("adminTransactions.colId")}</TableHead>
+                <TableHead>{t("adminTransactions.colUser")}</TableHead>
+                <TableHead>{t("adminTransactions.colProvider")}</TableHead>
+                <TableHead>{t("adminTransactions.colAmount")}</TableHead>
+                <TableHead>{t("adminTransactions.colSCoin")}</TableHead>
+                <TableHead>{t("adminTransactions.colStatus")}</TableHead>
+                <TableHead>{t("adminTransactions.colCreatedAt")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                    {t("adminTransactions.noTransactions")}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                transactions.map((tx) => {
+                  const isExpanded = expandedId === tx.id
+                  return (
+                    <>
+                      <TableRow
+                        key={tx.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setExpandedId(isExpanded ? null : tx.id)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {isExpanded
+                              ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            }
+                            <div className="font-mono text-xs max-w-[150px]">
+                              <span className="truncate block">{tx.id}</span>
+                              {tx.provider_data?.transfer_info && (
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {t("adminTransactions.transferInfo")}: {String(tx.provider_data.transfer_info)}
+                                </p>
+                              )}
+                            </div>
+                            <CopyButton text={tx.id} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 font-mono text-xs max-w-[140px]">
+                            <span className="truncate">{tx.user_id}</span>
+                            <CopyButton text={tx.user_id} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">{tx.provider_key}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {formatTxAmount(tx.amount, tx.currency)}
+                        </TableCell>
+                        <TableCell className="text-sm">🪙 {tx.scoin_amount.toLocaleString()}</TableCell>
+                        <TableCell><TxStatusBadge status={tx.status} /></TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(tx.created_at).toLocaleString(undefined, {
+                            timeZone: getUserTimezone(),
+                            year: "numeric", month: "short", day: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow key={`${tx.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={7} className="px-6 py-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Transaction ID</p>
+                                <p className="font-mono text-xs break-all flex items-center gap-1">{tx.id}<CopyButton text={tx.id} /></p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Idempotency Key</p>
+                                <p className="font-mono text-xs break-all">{tx.idempotency_key}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">User ID</p>
+                                <p className="font-mono text-xs break-all flex items-center gap-1">{tx.user_id}<CopyButton text={tx.user_id} /></p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Package ID</p>
+                                <p className="font-mono text-xs break-all">{tx.scoin_package_id}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment Method ID</p>
+                                <p className="font-mono text-xs break-all">{tx.payment_method_config_id}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Provider</p>
+                                <Badge variant="outline" className="font-mono text-xs">{tx.provider_key}</Badge>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Amount</p>
+                                <p className="font-semibold">{formatTxAmount(tx.amount, tx.currency)}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">sCoin</p>
+                                <p className="font-semibold">🪙 {tx.scoin_amount.toLocaleString()}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
+                                <TxStatusBadge status={tx.status} />
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Created At</p>
+                                <p className="text-xs">{new Date(tx.created_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Updated At</p>
+                                <p className="text-xs">{new Date(tx.updated_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+                              </div>
+                              {Object.keys(tx.provider_data ?? {}).length > 0 && (
+                                <div className="space-y-0.5 sm:col-span-2 lg:col-span-3">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Provider Data</p>
+                                  <pre className="rounded bg-muted px-3 py-2 text-xs font-mono overflow-x-auto">{JSON.stringify(tx.provider_data, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Gift Codes tab
 // ---------------------------------------------------------------------------
 function GiftCodesTab() {
@@ -1304,16 +1558,12 @@ export default function GiftCodesPage() {
   const capabilities = useCapabilities()
   const { t } = useTranslation()
 
-  const VALID_TABS = ["payments", "packages", "gift-codes", "topup"] as const
+  const VALID_TABS = ["payments", "packages", "gift-codes", "topup", "transactions"] as const
   type TabValue = typeof VALID_TABS[number]
   const rawTab = searchParams.get("tab")
   const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments"
 
   function handleTabChange(value: string) {
-    if (value === "transactions") {
-      router.push("/admin/transactions")
-      return
-    }
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", value)
     router.replace(`?${params.toString()}`, { scroll: false })
@@ -1364,7 +1614,7 @@ export default function GiftCodesPage() {
               {t('adminGiftCodes.tabTopUp')}
             </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-2">
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ReceiptText className="h-4 w-4" />
               {t('adminGiftCodes.tabTransactions')}
             </TabsTrigger>
           </TabsList>
@@ -1379,6 +1629,9 @@ export default function GiftCodesPage() {
           </TabsContent>
           <TabsContent value="topup" className="mt-4">
             <CoinTopUpTab />
+          </TabsContent>
+          <TabsContent value="transactions" className="mt-4">
+            <TransactionsTab />
           </TabsContent>
         </Tabs>
       </main>
