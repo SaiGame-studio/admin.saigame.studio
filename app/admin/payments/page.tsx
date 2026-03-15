@@ -38,6 +38,7 @@ import {
   updatePaymentMethod,
   type SPackage,
   listSPackages,
+  getSPackage,
   createSPackage,
   updateSPackage,
   deleteSPackage,
@@ -129,6 +130,43 @@ function formatTxAmount(amount: number, currency: string) {
 }
 
 const TX_LIMIT = 50
+
+// ---------------------------------------------------------------------------
+// Package info fetcher (with module-level cache)
+// ---------------------------------------------------------------------------
+const pkgCache = new Map<string, SPackage>()
+
+function PackageInfoRow({ packageId }: { packageId: string }) {
+  const [pkg, setPkg] = useState<SPackage | null>(() => pkgCache.get(packageId) ?? null)
+  const [loading, setLoading] = useState(!pkgCache.has(packageId))
+
+  useEffect(() => {
+    if (pkgCache.has(packageId)) return
+    getSPackage(packageId)
+      .then((p) => { pkgCache.set(packageId, p); setPkg(p) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="space-y-0.5 sm:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Package</p>
+      {loading ? (
+        <Skeleton className="h-4 w-48" />
+      ) : pkg ? (
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+          <span className="font-medium">{pkg.name}</span>
+          <span className="text-muted-foreground font-mono">{pkg.package_key}</span>
+          <span>🪙 {pkg.scoin_amount.toLocaleString()}{pkg.bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{pkg.bonus_scoin.toLocaleString()} bonus</span> : null}</span>
+          <span className="font-semibold">{formatTxAmount(pkg.price_amount, pkg.price_currency)}</span>
+        </div>
+      ) : (
+        <p className="font-mono text-xs text-muted-foreground break-all">{packageId}</p>
+      )}
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Manually Credit Button (inline in expanded row)
@@ -1253,10 +1291,7 @@ function TransactionsTab() {
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">User ID</p>
                                 <p className="font-mono text-xs break-all flex items-center gap-1">{tx.user_id}<CopyButton text={tx.user_id} /></p>
                               </div>
-                              <div className="space-y-0.5">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Package ID</p>
-                                <p className="font-mono text-xs break-all">{tx.scoin_package_id}</p>
-                              </div>
+                              <PackageInfoRow packageId={tx.scoin_package_id} />
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment Method ID</p>
                                 <p className="font-mono text-xs break-all">{tx.payment_method_config_id}</p>

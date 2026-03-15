@@ -482,9 +482,18 @@ export default function PaymentPage() {
                                 </p>
                               )}
                             </div>
-                            <p className="text-base font-semibold text-primary">
-                              {formatPrice(pkg.price_amount, pkg.price_currency)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-base font-semibold text-primary">
+                                {formatPrice(pkg.price_amount, pkg.price_currency)}
+                              </p>
+                              {pkg.bonus_scoin > 0 && (
+                                <div className="flex items-center justify-center w-11 h-11 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0">
+                                  <span className="text-[9px] font-bold text-primary leading-tight text-center rotate-0">
+                                    SAVE<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
