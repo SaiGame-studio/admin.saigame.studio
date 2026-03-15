@@ -617,10 +617,12 @@ export interface AdminTransactionsResult {
 export async function listAdminTransactions(params?: {
   limit?: number
   status?: AdminTransactionStatus | ""
+  id?: string
 }): Promise<AdminTransactionsResult> {
   const query = new URLSearchParams()
   if (params?.limit) query.set("limit", String(params.limit))
   if (params?.status) query.set("status", params.status)
+  if (params?.id) query.set("id", params.id)
   const qs = query.toString()
   return api.get(`/api/v1/superadmin/payment/transactions${qs ? `?${qs}` : ""}`)
 }

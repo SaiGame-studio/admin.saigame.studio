@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -996,16 +996,26 @@ function PackagesTab() {
 function TransactionsTab() {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [transactions, setTransactions] = useState<AdminTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [searchId, setSearchId] = useState(() => searchParams.get("tx_id") ?? "")
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const load = useCallback(async (status: StatusFilter) => {
+  const load = useCallback(async (status: StatusFilter, id?: string) => {
     setLoading(true)
     try {
-      const res = await listAdminTransactions({ limit: TX_LIMIT, status: status || undefined })
-      setTransactions(res.transactions ?? [])
+      const res = await listAdminTransactions({
+        limit: TX_LIMIT,
+        status: status || undefined,
+        id: id?.trim() || undefined,
+      })
+      const txs = res.transactions ?? []
+      setTransactions(txs)
+      if (id?.trim() && txs.length === 1) setExpandedId(txs[0].id)
     } catch {
       toast({ variant: "destructive", title: "Failed to load transactions." })
     } finally {
@@ -1014,7 +1024,16 @@ function TransactionsTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { load(statusFilter) }, [load, statusFilter])
+  useEffect(() => { load(statusFilter, searchId) }, [load, statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleSearchChange(value: string) {
+    setSearchId(value)
+    const params = new URLSearchParams(window.location.search)
+    if (value) { params.set("tx_id", value) } else { params.delete("tx_id") }
+    router.replace(`?${params.toString()}`, { scroll: false })
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => { load(statusFilter, value) }, 400)
+  }
 
   const STATUS_OPTIONS: { value: string; label: string }[] = [
     { value: "_all", label: t("adminTransactions.filterAll") },
@@ -1031,6 +1050,16 @@ function TransactionsTab() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">{transactions.length} / {TX_LIMIT}</p>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              className="flex h-9 w-52 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="Search transaction ID…"
+              value={searchId}
+              onChange={(e) => handleSearchChange(e.target.value)}
+            />
+          </div>
           <Select
             value={statusFilter === "" ? "_all" : statusFilter}
             onValueChange={(v) => setStatusFilter(v === "_all" ? "" : v as AdminTransactionStatus)}
@@ -1097,11 +1126,6 @@ function TransactionsTab() {
                             }
                             <div className="font-mono text-xs max-w-[150px]">
                               <span className="truncate block">{tx.id}</span>
-                              {tx.provider_data?.transfer_info && (
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                  {t("adminTransactions.transferInfo")}: {String(tx.provider_data.transfer_info)}
-                                </p>
-                              )}
                             </div>
                             <CopyButton text={tx.id} />
                           </div>
