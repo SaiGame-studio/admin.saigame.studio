@@ -22,6 +22,7 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
+  X,
 } from "lucide-react"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
@@ -135,7 +136,7 @@ const TX_LIMIT = 50
 function ManuallyCreditButton({ txId, onSuccess }: { txId: string; onSuccess: () => void }) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState("")
+  const [reason, setReason] = useState("Thank you for your payment. We have manually credited your sCoin balance.")
   const [submitting, setSubmitting] = useState(false)
 
   async function handleConfirm() {
@@ -1067,7 +1068,9 @@ function TransactionsTab() {
   const searchParams = useSearchParams()
   const [transactions, setTransactions] = useState<AdminTransaction[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    () => (searchParams.get("tx_status") as AdminTransactionStatus) ?? ""
+  )
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchId, setSearchId] = useState(() => searchParams.get("tx_id") ?? "")
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1121,15 +1124,30 @@ function TransactionsTab() {
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
-              className="flex h-9 w-52 rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-80 rounded-md border border-input bg-background px-3 py-1 pl-8 pr-7 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
               placeholder="Search transaction ID…"
               value={searchId}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
+            {searchId && (
+              <button
+                type="button"
+                className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                onClick={() => handleSearchChange("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <Select
             value={statusFilter === "" ? "_all" : statusFilter}
-            onValueChange={(v) => setStatusFilter(v === "_all" ? "" : v as AdminTransactionStatus)}
+            onValueChange={(v) => {
+              const next = v === "_all" ? "" : v as AdminTransactionStatus
+              setStatusFilter(next)
+              const params = new URLSearchParams(window.location.search)
+              if (next) { params.set("tx_status", next) } else { params.delete("tx_status") }
+              router.replace(`?${params.toString()}`, { scroll: false })
+            }}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder={t("adminTransactions.filterAll")} />
@@ -1273,10 +1291,18 @@ function TransactionsTab() {
                                   <p className="font-mono text-xs break-all">{String(tx.provider_data.transfer_info)}</p>
                                 </div>
                               )}
+                              {tx.provider_data?.status_reason != null && (
+                                <div className="space-y-0.5 sm:col-span-2 lg:col-span-3">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Status Reason</p>
+                                  <p className="text-xs break-all">{String(tx.provider_data.status_reason)}</p>
+                                </div>
+                              )}
                             </div>
-                            <div className="mt-3 flex justify-end">
-                              <ManuallyCreditButton txId={tx.id} onSuccess={() => load(statusFilter, searchId)} />
-                            </div>
+                            {tx.status !== "completed" && (
+                              <div className="mt-3 flex justify-end">
+                                <ManuallyCreditButton txId={tx.id} onSuccess={() => load(statusFilter, searchId)} />
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       )}

@@ -604,7 +604,10 @@ export interface AdminTransaction {
   currency: string
   scoin_amount: number
   status: AdminTransactionStatus
-  provider_data: Record<string, unknown>
+  provider_data: Record<string, unknown> & {
+    transfer_info?: unknown
+    status_reason?: unknown
+  }
   created_at: string
   updated_at: string
 }
