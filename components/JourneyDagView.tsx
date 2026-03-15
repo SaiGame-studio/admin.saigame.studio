@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy, PanelRightClose, PanelRightOpen } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -887,6 +887,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   const [rfEdges, setRfEdges] = useEdgesState<Edge>([])
   const [isSaving, setIsSaving] = useState(false)
   const [dagLoading, setDagLoading] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(true)
   const [dagError, setDagError] = useState<string | null>(null)
   const [usedDefIds, setUsedDefIds] = useState<Set<string>>(new Set())
   const [allDefs, setAllDefs] = useState<JourneyDagNodeDefinition[]>([])
@@ -1227,16 +1228,6 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
               </div>
             </PopoverContent>
           </Popover>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => { loadStats(); loadDashboard() }}
-            disabled={statsLoading || dashboardLoading}
-            title={`Refresh stats${dashboardRefreshedAt ? ` · dashboard: ${format(new Date(dashboardRefreshedAt), "MMM d, HH:mm")}` : ""}`}
-          >
-            {(statsLoading || dashboardLoading) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
         </div>
       </div>
 
@@ -1279,8 +1270,29 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 </div>
               )}
             </ReactFlow>
+            {/* Top-right action buttons */}
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                onClick={() => { loadDag(); loadDefs() }}
+                title="Refresh DAG"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                onClick={() => setPanelOpen((v) => !v)}
+                title={panelOpen ? "Hide panel" : "Show panel"}
+              >
+                {panelOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
             {isSaving && (
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md border">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md border">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Saving…
               </div>
@@ -1290,17 +1302,19 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
       </div>
 
       {/* Node definitions panel */}
-      <NodeDefsPanel
-        gameId={gameId}
-        defs={allDefs}
-        loading={defsLoading}
-        usedDefIds={usedDefIds}
-        onRefresh={loadDefs}
-        onAddToDag={handlePanelAddToDag}
-        editDef={editDef}
-        setEditDef={setEditDef}
-        maxNodeDefinitions={maxNodeDefinitions}
-      />
+      {panelOpen && (
+        <NodeDefsPanel
+          gameId={gameId}
+          defs={allDefs}
+          loading={defsLoading}
+          usedDefIds={usedDefIds}
+          onRefresh={loadDefs}
+          onAddToDag={handlePanelAddToDag}
+          editDef={editDef}
+          setEditDef={setEditDef}
+          maxNodeDefinitions={maxNodeDefinitions}
+        />
+      )}
 
     </div>
     </div>
