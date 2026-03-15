@@ -1,13 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Building2, CheckCircle2, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Building2,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react"
 
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -16,7 +21,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { getUserTimezone } from "@/lib/utils/date-utils"
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 interface CoinPackage {
   id: string
   key: string
@@ -29,33 +38,62 @@ interface CoinPackage {
   base_scoin: number
 }
 
+interface DirectTransferTransaction {
+  id: string
+  status: string
+  amount: number
+  currency: string
+  scoin_amount: number
+  provider_key: string
+  expires_at: string
+  created_at: string
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function formatPrice(amount: number, currency: string): string {
-  const value = amount / 100
   if (currency === "VND") {
-    return value.toLocaleString("vi-VN") + " ₫"
+    return amount.toLocaleString("vi-VN") + " ₫"
   }
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount)
   } catch {
-    return `${value.toLocaleString()} ${currency}`
+    return `${amount.toLocaleString()} ${currency}`
   }
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    timeZone: getUserTimezone(),
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function DirectTransferPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const packageId = searchParams.get("package_id")
   const { t } = useTranslation()
   const { toast } = useToast()
 
+  const [submitted, setSubmitted] = useState(false)
   const [pkg, setPkg] = useState<CoinPackage | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [note, setNote] = useState("")
   const [confirmed, setConfirmed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
 
+  // ---------------------------------------------------------------------------
+  // Load package
+  // ---------------------------------------------------------------------------
   const fetchPackage = useCallback(async () => {
     if (!packageId) { setLoading(false); setLoadError(true); return }
     setLoading(true)
@@ -64,7 +102,6 @@ export default function DirectTransferPage() {
       const data = await api.get(`/api/v1/payments/packages/${packageId}`)
       setPkg(data)
     } catch {
-      // Fallback: fetch list and find by id
       try {
         const list = await api.get("/api/v1/payments/packages")
         const found = (list.packages ?? []).find((p: CoinPackage) => p.id === packageId)
@@ -80,25 +117,30 @@ export default function DirectTransferPage() {
 
   useEffect(() => { fetchPackage() }, [fetchPackage])
 
+  // ---------------------------------------------------------------------------
+  // Submit: initiate then confirm in one go
+  // ---------------------------------------------------------------------------
   async function handleSubmit() {
-    if (!confirmed || !pkg) return
+    if (!pkg || !confirmed) return
     setSubmitting(true)
     try {
-      // Step 1: initiate the direct transfer transaction
-      const initiated = await api.post("/api/v1/payments/direct-transfer/initiate", {
-        package_key: pkg.key,
-        idempotency_key: crypto.randomUUID(),
-      })
-      const txId: string = initiated?.transaction?.id
-      if (!txId) throw new Error("No transaction ID returned")
+      const uuid =
+        typeof crypto?.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
 
-      // Step 2: confirm that the bank transfer has been sent
-      await api.post(`/api/v1/payments/direct-transfer/${txId}/confirm`, {
+      const res = await api.post("/api/v1/payments/direct-transfer/initiate", {
+        package_key: pkg.key,
+        idempotency_key: uuid,
+      })
+      const tx: DirectTransferTransaction = res?.transaction
+      if (!tx?.id) throw new Error("No transaction returned")
+
+      await api.post(`/api/v1/payments/direct-transfer/${tx.id}/confirm`, {
         transfer_info: note.trim(),
       })
 
       setSubmitted(true)
-      toast({ title: t("directTransfer.submitSuccess") })
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -110,20 +152,29 @@ export default function DirectTransferPage() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Render: success
+  // ---------------------------------------------------------------------------
   if (submitted) {
     return (
-      <div className="container mx-auto max-w-lg py-16 text-center space-y-4">
-        <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
-        <h1 className="text-xl font-semibold">{t("directTransfer.submitSuccess")}</h1>
-        <Button asChild variant="outline">
-          <Link href="/payment">{t("directTransfer.backToPayment")}</Link>
-        </Button>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
+          <h1 className="text-xl font-semibold">{t("directTransfer.submitSuccess")}</h1>
+          <Button asChild variant="outline">
+            <Link href="/payment">{t("directTransfer.backToPayment")}</Link>
+          </Button>
+        </div>
       </div>
     )
   }
 
+  // ---------------------------------------------------------------------------
+  // Render: form
+  // ---------------------------------------------------------------------------
   return (
-    <div className="container mx-auto max-w-2xl py-6 space-y-6">
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">
+      <div className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
@@ -157,25 +208,21 @@ export default function DirectTransferPage() {
             <p className="text-sm text-destructive">{t("directTransfer.packageNotFound")}</p>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold">{pkg.name}</p>
-                    {pkg.bonus_scoin > 0 && (
-                      <Badge className="text-xs">+{pkg.bonus_scoin.toLocaleString()} bonus</Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">{pkg.description}</p>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold">{pkg.name}</p>
+                  {pkg.bonus_scoin > 0 && (
+                    <Badge className="text-xs">+{pkg.bonus_scoin.toLocaleString()} bonus</Badge>
+                  )}
                 </div>
+                <p className="text-sm text-muted-foreground">{pkg.description}</p>
               </div>
-
               <Separator />
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalAmount")}</p>
                   <p className="text-2xl font-bold text-primary">
-                    {formatPrice(pkg.price_amount, pkg.price_currency)}
+                    {formatPrice(pkg.price_amount / 100, pkg.price_currency)}
                   </p>
                 </div>
                 <div>
@@ -200,8 +247,6 @@ export default function DirectTransferPage() {
       {!loading && !loadError && pkg && (
         <Card>
           <CardContent className="pt-5 space-y-5">
-
-            {/* Note textarea */}
             <div className="space-y-1.5">
               <Label htmlFor="note">{t("directTransfer.noteLabel")}</Label>
               <Textarea
@@ -209,7 +254,7 @@ export default function DirectTransferPage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t("directTransfer.notePlaceholder")}
-                rows={4}
+                rows={3}
                 disabled={submitting}
                 className="resize-none"
               />
@@ -217,7 +262,6 @@ export default function DirectTransferPage() {
 
             <Separator />
 
-            {/* Confirmation checkbox */}
             <div className="flex items-start gap-3">
               <Checkbox
                 id="confirm"
@@ -226,26 +270,23 @@ export default function DirectTransferPage() {
                 disabled={submitting}
                 className="mt-0.5"
               />
-              <Label
-                htmlFor="confirm"
-                className="text-sm leading-relaxed cursor-pointer"
-              >
+              <Label htmlFor="confirm" className="text-sm leading-relaxed cursor-pointer">
                 {t("directTransfer.confirmLabel")}
               </Label>
             </div>
 
-            {/* Submit */}
             <Button
               className="w-full"
               disabled={!confirmed || submitting}
               onClick={handleSubmit}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitting ? t("directTransfer.submitting") : t("directTransfer.submit")}
+              {submitting ? t("directTransfer.submitting") : t("directTransfer.createTransfer")}
             </Button>
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   )
 }

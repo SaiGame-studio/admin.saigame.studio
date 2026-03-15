@@ -19,6 +19,8 @@ import {
   ToggleLeft,
   ToggleRight,
   ExternalLink,
+  Package,
+  Star,
 } from "lucide-react"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
@@ -32,6 +34,11 @@ import {
   type PaymentMethodConfig,
   listPaymentMethods,
   updatePaymentMethod,
+  type SPackage,
+  listSPackages,
+  createSPackage,
+  updateSPackage,
+  deleteSPackage,
 } from "@/lib/admin-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -489,6 +496,455 @@ function PaymentMethodsTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Package Form Sheet (Create / Edit)
+// ---------------------------------------------------------------------------
+interface PackageSheetProps {
+  pkg: SPackage | null         // null = create mode
+  open: boolean
+  onClose: () => void
+  onSaved: (pkg: SPackage) => void
+}
+
+function PackageSheet({ pkg, open, onClose, onSaved }: PackageSheetProps) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const isEdit = !!pkg
+
+  const [packageKey, setPackageKey] = useState("")
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [scoinAmount, setScoinAmount] = useState("")
+  const [bonusScoin, setBonusScoin] = useState("0")
+  const [priceAmount, setPriceAmount] = useState("")
+  const [priceCurrency, setPriceCurrency] = useState("USD")
+  const [sortOrder, setSortOrder] = useState("1")
+  const [isActive, setIsActive] = useState(true)
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [metadataJson, setMetadataJson] = useState("{}")
+  const [metadataError, setMetadataError] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      if (pkg) {
+        setPackageKey(pkg.package_key)
+        setName(pkg.name)
+        setDescription(pkg.description)
+        setScoinAmount(String(pkg.scoin_amount))
+        setBonusScoin(String(pkg.bonus_scoin))
+        setPriceAmount(String(pkg.price_amount))
+        setPriceCurrency(pkg.price_currency)
+        setSortOrder(String(pkg.sort_order))
+        setIsActive(pkg.is_active)
+        setIsFeatured(pkg.is_featured)
+        setMetadataJson(JSON.stringify(pkg.metadata ?? {}, null, 2))
+        setMetadataError("")
+      } else {
+        setPackageKey("")
+        setName("")
+        setDescription("")
+        setScoinAmount("")
+        setBonusScoin("0")
+        setPriceAmount("")
+        setPriceCurrency("USD")
+        setSortOrder("1")
+        setIsActive(true)
+        setIsFeatured(false)
+        setMetadataJson("{}")
+        setMetadataError("")
+      }
+    }
+  }, [open, pkg])
+
+  function validateMeta(val: string) {
+    try { JSON.parse(val); setMetadataError("") }
+    catch { setMetadataError(t('adminPackages.metadataInvalid')) }
+  }
+
+  async function handleSave() {
+    let parsedMeta: Record<string, unknown> = {}
+    try { parsedMeta = JSON.parse(metadataJson) }
+    catch { setMetadataError(t('adminPackages.metadataInvalid')); return }
+    setSaving(true)
+    try {
+      let saved: SPackage
+      if (isEdit && pkg) {
+        saved = await updateSPackage(pkg.id, {
+          name: name.trim(),
+          description: description.trim(),
+          scoin_amount: parseInt(scoinAmount, 10) || 0,
+          bonus_scoin: parseInt(bonusScoin, 10) || 0,
+          price_amount: parseInt(priceAmount, 10) || 0,
+          price_currency: priceCurrency.trim(),
+          is_active: isActive,
+          is_featured: isFeatured,
+          sort_order: parseInt(sortOrder, 10) || 0,
+          metadata: parsedMeta,
+        })
+      } else {
+        saved = await createSPackage({
+          package_key: packageKey.trim(),
+          name: name.trim(),
+          description: description.trim(),
+          scoin_amount: parseInt(scoinAmount, 10) || 0,
+          bonus_scoin: parseInt(bonusScoin, 10) || 0,
+          price_amount: parseInt(priceAmount, 10) || 0,
+          price_currency: priceCurrency.trim(),
+          is_active: isActive,
+          is_featured: isFeatured,
+          sort_order: parseInt(sortOrder, 10) || 0,
+          metadata: parsedMeta,
+        })
+      }
+      toast({ title: t('adminPackages.saveSuccess') })
+      onSaved(saved)
+      onClose()
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPackages.saveFailed'), description: err?.data?.error ?? err?.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isFormValid = !!(name.trim() && (isEdit || packageKey.trim()) && scoinAmount && priceAmount && !metadataError)
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>{isEdit ? t('adminPackages.editTitle') : t('adminPackages.createTitle')}</SheetTitle>
+          {isEdit && <SheetDescription className="font-mono text-xs">{pkg?.package_key}</SheetDescription>}
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Package Key – only on create */}
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label htmlFor="pkg-key">{t('adminPackages.fieldPackageKey')}</Label>
+              <Input
+                id="pkg-key"
+                value={packageKey}
+                onChange={(e) => setPackageKey(e.target.value)}
+                disabled={saving}
+                placeholder={t('adminPackages.fieldPackageKeyHint')}
+                className="font-mono"
+              />
+            </div>
+          )}
+
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="pkg-name">{t('adminPackages.fieldName')}</Label>
+            <Input id="pkg-name" value={name} onChange={(e) => setName(e.target.value)} disabled={saving} />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="pkg-desc">{t('adminPackages.fieldDescription')}</Label>
+            <Textarea id="pkg-desc" value={description} onChange={(e) => setDescription(e.target.value)} disabled={saving} rows={2} className="resize-none" />
+          </div>
+
+          {/* sCoin + Bonus */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pkg-scoin">{t('adminPackages.fieldSCoinAmount')}</Label>
+              <Input id="pkg-scoin" type="number" min={0} value={scoinAmount} onChange={(e) => setScoinAmount(e.target.value)} disabled={saving} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pkg-bonus">{t('adminPackages.fieldBonusSCoin')}</Label>
+              <Input id="pkg-bonus" type="number" min={0} value={bonusScoin} onChange={(e) => setBonusScoin(e.target.value)} disabled={saving} />
+            </div>
+          </div>
+
+          {/* Price + Currency */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pkg-price">{t('adminPackages.fieldPriceAmount')}</Label>
+              <Input id="pkg-price" type="number" min={0} value={priceAmount} onChange={(e) => setPriceAmount(e.target.value)} disabled={saving} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pkg-currency">{t('adminPackages.fieldPriceCurrency')}</Label>
+              <Input id="pkg-currency" value={priceCurrency} onChange={(e) => setPriceCurrency(e.target.value.toUpperCase())} disabled={saving} placeholder="USD" className="font-mono" />
+            </div>
+          </div>
+
+          {/* Sort Order */}
+          <div className="space-y-1.5">
+            <Label htmlFor="pkg-sort">{t('adminPackages.fieldSortOrder')}</Label>
+            <Input id="pkg-sort" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} disabled={saving} />
+          </div>
+
+          {/* Toggles */}
+          <div className="rounded-lg border bg-muted/40 divide-y">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{t('adminPackages.fieldIsActive')}</p>
+                <p className="text-xs text-muted-foreground">{t('adminPackages.fieldIsActiveDesc')}</p>
+              </div>
+              <Switch checked={isActive} onCheckedChange={setIsActive} disabled={saving} />
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{t('adminPackages.fieldIsFeatured')}</p>
+                <p className="text-xs text-muted-foreground">{t('adminPackages.fieldIsFeaturedDesc')}</p>
+              </div>
+              <Switch checked={isFeatured} onCheckedChange={setIsFeatured} disabled={saving} />
+            </div>
+          </div>
+
+          {/* Metadata JSON */}
+          <div className="space-y-1.5">
+            <Label htmlFor="pkg-meta">{t('adminPackages.fieldMetadata')}</Label>
+            <Textarea
+              id="pkg-meta"
+              value={metadataJson}
+              onChange={(e) => { setMetadataJson(e.target.value); validateMeta(e.target.value) }}
+              disabled={saving}
+              rows={3}
+              spellCheck={false}
+              className="font-mono text-xs resize-none"
+            />
+            {metadataError && <p className="text-xs text-destructive">{metadataError}</p>}
+          </div>
+        </div>
+
+        <SheetFooter className="border-t px-6 py-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>{t('common.cancel')}</Button>
+          <Button onClick={handleSave} disabled={saving || !isFormValid}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t('common.save')}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Packages tab
+// ---------------------------------------------------------------------------
+function PackagesTab() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [packages, setPackages] = useState<SPackage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<SPackage | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SPackage | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await listSPackages()
+      setPackages((res.packages ?? []).sort((a, b) => a.sort_order - b.sort_order))
+    } catch {
+      toast({ variant: "destructive", title: t('adminPackages.loadFailed') })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => { load() }, [load])
+
+  function openCreate() {
+    setEditTarget(null)
+    setSheetOpen(true)
+  }
+
+  function openEdit(pkg: SPackage) {
+    setEditTarget(pkg)
+    setSheetOpen(true)
+  }
+
+  function handleSaved(saved: SPackage) {
+    setPackages((prev) => {
+      const idx = prev.findIndex((p) => p.id === saved.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = saved
+        return next.sort((a, b) => a.sort_order - b.sort_order)
+      }
+      return [...prev, saved].sort((a, b) => a.sort_order - b.sort_order)
+    })
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteSPackage(deleteTarget.id)
+      toast({ title: t('adminPackages.deleteSuccess') })
+      setPackages((prev) => prev.filter((p) => p.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPackages.deleteFailed'), description: err?.data?.error ?? err?.message })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleToggle(pkg: SPackage) {
+    setToggling(pkg.id)
+    try {
+      const updated = await updateSPackage(pkg.id, { is_active: !pkg.is_active })
+      setPackages((prev) => prev.map((p) => p.id === updated.id ? updated : p))
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPackages.saveFailed'), description: err?.data?.error ?? err?.message })
+    } finally {
+      setToggling(null)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {t('adminPackages.totalPackages').replace('{n}', String(packages.length))}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('adminPackages.btnCreate')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('adminPackages.colName')}</TableHead>
+                <TableHead>{t('adminPackages.colSCoin')}</TableHead>
+                <TableHead>{t('adminPackages.colPrice')}</TableHead>
+                <TableHead>{t('adminPackages.colFeatured')}</TableHead>
+                <TableHead>{t('adminPackages.colStatus')}</TableHead>
+                <TableHead className="text-right">{t('adminPackages.colActions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : packages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                    {t('adminPackages.noPackages')}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                packages.map((pkg) => (
+                  <TableRow key={pkg.id} className={pkg.is_active ? "" : "opacity-60"}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-sm">{pkg.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{pkg.package_key}</p>
+                        {pkg.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{pkg.description}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <span className="font-semibold">🪙 {pkg.scoin_amount.toLocaleString()}</span>
+                        {pkg.bonus_scoin > 0 && (
+                          <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">+{pkg.bonus_scoin.toLocaleString()}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-mono">
+                        {(pkg.price_amount / 100).toFixed(2)} {pkg.price_currency}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {pkg.is_featured ? (
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      ) : (
+                        <Star className="h-4 w-4 text-muted-foreground/30" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {toggling === pkg.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Switch
+                          checked={pkg.is_active}
+                          onCheckedChange={() => handleToggle(pkg)}
+                          aria-label="Toggle active"
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(pkg)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(pkg)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Sheet */}
+      <PackageSheet
+        pkg={editTarget}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={handleSaved}
+      />
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('adminPackages.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('adminPackages.deleteDesc').replace('{key}', deleteTarget?.package_key ?? '')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Gift Codes tab
 // ---------------------------------------------------------------------------
 function GiftCodesTab() {
@@ -848,7 +1304,7 @@ export default function GiftCodesPage() {
   const capabilities = useCapabilities()
   const { t } = useTranslation()
 
-  const VALID_TABS = ["payments", "gift-codes", "topup"] as const
+  const VALID_TABS = ["payments", "packages", "gift-codes", "topup"] as const
   type TabValue = typeof VALID_TABS[number]
   const rawTab = searchParams.get("tab")
   const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments"
@@ -895,6 +1351,10 @@ export default function GiftCodesPage() {
               <CreditCard className="h-4 w-4" />
               {t('adminPayments.tabPayments')}
             </TabsTrigger>
+            <TabsTrigger value="packages" className="gap-2">
+              <Package className="h-4 w-4" />
+              {t('adminPackages.tab')}
+            </TabsTrigger>
             <TabsTrigger value="gift-codes" className="gap-2">
               <Gift className="h-4 w-4" />
               {t('adminGiftCodes.tabGiftCodes')}
@@ -910,6 +1370,9 @@ export default function GiftCodesPage() {
           </TabsList>
           <TabsContent value="payments" className="mt-4">
             <PaymentMethodsTab />
+          </TabsContent>
+          <TabsContent value="packages" className="mt-4">
+            <PackagesTab />
           </TabsContent>
           <TabsContent value="gift-codes" className="mt-4">
             <GiftCodesTab />

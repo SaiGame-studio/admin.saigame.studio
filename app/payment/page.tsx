@@ -15,6 +15,7 @@ import {
   CreditCard,
   Coins,
   CheckCircle2,
+  MessageCircle,
 } from "lucide-react"
 
 import { api } from "@/lib/api-client"
@@ -34,6 +35,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
+import { CopyButton } from "@/components/CopyButton"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,6 +61,28 @@ interface TransactionsResponse {
   offset: number
   total: number
   transactions: Transaction[]
+}
+
+interface PaymentTransaction {
+  id: string
+  user_id: string
+  scoin_package_id?: string
+  payment_method_config_id?: string
+  provider_key: string
+  amount: number
+  currency: string
+  scoin_amount: number
+  status: string
+  provider_data?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+interface PaymentTransactionsResponse {
+  limit: number
+  offset: number
+  total: number
+  transactions: PaymentTransaction[]
 }
 
 interface PaymentMethod {
@@ -163,7 +187,54 @@ export default function PaymentPage() {
   const [code, setCode] = useState("")
   const [redeeming, setRedeeming] = useState(false)
 
-  // ---------- transaction state ----------
+  // ---------- sub-tab inside transactions tab (URL-persisted) ----------
+  const txSubTab = (["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use"
+
+  function handleTxSubTabChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("subtab", value)
+    router.replace(`/payment?${params.toString()}`, { scroll: false })
+  }
+
+  const [expandedPayTxId, setExpandedPayTxId] = useState<string | null>(null)
+  // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
+  const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({})
+
+  async function resolvePackageName(id: string) {
+    // Already in cache
+    if (id in pkgNameCache) return
+    // Already in loaded packages list
+    if (packages.find((p) => p.id === id)) return
+    // Fetch individually
+    setPkgNameCache((prev) => ({ ...prev, [id]: null }))
+    try {
+      const data = await api.get(`/api/v1/payments/packages/${id}`)
+      setPkgNameCache((prev) => ({ ...prev, [id]: data?.name ?? id }))
+    } catch {
+      setPkgNameCache((prev) => ({ ...prev, [id]: id }))
+    }
+  }
+
+  // ---------- payment transactions (Buy Coin) ----------
+  const [payTxFetched, setPayTxFetched] = useState(false)
+  const [payTxData, setPayTxData] = useState<PaymentTransactionsResponse | null>(null)
+  const [payTxLoading, setPayTxLoading] = useState(false)
+  const [payTxError, setPayTxError] = useState(false)
+
+  const fetchPaymentTransactions = useCallback(async () => {
+    setPayTxLoading(true)
+    setPayTxError(false)
+    try {
+      const data = await api.get("/api/v1/payments/transactions?limit=20&offset=0")
+      setPayTxData(data)
+    } catch {
+      setPayTxError(true)
+    } finally {
+      setPayTxLoading(false)
+    }
+  }, [])
+
+  // ---------- coin transactions (Use Coin) ----------
   const [txData, setTxData] = useState<TransactionsResponse | null>(null)
   const [txLoading, setTxLoading] = useState(false)
   const [txError, setTxError] = useState(false)
@@ -182,8 +253,20 @@ export default function PaymentPage() {
   }, [])
 
   useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
+    if (txSubTab === "buy" && !payTxFetched) {
+      setPayTxFetched(true)
+      fetchPaymentTransactions()
+    }
+  }, [txSubTab, payTxFetched, fetchPaymentTransactions])
+
+  // Lazy-load coin transactions only when "Use Coin" sub-tab is first opened
+  const [txFetched, setTxFetched] = useState(false)
+  useEffect(() => {
+    if (txSubTab === "use" && !txFetched) {
+      setTxFetched(true)
+      fetchTransactions()
+    }
+  }, [txSubTab, txFetched, fetchTransactions])
 
   // ---------- packages & methods state ----------
   const [packages, setPackages] = useState<CoinPackage[]>([])
@@ -543,6 +626,12 @@ export default function PaymentPage() {
                     </Button>
                   </CardContent>
                 </Card>
+
+                {/* discount tip */}
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
+                  <MessageCircle className="h-3 w-3 shrink-0" />
+                  {t('payment.discountTip')}
+                </p>
               </section>
 
             </div>
@@ -608,108 +697,248 @@ export default function PaymentPage() {
               TAB 3 – Transactions
           ============================================================ */}
           <TabsContent value="transactions" className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold">{t('payment.transactionHistory')}</h2>
-                {txData && (
-                  <p className="text-sm text-muted-foreground">
-                    {txData.total} {txData.total !== 1 ? t('payment.transactionsTotal') : t('payment.transactionTotal')}
-                  </p>
-                )}
+            <Tabs value={txSubTab} onValueChange={handleTxSubTabChange}>
+              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+                <TabsList>
+                  <TabsTrigger value="buy">{t('payment.subTabBuyCoin')}</TabsTrigger>
+                  <TabsTrigger value="use">{t('payment.subTabUseCoin')}</TabsTrigger>
+                </TabsList>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={txSubTab === "buy" ? fetchPaymentTransactions : fetchTransactions}
+                  disabled={txSubTab === "buy" ? payTxLoading : txLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${(txSubTab === "buy" ? payTxLoading : txLoading) ? "animate-spin" : ""}`} />
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchTransactions}
-                disabled={txLoading}
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${txLoading ? "animate-spin" : ""}`} />
-                {t('payment.refresh')}
-              </Button>
-            </div>
 
-            {txLoading && !txData ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : txError ? (
-              <Card>
-                <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-                  <p className="text-sm text-destructive">{t('payment.loadError')}</p>
-                  <Button variant="outline" size="sm" onClick={fetchTransactions}>
-                    {t('payment.tryAgain')}
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : txData?.transactions?.length === 0 ? (
-              <Card>
-                <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  {t('payment.noTransactions')}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {txData?.transactions?.map((tx) => {
-                  const isCredit = tx.amount > 0
-                  return (
-                    <Card key={tx.id}>
-                      <CardContent className="flex items-center gap-4 p-4">
-                        <div
-                          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
-                            isCredit
-                              ? "bg-green-500/10 text-green-500"
-                              : "bg-destructive/10 text-destructive"
-                          }`}
+              {/* ---- Sub-tab: Buy Coin ---- */}
+              <TabsContent value="buy" className="mt-0">
+                {payTxLoading && !payTxData ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : payTxError ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+                      <p className="text-sm text-destructive">{t('payment.loadError')}</p>
+                      <Button variant="outline" size="sm" onClick={fetchPaymentTransactions}>
+                        {t('payment.tryAgain')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : !payTxData?.transactions?.length ? (
+                  <Card>
+                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                      {t('payment.noTransactions')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {payTxData.transactions.map((tx) => {
+                      const isExpanded = expandedPayTxId === tx.id
+                      return (
+                        <Card
+                          key={tx.id}
+                          className="cursor-pointer transition-colors hover:border-primary/40"
+                          onClick={() => {
+                            const next = isExpanded ? null : tx.id
+                            setExpandedPayTxId(next)
+                            if (next && tx.scoin_package_id) resolvePackageName(tx.scoin_package_id)
+                          }}
                         >
-                          {isCredit ? (
-                            <ArrowDownLeft className="h-4 w-4" />
-                          ) : (
-                            <ArrowUpRight className="h-4 w-4" />
+                          <CardContent className="flex items-center gap-4 p-4">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <Coins className="h-4 w-4" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {tx.provider_key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </p>
+                              <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 truncate">
+                                {tx.id}
+                                <CopyButton text={tx.id} />
+                              </p>
+                            </div>
+
+                            <Badge
+                              variant={STATUS_VARIANT[tx.status] ?? "secondary"}
+                              className="text-xs shrink-0 capitalize"
+                            >
+                              {tx.status.replace(/_/g, " ")}
+                            </Badge>
+
+                            <div className="text-right shrink-0">
+                              <p className="font-semibold tabular-nums text-primary">
+                                +{tx.scoin_amount.toLocaleString()} sCoin
+                              </p>
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                {tx.amount.toLocaleString()} {tx.currency}
+                              </p>
+                            </div>
+                          </CardContent>
+
+                          {isExpanded && (
+                            <CardContent
+                              className="border-t px-4 pb-4 pt-3 space-y-3"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Transaction ID</p>
+                                  <p className="font-mono text-xs break-all select-all flex items-center gap-1">{tx.id}<CopyButton text={tx.id} /></p>
+                                </div>
+                                {tx.scoin_package_id && (() => {
+                                  const fromList = packages.find((p) => p.id === tx.scoin_package_id)
+                                  const cachedName = pkgNameCache[tx.scoin_package_id]
+                                  const name = fromList?.name ?? (cachedName === null ? null : cachedName)
+                                  return (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Package</p>
+                                      {name === null ? (
+                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                                        </span>
+                                      ) : (
+                                        <div>
+                                          <p className="font-medium">{name ?? tx.scoin_package_id}</p>
+                                          <p className="font-mono text-xs text-muted-foreground break-all">{tx.scoin_package_id}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Provider</p>
+                                  <p>{tx.provider_key}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Amount</p>
+                                  <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">sCoin</p>
+                                  <p className="font-semibold text-primary">+{tx.scoin_amount.toLocaleString()} sCoin</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Status</p>
+                                  <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="capitalize text-xs">
+                                    {tx.status.replace(/_/g, " ")}
+                                  </Badge>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
+                                  <p>{formatDate(tx.created_at)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Updated</p>
+                                  <p>{formatDate(tx.updated_at)}</p>
+                                </div>
+                                {tx.provider_data && Object.keys(tx.provider_data).length > 0 && (
+                                  <div className="sm:col-span-2">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Provider Data</p>
+                                    <pre className="text-xs bg-muted rounded p-2 overflow-x-auto">{JSON.stringify(tx.provider_data, null, 2)}</pre>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
                           )}
-                        </div>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </TabsContent>
 
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {tx.description ?? TYPE_LABELS[tx.type] ?? tx.type}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(tx.created_at)}
-                          </p>
-                        </div>
+              {/* ---- Sub-tab: Use Coin ---- */}
+              <TabsContent value="use" className="mt-0">
+                {txLoading && !txData ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : txError ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+                      <p className="text-sm text-destructive">{t('payment.loadError')}</p>
+                      <Button variant="outline" size="sm" onClick={fetchTransactions}>
+                        {t('payment.tryAgain')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : txData?.transactions?.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                      {t('payment.noTransactions')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {txData?.transactions?.map((tx) => {
+                      const isCredit = tx.amount > 0
+                      return (
+                        <Card key={tx.id}>
+                          <CardContent className="flex items-center gap-4 p-4">
+                            <div
+                              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+                                isCredit
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-destructive/10 text-destructive"
+                              }`}
+                            >
+                              {isCredit ? (
+                                <ArrowDownLeft className="h-4 w-4" />
+                              ) : (
+                                <ArrowUpRight className="h-4 w-4" />
+                              )}
+                            </div>
 
-                        <Badge variant="outline" className="hidden sm:inline-flex text-xs shrink-0">
-                          {getTypeLabel(tx.type)}
-                        </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {tx.description ?? TYPE_LABELS[tx.type] ?? tx.type}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(tx.created_at)}
+                              </p>
+                            </div>
 
-                        <Badge
-                          variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                          className="text-xs shrink-0"
-                        >
-                          {tx.status}
-                        </Badge>
+                            <Badge variant="outline" className="hidden sm:inline-flex text-xs shrink-0">
+                              {getTypeLabel(tx.type)}
+                            </Badge>
 
-                        <div className="text-right shrink-0">
-                          <p
-                            className={`font-semibold tabular-nums ${
-                              isCredit ? "text-green-500" : "text-destructive"
-                            }`}
-                          >
-                            {isCredit ? "+" : ""}
-                            {tx.amount.toLocaleString()}
-                          </p>
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            → {tx.balance_after.toLocaleString()}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
+                            <Badge
+                              variant={STATUS_VARIANT[tx.status] ?? "secondary"}
+                              className="text-xs shrink-0"
+                            >
+                              {tx.status}
+                            </Badge>
+
+                            <div className="text-right shrink-0">
+                              <p
+                                className={`font-semibold tabular-nums ${
+                                  isCredit ? "text-green-500" : "text-destructive"
+                                }`}
+                              >
+                                {isCredit ? "+" : ""}
+                                {tx.amount.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                → {tx.balance_after.toLocaleString()}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>
+
     </div>
   )
 }

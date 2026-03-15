@@ -348,6 +348,78 @@ export async function adminCoinTopUp(body: {
 }
 
 // ---------------------------------------------------------------------------
+// SuperAdmin — sCoin Packages
+// ---------------------------------------------------------------------------
+
+export interface SPackage {
+  id: string
+  package_key: string
+  name: string
+  description: string
+  scoin_amount: number
+  bonus_scoin: number
+  price_amount: number
+  price_currency: string
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface SPackagesResult {
+  packages: SPackage[]
+}
+
+export interface CreateSPackageBody {
+  package_key: string
+  name: string
+  description: string
+  scoin_amount: number
+  bonus_scoin: number
+  price_amount: number
+  price_currency: string
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+}
+
+export interface UpdateSPackageBody {
+  name?: string
+  description?: string
+  scoin_amount?: number
+  bonus_scoin?: number
+  price_amount?: number
+  price_currency?: string
+  is_active?: boolean
+  is_featured?: boolean
+  sort_order?: number
+  metadata?: Record<string, unknown>
+}
+
+export async function listSPackages(): Promise<SPackagesResult> {
+  return api.get("/api/v1/superadmin/payment/packages")
+}
+
+export async function getSPackage(id: string): Promise<SPackage> {
+  return api.get(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+export async function createSPackage(body: CreateSPackageBody): Promise<SPackage> {
+  return api.post("/api/v1/superadmin/payment/packages", body)
+}
+
+export async function updateSPackage(id: string, body: UpdateSPackageBody): Promise<SPackage> {
+  return api.patch(`/api/v1/superadmin/payment/packages/${id}`, body)
+}
+
+export async function deleteSPackage(id: string): Promise<void> {
+  return api.delete(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+// ---------------------------------------------------------------------------
 // SuperAdmin — Payment Methods
 // ---------------------------------------------------------------------------
 
