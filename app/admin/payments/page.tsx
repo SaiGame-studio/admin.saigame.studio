@@ -41,6 +41,7 @@ import {
   updateSPackage,
   deleteSPackage,
   listAdminTransactions,
+  manuallyCreditTransaction,
   type AdminTransaction,
   type AdminTransactionStatus,
 } from "@/lib/admin-api"
@@ -127,6 +128,72 @@ function formatTxAmount(amount: number, currency: string) {
 }
 
 const TX_LIMIT = 50
+
+// ---------------------------------------------------------------------------
+// Manually Credit Button (inline in expanded row)
+// ---------------------------------------------------------------------------
+function ManuallyCreditButton({ txId, onSuccess }: { txId: string; onSuccess: () => void }) {
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleConfirm() {
+    if (!reason.trim()) return
+    setSubmitting(true)
+    try {
+      await manuallyCreditTransaction(txId, reason.trim())
+      toast({ title: "Manually credited successfully." })
+      setOpen(false)
+      setReason("")
+      onSuccess()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to manually credit."
+      toast({ variant: "destructive", title: msg })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="destructive"
+        className="h-7 gap-1 text-xs"
+        onClick={(e) => { e.stopPropagation(); setOpen(true) }}
+      >
+        Manually Credit
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Manually Credit Transaction</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will force-credit sCoin for transaction <span className="font-mono text-xs break-all">{txId}</span>. Provide a reason.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            className="mt-2 min-h-[80px]"
+            placeholder="e.g. coin service timeout, confirmed payment with provider…"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!reason.trim() || submitting}
+              onClick={handleConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Status logic
@@ -1206,6 +1273,9 @@ function TransactionsTab() {
                                   <p className="font-mono text-xs break-all">{String(tx.provider_data.transfer_info)}</p>
                                 </div>
                               )}
+                            </div>
+                            <div className="mt-3 flex justify-end">
+                              <ManuallyCreditButton txId={tx.id} onSuccess={() => load(statusFilter, searchId)} />
                             </div>
                           </TableCell>
                         </TableRow>

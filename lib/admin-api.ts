@@ -614,6 +614,10 @@ export interface AdminTransactionsResult {
   transactions: AdminTransaction[]
 }
 
+export async function manuallyCreditTransaction(id: string, reason: string): Promise<void> {
+  return api.post(`/api/v1/superadmin/payment/transactions/${encodeURIComponent(id)}/manually-credit`, { reason })
+}
+
 export async function listAdminTransactions(params?: {
   limit?: number
   status?: AdminTransactionStatus | ""
