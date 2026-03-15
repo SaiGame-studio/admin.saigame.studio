@@ -279,6 +279,7 @@ export default function PaymentPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
+  const [stampingId, setStampingId] = useState<string | null>(null)
   const [checkingOut, setCheckingOut] = useState(false)
 
   const STORAGE_KEY_PACKAGE = "payment:lastPackageId"
@@ -300,6 +301,10 @@ export default function PaymentPage() {
     } else {
       setSelectedPackage(pkg)
       localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id)
+      if (pkg.bonus_scoin > 0) {
+        setStampingId(pkg.id)
+        setTimeout(() => setStampingId(null), 800)
+      }
     }
   }
 
@@ -441,14 +446,29 @@ export default function PaymentPage() {
                 </Card>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <style>{`
+                    @keyframes stamp-in {
+                      0%   { transform: rotate(-15deg) scale(3); opacity: 0; }
+                      60%  { transform: rotate(-15deg) scale(0.85); opacity: 1; }
+                      80%  { transform: rotate(-15deg) scale(1.08); }
+                      100% { transform: rotate(-15deg) scale(1); opacity: 1; }
+                    }
+                    @keyframes card-shake {
+                      0%,100% { transform: translateX(0); }
+                      20%     { transform: translateX(-4px) rotate(-0.5deg); }
+                      40%     { transform: translateX(4px) rotate(0.5deg); }
+                      60%     { transform: translateX(-3px); }
+                      80%     { transform: translateX(3px); }
+                    }
+                    .stamp-animate { animation: stamp-in 0.55s cubic-bezier(0.22,1,0.36,1) forwards; }
+                    .card-shake    { animation: card-shake 0.45s ease 0.1s; }
+                  `}</style>
                   {packages.map((pkg) => {
                     const isSelected = selectedPackage?.id === pkg.id
                     return (
                       <Card
                         key={pkg.id}
-                        className={`relative cursor-pointer transition-all hover:border-primary/60 ${
-                          isSelected ? "border-primary ring-2 ring-primary/30" : ""
-                        }`}
+                        className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""} ${stampingId === pkg.id ? "card-shake" : ""}`}
                         onClick={() => handleSelectPackage(pkg, isSelected)}
                       >
                         {isSelected && (
@@ -458,7 +478,7 @@ export default function PaymentPage() {
                         )}
                         {pkg.bonus_scoin > 0 && (
                           <div className="absolute left-0 top-0">
-                            <Badge className="rounded-none rounded-br-md text-xs">
+                            <Badge className="rounded-none rounded-br-md text-sm font-bold px-2.5 py-1 shadow-sm">
                               +{pkg.bonus_scoin.toLocaleString()} {t('payment.bonus')}
                             </Badge>
                           </div>
@@ -478,7 +498,7 @@ export default function PaymentPage() {
                               </p>
                               {pkg.bonus_scoin > 0 && (
                                 <p className="text-xs text-muted-foreground">
-                                  {pkg.base_scoin.toLocaleString()} + {pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}
+                                  {pkg.base_scoin.toLocaleString()} <span className="font-bold text-primary">+{pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
                                 </p>
                               )}
                             </div>
@@ -487,8 +507,8 @@ export default function PaymentPage() {
                                 {formatPrice(pkg.price_amount, pkg.price_currency)}
                               </p>
                               {pkg.bonus_scoin > 0 && (
-                                <div className="flex items-center justify-center w-11 h-11 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0">
-                                  <span className="text-[9px] font-bold text-primary leading-tight text-center rotate-0">
+                                <div className={`flex items-center justify-center w-14 h-14 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 ${isSelected ? "stamp-animate" : ""}`}>
+                                  <span className="text-[11px] font-bold text-primary leading-tight text-center rotate-0">
                                     SAVE<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
                                   </span>
                                 </div>
