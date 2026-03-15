@@ -84,10 +84,19 @@ export default function DirectTransferPage() {
     if (!confirmed || !pkg) return
     setSubmitting(true)
     try {
-      await api.post("/api/v1/payments/direct-transfer", {
-        package_id: pkg.id,
-        note: note.trim(),
+      // Step 1: initiate the direct transfer transaction
+      const initiated = await api.post("/api/v1/payments/direct-transfer/initiate", {
+        package_key: pkg.key,
+        idempotency_key: crypto.randomUUID(),
       })
+      const txId: string = initiated?.transaction?.id
+      if (!txId) throw new Error("No transaction ID returned")
+
+      // Step 2: confirm that the bank transfer has been sent
+      await api.post(`/api/v1/payments/direct-transfer/${txId}/confirm`, {
+        transfer_info: note.trim(),
+      })
+
       setSubmitted(true)
       toast({ title: t("directTransfer.submitSuccess") })
     } catch (err: any) {
