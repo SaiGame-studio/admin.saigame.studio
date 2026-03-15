@@ -452,7 +452,7 @@ export default function PaymentPage() {
                         onClick={() => handleSelectPackage(pkg, isSelected)}
                       >
                         {isSelected && (
-                          <div className="absolute right-3 top-3 text-primary">
+                          <div className="absolute right-3 top-3 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md">
                             <CheckCircle2 className="h-5 w-5" />
                           </div>
                         )}
@@ -551,7 +551,9 @@ export default function PaymentPage() {
                               )}
                             </div>
                             {isSelected && (
-                              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                              <div className="rounded-full bg-primary p-0.5 text-primary-foreground shadow-md shrink-0">
+                                <CheckCircle2 className="h-5 w-5" />
+                              </div>
                             )}
                           </CardContent>
                         </Card>
