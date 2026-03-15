@@ -1028,20 +1028,25 @@ export default function ShopDetailPage() {
                     {shop.currency_item_def_id ? (
                       <span className="flex items-center gap-1.5">
                         {currencyItem ? (
-                          <>
+                          <Link
+                            href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
+                            className="flex items-center gap-1.5 hover:underline text-foreground"
+                            title="View item definition"
+                          >
                             <span>{currencyItem.name}</span>
                             <span className="text-xs text-muted-foreground font-mono">{currencyItem.item_code}</span>
-                          </>
+                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                          </Link>
                         ) : (
-                          <span className="text-xs text-muted-foreground font-mono">{shop.currency_item_def_id.slice(0, 8)}…</span>
+                          <Link
+                            href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
+                            className="flex items-center gap-1 hover:underline text-muted-foreground"
+                            title="View item definition"
+                          >
+                            <span className="text-xs font-mono">{shop.currency_item_def_id.slice(0, 8)}…</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                         )}
-                        <Link
-                          href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
-                          className="opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                          title="View item definition"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
                       </span>
                     ) : (
                       <span className="italic text-muted-foreground/50">—</span>
