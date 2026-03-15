@@ -625,6 +625,7 @@ export const en = {
     noteLabel: "Note to Admin",
     notePlaceholder: "Include your transfer reference number, bank name, or any other info to help us verify faster.",
     confirmLabel: "I understand this is a manual bank transfer and I am ready to proceed.",
+    transferredLabel: "I have successfully transferred the money.",
     createTransfer: "Create Transfer",
     pendingSubtitle: "Transfer the exact amount shown below, then confirm when done.",
     transactionDetails: "Transfer Details",

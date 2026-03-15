@@ -89,6 +89,7 @@ export default function DirectTransferPage() {
   const [loadError, setLoadError] = useState(false)
   const [note, setNote] = useState("")
   const [confirmed, setConfirmed] = useState(false)
+  const [transferred, setTransferred] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // ---------------------------------------------------------------------------
@@ -275,9 +276,22 @@ export default function DirectTransferPage() {
               </Label>
             </div>
 
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="transferred"
+                checked={transferred}
+                onCheckedChange={(v) => setTransferred(!!v)}
+                disabled={submitting}
+                className="mt-0.5"
+              />
+              <Label htmlFor="transferred" className="text-sm leading-relaxed cursor-pointer">
+                {t("directTransfer.transferredLabel")}
+              </Label>
+            </div>
+
             <Button
               className="w-full"
-              disabled={!confirmed || submitting}
+              disabled={!confirmed || !transferred || submitting}
               onClick={handleSubmit}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -616,6 +616,7 @@ export const ja = {
     noteLabel: "管理者へのメモ",
     notePlaceholder: "振込番号、銀行名、その他確認に役立つ情報を入力してください。",
     confirmLabel: "これは手動振込みであることを理解し、続行する準備ができています。",
+    transferredLabel: "送金が完了しました。",
     createTransfer: "振込みを作成",
     pendingSubtitle: "以下の金額を正確にお振込みの上、完了後に確認してください。",
     transactionDetails: "振込み詳細",

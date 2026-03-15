@@ -627,6 +627,7 @@ export const vi = {
     noteLabel: "Ghi chú gửi Admin",
     notePlaceholder: "Nhập mã giao dịch, tên ngân hàng hoặc thông tin để Admin xác minh nhanh hơn.",
     confirmLabel: "Tôi hiểu đây là chuyển khoản thủ công và sẵn sàng tiếp tục.",
+    transferredLabel: "Tôi đã chuyển khoản thành công.",
     createTransfer: "Tạo giao dịch",
     pendingSubtitle: "Chuyển đúng số tiền hiển thị bên dưới, sau đó xác nhận khi hoàn tất.",
     transactionDetails: "Chi tiết giao dịch",
