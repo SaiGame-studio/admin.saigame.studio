@@ -155,7 +155,7 @@ export default function GiftCodeDetailPage() {
     try {
       await deleteGiftCode(gc.id)
       toast({ title: t('adminGiftCodes.deleteEditSuccess') })
-      router.push("/admin/gift-codes?tab=gift-codes")
+      router.push("/admin/payments?tab=gift-codes")
     } catch (err: any) {
       toast({ variant: "destructive", title: t('adminGiftCodes.deleteEditFailed'), description: err?.data?.error ?? err?.message })
       setDeleting(false)
@@ -198,7 +198,7 @@ export default function GiftCodeDetailPage() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" asChild>
-              <Link href="/admin/gift-codes?tab=gift-codes">
+              <Link href="/admin/payments?tab=gift-codes">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>

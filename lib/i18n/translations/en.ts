@@ -58,7 +58,7 @@ export const en = {
     showingDisabledTabs: "Showing disabled tabs",
     hiddenDisabledTabs: "Hidden disabled tabs",
     payment: "Payment",
-    transactions: "Transactions",
+    transactions: "Payments",
     allPlugins: "Plugins",
     mailbox: "Mailbox"
   },
@@ -608,11 +608,31 @@ export const en = {
     noMethods: "No payment methods available.",
     supportsSubscription: "Supports subscription",
     proceedToPayment: "Proceed to Payment",
-    checkoutInitiated: "Checkout initiated"
+    checkoutInitiated: "Checkout initiated",
+    orderSummary: "Order Summary",
+    noPackageSelected: "No package selected",
+    noMethodSelected: "No payment method selected",
+  },
+  directTransfer: {
+    title: "Direct Transfer",
+    subtitle: "Transfer the exact amount to our bank account, then submit the form below.",
+    packageInfo: "Package Details",
+    packageNotFound: "Package not found.",
+    loadFailed: "Failed to load package details.",
+    noteLabel: "Note to Admin",
+    notePlaceholder: "Include your transfer reference number, bank name, or any other info to help us verify faster.",
+    confirmLabel: "I confirm that I have already transferred the exact amount shown above.",
+    submit: "Submit Transfer Confirmation",
+    submitting: "Submitting...",
+    submitSuccess: "Submitted! Our team will verify your transfer shortly.",
+    submitFailed: "Submission failed. Please try again.",
+    backToPayment: "Back to Payment",
+    totalAmount: "Total Amount",
+    totalScoin: "Total sCoin",
   },
   adminGiftCodes: {
     // Page header
-    pageTitle: "Transactions",
+    pageTitle: "Payments",
     pageSubtitle: "View transactions, manage gift codes and manually top-up user coin balances.",
     // Tabs
     tabTransactions: "Transactions",
@@ -719,6 +739,30 @@ export const en = {
     resultAmount: "Amount",
     resultStatus: "Status",
     resultDesc: "Description"
+  },
+  adminPayments: {
+    tabPayments: "Payment Methods",
+    loadFailed: "Failed to load payment methods",
+    noMethods: "No payment methods found.",
+    methodsTotal: "methods",
+    editTitle: "Edit Payment Method",
+    fieldDisplayName: "Display Name",
+    fieldDescription: "Description",
+    fieldIconUrl: "Icon URL",
+    fieldWebhookSuffix: "Webhook Endpoint Suffix",
+    fieldSortOrder: "Sort Order",
+    fieldIsActive: "Active",
+    fieldIsActiveDesc: "Enable or disable this payment method",
+    fieldSupportsSubscription: "Supports Subscription",
+    fieldSupportsSubscriptionDesc: "Allow recurring subscription billing",
+    fieldConfig: "Config (JSON)",
+    configInvalid: "Invalid JSON",
+    saveSuccess: "Payment method updated!",
+    saveFailed: "Update failed",
+    enabledSuccess: "Payment method enabled",
+    disabledSuccess: "Payment method disabled",
+    toggleFailed: "Toggle failed",
+    sortOrder: "Sort order"
   },
   plugins: {
     // Catalog

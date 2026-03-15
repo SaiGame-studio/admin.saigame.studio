@@ -348,8 +348,49 @@ export async function adminCoinTopUp(body: {
 }
 
 // ---------------------------------------------------------------------------
-// Admin — Custom Plugin CRUD
+// SuperAdmin — Payment Methods
 // ---------------------------------------------------------------------------
+
+export interface PaymentMethodConfig {
+  id: string
+  provider_key: string
+  display_name: string
+  description: string
+  icon_url: string
+  is_active: boolean
+  supports_subscription: boolean
+  config: Record<string, unknown>
+  webhook_endpoint_suffix: string
+  sort_order: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PaymentMethodsResult {
+  methods: PaymentMethodConfig[]
+}
+
+export async function listPaymentMethods(): Promise<PaymentMethodsResult> {
+  return api.get("/api/v1/superadmin/payment/methods")
+}
+
+export async function getPaymentMethod(id: string): Promise<PaymentMethodConfig> {
+  return api.get(`/api/v1/superadmin/payment/methods/${id}`)
+}
+
+export async function updatePaymentMethod(id: string, body: {
+  display_name?: string
+  description?: string
+  icon_url?: string
+  is_active?: boolean
+  supports_subscription?: boolean
+  config?: Record<string, unknown>
+  webhook_endpoint_suffix?: string
+  sort_order?: number
+}): Promise<PaymentMethodConfig> {
+  return api.patch(`/api/v1/superadmin/payment/methods/${id}`, body)
+}
 
 import type { Plugin, GamePluginSubscription } from "@/lib/plugin-api"
 export type { Plugin, GamePluginSubscription }

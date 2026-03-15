@@ -14,6 +14,11 @@ import {
   Search,
   ShieldAlert,
   Trash2,
+  CreditCard,
+  Building2,
+  ToggleLeft,
+  ToggleRight,
+  ExternalLink,
 } from "lucide-react"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
@@ -24,6 +29,9 @@ import {
   deleteGiftCode,
   adminCoinTopUp,
   type CoinTransaction,
+  type PaymentMethodConfig,
+  listPaymentMethods,
+  updatePaymentMethod,
 } from "@/lib/admin-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,6 +39,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -51,6 +60,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
@@ -116,19 +133,357 @@ function usesLabel(max_uses: number, unlimitedLabel = "\u221e Unlimited", single
 }
 
 // ---------------------------------------------------------------------------
-// Transactions tab (coming soon)
+// Payment method icon helper
 // ---------------------------------------------------------------------------
-function TransactionsTab() {
+function MethodIcon({ providerKey, iconUrl }: { providerKey: string; iconUrl?: string }) {
+  if (iconUrl) {
+    return <img src={iconUrl} alt={providerKey} className="h-7 w-7 object-contain" />
+  }
+  if (providerKey === "bank_transfer_vn") return <Building2 className="h-5 w-5" />
+  return <CreditCard className="h-5 w-5" />
+}
+
+// ---------------------------------------------------------------------------
+// Edit Payment Method Dialog
+// ---------------------------------------------------------------------------
+interface EditMethodDialogProps {
+  method: PaymentMethodConfig | null
+  open: boolean
+  onClose: () => void
+  onSaved: (updated: PaymentMethodConfig) => void
+}
+
+function EditMethodDialog({ method, open, onClose, onSaved }: EditMethodDialogProps) {
   const { t } = useTranslation()
+  const { toast } = useToast()
+  const [displayName, setDisplayName] = useState("")
+  const [description, setDescription] = useState("")
+  const [iconUrl, setIconUrl] = useState("")
+  const [isActive, setIsActive] = useState(false)
+  const [supportsSubscription, setSupportsSubscription] = useState(false)
+  const [webhookSuffix, setWebhookSuffix] = useState("")
+  const [configJson, setConfigJson] = useState("{}")
+  const [configError, setConfigError] = useState("")
+  const [sortOrder, setSortOrder] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (method) {
+      setDisplayName(method.display_name)
+      setDescription(method.description)
+      setIconUrl(method.icon_url ?? "")
+      setIsActive(method.is_active)
+      setSupportsSubscription(method.supports_subscription)
+      setWebhookSuffix(method.webhook_endpoint_suffix ?? "")
+      setConfigJson(JSON.stringify(method.config ?? {}, null, 2))
+      setConfigError("")
+      setSortOrder(String(method.sort_order))
+    }
+  }, [method])
+
+  function validateConfig(val: string) {
+    try { JSON.parse(val); setConfigError("") }
+    catch { setConfigError(t('adminPayments.configInvalid')) }
+  }
+
+  async function handleSave() {
+    if (!method) return
+    let parsedConfig: Record<string, unknown> = {}
+    try { parsedConfig = JSON.parse(configJson) }
+    catch { setConfigError(t('adminPayments.configInvalid')); return }
+    setSaving(true)
+    try {
+      const updated = await updatePaymentMethod(method.id, {
+        display_name: displayName.trim(),
+        description: description.trim(),
+        icon_url: iconUrl.trim(),
+        is_active: isActive,
+        supports_subscription: supportsSubscription,
+        webhook_endpoint_suffix: webhookSuffix.trim(),
+        config: parsedConfig,
+        sort_order: parseInt(sortOrder, 10) || 0,
+      })
+      toast({ title: t('adminPayments.saveSuccess') })
+      onSaved(updated)
+      onClose()
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPayments.saveFailed'), description: err?.data?.error ?? err?.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-      <ReceiptText className="h-14 w-14 text-muted-foreground/40" />
-      <div>
-        <h2 className="text-lg font-semibold">{t('adminGiftCodes.comingSoon')}</h2>
-        <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-          {t('adminGiftCodes.comingSoonDesc')}
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-lg"
+      >
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>{t('adminPayments.editTitle')}</SheetTitle>
+          <SheetDescription className="font-mono text-xs">{method?.provider_key}</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Display Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-display-name">{t('adminPayments.fieldDisplayName')}</Label>
+            <Input
+              id="edit-display-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-description">{t('adminPayments.fieldDescription')}</Label>
+            <Textarea
+              id="edit-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={saving}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+
+          {/* Icon URL */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-icon-url">{t('adminPayments.fieldIconUrl')}</Label>
+            <div className="flex gap-2">
+              <Input
+                id="edit-icon-url"
+                value={iconUrl}
+                onChange={(e) => setIconUrl(e.target.value)}
+                disabled={saving}
+                placeholder="https://cdn.example.com/icons/method.png"
+              />
+              {iconUrl && (
+                <img src={iconUrl} alt="icon preview" className="h-9 w-9 flex-shrink-0 rounded border object-contain p-1" />
+              )}
+            </div>
+          </div>
+
+          {/* Webhook Suffix */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-webhook">{t('adminPayments.fieldWebhookSuffix')}</Label>
+            <Input
+              id="edit-webhook"
+              value={webhookSuffix}
+              onChange={(e) => setWebhookSuffix(e.target.value)}
+              disabled={saving}
+              placeholder="/webhooks/payment/method_key"
+              className="font-mono text-sm"
+            />
+          </div>
+
+          {/* Sort Order */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-sort-order">{t('adminPayments.fieldSortOrder')}</Label>
+            <Input
+              id="edit-sort-order"
+              type="number"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          {/* Toggles */}
+          <div className="rounded-lg border bg-muted/40 divide-y">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{t('adminPayments.fieldIsActive')}</p>
+                <p className="text-xs text-muted-foreground">{t('adminPayments.fieldIsActiveDesc')}</p>
+              </div>
+              <Switch checked={isActive} onCheckedChange={setIsActive} disabled={saving} />
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{t('adminPayments.fieldSupportsSubscription')}</p>
+                <p className="text-xs text-muted-foreground">{t('adminPayments.fieldSupportsSubscriptionDesc')}</p>
+              </div>
+              <Switch checked={supportsSubscription} onCheckedChange={setSupportsSubscription} disabled={saving} />
+            </div>
+          </div>
+
+          {/* Config JSON */}
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-config">{t('adminPayments.fieldConfig')}</Label>
+            <Textarea
+              id="edit-config"
+              value={configJson}
+              onChange={(e) => { setConfigJson(e.target.value); validateConfig(e.target.value) }}
+              disabled={saving}
+              rows={5}
+              spellCheck={false}
+              className="font-mono text-xs resize-none"
+            />
+            {configError && <p className="text-xs text-destructive">{configError}</p>}
+          </div>
+        </div>
+
+        <SheetFooter className="border-t px-6 py-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving || !displayName.trim() || !!configError}
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t('common.save')}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Payment Methods tab
+// ---------------------------------------------------------------------------
+function PaymentMethodsTab() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [methods, setMethods] = useState<PaymentMethodConfig[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editTarget, setEditTarget] = useState<PaymentMethodConfig | null>(null)
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await listPaymentMethods()
+      setMethods((res.methods ?? []).sort((a, b) => a.sort_order - b.sort_order))
+    } catch {
+      toast({ variant: "destructive", title: t('adminPayments.loadFailed') })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleToggle(method: PaymentMethodConfig) {
+    setToggling(method.id)
+    try {
+      const updated = await updatePaymentMethod(method.id, { is_active: !method.is_active })
+      setMethods((prev) => prev.map((m) => m.id === updated.id ? updated : m))
+      toast({ title: updated.is_active ? t('adminPayments.enabledSuccess') : t('adminPayments.disabledSuccess') })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPayments.toggleFailed'), description: err?.data?.error ?? err?.message })
+    } finally {
+      setToggling(null)
+    }
+  }
+
+  function handleSaved(updated: PaymentMethodConfig) {
+    setMethods((prev) => prev.map((m) => m.id === updated.id ? updated : m))
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {methods.length} {t('adminPayments.methodsTotal')}
         </p>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          {t('adminGiftCodes.refresh')}
+        </Button>
       </div>
+
+      <div className="space-y-3">
+        {loading ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-12 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-72" />
+                  </div>
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : methods.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              {t('adminPayments.noMethods')}
+            </CardContent>
+          </Card>
+        ) : (
+          methods.map((method) => (
+            <Card key={method.id} className={method.is_active ? "" : "opacity-60"}>
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  {/* Icon */}
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+                    <MethodIcon providerKey={method.provider_key} iconUrl={method.icon_url} />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm">{method.display_name}</p>
+                      <Badge variant="outline" className="text-xs font-mono">{method.provider_key}</Badge>
+                      {method.supports_subscription && (
+                        <Badge variant="secondary" className="text-xs">{t('payment.supportsSubscription')}</Badge>
+                      )}
+                      <Badge variant={method.is_active ? "default" : "secondary"} className="text-xs">
+                        {method.is_active ? t('common.active') : t('common.inactive')}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{method.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('adminPayments.sortOrder')}: {method.sort_order}
+                      {method.webhook_endpoint_suffix && (
+                        <span className="ml-3 font-mono">{method.webhook_endpoint_suffix}</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      {toggling === method.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Switch
+                          checked={method.is_active}
+                          onCheckedChange={() => handleToggle(method)}
+                          aria-label="Toggle active"
+                        />
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setEditTarget(method)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <EditMethodDialog
+        method={editTarget}
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={handleSaved}
+      />
     </div>
   )
 }
@@ -198,7 +553,7 @@ function GiftCodesTab() {
             {t('adminGiftCodes.refresh')}
           </Button>
           <Button size="sm" asChild>
-            <Link href="/admin/gift-codes/new">
+            <Link href="/admin/payments/new">
               <Plus className="mr-2 h-4 w-4" />
               {t('adminGiftCodes.create')}
             </Link>
@@ -268,7 +623,7 @@ function GiftCodesTab() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <Link href={`/admin/gift-codes/${gc.id}`}>
+                            <Link href={`/admin/payments/${gc.id}`}>
                               <Pencil className="h-4 w-4" />
                             </Link>
                           </Button>
@@ -493,12 +848,16 @@ export default function GiftCodesPage() {
   const capabilities = useCapabilities()
   const { t } = useTranslation()
 
-  const VALID_TABS = ["transactions", "gift-codes", "topup"] as const
+  const VALID_TABS = ["payments", "gift-codes", "topup"] as const
   type TabValue = typeof VALID_TABS[number]
   const rawTab = searchParams.get("tab")
-  const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "transactions"
+  const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments"
 
   function handleTabChange(value: string) {
+    if (value === "transactions") {
+      router.push("/admin/transactions")
+      return
+    }
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", value)
     router.replace(`?${params.toString()}`, { scroll: false })
@@ -523,7 +882,7 @@ export default function GiftCodesPage() {
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-8">
         <div className="flex items-center gap-2">
-          <ReceiptText className="h-6 w-6 text-primary" />
+          <CreditCard className="h-6 w-6 text-primary" />
           <div>
             <h1 className="text-xl font-semibold md:text-2xl">{t('adminGiftCodes.pageTitle')}</h1>
             <p className="text-sm text-muted-foreground">{t('adminGiftCodes.pageSubtitle')}</p>
@@ -532,9 +891,9 @@ export default function GiftCodesPage() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
-            <TabsTrigger value="transactions" className="gap-2">
-              <ReceiptText className="h-4 w-4" />
-              {t('adminGiftCodes.tabTransactions')}
+            <TabsTrigger value="payments" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              {t('adminPayments.tabPayments')}
             </TabsTrigger>
             <TabsTrigger value="gift-codes" className="gap-2">
               <Gift className="h-4 w-4" />
@@ -544,9 +903,13 @@ export default function GiftCodesPage() {
               <BadgeDollarSign className="h-4 w-4" />
               {t('adminGiftCodes.tabTopUp')}
             </TabsTrigger>
+            <TabsTrigger value="transactions" className="gap-2">
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t('adminGiftCodes.tabTransactions')}
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="transactions" className="mt-4">
-            <TransactionsTab />
+          <TabsContent value="payments" className="mt-4">
+            <PaymentMethodsTab />
           </TabsContent>
           <TabsContent value="gift-codes" className="mt-4">
             <GiftCodesTab />

@@ -65,6 +65,7 @@ interface PaymentMethod {
   id: string
   provider_key: string
   display_name: string
+  description: string
   supports_subscription: boolean
   is_active: boolean
 }
@@ -197,6 +198,28 @@ export default function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [checkingOut, setCheckingOut] = useState(false)
 
+  const STORAGE_KEY_PACKAGE = "payment:lastPackageId"
+
+  // Restore last selected package after packages are loaded
+  useEffect(() => {
+    if (packages.length === 0) return
+    const savedId = localStorage.getItem(STORAGE_KEY_PACKAGE)
+    if (savedId) {
+      const found = packages.find((p) => p.id === savedId)
+      if (found) setSelectedPackage(found)
+    }
+  }, [packages])
+
+  function handleSelectPackage(pkg: CoinPackage, isSelected: boolean) {
+    if (isSelected) {
+      setSelectedPackage(null)
+      localStorage.removeItem(STORAGE_KEY_PACKAGE)
+    } else {
+      setSelectedPackage(pkg)
+      localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id)
+    }
+  }
+
   const fetchPackages = useCallback(async () => {
     setPackagesLoading(true)
     setPackagesError(false)
@@ -230,6 +253,10 @@ export default function PaymentPage() {
 
   async function handleCheckout() {
     if (!selectedPackage || !selectedMethod) return
+    if (selectedMethod.provider_key === "direct_transfer") {
+      router.push(`/payment/direct-transfer?package_id=${selectedPackage.id}`)
+      return
+    }
     setCheckingOut(true)
     try {
       // Placeholder: checkout endpoint to be connected
@@ -339,7 +366,7 @@ export default function PaymentPage() {
                         className={`relative cursor-pointer transition-all hover:border-primary/60 ${
                           isSelected ? "border-primary ring-2 ring-primary/30" : ""
                         }`}
-                        onClick={() => setSelectedPackage(isSelected ? null : pkg)}
+                        onClick={() => handleSelectPackage(pkg, isSelected)}
                       >
                         {isSelected && (
                           <div className="absolute right-3 top-3 text-primary">
@@ -384,99 +411,141 @@ export default function PaymentPage() {
               )}
             </section>
 
-            {/* ---- Payment methods section ---- */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <BadgeCheck className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">{t('payment.paymentMethods')}</h2>
-              </div>
+            {/* ---- Payment methods + Order summary (2 columns) ---- */}
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
 
-              {methodsLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              {/* Column 1 – Payment Methods */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <BadgeCheck className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">{t('payment.paymentMethods')}</h2>
                 </div>
-              ) : methodsError ? (
+
+                {methodsLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : methodsError ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+                      <p className="text-sm text-destructive">{t('payment.methodsError')}</p>
+                      <Button variant="outline" size="sm" onClick={fetchMethods}>
+                        {t('payment.tryAgain')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : methods.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                      {t('payment.noMethods')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-3">
+                    {methods.map((method) => {
+                      const isSelected = selectedMethod?.id === method.id
+                      return (
+                        <Card
+                          key={method.id}
+                          className={`cursor-pointer transition-all hover:border-primary/60 ${
+                            isSelected ? "border-primary ring-2 ring-primary/30" : ""
+                          }`}
+                          onClick={() => setSelectedMethod(isSelected ? null : method)}
+                        >
+                          <CardContent className="flex items-center gap-4 p-4">
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
+                              {getMethodIcon(method.provider_key)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm">{method.display_name}</p>
+                              {method.description && (
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{method.description}</p>
+                              )}
+                              {method.supports_subscription && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {t('payment.supportsSubscription')}
+                                </p>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+
+              {/* Column 2 – Order Summary */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">{t('payment.orderSummary')}</h2>
+                </div>
                 <Card>
-                  <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-                    <p className="text-sm text-destructive">{t('payment.methodsError')}</p>
-                    <Button variant="outline" size="sm" onClick={fetchMethods}>
-                      {t('payment.tryAgain')}
+                  <CardContent className="p-5 space-y-4">
+                    {/* Package row */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('payment.coinPackages')}</p>
+                      {selectedPackage ? (
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold">{selectedPackage.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {selectedPackage.total_scoin.toLocaleString()} sCoin
+                              {selectedPackage.bonus_scoin > 0 && (
+                                <span className="ml-1 text-primary">+{selectedPackage.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
+                              )}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-primary shrink-0">
+                            {formatPrice(selectedPackage.price_amount, selectedPackage.price_currency)}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">{t('payment.noPackageSelected')}</p>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Method row */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('payment.paymentMethods')}</p>
+                      {selectedMethod ? (
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border bg-muted text-foreground">
+                            {getMethodIcon(selectedMethod.provider_key)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">{selectedMethod.display_name}</p>
+                            {selectedMethod.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{selectedMethod.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">{t('payment.noMethodSelected')}</p>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    <Button
+                      className="w-full"
+                      disabled={!selectedPackage || !selectedMethod || checkingOut}
+                      onClick={handleCheckout}
+                    >
+                      {checkingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {t('payment.proceedToPayment')}
                     </Button>
                   </CardContent>
                 </Card>
-              ) : methods.length === 0 ? (
-                <Card>
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    {t('payment.noMethods')}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-3">
-                  {methods.map((method) => {
-                    const isSelected = selectedMethod?.id === method.id
-                    return (
-                      <Card
-                        key={method.id}
-                        className={`cursor-pointer transition-all hover:border-primary/60 ${
-                          isSelected ? "border-primary ring-2 ring-primary/30" : ""
-                        }`}
-                        onClick={() => setSelectedMethod(isSelected ? null : method)}
-                      >
-                        <CardContent className="flex items-center gap-4 p-4">
-                          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
-                            {getMethodIcon(method.provider_key)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm">{method.display_name}</p>
-                            {method.supports_subscription && (
-                              <p className="text-xs text-muted-foreground">
-                                {t('payment.supportsSubscription')}
-                              </p>
-                            )}
-                          </div>
-                          {isSelected && (
-                            <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+              </section>
 
-            {/* ---- Checkout button ---- */}
-            {(selectedPackage || selectedMethod) && (
-              <>
-                <Separator />
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="text-sm text-muted-foreground space-y-0.5">
-                    {selectedPackage && (
-                      <p>
-                        <span className="font-medium text-foreground">{selectedPackage.name}</span>
-                        {" · "}
-                        {formatPrice(selectedPackage.price_amount, selectedPackage.price_currency)}
-                        {" · "}
-                        {selectedPackage.total_scoin.toLocaleString()} sCoin
-                      </p>
-                    )}
-                    {selectedMethod && (
-                      <p>{selectedMethod.display_name}</p>
-                    )}
-                  </div>
-                  <Button
-                    disabled={!selectedPackage || !selectedMethod || checkingOut}
-                    onClick={handleCheckout}
-                    className="shrink-0"
-                  >
-                    {checkingOut ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {t('payment.proceedToPayment')}
-                  </Button>
-                </div>
-              </>
-            )}
+            </div>
           </TabsContent>
 
           {/* ============================================================
