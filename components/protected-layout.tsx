@@ -34,11 +34,11 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
   // If authenticated, render with full layout
   return (
-    <div className="flex min-h-screen flex-col">
-      <TopNav />
-      <div className="flex flex-1 min-h-0">
-        <SideNav />
-        <main className="flex-1 overflow-auto min-h-full [&_.container]:ml-0">{children}</main>
+    <div className="flex min-h-screen">
+      <SideNav />
+      <div className="flex flex-1 flex-col min-h-screen min-w-0">
+        <TopNav />
+        <main className="flex-1 overflow-auto [&_.container]:ml-0">{children}</main>
       </div>
     </div>
   )
