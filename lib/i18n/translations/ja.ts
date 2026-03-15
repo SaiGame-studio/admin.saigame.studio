@@ -585,7 +585,7 @@ export const ja = {
     tryAgain: "再試行",
     noTransactions: "まだ取引がありません。",
     subTabBuyCoin: "Coin購入",
-    subTabUseCoin: "Coin利用",
+    subTabUseCoin: "Coin Transactions",
     typeAdminTopup: "管理者チャージ",
     typeGiftCode: "ギフトコード",
     typePurchase: "購入",

@@ -594,7 +594,7 @@ export const en = {
     tryAgain: "Try again",
     noTransactions: "No transactions yet.",
     subTabBuyCoin: "Buy Coin",
-    subTabUseCoin: "Use Coin",
+    subTabUseCoin: "Coin Transactions",
     typeAdminTopup: "Admin Top-up",
     typeGiftCode: "Gift Code",
     typePurchase: "Purchase",

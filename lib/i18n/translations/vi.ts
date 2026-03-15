@@ -596,7 +596,7 @@ export const vi = {
     tryAgain: "Thử lại",
     noTransactions: "Chưa có giao dịch nào.",
     subTabBuyCoin: "Mua Coin",
-    subTabUseCoin: "Dùng Coin",
+    subTabUseCoin: "Coin Transactions",
     typeAdminTopup: "Nạp bởi Admin",
     typeGiftCode: "Mã quà tặng",
     typePurchase: "Mua hàng",
