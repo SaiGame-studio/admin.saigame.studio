@@ -1,11 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { Store, Users, BookOpen, Mail, ScrollText, Hammer, BarChart2, Gamepad2 } from "lucide-react"
+import { Store, Users, BookOpen, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 
-type GameNavSection = "shops" | "players" | "users" | "items" | "mailbox" | "quests" | "plugins" | "analytic" | "detail"
+type GameNavSection = "shops" | "players" | "users" | "items" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail"
 
 interface GameNavButtonsProps {
   gameId: string
@@ -51,6 +51,12 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         <Link href={`/games/${gameId}/quests`}>
           <ScrollText className="h-4 w-4" />
           Quests
+        </Link>
+      </Button>
+      <Button asChild variant={btn("leaderboard")} className="flex items-center gap-2">
+        <Link href={`/games/${gameId}/leaderboard`}>
+          <Trophy className="h-4 w-4" />
+          Leaderboard
         </Link>
       </Button>
       <Button asChild variant={btn("analytic")} className="flex items-center gap-2">
