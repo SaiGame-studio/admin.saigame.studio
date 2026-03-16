@@ -1080,7 +1080,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                   <TableHead>Type</TableHead>
                   <TableHead>Conditions</TableHead>
                   <TableHead>Rewards</TableHead>
-                  <TableHead>Sort</TableHead>
+
                   <TableHead>Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1161,7 +1161,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                     <TableCell className="text-sm">
                       {q.rewards?.length ?? 0}
                     </TableCell>
-                    <TableCell className="text-sm">{q.sort_order}</TableCell>
+
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={q.is_active}

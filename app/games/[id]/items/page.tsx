@@ -4354,14 +4354,17 @@ export default function GameItemsPage() {
                       onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
                     >
                       <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          {/* Chevron */}
+                          {isExpanded
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+
+                          {/* Col 1: Name + ID */}
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <CardTitle className="text-base truncate">{pack.name}</CardTitle>
-                              <Badge
-                                variant={pack.is_enabled ? "default" : "secondary"}
-                                className="text-xs shrink-0"
-                              >
+                              <Badge variant={pack.is_enabled ? "default" : "secondary"} className="text-xs shrink-0">
                                 {pack.is_enabled ? "Enabled" : "Disabled"}
                               </Badge>
                             </div>
@@ -4370,6 +4373,24 @@ export default function GameItemsPage() {
                               <CopyButton text={pack.id} size="h-3 w-3" />
                             </div>
                           </div>
+
+                          {/* Col 2: Keys */}
+                          <div className="w-52 shrink-0 text-sm text-muted-foreground">
+                            {(pack.key_requirements ?? []).length === 0 ? (
+                              <span className="italic text-xs">No key required</span>
+                            ) : pack.key_requirements.length === 1 ? (
+                              <span>🔑 <strong className="text-foreground">{pack.key_requirements[0].quantity}×</strong> {gachaItemShortName(pack.key_requirements[0].item_definition_id)}</span>
+                            ) : (
+                              <span>🔑 {pack.key_requirements.length} keys</span>
+                            )}
+                          </div>
+
+                          {/* Col 3: Items in pool */}
+                          <div className="w-28 shrink-0 text-sm text-muted-foreground">
+                            🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""}
+                          </div>
+
+                          {/* Actions */}
                           <div className="flex items-center gap-1 shrink-0">
                             <Switch
                               checked={pack.is_enabled}
@@ -4388,27 +4409,7 @@ export default function GameItemsPage() {
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
-                            {isExpanded
-                              ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-1" />
-                              : <ChevronRight className="h-4 w-4 text-muted-foreground ml-1" />
-                            }
                           </div>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                          {(pack.key_requirements ?? []).length > 0 ? (
-                            <span>🔑 Keys: {pack.key_requirements.map((kr, i) => (
-                              <span key={i}>
-                                {i > 0 && <span className="mx-1">+</span>}
-                                <strong className="text-foreground">{kr.quantity}×</strong> {gachaItemShortName(kr.item_definition_id)}
-                              </span>
-                            ))}</span>
-                          ) : (
-                            <span className="italic text-xs">No key required</span>
-                          )}
-                          <span>🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""} in pool</span>
-                          {totalWeight > 0 && (
-                            <span className="text-xs">total weight {totalWeight.toLocaleString()}</span>
-                          )}
                         </div>
                       </CardHeader>
                     </div>

@@ -84,6 +84,7 @@ export default function DirectTransferPage() {
   const { toast } = useToast()
 
   const [submitted, setSubmitted] = useState(false)
+  const [submittedTxId, setSubmittedTxId] = useState<string | null>(null)
   const [pkg, setPkg] = useState<CoinPackage | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -123,6 +124,14 @@ export default function DirectTransferPage() {
   // ---------------------------------------------------------------------------
   async function handleSubmit() {
     if (!pkg || !confirmed) return
+    if (!note.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Note to Admin is required",
+        description: "Please include your transfer reference number or bank name to help us verify faster.",
+      })
+      return
+    }
     setSubmitting(true)
     try {
       const uuid =
@@ -142,6 +151,7 @@ export default function DirectTransferPage() {
       })
 
       setSubmitted(true)
+      setSubmittedTxId(tx.id)
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -162,9 +172,16 @@ export default function DirectTransferPage() {
         <div className="text-center space-y-4">
           <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
           <h1 className="text-xl font-semibold">{t("directTransfer.submitSuccess")}</h1>
-          <Button asChild variant="outline">
-            <Link href="/payment">{t("directTransfer.backToPayment")}</Link>
-          </Button>
+          <div className="flex items-center justify-center gap-3">
+            <Button asChild variant="outline">
+              <Link href="/payment">{t("directTransfer.backToPayment")}</Link>
+            </Button>
+            {submittedTxId && (
+              <Button asChild>
+                <Link href={`/payment?tab=transactions&subtab=buy&txid=${submittedTxId}`}>View Transaction</Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -249,7 +266,7 @@ export default function DirectTransferPage() {
         <Card>
           <CardContent className="pt-5 space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="note">{t("directTransfer.noteLabel")}</Label>
+              <Label htmlFor="note">{t("directTransfer.noteLabel")} <span className="text-destructive">*</span></Label>
               <Textarea
                 id="note"
                 value={note}
@@ -257,8 +274,11 @@ export default function DirectTransferPage() {
                 placeholder={t("directTransfer.notePlaceholder")}
                 rows={3}
                 disabled={submitting}
-                className="resize-none"
+                className={`resize-none ${!note.trim() ? "border-destructive/50 focus-visible:ring-destructive/30" : ""}`}
               />
+              {!note.trim() && (
+                <p className="text-xs text-destructive">This field is required.</p>
+              )}
             </div>
 
             <Separator />

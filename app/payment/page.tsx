@@ -167,11 +167,17 @@ export default function PaymentPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const activeTab = (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment")
+  const activeTab = (searchParams.get("txid")
+    ? "transactions"
+    : (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment"))
 
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", value)
+    if (value !== "transactions") {
+      params.delete("txid")
+      params.delete("subtab")
+    }
     router.replace(`/payment?${params.toString()}`, { scroll: false })
   }
 
@@ -196,7 +202,13 @@ export default function PaymentPage() {
     router.replace(`/payment?${params.toString()}`, { scroll: false })
   }
 
-  const [expandedPayTxId, setExpandedPayTxId] = useState<string | null>(null)
+  const expandedPayTxId = searchParams.get("txid") ?? null
+  function setExpandedPayTxId(id: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (id) params.set("txid", id)
+    else params.delete("txid")
+    router.replace(`/payment?${params.toString()}`, { scroll: false })
+  }
   // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
   const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({})
 
@@ -258,6 +270,15 @@ export default function PaymentPage() {
       fetchPaymentTransactions()
     }
   }, [txSubTab, payTxFetched, fetchPaymentTransactions])
+
+  // Auto-resolve package name when txid is in URL on load
+  useEffect(() => {
+    if (expandedPayTxId && payTxData) {
+      const tx = payTxData.transactions.find(t => t.id === expandedPayTxId)
+      if (tx?.scoin_package_id) resolvePackageName(tx.scoin_package_id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payTxData, expandedPayTxId])
 
   // Lazy-load coin transactions only when "Use Coin" sub-tab is first opened
   const [txFetched, setTxFetched] = useState(false)
@@ -780,6 +801,7 @@ export default function PaymentPage() {
                             setExpandedPayTxId(next)
                             if (next && tx.scoin_package_id) resolvePackageName(tx.scoin_package_id)
                           }}
+                          id={tx.id}
                         >
                           <CardContent className="flex items-center gap-4 p-4">
                             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
