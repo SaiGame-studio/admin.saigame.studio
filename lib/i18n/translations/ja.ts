@@ -555,9 +555,9 @@ export const ja = {
   payment: {
     title: "お支払い",
     subtitle: "コイン、お支払い、取引履歴を管理します。",
-    tabPaymentMethod: "お支払い方法",
+    tabPaymentMethod: "コインを購入",
     tabTransactions: "取引履歴",
-    tabRedeemGiftCode: "ギフトコード適用",
+    tabRedeemGiftCode: "ギフトコード",
     paymentMethods: "お支払い方法",
     comingSoon: "近日公開",
     bankTransfer: "銀行振込",
