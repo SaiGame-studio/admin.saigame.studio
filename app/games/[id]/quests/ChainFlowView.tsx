@@ -7,6 +7,7 @@ import {
   useReactFlow,
   Background,
   Controls,
+  ControlButton,
   MiniMap,
   useNodesState,
   useEdgesState,
@@ -26,7 +27,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw, ExternalLink } from "lucide-react"
+import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw, ExternalLink, Lock, Unlock, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getChainLayout,
@@ -202,11 +203,14 @@ function ChainFlowViewContent({
   onDisconnectQuests,
   onRefresh,
 }: ChainFlowViewProps) {
-  const { getNodes } = useReactFlow()
+  const { getNodes, screenToFlowPosition } = useReactFlow()
   const [connecting, setConnecting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [layoutLoaded, setLayoutLoaded] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastChainIdRef = useRef<string | null>(null)
+  const pendingDropPosRef = useRef<Record<string, { x: number; y: number }>>({})
+  const [locked, setLocked] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarSearch, setSidebarSearch] = useState("")
   const [addingQuestId, setAddingQuestId] = useState<string | null>(null)
@@ -261,59 +265,89 @@ function ChainFlowViewContent({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<QuestNodeData>>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
-  // Load saved layout from API, fall back to dagre auto-layout
+  // Load saved layout from API on initial chain load; on subsequent rawNodes updates (refresh) preserve existing positions
   useEffect(() => {
     let cancelled = false
-    async function loadLayout() {
-      let posMap: Record<string, { x: number; y: number }> | null = null
-      try {
-        const layout = await getChainLayout(studioId, gameId, chainId)
-        if (layout?.positions?.length) {
-          posMap = {}
-          for (const p of layout.positions) {
-            posMap[p.id] = { x: p.x, y: p.y }
+    const isNewChain = lastChainIdRef.current !== chainId
+
+    async function applyLayout() {
+      if (isNewChain) {
+        lastChainIdRef.current = chainId
+        setLayoutLoaded(false)
+        // Initial load: check localStorage first (instant), then API as fallback
+        let posMap: Record<string, { x: number; y: number }> | null = null
+
+        try {
+          const local = localStorage.getItem(`chain-layout:${chainId}`)
+          if (local) {
+            const parsed: ChainLayoutNodePosition[] = JSON.parse(local)
+            if (parsed?.length) {
+              posMap = {}
+              for (const p of parsed) posMap[p.id] = { x: p.x, y: p.y }
+            }
+          }
+        } catch { /* ignore */ }
+
+        if (!posMap) {
+          try {
+            const layout = await getChainLayout(studioId, gameId, chainId)
+            if (layout?.positions?.length) {
+              posMap = {}
+              for (const p of layout.positions) posMap[p.id] = { x: p.x, y: p.y }
+            }
+          } catch {
+            // No saved layout
           }
         }
-      } catch {
-        // No saved layout — will use dagre
-      }
 
-      if (cancelled) return
-
-      if (posMap) {
-        // Apply saved positions; new nodes not in saved layout get dagre positions
-        const { nodes: dagreNodes } = getLayoutedElements(rawNodes, rawEdges, "LR")
-        const positioned = rawNodes.map((node) => {
-          const saved = posMap![node.id]
-          const fallback = dagreNodes.find((n) => n.id === node.id)
-          return {
-            ...node,
-            position: saved ?? fallback?.position ?? { x: 0, y: 0 },
-          }
-        })
+        if (cancelled) return
+        const positioned = rawNodes.map((node, i) => ({
+          ...node,
+          position: posMap?.[node.id] ?? { x: i * (NODE_WIDTH + 60), y: 0 },
+        }))
         setNodes(positioned)
+        setEdges(rawEdges)
+        setLayoutLoaded(true)
       } else {
-        const { nodes: layouted } = getLayoutedElements(rawNodes, rawEdges, "LR")
-        setNodes(layouted)
+        // Refresh: preserve existing node positions, only update data + add new nodes
+        const currentNodes = getNodes() as Node<QuestNodeData>[]
+        const posMap: Record<string, { x: number; y: number }> = {}
+        for (const n of currentNodes) posMap[n.id] = n.position
+        const positioned = rawNodes.map((node, i) => ({
+          ...node,
+          position: posMap[node.id] ?? pendingDropPosRef.current[node.id] ?? { x: i * (NODE_WIDTH + 60), y: 0 },
+        }))
+        // Clear consumed pending drop positions
+        for (const node of rawNodes) delete pendingDropPosRef.current[node.id]
+        setNodes(positioned)
+        setEdges(rawEdges)
       }
-      setEdges(rawEdges)
-      setLayoutLoaded(true)
     }
-    setLayoutLoaded(false)
-    loadLayout()
+
+    applyLayout()
     return () => { cancelled = true }
   }, [studioId, gameId, chainId, rawNodes, rawEdges, setNodes, setEdges])
 
-  // Save layout to API (debounced)
+  // Save layout to API (debounced) + localStorage (immediate)
   const persistLayout = useCallback(
     (currentNodes: Node<QuestNodeData>[]) => {
+      const positions: ChainLayoutNodePosition[] = currentNodes.map((n) => ({
+        id: n.id,
+        x: Math.round(n.position.x),
+        y: Math.round(n.position.y),
+      }))
+
+      // Save to localStorage immediately for instant F5 restore
+      try {
+        localStorage.setItem(
+          `chain-layout:${chainId}`,
+          JSON.stringify(positions),
+        )
+      } catch { /* quota exceeded or private mode — ignore */ }
+
+      // Also persist to API (debounced)
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       saveTimerRef.current = setTimeout(async () => {
-        const positions: ChainLayoutNodePosition[] = currentNodes.map((n) => ({
-          id: n.id,
-          x: Math.round(n.position.x),
-          y: Math.round(n.position.y),
-        }))
         try {
           await saveChainLayout(studioId, gameId, chainId, { positions })
         } catch {
@@ -404,6 +438,29 @@ function ChainFlowViewContent({
     [onQuickAdd],
   )
 
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }, [])
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      const questId = e.dataTransfer.getData("application/chain-quest-id")
+      if (!questId) return
+      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      pendingDropPosRef.current[questId] = pos
+      handleQuickAdd(questId)
+    },
+    [screenToFlowPosition, handleQuickAdd],
+  )
+
+  const handleAutoLayout = useCallback(() => {
+    const { nodes: laid } = getLayoutedElements(nodes, edges, "LR")
+    setNodes(laid)
+    persistLayout(laid)
+  }, [nodes, edges, setNodes, persistLayout])
+
   return (
     <div className="flex gap-0 h-[500px] w-full rounded-md border bg-background/50 overflow-hidden">
       {/* ── Graph area ───────────────────────────────────── */}
@@ -441,11 +498,6 @@ function ChainFlowViewContent({
           </Button>
         </div>
 
-        {members.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            No quests in this chain yet. Add quests from the panel on the right.
-          </div>
-        ) : (
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -454,20 +506,42 @@ function ChainFlowViewContent({
             onConnect={handleConnect}
             onEdgesDelete={handleEdgesDelete}
             onNodeDragStop={handleNodeDragStop}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
             nodeTypes={nodeTypes}
+            nodesDraggable={!locked}
+            nodesConnectable={!locked}
+            elementsSelectable={!locked}
             fitView
             fitViewOptions={{ padding: 0.3 }}
             proOptions={{ hideAttribution: true }}
             minZoom={0.3}
             maxZoom={2}
-            deleteKeyCode={["Backspace", "Delete"]}
+            deleteKeyCode={locked ? [] : ["Backspace", "Delete"]}
             defaultEdgeOptions={{
               animated: true,
               style: { strokeWidth: 2 },
             }}
           >
+            {members.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <p className="text-muted-foreground text-sm bg-background/80 rounded px-3 py-1.5">
+                  No quests in this chain yet. Drag quests from the panel or press&nbsp;+.
+                </p>
+              </div>
+            )}
             <Background gap={16} size={1} />
-            <Controls showInteractive={false} />
+            <Controls showInteractive={false}>
+              <ControlButton
+                onClick={() => setLocked((v) => !v)}
+                title={locked ? "Unlock nodes" : "Lock nodes"}
+              >
+                {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+              </ControlButton>
+              <ControlButton onClick={handleAutoLayout} title="Auto-align (dagre)">
+                <Wand2 className="h-3.5 w-3.5" />
+              </ControlButton>
+            </Controls>
             <MiniMap
               nodeStrokeWidth={3}
               zoomable
@@ -475,7 +549,6 @@ function ChainFlowViewContent({
               className="!bg-background/80"
             />
           </ReactFlow>
-        )}
       </div>
 
       {/* ── Quick-add sidebar ────────────────────────────── */}
@@ -501,14 +574,18 @@ function ChainFlowViewContent({
             ) : (
               <div className="p-1.5 space-y-0.5">
                 {filteredAvailable.map((quest) => (
-                  <button
+                  <div
                     key={quest.id}
-                    disabled={addingQuestId !== null}
-                    onClick={() => handleQuickAdd(quest.id)}
+                    draggable={addingQuestId === null}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/chain-quest-id", quest.id)
+                      e.dataTransfer.effectAllowed = "move"
+                    }}
                     className={cn(
                       "w-full text-left rounded-md px-2.5 py-2 hover:bg-accent/60 transition-colors group",
                       "flex items-start gap-2",
-                      addingQuestId === quest.id && "opacity-70 pointer-events-none",
+                      addingQuestId === null ? "cursor-grab active:cursor-grabbing" : "opacity-70",
+                      addingQuestId === quest.id && "opacity-70",
                     )}
                   >
                     <div className="flex-1 min-w-0">
@@ -522,14 +599,19 @@ function ChainFlowViewContent({
                         )}
                       </div>
                     </div>
-                    <div className="shrink-0 mt-0.5">
+                    <button
+                      className="shrink-0 mt-0.5 h-5 w-5 inline-flex items-center justify-center rounded hover:bg-primary/20 transition-colors disabled:pointer-events-none"
+                      disabled={addingQuestId !== null}
+                      title="Add to chain"
+                      onClick={() => handleQuickAdd(quest.id)}
+                    >
                       {addingQuestId === quest.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                       ) : (
                         <Plus className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

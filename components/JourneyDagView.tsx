@@ -23,7 +23,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import dagre from "dagre"
-import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, RefreshCw, X, Wand2, PlusCircle, ChevronsUpDown, Check, CalendarIcon, Users, Zap, ExternalLink, Hammer, Copy, PanelRightClose, PanelRightOpen } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -71,9 +71,11 @@ import {
   updateNodeDefinition,
   deleteNodeDefinition,
   getEventStats,
+  getJourneyDashboard,
   type JourneyDagNodeDefinition,
   type SaveJourneyDagRequest,
   type EventStat,
+  type JourneyNodeStats,
 } from "@/lib/journey-api"
 import { listEventTypes } from "@/lib/event-type-api"
 
@@ -180,7 +182,7 @@ function EventTypeCombobox({
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 const NODE_W = 200
-const NODE_H = 92
+const NODE_H = 130
 
 function getLayoutedNodes(nodes: Node<JourneyNodeData>[], edges: Edge[]): Node<JourneyNodeData>[] {
   const g = new dagre.graphlib.Graph()
@@ -202,6 +204,9 @@ function getLayoutedNodes(nodes: Node<JourneyNodeData>[], edges: Edge[]): Node<J
 
 /** Maps event_type → { playerCount, eventCount } aggregated across the selected date range */
 const NodeStatsContext = React.createContext<Map<string, { playerCount: number; eventCount: number }>>(new Map())
+
+/** Maps journey-node ID → dashboard stats (total_reached, currently_at, drop_off_rate) */
+const NodeDashboardStatsContext = React.createContext<Map<string, JourneyNodeStats>>(new Map())
 
 // ─── Node action context ─────────────────────────────────────────────────────
 
@@ -233,9 +238,11 @@ const NODE_TYPE_OPTIONS = [
 function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
   const { onEdit, onDelete, onChangeType } = useContext(DagNodeActionsContext)
   const statsMap = useContext(NodeStatsContext)
+  const dashboardStatsMap = useContext(NodeDashboardStatsContext)
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
   const stats = statsMap.get(data.eventType)
+  const dashboardStats = dashboardStatsMap.get(id)
   const [copied, setCopied] = useState(false)
 
   const handleCopyEventType = (e: React.MouseEvent) => {
@@ -312,6 +319,25 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
             : <Copy className="h-2.5 w-2.5" />}
         </button>
       </p>
+      {/* Dashboard stats row */}
+      {dashboardStats && (
+        <div className="grid grid-cols-3 gap-0.5 mt-1.5">
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-blue-500/10" title="Total players reached this node">
+            <span className="text-[9px] text-muted-foreground leading-tight">reached</span>
+            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 leading-tight">{dashboardStats.total_reached}</span>
+          </div>
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-emerald-500/10" title="Players currently at this node">
+            <span className="text-[9px] text-muted-foreground leading-tight">here</span>
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dashboardStats.currently_at}</span>
+          </div>
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-orange-500/10" title="Drop-off rate from this node">
+            <span className="text-[9px] text-muted-foreground leading-tight">drop</span>
+            <span className={cn("text-[10px] font-bold leading-tight", dashboardStats.drop_off_rate > 0.5 ? "text-destructive" : "text-orange-500 dark:text-orange-400")}>
+              {(dashboardStats.drop_off_rate * 100).toFixed(0)}%
+            </span>
+          </div>
+        </div>
+      )}
       {/* Node type toggle + Edit / Delete */}
       <div className="mt-1.5 flex gap-1 items-center">
         <span className="text-[10px] text-muted-foreground mr-0.5">type:</span>
@@ -861,6 +887,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   const [rfEdges, setRfEdges] = useEdgesState<Edge>([])
   const [isSaving, setIsSaving] = useState(false)
   const [dagLoading, setDagLoading] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(true)
   const [dagError, setDagError] = useState<string | null>(null)
   const [usedDefIds, setUsedDefIds] = useState<Set<string>>(new Set())
   const [allDefs, setAllDefs] = useState<JourneyDagNodeDefinition[]>([])
@@ -875,6 +902,11 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   const [nodeStatsMap, setNodeStatsMap] = useState<Map<string, { playerCount: number; eventCount: number }>>(new Map())
   const [statsLoading, setStatsLoading] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
+
+  // Journey dashboard stats
+  const [dashboardStatsMap, setDashboardStatsMap] = useState<Map<string, JourneyNodeStats>>(new Map())
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+  const [dashboardRefreshedAt, setDashboardRefreshedAt] = useState<string | null>(null)
 
   // Refs updated inline each render — lets the debounced callback read fresh state
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1021,8 +1053,26 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     }
   }, [gameId, dateRange])
 
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true)
+    try {
+      const data = await getJourneyDashboard(gameId, journeyId)
+      const map = new Map<string, JourneyNodeStats>()
+      for (const node of data.nodes) {
+        map.set(node.id, node.stats)
+      }
+      setDashboardStatsMap(map)
+      setDashboardRefreshedAt(data.refreshed_at)
+    } catch {
+      // silently ignore — dashboard stats are non-critical
+    } finally {
+      setDashboardLoading(false)
+    }
+  }, [gameId, journeyId])
+
   useEffect(() => { loadDag(); loadDefs() }, [loadDag, loadDefs])
   useEffect(() => { loadStats() }, [loadStats])
+  useEffect(() => { loadDashboard() }, [loadDashboard])
 
   const addNodeToDag = useCallback(
     (def: JourneyDagNodeDefinition, x: number, y: number) => {
@@ -1130,6 +1180,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   return (
     <DagNodeActionsContext.Provider value={nodeActions}>
     <NodeStatsContext.Provider value={nodeStatsMap}>
+    <NodeDashboardStatsContext.Provider value={dashboardStatsMap}>
     <div className="space-y-2">
       {/* Toolbar */}
       <div className="flex items-center gap-2">
@@ -1177,9 +1228,6 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
               </div>
             </PopoverContent>
           </Popover>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadStats} disabled={statsLoading} title="Refresh stats">
-            {statsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
         </div>
       </div>
 
@@ -1222,8 +1270,29 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 </div>
               )}
             </ReactFlow>
+            {/* Top-right action buttons */}
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                onClick={() => { loadDag(); loadDefs() }}
+                title="Refresh DAG"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+                onClick={() => setPanelOpen((v) => !v)}
+                title={panelOpen ? "Hide panel" : "Show panel"}
+              >
+                {panelOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
             {isSaving && (
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md border">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md border">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Saving…
               </div>
@@ -1233,20 +1302,23 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
       </div>
 
       {/* Node definitions panel */}
-      <NodeDefsPanel
-        gameId={gameId}
-        defs={allDefs}
-        loading={defsLoading}
-        usedDefIds={usedDefIds}
-        onRefresh={loadDefs}
-        onAddToDag={handlePanelAddToDag}
-        editDef={editDef}
-        setEditDef={setEditDef}
-        maxNodeDefinitions={maxNodeDefinitions}
-      />
+      {panelOpen && (
+        <NodeDefsPanel
+          gameId={gameId}
+          defs={allDefs}
+          loading={defsLoading}
+          usedDefIds={usedDefIds}
+          onRefresh={loadDefs}
+          onAddToDag={handlePanelAddToDag}
+          editDef={editDef}
+          setEditDef={setEditDef}
+          maxNodeDefinitions={maxNodeDefinitions}
+        />
+      )}
 
     </div>
     </div>
+    </NodeDashboardStatsContext.Provider>
     </NodeStatsContext.Provider>
     </DagNodeActionsContext.Provider>
   )

@@ -767,7 +767,7 @@ export default function DocPage() {
           Complete list of every game. Apply custom per-game limit overrides.
         </p>
 
-        <Heading2 id="admin-giftcodes">Gift Codes — <code className="text-xs font-mono">/admin/gift-codes</code></Heading2>
+        <Heading2 id="admin-giftcodes">Gift Codes — <code className="text-xs font-mono">/admin/payments</code></Heading2>
         <p className="text-sm text-muted-foreground">
           Create and manage gift / promo codes that grant coins or plugin access when redeemed.
         </p>

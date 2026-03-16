@@ -76,11 +76,11 @@ const LIMIT_EXPLANATIONS: Record<string, {
       "CCU sessions expire automatically after 30 minutes of inactivity — active players never get kicked mid-session.",
     ],
     grantTable: [
-      { tier: "Common (auto)", perStack: "+10 CCU" },
+      { tier: "Common (auto)", perStack: "+20 CCU" },
       { tier: "Uncommon (×7 max)", perStack: "+60 CCU / stack" },
-      { tier: "Rare (×3 max)", perStack: "+4,000 CCU / stack" },
-      { tier: "Epic (×3 max)", perStack: "+10,000 CCU / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+100,000 CCU / stack" },
+      { tier: "Rare (×3 max)", perStack: "+4K CCU / stack" },
+      { tier: "Epic (×3 max)", perStack: "+10K CCU / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+100K CCU / stack" },
     ],
     tip: "CCU is the most time-sensitive limit — it blocks players in real time. If you hit it during peak hours, upgrading to Rare or above provides the biggest jump (up to 12,010 CCU with ×3 Rare).",
   },
@@ -95,11 +95,11 @@ const LIMIT_EXPLANATIONS: Record<string, {
       "HTTP 429 is returned before profile creation when the cap is reached.",
     ],
     grantTable: [
-      { tier: "Common (auto)", perStack: "+50 profiles" },
+      { tier: "Common (auto)", perStack: "+100 profiles" },
       { tier: "Uncommon (×7 max)", perStack: "+300 profiles / stack" },
-      { tier: "Rare (×3 max)", perStack: "+20,000 profiles / stack" },
-      { tier: "Epic (×3 max)", perStack: "+200,000 profiles / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+5,000,000 profiles / stack" },
+      { tier: "Rare (×3 max)", perStack: "+20K profiles / stack" },
+      { tier: "Epic (×3 max)", perStack: "+200K profiles / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+5M profiles / stack" },
     ],
     tip: "Games expecting viral growth should upgrade early — going from Uncommon to Rare multiplies your profile cap by ~66×.",
   },
@@ -114,11 +114,11 @@ const LIMIT_EXPLANATIONS: Record<string, {
       "Each variation counts as a separate definition (e.g. Iron Sword and Steel Sword are two items).",
     ],
     grantTable: [
-      { tier: "Common (auto)", perStack: "+50 items" },
+      { tier: "Common (auto)", perStack: "+100 items" },
       { tier: "Uncommon (×7 max)", perStack: "+100 items / stack" },
-      { tier: "Rare (×3 max)", perStack: "+4,000 items / stack" },
-      { tier: "Epic (×3 max)", perStack: "+10,000 items / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+100,000 items / stack" },
+      { tier: "Rare (×3 max)", perStack: "+4K items / stack" },
+      { tier: "Epic (×3 max)", perStack: "+10K items / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+100K items / stack" },
     ],
     tip: "Consolidate item variants using item attributes (e.g. tier, color) rather than separate definitions to stay within limits.",
   },
@@ -133,11 +133,11 @@ const LIMIT_EXPLANATIONS: Record<string, {
       "Shops can be scoped to specific game modes, regions, or player segments.",
     ],
     grantTable: [
-      { tier: "Common (auto)", perStack: "+1 shop" },
+      { tier: "Common (auto)", perStack: "+2 shops" },
       { tier: "Uncommon (×7 max)", perStack: "+2 shops / stack" },
       { tier: "Rare (×3 max)", perStack: "+50 shops / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1,000 shops / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+70,000 shops / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K shops / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+70K shops / stack" },
     ],
     tip: "If you only need a few shops, Rare tier (up to 150 shops with ×3) is more than enough for most mid-size games.",
   },
@@ -155,8 +155,8 @@ const LIMIT_EXPLANATIONS: Record<string, {
       { tier: "Common (auto)", perStack: "+30 quests" },
       { tier: "Uncommon (×7 max)", perStack: "+30 quests / stack" },
       { tier: "Rare (×3 max)", perStack: "+300 quests / stack" },
-      { tier: "Epic (×3 max)", perStack: "+3,000 quests / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+30,000 quests / stack" },
+      { tier: "Epic (×3 max)", perStack: "+3K quests / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+30K quests / stack" },
     ],
     tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
   },
@@ -167,17 +167,35 @@ const LIMIT_EXPLANATIONS: Record<string, {
     description: "Journey Node Definitions determine how many stages, milestones, or branching checkpoints you can create in your player journey (DAG). The limit `max_nodes_per_journey` uses MAX resolution — the highest active plugin tier wins (not sum). New node definitions are blocked with HTTP 429 when the cap is reached.",
     details: [
       "Default base limit: 100 node definitions.",
-      "`max_nodes_per_journey` uses MAX (not SUM): Common = 7, Uncommon = 15, Rare = 30, Epic = 100, Legendary = 500.",
-      "Journey count also scales with tier: Common = 1, Uncommon = 3, Rare = 10, Epic = 50, Legendary = 200 journeys/stack.",
+      "Node Defs do not receive User Events directly — events must be mapped through an Event Type first.",
     ],
     grantTable: [
-      { tier: "Common (auto)", perStack: "+10 node defs, 1 journey, max 7 nodes/journey" },
-      { tier: "Uncommon (×7 max)", perStack: "+15 node defs / stack, 3 journeys, max 15 nodes/journey" },
-      { tier: "Rare (×3 max)", perStack: "+50 node defs / stack, 10 journeys, max 30 nodes/journey" },
-      { tier: "Epic (×3 max)", perStack: "+200 node defs / stack, 50 journeys, max 100 nodes/journey" },
-      { tier: "Legendary (×3 max)", perStack: "+1,000 node defs / stack, 200 journeys, max 500 nodes/journey" },
+      { tier: "Common (auto)", perStack: "+100 node defs" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 node defs / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 node defs / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K node defs / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K node defs / stack" },
     ],
     tip: "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap (100/500) is often more limiting than the total node definition count.",
+  },
+  event_types: {
+    title: "Event Types",
+    icon: "📡",
+    tagline: "Named player events your game can emit and track",
+    description: "Event Types are named schemas that represent actions players perform in your game — such as 'level_up', 'item_purchased', or 'quest_completed'. Unlike Journey Node Definitions, Event Types are the entry point for raw player telemetry: your game emits an event by name, and the system routes it. A single Event Type can feed data into multiple Journey Nodes simultaneously, making it a shared signal across your entire progression graph.",
+    details: [
+      "Default base limit: 100 event type definitions.",
+      "Event Types are the only way for player actions to enter the Journey system — Node Defs cannot receive events directly.",
+      "One Event Type can trigger conditions on many different Journey Nodes at the same time.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+100 event types" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 event types / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 event types / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K event types / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K event types / stack" },
+    ],
+    tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across multiple quest conditions and journey nodes.",
   },
 }
 
@@ -544,16 +562,6 @@ export default function GamePluginsPage() {
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
           <GameNavButtons gameId={gameId} active="plugins" />
           <div className="flex items-center gap-2 flex-wrap">
-            {gamePlugins && (
-              <div className="flex items-center gap-1.5 rounded-xl border bg-muted/40 px-3 py-1.5 text-sm">
-                <span className="text-muted-foreground text-xs">{t('plugins.materia.monthly')}</span>
-                {totalMonthlyCost === 0 ? (
-                  <span className="font-bold text-green-400">Free</span>
-                ) : (
-                  <span className="font-bold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>
-                )}
-              </div>
-            )}
             <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -598,6 +606,31 @@ export default function GamePluginsPage() {
                     </div>
                   )
                 })}
+                {/* Monthly cost badge */}
+                {gamePlugins && (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 self-start shadow-sm cursor-default ${
+                          totalMonthlyCost === 0
+                            ? "border-green-500/40 bg-green-500/10"
+                            : "border-yellow-500/40 bg-yellow-500/10"
+                        }`}>
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('plugins.materia.monthly')}</span>
+                          {totalMonthlyCost === 0 ? (
+                            <span className="text-sm font-extrabold text-green-400">Free</span>
+                          ) : (
+                            <span className="text-sm font-extrabold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[220px] text-xs leading-relaxed">
+                        <p className="font-semibold mb-1">Monthly Subscription Cost</p>
+                        <p className="text-muted-foreground">Total coins deducted from your wallet each month to maintain all active Materia sockets. Cancelling a socket stops future charges.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
               {/* Right column: admin grant rows */}
               {customGrantPlugins.length > 0 && (
@@ -1535,7 +1568,7 @@ export default function GamePluginsPage() {
 
       {/* ── Limit explanation sheet (slides from right) ── */}
       <Sheet open={openLimitSheet !== null} onOpenChange={(open) => { if (!open) setOpenLimitSheet(null) }}>
-        <SheetContent side="right" className="w-[400px] sm:w-[480px] overflow-y-auto">
+        <SheetContent side="right" className="w-[480px] sm:w-[560px] overflow-y-auto">
           {openLimitSheet && LIMIT_EXPLANATIONS[openLimitSheet] && (() => {
             const exp = LIMIT_EXPLANATIONS[openLimitSheet]
             return (

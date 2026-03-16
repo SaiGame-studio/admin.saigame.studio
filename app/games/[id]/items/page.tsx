@@ -184,7 +184,7 @@ function formatPct(pct: number): string {
   if (pct >= 1) return pct.toFixed(2) + "%"
   if (pct >= 0.01) return pct.toFixed(4) + "%"
   if (pct >= 0.0001) return pct.toFixed(6) + "%"
-  return pct.toExponential(2) + "%"
+  return pct.toFixed(10).replace(/\.?0+$/, "") + "%"
 }
 
 function DropBar({ weight, total }: { weight: number; total: number }) {
@@ -3680,11 +3680,11 @@ export default function GameItemsPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="catalogue">Items</TabsTrigger>
+            <TabsTrigger value="tags">Tags</TabsTrigger>
             <TabsTrigger value="containers">Containers</TabsTrigger>
             <TabsTrigger value="gacha">Gacha</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
             <TabsTrigger value="equipments">Equipments</TabsTrigger>
-            <TabsTrigger value="tags">Tags</TabsTrigger>
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
@@ -4342,98 +4342,184 @@ export default function GameItemsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {gachaPacks.map((pack) => {
                 const totalWeight = pack.item_pool.reduce((s, e) => s + e.weight, 0)
                 const isExpanded = expandedPack === pack.id
                 return (
                   <Card key={pack.id} className={`transition-all ${!pack.is_enabled ? "opacity-60" : ""}`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <CardTitle className="text-base truncate">{pack.name}</CardTitle>
-                            <Badge
-                              variant={pack.is_enabled ? "default" : "secondary"}
-                              className="text-xs shrink-0"
+                    {/* ── Clickable header row ── */}
+                    <div
+                      className="cursor-pointer select-none"
+                      onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-3">
+                          {/* Chevron */}
+                          {isExpanded
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+
+                          {/* Col 1: Name + ID */}
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <CardTitle className="text-base truncate">{pack.name}</CardTitle>
+                              <Badge variant={pack.is_enabled ? "default" : "secondary"} className="text-xs shrink-0">
+                                {pack.is_enabled ? "Enabled" : "Disabled"}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                              <span>ID: {pack.id}</span>
+                              <CopyButton text={pack.id} size="h-3 w-3" />
+                            </div>
+                          </div>
+
+                          {/* Col 2: Keys */}
+                          <div className="w-52 shrink-0 text-sm text-muted-foreground">
+                            {(pack.key_requirements ?? []).length === 0 ? (
+                              <span className="italic text-xs">No key required</span>
+                            ) : pack.key_requirements.length === 1 ? (
+                              <span>🔑 <strong className="text-foreground">{pack.key_requirements[0].quantity}×</strong> {gachaItemShortName(pack.key_requirements[0].item_definition_id)}</span>
+                            ) : (
+                              <span>🔑 {pack.key_requirements.length} keys</span>
+                            )}
+                          </div>
+
+                          {/* Col 3: Items in pool */}
+                          <div className="w-28 shrink-0 text-sm text-muted-foreground">
+                            🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Switch
+                              checked={pack.is_enabled}
+                              onCheckedChange={() => handleGachaToggle(pack)}
+                              disabled={togglingId === pack.id}
+                              title={pack.is_enabled ? "Disable pack" : "Enable pack"}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); gachaOpenEdit(pack) }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setDeletingPack(pack) }}
                             >
-                              {pack.is_enabled ? "Enabled" : "Disabled"}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
-                            <span>ID: {pack.id}</span>
-                            <CopyButton text={pack.id} size="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Switch
-                            checked={pack.is_enabled}
-                            onCheckedChange={() => handleGachaToggle(pack)}
-                            disabled={togglingId === pack.id}
-                            title={pack.is_enabled ? "Disable pack" : "Enable pack"}
-                          />
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => gachaOpenEdit(pack)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="icon" variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => setDeletingPack(pack)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                        {(pack.key_requirements ?? []).length > 0 ? (
-                          <span>🔑 Keys: {pack.key_requirements.map((kr, i) => (
-                            <span key={i}>
-                              {i > 0 && <span className="mx-1">+</span>}
-                              <strong className="text-foreground">{kr.quantity}×</strong> {gachaItemShortName(kr.item_definition_id)}
-                            </span>
-                          ))}</span>
-                        ) : (
-                          <span className="italic text-xs">No key required</span>
-                        )}
-                        <span>🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""} in pool</span>
-                        {totalWeight > 0 && (
-                          <span className="text-xs">total weight {totalWeight.toLocaleString()}</span>
-                        )}
-                      </div>
-                    </CardHeader>
-                    {pack.item_pool.length > 0 && (
+                      </CardHeader>
+                    </div>
+
+                    {/* ── Expanded detail ── */}
+                    {isExpanded && (
                       <>
                         <Separator />
-                        <CardContent className="pt-3 pb-2">
-                          <button
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
-                            onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
-                          >
-                            {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                            Drop table
-                          </button>
-                          {isExpanded && (
-                            <div className="space-y-1.5">
-                              <div className="grid grid-cols-[1fr_1fr_auto] gap-x-3 text-xs text-muted-foreground font-medium pb-1 border-b">
-                                <span>Item</span>
-                                <span>Drop rate</span>
-                                <span className="text-right">Qty</span>
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex gap-4 items-start">
+                            {/* Col 1 — Key Requirements (narrow, fixed width) */}
+                            {(pack.key_requirements ?? []).length > 0 && (
+                              <div className="w-[300px] shrink-0">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 Key Requirements</p>
+                                <div className="rounded-md border overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8">Item</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-12">Qty</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {pack.key_requirements.map((kr, i) => {
+                                        const item = gachaAllItems.find((x) => x.id === kr.item_definition_id)
+                                        return (
+                                          <TableRow key={i}>
+                                            <TableCell className="text-xs py-2">
+                                              {item ? (
+                                                <div className="space-y-0.5">
+                                                  <span className="font-medium block">{item.name}</span>
+                                                  <div className="flex items-center gap-1 flex-wrap">
+                                                    {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                    {item.rarity && <RarityBadge rarity={item.rarity} />}
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}…</code>
+                                              )}
+                                            </TableCell>
+                                            <TableCell className="text-xs py-2 text-right font-semibold tabular-nums">{kr.quantity}×</TableCell>
+                                          </TableRow>
+                                        )
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </div>
                               </div>
-                              {[...pack.item_pool]
-                                .sort((a, b) => b.weight - a.weight)
-                                .map((entry, i) => (
-                                  <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-x-3 items-center text-sm">
-                                    <span className="truncate text-xs">{gachaItemName(entry.item_definition_id)}</span>
-                                    <DropBar weight={entry.weight} total={totalWeight} />
-                                    <span className="text-xs text-muted-foreground text-right tabular-nums">
-                                      {entry.quantity_min === entry.quantity_max
-                                        ? entry.quantity_min
-                                        : `${entry.quantity_min}–${entry.quantity_max}`}
-                                    </span>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
+                            )}
+
+                            {/* Col 2 — Drop Table (takes remaining width) */}
+                            {pack.item_pool.length > 0 && (
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 Drop Table</p>
+                                <div className="rounded-md border overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8">Item</TableHead>
+                                        <TableHead className="text-xs h-8 w-24">Rarity</TableHead>
+                                        <TableHead className="text-xs h-8">Drop Rate</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-24">Weight</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">Qty</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {[...pack.item_pool]
+                                        .sort((a, b) => b.weight - a.weight)
+                                        .map((entry, i) => {
+                                          const item = gachaAllItems.find((x) => x.id === entry.item_definition_id)
+                                          const pct = totalWeight > 0 ? (entry.weight / totalWeight) * 100 : 0
+                                          const rarity = entry.rarity ?? item?.rarity
+                                          return (
+                                            <TableRow key={i}>
+                                              <TableCell className="text-xs py-2">
+                                                {item ? (
+                                                  <div>
+                                                    <span className="font-medium">{item.name}</span>
+                                                    {item.item_code && <code className="ml-1.5 text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                  </div>
+                                                ) : (
+                                                  <code className="font-mono text-[11px] text-muted-foreground">{entry.item_definition_id.slice(0, 8)}…</code>
+                                                )}
+                                              </TableCell>
+                                              <TableCell className="text-xs py-2">
+                                                {rarity ? <RarityBadge rarity={rarity} /> : <span className="text-muted-foreground">—</span>}
+                                              </TableCell>
+                                              <TableCell className="text-xs py-2">
+                                                <div className="flex items-center gap-2">
+                                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                                  </div>
+                                                  <span className="tabular-nums text-muted-foreground w-16 text-right shrink-0">{formatPct(pct)}</span>
+                                                </div>
+                                              </TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums text-muted-foreground">{entry.weight.toLocaleString()}</TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">
+                                                {entry.quantity_min === entry.quantity_max
+                                                  ? entry.quantity_min
+                                                  : `${entry.quantity_min}–${entry.quantity_max}`}
+                                              </TableCell>
+                                            </TableRow>
+                                          )
+                                        })}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </>
                     )}

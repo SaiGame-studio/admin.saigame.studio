@@ -201,7 +201,7 @@ function NewGameForm() {
           {/* Coin cost hint */}
           {!studioDetailLoading && (
             <p className="text-xs text-muted-foreground">
-              The first game is <span className="text-green-500 font-medium">free</span>, additional games cost <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
+              To exceed the limit, you need <span className="text-yellow-500 font-medium">🪙 {GAME_COST} coins</span>
             </p>
           )}
         </div>

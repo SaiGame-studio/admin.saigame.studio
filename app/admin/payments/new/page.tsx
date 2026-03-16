@@ -65,7 +65,7 @@ export default function NewGiftCodePage() {
       }
       const created = await createGiftCode(body)
       toast({ title: t('adminGiftCodes.createSuccess') })
-      router.push(`/admin/gift-codes/${created.id}`)
+      router.push(`/admin/payments/${created.id}`)
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -94,7 +94,7 @@ export default function NewGiftCodePage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
-            <Link href="/admin/gift-codes?tab=gift-codes">
+            <Link href="/admin/payments?tab=gift-codes">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -257,7 +257,7 @@ export default function NewGiftCodePage() {
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" asChild>
-              <Link href="/admin/gift-codes?tab=gift-codes">{t('common.cancel')}</Link>
+              <Link href="/admin/payments?tab=gift-codes">{t('common.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Gift className="mr-2 h-4 w-4" />}

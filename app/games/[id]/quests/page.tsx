@@ -76,6 +76,7 @@ import { ApiError } from "@/lib/api-client"
 import type { Studio } from "@/types/studio"
 import {
   listQuestDefinitions,
+  listQuestTypes,
   createQuestDefinition,
   updateQuestDefinition,
   deleteQuestDefinition,
@@ -650,7 +651,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
 // ─── Definitions Tab ──────────────────────────────────────────────────────────
 
 function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?: string | null }) {
-  const gameId = game?.id ?? ""
+  const { id: gameId } = useParams() as { id: string }
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -694,12 +695,43 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Filters
-  const [filterSearch, setFilterSearch] = useState("")
-  const [filterType, setFilterType] = useState<string>("all")
-  const [filterActive, setFilterActive] = useState<string>("all")
-  const [sortBy, setSortBy] = useState<string>("updated_at")
-  const [sortOrder, setSortOrder] = useState<string>("desc")
+  // Filters — initialized from URL so F5 preserves them
+  const [filterSearch, setFilterSearch] = useState(() => searchParams.get("q") ?? "")
+  const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all")
+  const [filterActive, setFilterActive] = useState(() => searchParams.get("active") ?? "all")
+  const [sortBy, setSortBy] = useState(() => searchParams.get("sortBy") ?? "updated_at")
+  const [sortOrder, setSortOrder] = useState(() => searchParams.get("sortOrder") ?? "desc")
+
+  // Sync filter state → URL
+  useEffect(() => {
+    const sp = new URLSearchParams(searchParams.toString())
+    if (filterSearch) sp.set("q", filterSearch); else sp.delete("q")
+    if (filterType !== "all") sp.set("type", filterType); else sp.delete("type")
+    if (filterActive !== "all") sp.set("active", filterActive); else sp.delete("active")
+    if (sortBy !== "updated_at") sp.set("sortBy", sortBy); else sp.delete("sortBy")
+    if (sortOrder !== "desc") sp.set("sortOrder", sortOrder); else sp.delete("sortOrder")
+    router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterSearch, filterType, filterActive, sortBy, sortOrder])
+
+  // Quest type options (fetched from API, falls back to QUEST_TYPES)
+  const [questTypeOptions, setQuestTypeOptions] = useState<{ value: string; label: string; description: string }[]>(
+    QUEST_TYPES.map((t) => ({ value: t.value, label: t.label, description: t.description ?? "" }))
+  )
+
+  useEffect(() => {
+    listQuestTypes().then((data) => {
+      if (data?.quest_types?.length) {
+        setQuestTypeOptions(
+          data.quest_types.map((t) => ({
+            value: t.value,
+            label: t.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            description: t.description,
+          }))
+        )
+      }
+    }).catch(() => {/* keep fallback */})
+  }, [])
 
   const filteredQuests = useMemo(() => {
     let result = quests
@@ -724,7 +756,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
     if (!game) return
     try {
       const res = await listQuestDefinitions(game.studio_id, gameId, {
-        active_only: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
+        status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
         limit,
         offset: off,
         sort_by: sortBy,
@@ -902,7 +934,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {QUEST_TYPES.map((t) => (
+            {questTypeOptions.map((t) => (
               <SelectItem key={t.value} value={t.value}>
                 <div>
                   <span>{t.label}</span>
@@ -976,10 +1008,12 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       )}
 
       {/* Filters */}
-      {!loading && quests.length > 0 && (
+      {!loading && (
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground mr-auto">
-            {`${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`}
+            {quests.length > 0
+              ? `${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`
+              : "0 quest definitions"}
           </p>
           <div className="relative min-w-[200px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -996,7 +1030,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {QUEST_TYPES.map((t) => (
+              {questTypeOptions.map((t) => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
               ))}
             </SelectContent>
@@ -1080,7 +1114,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                   <TableHead>Type</TableHead>
                   <TableHead>Conditions</TableHead>
                   <TableHead>Rewards</TableHead>
-                  <TableHead>Sort</TableHead>
+
                   <TableHead>Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1161,7 +1195,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
                     <TableCell className="text-sm">
                       {q.rewards?.length ?? 0}
                     </TableCell>
-                    <TableCell className="text-sm">{q.sort_order}</TableCell>
+
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={q.is_active}

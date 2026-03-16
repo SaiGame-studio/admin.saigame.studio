@@ -348,8 +348,121 @@ export async function adminCoinTopUp(body: {
 }
 
 // ---------------------------------------------------------------------------
-// Admin — Custom Plugin CRUD
+// SuperAdmin — sCoin Packages
 // ---------------------------------------------------------------------------
+
+export interface SPackage {
+  id: string
+  package_key: string
+  name: string
+  description: string
+  scoin_amount: number
+  bonus_scoin: number
+  price_amount: number
+  price_currency: string
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface SPackagesResult {
+  packages: SPackage[]
+}
+
+export interface CreateSPackageBody {
+  package_key: string
+  name: string
+  description: string
+  scoin_amount: number
+  bonus_scoin: number
+  price_amount: number
+  price_currency: string
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+}
+
+export interface UpdateSPackageBody {
+  name?: string
+  description?: string
+  scoin_amount?: number
+  bonus_scoin?: number
+  price_amount?: number
+  price_currency?: string
+  is_active?: boolean
+  is_featured?: boolean
+  sort_order?: number
+  metadata?: Record<string, unknown>
+}
+
+export async function listSPackages(): Promise<SPackagesResult> {
+  return api.get("/api/v1/superadmin/payment/packages")
+}
+
+export async function getSPackage(id: string): Promise<SPackage> {
+  return api.get(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+export async function createSPackage(body: CreateSPackageBody): Promise<SPackage> {
+  return api.post("/api/v1/superadmin/payment/packages", body)
+}
+
+export async function updateSPackage(id: string, body: UpdateSPackageBody): Promise<SPackage> {
+  return api.patch(`/api/v1/superadmin/payment/packages/${id}`, body)
+}
+
+export async function deleteSPackage(id: string): Promise<void> {
+  return api.delete(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+// ---------------------------------------------------------------------------
+// SuperAdmin — Payment Methods
+// ---------------------------------------------------------------------------
+
+export interface PaymentMethodConfig {
+  id: string
+  provider_key: string
+  display_name: string
+  description: string
+  icon_url: string
+  is_active: boolean
+  supports_subscription: boolean
+  config: Record<string, unknown>
+  webhook_endpoint_suffix: string
+  sort_order: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PaymentMethodsResult {
+  methods: PaymentMethodConfig[]
+}
+
+export async function listPaymentMethods(): Promise<PaymentMethodsResult> {
+  return api.get("/api/v1/superadmin/payment/methods")
+}
+
+export async function getPaymentMethod(id: string): Promise<PaymentMethodConfig> {
+  return api.get(`/api/v1/superadmin/payment/methods/${id}`)
+}
+
+export async function updatePaymentMethod(id: string, body: {
+  display_name?: string
+  description?: string
+  icon_url?: string
+  is_active?: boolean
+  supports_subscription?: boolean
+  config?: Record<string, unknown>
+  webhook_endpoint_suffix?: string
+  sort_order?: number
+}): Promise<PaymentMethodConfig> {
+  return api.patch(`/api/v1/superadmin/payment/methods/${id}`, body)
+}
 
 import type { Plugin, GamePluginSubscription } from "@/lib/plugin-api"
 export type { Plugin, GamePluginSubscription }
@@ -466,4 +579,57 @@ export interface WorkersStatusResult {
 
 export async function getWorkersStatus(): Promise<WorkersStatusResult> {
   return api.get(`/api/v1/admin/workers/status`)
+}
+
+// ---------------------------------------------------------------------------
+// SuperAdmin — Payment Transactions
+// ---------------------------------------------------------------------------
+
+export type AdminTransactionStatus =
+  | "completed"
+  | "failed"
+  | "credit_failed"
+  | "processing"
+  | "awaiting_payment"
+  | "expired"
+
+export interface AdminTransaction {
+  id: string
+  idempotency_key: string
+  user_id: string
+  scoin_package_id: string
+  payment_method_config_id: string
+  provider_key: string
+  amount: number
+  currency: string
+  scoin_amount: number
+  status: AdminTransactionStatus
+  provider_data: Record<string, unknown> & {
+    transfer_info?: unknown
+    status_reason?: unknown
+  }
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminTransactionsResult {
+  limit: number
+  transactions: AdminTransaction[]
+}
+
+export async function manuallyCreditTransaction(id: string, reason: string): Promise<void> {
+  return api.post(`/api/v1/superadmin/payment/transactions/${encodeURIComponent(id)}/manually-credit`, { reason })
+}
+
+export async function listAdminTransactions(params?: {
+  limit?: number
+  status?: AdminTransactionStatus | ""
+  id?: string
+}): Promise<AdminTransactionsResult> {
+  const query = new URLSearchParams()
+  if (params?.limit) query.set("limit", String(params.limit))
+  if (params?.status) query.set("status", params.status)
+  if (params?.id) query.set("id", params.id)
+  const qs = query.toString()
+  return api.get(`/api/v1/superadmin/payment/transactions${qs ? `?${qs}` : ""}`)
 }
