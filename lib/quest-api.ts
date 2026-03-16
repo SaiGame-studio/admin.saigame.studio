@@ -127,10 +127,10 @@ export async function listQuestTypes(): Promise<ListQuestTypesResponse> {
 export async function listQuestDefinitions(
   studioId: string,
   gameId: string,
-  params?: { active_only?: boolean; limit?: number; offset?: number; sort_by?: string; order?: string }
+  params?: { status?: boolean; limit?: number; offset?: number; sort_by?: string; order?: string }
 ): Promise<ListQuestDefinitionsResponse> {
   const qs = new URLSearchParams()
-  if (params?.active_only !== undefined) qs.set('active_only', String(params.active_only))
+  if (params?.status !== undefined) qs.set('status', String(params.status))
   if (params?.limit !== undefined) qs.set('limit', String(params.limit))
   if (params?.offset !== undefined) qs.set('offset', String(params.offset))
   if (params?.sort_by) qs.set('sort_by', params.sort_by)
@@ -441,10 +441,10 @@ export interface ListDailyQuestPoolsResponse {
 export async function listDailyQuestPools(
   studioId: string,
   gameId: string,
-  params?: { active_only?: boolean; limit?: number; offset?: number }
+  params?: { status?: boolean; limit?: number; offset?: number }
 ): Promise<ListDailyQuestPoolsResponse> {
   const qs = new URLSearchParams()
-  if (params?.active_only !== undefined) qs.set('active_only', String(params.active_only))
+  if (params?.status !== undefined) qs.set('status', String(params.status))
   if (params?.limit !== undefined) qs.set('limit', String(params.limit))
   if (params?.offset !== undefined) qs.set('offset', String(params.offset))
   const query = qs.toString() ? `?${qs}` : ''

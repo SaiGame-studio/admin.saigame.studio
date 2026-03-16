@@ -744,7 +744,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
     if (!game) return
     try {
       const res = await listQuestDefinitions(game.studio_id, gameId, {
-        active_only: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
+        status: filterActive === "active" ? true : filterActive === "inactive" ? false : undefined,
         limit,
         offset: off,
         sort_by: sortBy,
