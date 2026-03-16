@@ -107,6 +107,21 @@ export interface UpdateQuestDefinitionRequest {
   rewards?: QuestReward[]
 }
 
+// ─── Quest Types ─────────────────────────────────────────────────────────────
+
+export interface QuestTypeOption {
+  value: string
+  description: string
+}
+
+export interface ListQuestTypesResponse {
+  quest_types: QuestTypeOption[]
+}
+
+export async function listQuestTypes(): Promise<ListQuestTypesResponse> {
+  return api.get('/api/v1/quest-types')
+}
+
 // ─── API Functions ─────────────────────────────────────────────────────────────
 
 export async function listQuestDefinitions(

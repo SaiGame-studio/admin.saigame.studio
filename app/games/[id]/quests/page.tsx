@@ -76,6 +76,7 @@ import { ApiError } from "@/lib/api-client"
 import type { Studio } from "@/types/studio"
 import {
   listQuestDefinitions,
+  listQuestTypes,
   createQuestDefinition,
   updateQuestDefinition,
   deleteQuestDefinition,
@@ -701,6 +702,25 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
   const [sortBy, setSortBy] = useState<string>("updated_at")
   const [sortOrder, setSortOrder] = useState<string>("desc")
 
+  // Quest type options (fetched from API, falls back to QUEST_TYPES)
+  const [questTypeOptions, setQuestTypeOptions] = useState<{ value: string; label: string; description: string }[]>(
+    QUEST_TYPES.map((t) => ({ value: t.value, label: t.label, description: t.description ?? "" }))
+  )
+
+  useEffect(() => {
+    listQuestTypes().then((data) => {
+      if (data?.quest_types?.length) {
+        setQuestTypeOptions(
+          data.quest_types.map((t) => ({
+            value: t.value,
+            label: t.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            description: t.description,
+          }))
+        )
+      }
+    }).catch(() => {/* keep fallback */})
+  }, [])
+
   const filteredQuests = useMemo(() => {
     let result = quests
     if (filterSearch.trim()) {
@@ -902,7 +922,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {QUEST_TYPES.map((t) => (
+            {questTypeOptions.map((t) => (
               <SelectItem key={t.value} value={t.value}>
                 <div>
                   <span>{t.label}</span>
@@ -996,7 +1016,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {QUEST_TYPES.map((t) => (
+              {questTypeOptions.map((t) => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
               ))}
             </SelectContent>
