@@ -806,7 +806,10 @@ export const ja = {
     enabledSuccess: "お支払い方法を有効化しました",
     disabledSuccess: "お支払い方法を無効化しました",
     toggleFailed: "操作に失敗しました",
-    sortOrder: "表示順序"
+    sortOrder: "表示順序",
+    sortOrderUpdated: "並び順を更新しました",
+    sortOrderFailed: "並び順の更新に失敗しました",
+    savingOrder: "並び順を保存中…"
   },
   adminTransactions: {
     pageTitle: "取引",

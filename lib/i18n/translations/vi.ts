@@ -817,7 +817,10 @@ export const vi = {
     enabledSuccess: "Đã bật phương thức thanh toán",
     disabledSuccess: "Đã tắt phương thức thanh toán",
     toggleFailed: "Thao tác thất bại",
-    sortOrder: "Thứ tự"
+    sortOrder: "Thứ tự",
+    sortOrderUpdated: "Đã cập nhật thứ tự",
+    sortOrderFailed: "Cập nhật thứ tự thất bại",
+    savingOrder: "Đang lưu thứ tự…"
   },
   adminTransactions: {
     pageTitle: "Giao dịch",

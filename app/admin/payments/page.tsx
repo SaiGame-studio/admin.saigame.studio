@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Gift,
+  GripVertical,
   Loader2,
   BadgeDollarSign,
   Pencil,
@@ -24,6 +25,23 @@ import {
   ChevronRight,
   X,
 } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { useCapabilities } from "@/hooks/use-capabilities"
 import { CopyButton } from "@/components/CopyButton"
@@ -502,6 +520,98 @@ function EditMethodDialog({ method, open, onClose, onSaved }: EditMethodDialogPr
 }
 
 // ---------------------------------------------------------------------------
+// Sortable payment method card
+// ---------------------------------------------------------------------------
+interface SortableMethodCardProps {
+  method: PaymentMethodConfig
+  toggling: string | null
+  onToggle: (method: PaymentMethodConfig) => void
+  onEdit: (method: PaymentMethodConfig) => void
+}
+
+function SortableMethodCard({ method, toggling, onToggle, onEdit }: SortableMethodCardProps) {
+  const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: method.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className={method.is_active ? "" : "opacity-60"}>
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            {/* Drag handle */}
+            <button
+              {...attributes}
+              {...listeners}
+              className="mt-1 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+              aria-label="Drag to reorder"
+              tabIndex={0}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
+              <MethodIcon providerKey={method.provider_key} iconUrl={method.icon_url} />
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-semibold text-sm">{method.display_name}</p>
+                <Badge variant="outline" className="text-xs font-mono">{method.provider_key}</Badge>
+                {method.supports_subscription && (
+                  <Badge variant="secondary" className="text-xs">{t('payment.supportsSubscription')}</Badge>
+                )}
+                <Badge variant={method.is_active ? "default" : "secondary"} className="text-xs">
+                  {method.is_active ? t('common.active') : t('common.inactive')}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{method.description}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('adminPayments.sortOrder')}: {method.sort_order}
+                {method.webhook_endpoint_suffix && (
+                  <span className="ml-3 font-mono">{method.webhook_endpoint_suffix}</span>
+                )}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5">
+                {toggling === method.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Switch
+                    checked={method.is_active}
+                    onCheckedChange={() => onToggle(method)}
+                    aria-label="Toggle active"
+                  />
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(method)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Payment Methods tab
 // ---------------------------------------------------------------------------
 function PaymentMethodsTab() {
@@ -511,6 +621,12 @@ function PaymentMethodsTab() {
   const [loading, setLoading] = useState(true)
   const [editTarget, setEditTarget] = useState<PaymentMethodConfig | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -540,7 +656,36 @@ function PaymentMethodsTab() {
   }
 
   function handleSaved(updated: PaymentMethodConfig) {
-    setMethods((prev) => prev.map((m) => m.id === updated.id ? updated : m))
+    setMethods((prev) => prev.map((m) => m.id === updated.id ? updated : m).sort((a, b) => a.sort_order - b.sort_order))
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = methods.findIndex((m) => m.id === active.id)
+    const newIndex = methods.findIndex((m) => m.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(methods, oldIndex, newIndex)
+    // Assign new sort_order values based on new positions
+    const updated = reordered.map((m, i) => ({ ...m, sort_order: i + 1 }))
+    setMethods(updated)
+
+    // Persist only the methods whose sort_order changed
+    setReordering(true)
+    try {
+      const changed = updated.filter((m, i) => methods[i]?.id !== m.id || methods.find((o) => o.id === m.id)?.sort_order !== m.sort_order)
+      await Promise.all(
+        changed.map((m) => updatePaymentMethod(m.id, { sort_order: m.sort_order }))
+      )
+      toast({ title: t('adminPayments.sortOrderUpdated') })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('adminPayments.sortOrderFailed'), description: err?.data?.error ?? err?.message })
+      load() // reload to get server state
+    } finally {
+      setReordering(false)
+    }
   }
 
   return (
@@ -549,7 +694,7 @@ function PaymentMethodsTab() {
         <p className="text-sm text-muted-foreground">
           {methods.length} {t('adminPayments.methodsTotal')}
         </p>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading || reordering}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           {t('adminGiftCodes.refresh')}
         </Button>
@@ -578,64 +723,31 @@ function PaymentMethodsTab() {
             </CardContent>
           </Card>
         ) : (
-          methods.map((method) => (
-            <Card key={method.id} className={method.is_active ? "" : "opacity-60"}>
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
-                    <MethodIcon providerKey={method.provider_key} iconUrl={method.icon_url} />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm">{method.display_name}</p>
-                      <Badge variant="outline" className="text-xs font-mono">{method.provider_key}</Badge>
-                      {method.supports_subscription && (
-                        <Badge variant="secondary" className="text-xs">{t('payment.supportsSubscription')}</Badge>
-                      )}
-                      <Badge variant={method.is_active ? "default" : "secondary"} className="text-xs">
-                        {method.is_active ? t('common.active') : t('common.inactive')}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{method.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('adminPayments.sortOrder')}: {method.sort_order}
-                      {method.webhook_endpoint_suffix && (
-                        <span className="ml-3 font-mono">{method.webhook_endpoint_suffix}</span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      {toggling === method.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Switch
-                          checked={method.is_active}
-                          onCheckedChange={() => handleToggle(method)}
-                          aria-label="Toggle active"
-                        />
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setEditTarget(method)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={methods.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+              {methods.map((method) => (
+                <SortableMethodCard
+                  key={method.id}
+                  method={method}
+                  toggling={toggling}
+                  onToggle={handleToggle}
+                  onEdit={setEditTarget}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
+      {reordering && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {t('adminPayments.savingOrder')}
+        </p>
+      )}
 
       <EditMethodDialog
         method={editTarget}

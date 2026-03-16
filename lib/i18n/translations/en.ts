@@ -815,7 +815,10 @@ export const en = {
     enabledSuccess: "Payment method enabled",
     disabledSuccess: "Payment method disabled",
     toggleFailed: "Toggle failed",
-    sortOrder: "Sort order"
+    sortOrder: "Sort order",
+    sortOrderUpdated: "Sort order updated",
+    sortOrderFailed: "Failed to update sort order",
+    savingOrder: "Saving order…"
   },
   adminTransactions: {
     pageTitle: "Transactions",
