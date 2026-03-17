@@ -308,7 +308,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-3 group">
+                <Card className="lg:col-span-2 group">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Gamepad2 className="mr-2 h-5 w-5" />
@@ -316,7 +316,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.gameId')}</h3>
@@ -484,74 +484,76 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 </div>
                             </div>
 
-                            {/* Settings Panel — 3rd column */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                        Settings
-                                    </p>
-                                </div>
-                                
-                                {/* Toggle 1: Allow player trading and mailbox */}
-                                <div className="flex flex-col gap-2 py-2 border-b border-border">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
-                                            Allow player trading and mailbox
-                                        </Label>
-                                        <Switch
-                                            id="allow-trading"
-                                            checked={game.settings?.allow_player_trading ?? false}
-                                            onCheckedChange={async (checked) => {
-                                                try {
-                                                    const updated = await updateGame(game.id, {
-                                                        settings: {
-                                                            ...game.settings,
-                                                            allow_player_trading: checked
-                                                        }
-                                                    })
-                                                    setGame(updated)
-                                                    toast({
-                                                        title: "Settings updated",
-                                                        description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}`
-                                                    })
-                                                } catch (err) {
-                                                    toast({
-                                                        title: "Error",
-                                                        description: "Failed to update settings",
-                                                        variant: "destructive"
-                                                    })
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Settings Card — right column */}
+                <Card className="lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle className="flex items-center text-base">
+                            Settings
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {/* Toggle 1: Allow player trading and mailbox */}
+                        <div className="flex flex-col gap-2 py-2 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
+                                    Allow player trading and mailbox
+                                </Label>
+                                <Switch
+                                    id="allow-trading"
+                                    checked={game.settings?.allow_player_trading ?? false}
+                                    onCheckedChange={async (checked) => {
+                                        try {
+                                            const updated = await updateGame(game.id, {
+                                                settings: {
+                                                    ...game.settings,
+                                                    allow_player_trading: checked
                                                 }
-                                            }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Enable trading between players and mailbox system
-                                    </p>
-                                </div>
-
-                                {/* Daily Quest Max Advance Days */}
-                                <div className="flex flex-col gap-2 py-2 border-b border-border">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="daily-quest-days" className="text-sm font-medium">
-                                            Daily quest max advance days
-                                        </Label>
-                                        <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Maximum number of days players can advance daily quests
-                                    </p>
-                                </div>
-
-                                {/* Toggle 2: Allow tracing player event (read-only) */}
-                                <div className="mt-5">
-                                  <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
-                                </div>
-
-                                {/* Toggle 3: Leaderboard tracing (read-only) */}
-                                <div className="mt-5">
-                                  <LeaderboardTracingSetting gameId={game.id} game={game} />
-                                </div>
+                                            })
+                                            setGame(updated)
+                                            toast({
+                                                title: "Settings updated",
+                                                description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}`
+                                            })
+                                        } catch (err) {
+                                            toast({
+                                                title: "Error",
+                                                description: "Failed to update settings",
+                                                variant: "destructive"
+                                            })
+                                        }
+                                    }}
+                                />
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                                Enable trading between players and mailbox system
+                            </p>
+                        </div>
+
+                        {/* Daily Quest Max Advance Days */}
+                        <div className="flex flex-col gap-2 py-2 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="daily-quest-days" className="text-sm font-medium">
+                                    Daily quest max advance days
+                                </Label>
+                                <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Maximum number of days players can advance daily quests
+                            </p>
+                        </div>
+
+                        {/* Toggle 2: Allow tracing player event */}
+                        <div className="mt-5">
+                            <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                        </div>
+
+                        {/* Toggle 3: Leaderboard tracing */}
+                        <div className="mt-5">
+                            <LeaderboardTracingSetting gameId={game.id} game={game} />
                         </div>
                     </CardContent>
                 </Card>
