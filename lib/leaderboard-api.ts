@@ -142,3 +142,16 @@ export async function endSeason(
   )
   return data.result
 }
+
+// ─── History ─────────────────────────────────────────────────────────────────
+
+export async function getBoardHistory(
+  studioId: string,
+  gameId: string,
+  boardKey: string
+): Promise<LeaderboardSeason[]> {
+  const data = await api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}/history`
+  )
+  return data.seasons ?? []
+}

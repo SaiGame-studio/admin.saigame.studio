@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
-  ChevronDown, ChevronRight, Play, StopCircle,
+  ChevronDown, ChevronRight, Play, StopCircle, History,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,7 +67,9 @@ import {
   updateBoard,
   startSeason,
   endSeason,
+  getBoardHistory,
   type LeaderboardBoard,
+  type LeaderboardSeason,
   type CreateBoardPayload,
   type UpdateBoardPayload,
   type ScoreMode,
@@ -577,10 +579,16 @@ interface BoardRowProps {
   onEdit: () => void
   onStartSeason: () => void
   onEndSeason: () => void
+  seasons: LeaderboardSeason[] | null
+  seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeason }: BoardRowProps) {
-  const hasSeason = !!board.season_id
+function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeason, seasons, seasonsLoading }: BoardRowProps) {
+  // Use history data when available; fall back to board.season_id while loading
+  const activeSeasonFromHistory = seasons != null
+    ? seasons.find((s) => !s.ended_at) ?? null
+    : null
+  const hasSeason = seasons != null ? !!activeSeasonFromHistory : !!board.season_id
 
   return (
     <>
@@ -629,27 +637,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeaso
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            {!hasSeason ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
-                title="Start season"
-                onClick={onStartSeason}
-              >
-                <Play className="h-3.5 w-3.5" />
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="End season"
-                onClick={onEndSeason}
-              >
-                <StopCircle className="h-3.5 w-3.5" />
-              </Button>
-            )}
           </div>
         </TableCell>
       </TableRow>
@@ -697,12 +684,77 @@ function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeaso
                   <p className="text-sm">{board.description}</p>
                 </div>
               )}
-              {board.season_id && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-xs text-muted-foreground">Current Season ID:</span>
-                  <span className="font-mono text-xs">{board.season_id}</span>
+              {/* Season History */}
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">Season History</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {!hasSeason ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => { e.stopPropagation(); onStartSeason() }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Start Season
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation(); onEndSeason() }}
+                      >
+                        <StopCircle className="h-3 w-3" />
+                        End Season
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              )}
+                {seasonsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading seasons...
+                  </div>
+                ) : seasons && seasons.length > 0 ? (
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="h-8 text-xs">#</TableHead>
+                          <TableHead className="h-8 text-xs">Name</TableHead>
+                          <TableHead className="h-8 text-xs">Started At</TableHead>
+                          <TableHead className="h-8 text-xs">Ended At</TableHead>
+                          <TableHead className="h-8 text-xs">Reward Dispatched</TableHead>
+                          <TableHead className="h-8 text-xs">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {seasons.map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell className="text-xs py-2">{s.season_number}</TableCell>
+                            <TableCell className="text-xs py-2 font-medium">{s.name}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{formatDate(s.started_at)}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{formatDate(s.ended_at)}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{s.reward_dispatched_at ? formatDate(s.reward_dispatched_at) : "—"}</TableCell>
+                            <TableCell className="text-xs py-2">
+                              {s.ended_at
+                                ? <Badge variant="secondary" className="text-xs">Ended</Badge>
+                                : <Badge variant="default" className="text-xs bg-green-600">Active</Badge>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-1">No seasons yet.</p>
+                )}
+              </div>
             </div>
           </TableCell>
         </TableRow>
@@ -732,6 +784,8 @@ function LeaderboardPageInner() {
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
   const [startSeasonBoard, setStartSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
+  const [seasonsMap, setSeasonsMap] = useState<Record<string, LeaderboardSeason[]>>({})
+  const [seasonsLoadingIds, setSeasonsLoadingIds] = useState<Set<string>>(new Set())
 
   // Load game
   useEffect(() => {
@@ -783,9 +837,23 @@ function LeaderboardPageInner() {
   }
 
   const handleSeasonChange = (board: LeaderboardBoard) => {
-    // Reload to get latest season info
+    // Reload to get latest season info and invalidate seasons cache for this board
+    setSeasonsMap((m) => { const n = { ...m }; delete n[board.id]; return n })
     loadBoards(true)
   }
+
+  const handleToggleBoard = useCallback((board: LeaderboardBoard) => {
+    const boardId = board.id
+    setExpandedBoardId((prev) => prev === boardId ? null : boardId)
+    // Fetch history on first expand
+    if (expandedBoardId !== boardId && !seasonsMap[boardId] && game?.studio_id) {
+      setSeasonsLoadingIds((s) => new Set(s).add(boardId))
+      getBoardHistory(game.studio_id, gameId, board.board_key)
+        .then((seasons) => setSeasonsMap((m) => ({ ...m, [boardId]: seasons })))
+        .catch(() => setSeasonsMap((m) => ({ ...m, [boardId]: [] })))
+        .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(boardId); return n }))
+    }
+  }, [expandedBoardId, seasonsMap, game?.studio_id, gameId])
 
   const studioId = game?.studio_id ?? ""
 
@@ -911,10 +979,12 @@ function LeaderboardPageInner() {
                     key={board.id}
                     board={board}
                     expanded={expandedBoardId === board.id}
-                    onToggle={() => setExpandedBoardId(expandedBoardId === board.id ? null : board.id)}
+                    onToggle={() => handleToggleBoard(board)}
                     onEdit={() => setEditBoard(board)}
                     onStartSeason={() => setStartSeasonBoard(board)}
                     onEndSeason={() => setEndSeasonBoard(board)}
+                    seasons={seasonsMap[board.id] ?? null}
+                    seasonsLoading={seasonsLoadingIds.has(board.id)}
                   />
                 ))}
               </TableBody>
