@@ -90,7 +90,7 @@ export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact
         <p className="text-xs text-muted-foreground">
           Automatically enabled when a{" "}
           <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>{" "}
-          plugin or above is activated (leaderboard tracing can also be granted by an Admin). Cannot be changed manually.
+          plugin or above is activated, or granted by an Admin. Cannot be changed manually.
         </p>
       )}
     </div>

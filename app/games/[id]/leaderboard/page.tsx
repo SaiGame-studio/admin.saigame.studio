@@ -1734,37 +1734,6 @@ function LeaderboardPageInner() {
               <Trophy className="h-5 w-5" />
               <h1 className="text-2xl font-bold">Leaderboard</h1>
             </div>
-            {game && (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                {game.limits?.max_leaderboards != null ? (() => {
-                  const used = game.usage?.leaderboards ?? 0
-                  const max = game.limits.max_leaderboards!
-                  const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
-                  return (
-                    <>
-                      <span className={used >= max ? "text-destructive font-medium" : ""}>
-                        {used.toLocaleString()} / {max.toLocaleString()} leaderboards
-                      </span>
-                      <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                        <span
-                          className={`block h-full rounded-full transition-all ${
-                            used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
-                          }`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </span>
-                      <Link
-                        href={`/games/${gameId}/plugins`}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                        title="Manage plugins / raise limits"
-                      >
-                        <Hammer className="h-3.5 w-3.5" />
-                      </Link>
-                    </>
-                  )
-                })() : <span>{game.name}</span>}
-              </p>
-            )}
           </div>
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">

@@ -1048,9 +1048,6 @@ export default function AnalyticPage() {
               <BarChart2 className="h-5 w-5" />
               <h1 className="text-2xl font-bold">Analytic</h1>
             </div>
-            {game && (
-              <p className="text-sm text-muted-foreground">{game.name}</p>
-            )}
           </div>
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
