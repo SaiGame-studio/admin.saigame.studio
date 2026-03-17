@@ -74,6 +74,7 @@ import {
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
+import { LeaderboardTracingSetting } from "@/components/LeaderboardTracingSetting"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
@@ -1154,8 +1155,9 @@ export default function AnalyticPage() {
             )}
           </div>
           {/* Col 2: Allow tracing */}
-          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
+          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px] space-y-4">
             <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+            <LeaderboardTracingSetting gameId={gameId} game={game} />
           </div>
         </div>
 

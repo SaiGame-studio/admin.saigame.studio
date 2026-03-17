@@ -26,6 +26,7 @@ import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
+import { LeaderboardTracingSetting } from "@/components/LeaderboardTracingSetting"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -544,6 +545,11 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 {/* Toggle 2: Allow tracing player event (read-only) */}
                                 <div className="mt-5">
                                   <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
+                                </div>
+
+                                {/* Toggle 3: Leaderboard tracing (read-only) */}
+                                <div className="mt-5">
+                                  <LeaderboardTracingSetting gameId={game.id} game={game} />
                                 </div>
                             </div>
                         </div>

@@ -40,6 +40,7 @@ export interface Game {
   settings?: {
     allow_player_trading?: boolean
     allow_tracing_player_event?: boolean
+    leaderboard_tracing?: boolean
     [key: string]: any
   }
   is_active: boolean
