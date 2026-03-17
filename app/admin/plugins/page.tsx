@@ -546,7 +546,6 @@ export default function AdminPluginsPage() {
                           <TableCell>{(plugin.shops_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
-                          <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.event_types_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>
                             {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
