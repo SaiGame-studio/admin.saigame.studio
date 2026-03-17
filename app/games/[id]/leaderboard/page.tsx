@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
-  Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
+  Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2, Hammer,
   ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -354,7 +354,10 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
       getScoreSourceTypeOptions()
         .then((opts) => {
           setSourceTypeOptions(opts)
-          if (opts.length > 0) setForm((f) => ({ ...f, score_source_type: opts[0].value }))
+          if (opts.length > 0) {
+            const itemOpt = opts.find(o => o.value.includes("item"))
+            setForm((f) => ({ ...f, score_source_type: (itemOpt ?? opts[0]).value }))
+          }
         })
         .catch(() => { /* non-blocking */ })
       // Pre-fetch gacha packs
@@ -1581,6 +1584,7 @@ function LeaderboardPageInner() {
 
   const handleBoardCreated = (board: LeaderboardBoard) => {
     setBoards((prev) => [board, ...prev])
+    getGame(gameId).then(setGame).catch(() => {})
   }
 
   const handleBoardUpdated = (board: LeaderboardBoard) => {
@@ -1596,6 +1600,7 @@ function LeaderboardPageInner() {
       if (expandedBoardId === deleteBoardItem.id) setExpandedBoardId(null)
       toast({ title: "Board deleted", description: `"${deleteBoardItem.name}" has been deleted.` })
       setDeleteBoardItem(null)
+      getGame(gameId).then(setGame).catch(() => {})
     } catch (e) {
       if (!(e instanceof ApiError)) {
         toast({ variant: "destructive", title: "Error", description: "Failed to delete board." })
@@ -1705,7 +1710,35 @@ function LeaderboardPageInner() {
               <h1 className="text-2xl font-bold">Leaderboard</h1>
             </div>
             {game && (
-              <p className="text-sm text-muted-foreground">{game.name}</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                {game.limits?.max_leaderboards != null ? (() => {
+                  const used = game.usage?.leaderboards ?? 0
+                  const max = game.limits.max_leaderboards!
+                  const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                  return (
+                    <>
+                      <span className={used >= max ? "text-destructive font-medium" : ""}>
+                        {used.toLocaleString()} / {max.toLocaleString()} leaderboards
+                      </span>
+                      <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                        <span
+                          className={`block h-full rounded-full transition-all ${
+                            used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <Link
+                        href={`/games/${gameId}/plugins`}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        title="Manage plugins / raise limits"
+                      >
+                        <Hammer className="h-3.5 w-3.5" />
+                      </Link>
+                    </>
+                  )
+                })() : <span>{game.name}</span>}
+              </p>
             )}
           </div>
         </div>
@@ -1732,14 +1765,36 @@ function LeaderboardPageInner() {
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
-          <Button
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            disabled={!studioId}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Create Board
-          </Button>
+          {(() => {
+            const limitReached = game?.limits?.max_leaderboards != null && boards.length >= game.limits.max_leaderboards
+            return limitReached ? (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button size="sm" disabled>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Create Board
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Leaderboard limit reached ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
+                    <Link href={`/games/${gameId}/plugins`} className="underline">Upgrade plugin</Link> to add more.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+                disabled={!studioId}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Create Board
+              </Button>
+            )
+          })()}
         </div>
       </div>
 
@@ -1757,10 +1812,39 @@ function LeaderboardPageInner() {
                 <p className="font-medium">No leaderboard boards yet</p>
                 <p className="text-sm text-muted-foreground">Create a board to start ranking players.</p>
               </div>
-              <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!studioId}>
-                <Plus className="h-4 w-4 mr-1" />
-                Create Board
-              </Button>
+              {(() => {
+                const limitReached = game?.limits?.max_leaderboards != null && boards.length >= game.limits.max_leaderboards
+                return limitReached ? (
+                  <>
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button size="sm" disabled>
+                              <Plus className="h-4 w-4 mr-1" />
+                              Create Board
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Leaderboard limit reached ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
+                          <Link href={`/games/${gameId}/plugins`} className="underline">Upgrade plugin</Link> to add more.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <p className="text-xs text-destructive">
+                      Limit reached —{" "}
+                      <Link href={`/games/${gameId}/plugins`} className="underline hover:text-destructive/80">upgrade plugin</Link>{" "}
+                      to create more leaderboards.
+                    </p>
+                  </>
+                ) : (
+                  <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!studioId}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create Board
+                  </Button>
+                )
+              })()}
             </div>
           ) : (
             <Table>
