@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
-  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +58,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import {
   Tooltip,
   TooltipContent,
@@ -71,6 +72,9 @@ import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
+import { listGachaPacks, listItemDefinitions, getGachaPack, getItemDefinition } from "@/lib/inventory-api"
+import type { GachaPack } from "@/types/inventory"
+import type { ItemDefinition } from "@/types/inventory"
 import {
   listBoards,
   createBoard,
@@ -81,6 +85,7 @@ import {
   deleteSeason,
   getBoardHistory,
   getResetScheduleOptions,
+  getScoreSourceTypeOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
   type CreateBoardPayload,
@@ -89,6 +94,7 @@ import {
   type SortDirection,
   type ResetSchedule,
   type ResetScheduleOption,
+  type ScoreSourceTypeOption,
 } from "@/lib/leaderboard-api"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -314,6 +320,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const [scheduleOptions, setScheduleOptions] = useState<ResetScheduleOption[]>(
     RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.label, description: "" }))
   )
+  const [sourceTypeOptions, setSourceTypeOptions] = useState<ScoreSourceTypeOption[]>([])
+  const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
+  const [gachaPopoverOpen, setGachaPopoverOpen] = useState(false)
+  const [gachaSearch, setGachaSearch] = useState("")
+  const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
+  const [itemPopoverOpen, setItemPopoverOpen] = useState(false)
+  const [itemSearch, setItemSearch] = useState("")
   const [form, setForm] = useState<CreateBoardPayload>({
     board_key: "",
     name: "",
@@ -321,6 +334,8 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     score_mode: "sum",
     sort_direction: "DESC",
     reset_schedule: "never",
+    score_source_type: "",
+    score_source_ref_id: "",
     max_score_delta: null,
     first_season_start_at: null,
   })
@@ -328,7 +343,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   // Reset form + auto-slug when sheet opens
   useEffect(() => {
     if (open) {
-      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", max_score_delta: null, first_season_start_at: null })
+      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", score_source_type: "", score_source_ref_id: "", max_score_delta: null, first_season_start_at: null })
       setAutoSlug(true)
       getResetScheduleOptions()
         .then((opts) => {
@@ -336,6 +351,20 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           if (opts.length > 0) set("reset_schedule", opts[0].value)
         })
         .catch(() => { /* keep static fallback */ })
+      getScoreSourceTypeOptions()
+        .then((opts) => {
+          setSourceTypeOptions(opts)
+          if (opts.length > 0) setForm((f) => ({ ...f, score_source_type: opts[0].value }))
+        })
+        .catch(() => { /* non-blocking */ })
+      // Pre-fetch gacha packs
+      listGachaPacks({ gameId })
+        .then((res) => setGachaPacks(res.packs ?? []))
+        .catch(() => {})
+      // Pre-fetch item definitions
+      listItemDefinitions({ gameId }, { limit: 200 })
+        .then((res) => setItemDefs(res.items ?? []))
+        .catch(() => {})
     }
   }, [open])
 
@@ -354,6 +383,15 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     }
     if (!/^[a-z0-9_]+$/.test(form.board_key)) {
       toast({ variant: "destructive", title: "Validation", description: "Board Key may only contain lowercase letters, digits, and underscores." })
+      return
+    }
+    if (!form.score_source_type) {
+      toast({ variant: "destructive", title: "Validation", description: "Score Source Type is required." })
+      return
+    }
+    if (!form.score_source_ref_id.trim()) {
+      const refLabel = sourceTypeOptions.find(o => o.value === form.score_source_type)?.ref_id_label ?? "score_source_ref_id"
+      toast({ variant: "destructive", title: "Validation", description: `${refLabel} is required.` })
       return
     }
     setSaving(true)
@@ -470,6 +508,154 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               </Select>
             </div>
           </div>
+          {sourceTypeOptions.length > 0 && (() => {
+            const selectedSourceType = sourceTypeOptions.find(o => o.value === form.score_source_type)
+            return (
+              <div className="space-y-3 rounded-md border p-3 bg-muted/20">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Score Source</p>
+                <div className="space-y-1.5">
+                  <Label>Score Source Type <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={form.score_source_type}
+                    onValueChange={(v) => set("score_source_type", v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select source type..." /></SelectTrigger>
+                    <SelectContent>
+                      {sourceTypeOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedSourceType?.description && (
+                    <p className="text-xs text-muted-foreground">{selectedSourceType.description}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-score_source_ref_id">
+                    {selectedSourceType?.ref_id_label ?? "score_source_ref_id"} <span className="text-destructive">*</span>
+                  </Label>
+                  {form.score_source_type.includes("gacha") ? (
+                    <Popover open={gachaPopoverOpen} onOpenChange={setGachaPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-mono text-xs h-9"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="truncate">
+                            {form.score_source_ref_id
+                              ? (gachaPacks.find(p => p.id === form.score_source_ref_id)?.name ?? form.score_source_ref_id)
+                              : "Select gacha pack..."}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[340px] p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search gacha packs..."
+                            value={gachaSearch}
+                            onValueChange={setGachaSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No gacha packs found.</CommandEmpty>
+                            <CommandGroup>
+                              {gachaPacks
+                                .filter(p =>
+                                  !gachaSearch ||
+                                  p.name.toLowerCase().includes(gachaSearch.toLowerCase()) ||
+                                  p.id.toLowerCase().includes(gachaSearch.toLowerCase())
+                                )
+                                .map((pack) => (
+                                  <CommandItem
+                                    key={pack.id}
+                                    onSelect={() => {
+                                      set("score_source_ref_id", pack.id)
+                                      setGachaSearch("")
+                                      setGachaPopoverOpen(false)
+                                    }}
+                                  >
+                                    <Check className={`mr-2 h-3.5 w-3.5 ${form.score_source_ref_id === pack.id ? "opacity-100" : "opacity-0"}`} />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-xs font-medium truncate">{pack.name}</span>
+                                      <span className="text-xs text-muted-foreground font-mono truncate">{pack.id}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : form.score_source_type.includes("item") ? (
+                    <Popover open={itemPopoverOpen} onOpenChange={setItemPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-mono text-xs h-9"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="truncate">
+                            {form.score_source_ref_id
+                              ? (itemDefs.find(d => d.id === form.score_source_ref_id)?.name ?? form.score_source_ref_id)
+                              : "Select item definition..."}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[340px] p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search item definitions..."
+                            value={itemSearch}
+                            onValueChange={setItemSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No item definitions found.</CommandEmpty>
+                            <CommandGroup>
+                              {itemDefs
+                                .filter(d =>
+                                  !itemSearch ||
+                                  d.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                                  d.item_code.toLowerCase().includes(itemSearch.toLowerCase()) ||
+                                  d.id.toLowerCase().includes(itemSearch.toLowerCase())
+                                )
+                                .map((def) => (
+                                  <CommandItem
+                                    key={def.id}
+                                    onSelect={() => {
+                                      set("score_source_ref_id", def.id)
+                                      setItemSearch("")
+                                      setItemPopoverOpen(false)
+                                    }}
+                                  >
+                                    <Check className={`mr-2 h-3.5 w-3.5 ${form.score_source_ref_id === def.id ? "opacity-100" : "opacity-0"}`} />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-xs font-medium truncate">{def.name}</span>
+                                      <span className="text-xs text-muted-foreground font-mono truncate">{def.item_code} · {def.id}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Input
+                      id="c-score_source_ref_id"
+                      placeholder={`Enter ${selectedSourceType?.ref_id_label ?? "ref ID"}...`}
+                      value={form.score_source_ref_id}
+                      onChange={(e) => set("score_source_ref_id", e.target.value.trim())}
+                      className="font-mono"
+                    />
+                  )}
+                </div>
+              </div>
+            )
+          })()}
           <div className="space-y-1.5">
             <Label>Reset Schedule</Label>
             <Select
@@ -813,6 +999,20 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
   const [newSeasonStartAt, setNewSeasonStartAt] = useState("")
   const [savingCreate, setSavingCreate] = useState(false)
   const [savingNextSeason, setSavingNextSeason] = useState(false)
+  const [sourceRefName, setSourceRefName] = useState<string | null>(null)
+  useEffect(() => {
+    if (!expanded || !board.score_source_ref_id) return
+    setSourceRefName(null)
+    if (board.score_source_type?.includes("gacha")) {
+      getGachaPack({ gameId: board.game_id }, board.score_source_ref_id)
+        .then((res) => setSourceRefName(res.pack?.name ?? null))
+        .catch(() => {})
+    } else if (board.score_source_type?.includes("item")) {
+      getItemDefinition({ gameId: board.game_id }, board.score_source_ref_id)
+        .then((res) => setSourceRefName(res.item?.name ?? null))
+        .catch(() => {})
+    }
+  }, [expanded, board.game_id, board.score_source_type, board.score_source_ref_id])
   const LS_KEY = "leaderboard-season-time-ago"
   const [showTimeAgo, setShowTimeAgo] = useState<boolean>(() => {
     try { return localStorage.getItem(LS_KEY) === "1" } catch { return false }
@@ -920,6 +1120,38 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Max Score Delta</p>
                   <p className="text-sm">{board.max_score_delta != null ? board.max_score_delta.toLocaleString() : "Unlimited"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Score Source</p>
+                  {board.score_source_ref_id ? (
+                    board.score_source_type?.includes("gacha") ? (
+                      <Link
+                        href={`/games/${board.game_id}/items?tab=gacha&editPack=${board.score_source_ref_id}`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Archive className="h-3 w-3 shrink-0" />
+                        <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                      </Link>
+                    ) : board.score_source_type?.includes("item") ? (
+                      <Link
+                        href={`/games/${board.game_id}/items/${board.score_source_ref_id}`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Package className="h-3 w-3 shrink-0" />
+                        <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                      </Link>
+                    ) : (
+                      <p className="font-mono text-xs break-all">{board.score_source_ref_id}</p>
+                    )
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">—</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Created</p>

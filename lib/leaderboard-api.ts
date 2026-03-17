@@ -23,6 +23,8 @@ export interface LeaderboardBoard {
   reset_schedule: ResetSchedule
   season_id: string | null
   is_active: boolean
+  score_source_type: string
+  score_source_ref_id: string
   max_score_delta: number | null
   created_at: string
   updated_at: string
@@ -53,6 +55,8 @@ export interface CreateBoardPayload {
   score_mode: ScoreMode
   sort_direction: SortDirection
   reset_schedule: ResetSchedule
+  score_source_type: string
+  score_source_ref_id: string
   max_score_delta?: number | null
   first_season_start_at?: string | null
 }
@@ -200,4 +204,22 @@ export async function getResetScheduleOptions(): Promise<ResetScheduleOption[]> 
   const data = await api.get('/api/v1/leaderboards/reset-schedule-options')
   _resetScheduleOptionsCache = data.reset_schedules ?? []
   return _resetScheduleOptionsCache!
+}
+
+// ─── Score Source Type Options ────────────────────────────────────────────────
+
+export interface ScoreSourceTypeOption {
+  value: string
+  label: string
+  description: string
+  ref_id_label: string
+}
+
+let _scoreSourceTypeOptionsCache: ScoreSourceTypeOption[] | null = null
+
+export async function getScoreSourceTypeOptions(): Promise<ScoreSourceTypeOption[]> {
+  if (_scoreSourceTypeOptionsCache) return _scoreSourceTypeOptionsCache
+  const data = await api.get('/api/v1/leaderboards/score-source-type-options')
+  _scoreSourceTypeOptionsCache = data.score_source_types ?? []
+  return _scoreSourceTypeOptionsCache!
 }
