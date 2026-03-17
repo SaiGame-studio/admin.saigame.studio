@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
-  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -307,6 +307,8 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
+  const [scheduleFlash, setScheduleFlash] = useState(false)
+  const scheduleFlashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [form, setForm] = useState<CreateBoardPayload>({
     board_key: "",
     name: "",
@@ -459,7 +461,15 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           </div>
           <div className="space-y-1.5">
             <Label>Reset Schedule</Label>
-            <Select value={form.reset_schedule} onValueChange={(v) => set("reset_schedule", v as ResetSchedule)}>
+            <Select
+              value={form.reset_schedule}
+              onValueChange={(v) => {
+                set("reset_schedule", v as ResetSchedule)
+                setScheduleFlash(true)
+                if (scheduleFlashTimer.current) clearTimeout(scheduleFlashTimer.current)
+                scheduleFlashTimer.current = setTimeout(() => setScheduleFlash(false), 700)
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {RESET_SCHEDULE_OPTIONS.map((o) => (
@@ -467,18 +477,16 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                 ))}
               </SelectContent>
             </Select>
-            {form.reset_schedule === "never" && (
-              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_never")}</p>
-            )}
-            {form.reset_schedule === "daily" && (
-              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_daily")}</p>
-            )}
-            {form.reset_schedule === "weekly" && (
-              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_weekly")}</p>
-            )}
-            {form.reset_schedule === "season" && (
-              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_season")}</p>
-            )}
+            <div
+              className={`flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs transition-all duration-500 ${
+                scheduleFlash
+                  ? "bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300"
+                  : "bg-muted/40 border border-transparent text-muted-foreground"
+              }`}
+            >
+              <Info className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 transition-colors duration-500 ${scheduleFlash ? "text-blue-500" : "text-muted-foreground/60"}`} />
+              <span>{t(`leaderboard.resetScheduleHint_${form.reset_schedule}` as any)}</span>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-max_score_delta">Max Score Delta</Label>
@@ -925,7 +933,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                     <p className="text-sm font-medium">Season History</p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {board.reset_schedule === "season" && !showCreateRow && (
+                    {(board.reset_schedule === "season" || (board.reset_schedule === "never" && !seasons?.some(s => !s.ended_at))) && !showCreateRow && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -1100,8 +1108,11 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                                 const isEnded = !!s.ended_at
                                 const isActive = !isUpcoming && !isEnded
                                 const isStarted = !isUpcoming
-                                const endDisabled = !isActive
-                                const endTooltip = isUpcoming
+                                const isNeverSchedule = board.reset_schedule === "never"
+                                const endDisabled = !isActive || isNeverSchedule
+                                const endTooltip = isNeverSchedule && isActive
+                                  ? "Cannot end a season for a board with reset schedule \"Never\". To stop tracking, disable the leaderboard and create a new one."
+                                  : isUpcoming
                                   ? "Cannot end a season that hasn't started yet"
                                   : isEnded
                                   ? "This season has already ended"
