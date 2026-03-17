@@ -997,6 +997,52 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                         Create Next Season
                       </Button>
                     )}
+                    {board.reset_schedule === "monthly" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-blue-600 border-blue-600/40 hover:bg-blue-50 hover:text-blue-700"
+                        disabled={savingNextSeason}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          setSavingNextSeason(true)
+                          try {
+                            const sortedSeasons = seasons && seasons.length > 0
+                              ? [...seasons].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+                              : []
+                            const lastSeason = sortedSeasons.length > 0 ? sortedSeasons[sortedSeasons.length - 1] : null
+                            const nextStart = (() => {
+                              // Prefer ended_at of last season; otherwise advance started_at by 1 month
+                              const base = lastSeason?.ended_at
+                                ? new Date(lastSeason.ended_at)
+                                : lastSeason
+                                  ? (() => {
+                                      const d = new Date(lastSeason.started_at)
+                                      d.setUTCMonth(d.getUTCMonth() + 1)
+                                      d.setUTCDate(1)
+                                      d.setUTCHours(0, 0, 0, 0)
+                                      return d
+                                    })()
+                                  : (() => {
+                                      const d = new Date()
+                                      d.setUTCDate(1)
+                                      d.setUTCMonth(d.getUTCMonth() + 1)
+                                      d.setUTCHours(0, 0, 0, 0)
+                                      return d
+                                    })()
+                              return base instanceof Date ? base.toISOString() : base
+                            })()
+                            const name = `Season ${(seasons?.length ?? 0) + 1}`
+                            await onCreateSeason(name, nextStart)
+                          } finally {
+                            setSavingNextSeason(false)
+                          }
+                        }}
+                      >
+                        {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                        Create Next Season
+                      </Button>
+                    )}
                     {showCreateRow && (
                       <span className="text-xs text-muted-foreground italic">Fill in the new season below</span>
                     )}
