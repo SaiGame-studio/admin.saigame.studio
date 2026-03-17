@@ -18,6 +18,7 @@ export interface Plugin {
   node_defs_grant: number
   event_types_grant: number
   gacha_grant: number
+  boards_grant: number
   cost_coins: number
   max_stacks: number
   sort_order: number
@@ -51,6 +52,8 @@ export interface EffectiveLimits {
   max_loot_boxes: number
   max_shops: number
   max_gacha_packs?: number
+  max_leaderboards?: number
+  max_boards?: number
 }
 
 export interface GamePluginsResult {

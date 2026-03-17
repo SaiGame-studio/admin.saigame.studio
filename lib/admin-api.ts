@@ -212,6 +212,7 @@ export interface RecalcLimitSet {
   max_player_profiles: number
   max_quests: number
   max_shops: number
+  max_leaderboards?: number
 }
 
 export interface RecalcSubscription {
@@ -476,6 +477,7 @@ export interface CreateCustomPluginBody {
   shops_grant?: number
   node_defs_grant?: number
   event_types_grant?: number
+  boards_grant?: number
   duration_days?: number | null
   is_template?: boolean
 }
@@ -489,6 +491,7 @@ export interface UpdateCustomPluginBody {
   shops_grant?: number
   node_defs_grant?: number
   event_types_grant?: number
+  boards_grant?: number
   duration_days?: number | null
 }
 

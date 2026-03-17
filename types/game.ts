@@ -7,6 +7,7 @@ export interface GameLimits {
   max_quests?: number
   max_node_definitions?: number
   max_event_types?: number
+  max_leaderboards?: number
   max_daily_quest_sets?: number
   max_battle_pass_sets?: number
 }
@@ -20,6 +21,7 @@ export interface GameUsage {
   quests?: number
   node_definitions?: number
   event_types?: number
+  leaderboards?: number
 }
 
 export interface Game {
