@@ -54,6 +54,7 @@ export interface CreateBoardPayload {
   sort_direction: SortDirection
   reset_schedule: ResetSchedule
   max_score_delta?: number | null
+  first_season_start_at?: string | null
 }
 
 export async function createBoard(
@@ -85,10 +86,10 @@ export async function listBoards(
 export async function getBoard(
   studioId: string,
   gameId: string,
-  boardKey: string
+  boardId: string
 ): Promise<LeaderboardBoard> {
   const data = await api.get(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}`
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`
   )
   return data.board
 }
@@ -105,11 +106,11 @@ export interface UpdateBoardPayload {
 export async function updateBoard(
   studioId: string,
   gameId: string,
-  boardKey: string,
+  boardId: string,
   payload: UpdateBoardPayload
 ): Promise<LeaderboardBoard> {
   const data = await api.patch(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}`,
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`,
     payload
   )
   return data.board
@@ -120,11 +121,11 @@ export async function updateBoard(
 export async function startSeason(
   studioId: string,
   gameId: string,
-  boardKey: string,
+  boardId: string,
   seasonName: string
 ): Promise<LeaderboardSeason> {
   const data = await api.post(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}/seasons`,
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons`,
     { season_name: seasonName }
   )
   return data.season
@@ -135,12 +136,24 @@ export async function startSeason(
 export async function endSeason(
   studioId: string,
   gameId: string,
-  boardKey: string
+  boardId: string
 ): Promise<EndSeasonResult> {
   const data = await api.post(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}/seasons/end`
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/end`
   )
   return data.result
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+export async function deleteBoard(
+  studioId: string,
+  gameId: string,
+  boardId: string
+): Promise<void> {
+  await api.delete(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`
+  )
 }
 
 // ─── History ─────────────────────────────────────────────────────────────────
@@ -148,10 +161,10 @@ export async function endSeason(
 export async function getBoardHistory(
   studioId: string,
   gameId: string,
-  boardKey: string
+  boardId: string
 ): Promise<LeaderboardSeason[]> {
   const data = await api.get(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardKey}/history`
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/history`
   )
   return data.seasons ?? []
 }

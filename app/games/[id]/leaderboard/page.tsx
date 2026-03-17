@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
-  ChevronDown, ChevronRight, Play, StopCircle, History,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,6 +55,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getGame } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { ApiError } from "@/lib/api-client"
@@ -65,6 +68,7 @@ import {
   listBoards,
   createBoard,
   updateBoard,
+  deleteBoard,
   startSeason,
   endSeason,
   getBoardHistory,
@@ -115,6 +119,118 @@ function formatDate(iso: string | null | undefined) {
   return new Date(iso).toLocaleString()
 }
 
+// ─── DateTimePicker ───────────────────────────────────────────────────────────
+
+interface DateTimePickerProps {
+  value: string | null
+  onChange: (iso: string | null) => void
+  placeholder?: string
+}
+
+function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: DateTimePickerProps) {
+  const [open, setOpen] = useState(false)
+  // draft state inside popover
+  const [draftDate, setDraftDate] = useState<Date | undefined>(undefined)
+  const [draftHour, setDraftHour] = useState("00")
+  const [draftMinute, setDraftMinute] = useState("00")
+
+  // Sync draft from value when popover opens
+  const handleOpen = (next: boolean) => {
+    if (next) {
+      if (value) {
+        const d = new Date(value)
+        setDraftDate(d)
+        setDraftHour(String(d.getHours()).padStart(2, "0"))
+        setDraftMinute(String(d.getMinutes()).padStart(2, "0"))
+      } else {
+        const now = new Date()
+        setDraftDate(now)
+        setDraftHour(String(now.getHours()).padStart(2, "0"))
+        setDraftMinute(String(now.getMinutes()).padStart(2, "0"))
+      }
+    }
+    setOpen(next)
+  }
+
+  const handleConfirm = () => {
+    if (!draftDate) return
+    const d = new Date(draftDate)
+    d.setHours(Number(draftHour), Number(draftMinute), 0, 0)
+    onChange(d.toISOString())
+    setOpen(false)
+  }
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onChange(null)
+  }
+
+  const display = value ? new Date(value).toLocaleString() : null
+
+  return (
+    <Popover open={open} onOpenChange={handleOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start text-left font-normal"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+          {display
+            ? <span className="flex-1">{display}</span>
+            : <span className="flex-1 text-muted-foreground">{placeholder}</span>}
+          {value && (
+            <span
+              role="button"
+              aria-label="Clear"
+              className="ml-2 text-muted-foreground hover:text-foreground"
+              onClick={handleClear}
+            >
+              ✕
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={draftDate}
+          onSelect={(d) => d && setDraftDate(d)}
+          initialFocus
+        />
+        <div className="border-t px-3 pb-3 pt-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-10">Time</span>
+            <Input
+              className="h-8 w-16 text-center font-mono text-sm"
+              maxLength={2}
+              value={draftHour}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 2)
+                if (Number(v) <= 23) setDraftHour(v.padStart(2, "0"))
+              }}
+            />
+            <span className="font-bold">:</span>
+            <Input
+              className="h-8 w-16 text-center font-mono text-sm"
+              maxLength={2}
+              value={draftMinute}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 2)
+                if (Number(v) <= 59) setDraftMinute(v.padStart(2, "0"))
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" size="sm" className="h-8" onClick={handleConfirm} disabled={!draftDate}>OK</Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // ─── Create Sheet ─────────────────────────────────────────────────────────────
 
 interface CreateSheetProps {
@@ -127,6 +243,7 @@ interface CreateSheetProps {
 
 function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheetProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
   const [form, setForm] = useState<CreateBoardPayload>({
@@ -137,12 +254,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     sort_direction: "DESC",
     reset_schedule: "never",
     max_score_delta: null,
+    first_season_start_at: null,
   })
 
   // Reset form + auto-slug when sheet opens
   useEffect(() => {
     if (open) {
-      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", max_score_delta: null })
+      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", max_score_delta: null, first_season_start_at: null })
       setAutoSlug(true)
     }
   }, [open])
@@ -171,6 +289,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
         board_key: form.board_key.trim(),
         name: form.name.trim(),
         max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
+        first_season_start_at: form.first_season_start_at ?? null,
       }
       const board = await createBoard(studioId, gameId, payload)
       toast({ title: "Board created", description: `"${board.name}" created successfully.` })
@@ -287,6 +406,18 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                 ))}
               </SelectContent>
             </Select>
+            {form.reset_schedule === "never" && (
+              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_never")}</p>
+            )}
+            {form.reset_schedule === "daily" && (
+              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_daily")}</p>
+            )}
+            {form.reset_schedule === "weekly" && (
+              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_weekly")}</p>
+            )}
+            {form.reset_schedule === "season" && (
+              <p className="text-xs text-muted-foreground">{t("leaderboard.resetScheduleHint_season")}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-max_score_delta">Max Score Delta</Label>
@@ -298,6 +429,15 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
             />
             <p className="text-xs text-muted-foreground">Maximum single-submission score change. Leave empty for unlimited.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-first_season_start_at">First Season Start At</Label>
+            <DateTimePicker
+              value={form.first_season_start_at ?? null}
+              onChange={(v) => set("first_season_start_at", v)}
+              placeholder="Pick date & time (optional)"
+            />
+            <p className="text-xs text-muted-foreground">Leave empty to skip auto-creating the first season.</p>
           </div>
           <SheetFooter className="gap-2 pt-2">
             <SheetClose asChild>
@@ -362,7 +502,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
         ...form,
         max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
       }
-      const updated = await updateBoard(studioId, gameId, board.board_key, payload)
+      const updated = await updateBoard(studioId, gameId, board.id, payload)
       toast({ title: "Board updated", description: `"${updated.name}" updated.` })
       onUpdated(updated)
       onClose()
@@ -463,7 +603,7 @@ function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: Star
     }
     setSaving(true)
     try {
-      await startSeason(studioId, gameId, board.board_key, seasonName.trim())
+      await startSeason(studioId, gameId, board.id, seasonName.trim())
       toast({ title: "Season started", description: `Season "${seasonName}" started for board "${board.name}".` })
       // Refresh board to get new season_id
       onStarted({ ...board })
@@ -528,7 +668,7 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
   const handleEnd = async () => {
     setSaving(true)
     try {
-      const result = await endSeason(studioId, gameId, board.board_key)
+      const result = await endSeason(studioId, gameId, board.id)
       toast({
         title: "Season ended",
         description: `Season ended. Top players: ${result.TopN?.length ?? 0}. A new season has been created.`,
@@ -577,13 +717,15 @@ interface BoardRowProps {
   expanded: boolean
   onToggle: () => void
   onEdit: () => void
+  onDelete: () => void
   onStartSeason: () => void
   onEndSeason: () => void
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, onEndSeason, seasons, seasonsLoading }: BoardRowProps) {
+  const { t } = useTranslation()
   // Use history data when available; fall back to board.season_id while loading
   const activeSeasonFromHistory = seasons != null
     ? seasons.find((s) => !s.ended_at) ?? null
@@ -636,6 +778,15 @@ function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeaso
               onClick={onEdit}
             >
               <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              title="Delete board"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </TableCell>
@@ -702,6 +853,14 @@ function BoardRow({ board, expanded, onToggle, onEdit, onStartSeason, onEndSeaso
                         <Play className="h-3 w-3" />
                         Start Season
                       </Button>
+                    ) : board.reset_schedule === "never" ? (
+                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndNever")}</span>
+                    ) : board.reset_schedule === "daily" ? (
+                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndDaily")}</span>
+                    ) : board.reset_schedule === "weekly" ? (
+                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndWeekly")}</span>
+                    ) : board.reset_schedule === "monthly" ? (
+                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndMonthly")}</span>
                     ) : (
                       <Button
                         size="sm"
@@ -784,6 +943,8 @@ function LeaderboardPageInner() {
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
   const [startSeasonBoard, setStartSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
+  const [deleteBoardItem, setDeleteBoardItem] = useState<LeaderboardBoard | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [seasonsMap, setSeasonsMap] = useState<Record<string, LeaderboardSeason[]>>({})
   const [seasonsLoadingIds, setSeasonsLoadingIds] = useState<Set<string>>(new Set())
 
@@ -836,10 +997,34 @@ function LeaderboardPageInner() {
     setBoards((prev) => prev.map((b) => b.id === board.id ? board : b))
   }
 
+  const handleDeleteBoard = async () => {
+    if (!deleteBoardItem || !studioId) return
+    setDeleting(true)
+    try {
+      await deleteBoard(studioId, gameId, deleteBoardItem.id)
+      setBoards((prev) => prev.filter((b) => b.id !== deleteBoardItem.id))
+      if (expandedBoardId === deleteBoardItem.id) setExpandedBoardId(null)
+      toast({ title: "Board deleted", description: `"${deleteBoardItem.name}" has been deleted.` })
+      setDeleteBoardItem(null)
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to delete board." })
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleSeasonChange = (board: LeaderboardBoard) => {
-    // Reload to get latest season info and invalidate seasons cache for this board
-    setSeasonsMap((m) => { const n = { ...m }; delete n[board.id]; return n })
+    // Reload boards and refresh season history for this board
     loadBoards(true)
+    if (game?.studio_id) {
+      setSeasonsLoadingIds((s) => new Set(s).add(board.id))
+      getBoardHistory(game.studio_id, gameId, board.id)
+        .then((seasons) => setSeasonsMap((m) => ({ ...m, [board.id]: seasons })))
+        .catch(() => setSeasonsMap((m) => ({ ...m, [board.id]: [] })))
+        .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(board.id); return n }))
+    }
   }
 
   const handleToggleBoard = useCallback((board: LeaderboardBoard) => {
@@ -848,7 +1033,7 @@ function LeaderboardPageInner() {
     // Fetch history on first expand
     if (expandedBoardId !== boardId && !seasonsMap[boardId] && game?.studio_id) {
       setSeasonsLoadingIds((s) => new Set(s).add(boardId))
-      getBoardHistory(game.studio_id, gameId, board.board_key)
+      getBoardHistory(game.studio_id, gameId, board.id)
         .then((seasons) => setSeasonsMap((m) => ({ ...m, [boardId]: seasons })))
         .catch(() => setSeasonsMap((m) => ({ ...m, [boardId]: [] })))
         .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(boardId); return n }))
@@ -981,6 +1166,7 @@ function LeaderboardPageInner() {
                     expanded={expandedBoardId === board.id}
                     onToggle={() => handleToggleBoard(board)}
                     onEdit={() => setEditBoard(board)}
+                    onDelete={() => setDeleteBoardItem(board)}
                     onStartSeason={() => setStartSeasonBoard(board)}
                     onEndSeason={() => setEndSeasonBoard(board)}
                     seasons={seasonsMap[board.id] ?? null}
@@ -1022,6 +1208,27 @@ function LeaderboardPageInner() {
         studioId={studioId}
         gameId={gameId}
       />
+      <AlertDialog open={!!deleteBoardItem} onOpenChange={(o) => { if (!o) setDeleteBoardItem(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Board</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteBoardItem?.name}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBoard}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -1044,5 +1044,16 @@ export const vi = {
     tip11: "Bạn không bắt buộc dùng thuộc tính item mặc định, có thể tự thiết kế hệ thống riêng bằng base stats hoặc metadata.",
     tip12: "Cách duy nhất để thêm item mới vào container là qua hộp thư.",
     tip13: "Thay đổi kích thước grid container sẽ không tính toán lại bố cục; vị trí của các item vẫn giữ nguyên."
+  },
+  leaderboard: {
+    resetScheduleHint_never: "Season không bao giờ reset — 1 season duy nhất, tích lũy mãi. Không ai có thể kết thúc season thủ công.",
+    resetScheduleHint_daily: "Reset mỗi ngày — worker tự động quản lý 3 season song song (hôm qua, hôm nay, ngày mai). Không hỗ trợ End Season thủ công.",
+    resetScheduleHint_weekly: "Reset mỗi tuần — studio member có thể gọi End Season thủ công để kết thúc sớm.",
+    resetScheduleHint_season: "Không có lịch cố định — studio member gọi End Season bất kỳ lúc nào để kết thúc season hiện tại và tạo season mới.",
+    seasonCannotEndNever: "Season không thể kết thúc thủ công — board này không có lịch reset.",
+    seasonCannotEndDaily: "Season tự động reset mỗi ngày — không cần kết thúc thủ công.",
+    seasonCannotEndWeekly: "Season tự động reset mỗi tuần — không cần kết thúc thủ công.",
+    seasonCannotEndMonthly: "Season tự động reset mỗi tháng — không cần kết thúc thủ công.",
   }
+
 };
