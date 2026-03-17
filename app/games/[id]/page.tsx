@@ -25,8 +25,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
-import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
-import { LeaderboardTracingSetting } from "@/components/LeaderboardTracingSetting"
+import { TracingSettingsGroup } from "@/components/TracingSettingsGroup"
 import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
 import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -496,6 +495,19 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
+                        {/* Daily Quest Max Advance Days */}
+                        <div className="flex flex-col gap-2 py-2 border-b border-border">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="daily-quest-days" className="text-sm font-medium">
+                                    Daily quest max advance days
+                                </Label>
+                                <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Maximum number of days players can advance daily quests
+                            </p>
+                        </div>
+
                         {/* Toggle 1: Allow player trading and mailbox */}
                         <div className="flex flex-col gap-2 py-2 border-b border-border">
                             <div className="flex items-center justify-between">
@@ -533,27 +545,9 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                             </p>
                         </div>
 
-                        {/* Daily Quest Max Advance Days */}
-                        <div className="flex flex-col gap-2 py-2 border-b border-border">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="daily-quest-days" className="text-sm font-medium">
-                                    Daily quest max advance days
-                                </Label>
-                                <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Maximum number of days players can advance daily quests
-                            </p>
-                        </div>
-
-                        {/* Toggle 2: Allow tracing player event */}
+                        {/* Toggle 2 & 3: Allow tracing player event + Leaderboard tracing */}
                         <div className="mt-5">
-                            <AllowTracingPlayerEventSetting gameId={game.id} game={game} />
-                        </div>
-
-                        {/* Toggle 3: Leaderboard tracing */}
-                        <div className="mt-5">
-                            <LeaderboardTracingSetting gameId={game.id} game={game} />
+                            <TracingSettingsGroup gameId={game.id} game={game} />
                         </div>
                     </CardContent>
                 </Card>

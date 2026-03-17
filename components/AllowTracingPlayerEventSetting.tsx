@@ -14,6 +14,8 @@ interface Props {
   game?: Game | null
   /** Single-line compact display (no description). */
   compact?: boolean
+  /** Hide the description text (used when rendered inside TracingSettingsGroup). */
+  hideDescription?: boolean
 }
 
 /**
@@ -21,7 +23,7 @@ interface Props {
  * Self-fetches game data when no `game` prop is provided, so it stays
  * in sync regardless of which page renders it.
  */
-export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact }: Props) {
+export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
   const [game, setGame] = useState<Game | null>(gameProp ?? null)
   const [loading, setLoading] = useState(!gameProp)
 
@@ -84,11 +86,13 @@ export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact
           disabled
         />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Automatically enabled when a{" "}
-        <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>{" "}
-        plugin or above is activated. Cannot be changed manually.
-      </p>
+      {!hideDescription && (
+        <p className="text-xs text-muted-foreground">
+          Automatically enabled when a{" "}
+          <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>{" "}
+          plugin or above is activated (leaderboard tracing can also be granted by an Admin). Cannot be changed manually.
+        </p>
+      )}
     </div>
   )
 }
