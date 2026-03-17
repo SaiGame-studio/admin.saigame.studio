@@ -890,6 +890,7 @@ export const en = {
     quests: "Quests",
     nodeDefinitions: "Journey Node",
     eventTypes: "Event Types",
+    boards: "Leaderboards",
     activeSubscriptions: "Active Subscriptions",
     history: "Subscription History",
     noSubscriptions: "No active subscriptions yet.",
@@ -966,6 +967,7 @@ export const en = {
       labelQuests: "Quests",
       labelNodeDefs: "Journey Node",
       labelEventTypes: "Event Types",
+      labelBoards: "Leaderboards",
       labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",
@@ -1052,5 +1054,17 @@ export const en = {
     tip13: "Resizing the grid container will not trigger a layout recalculation; item positions remain fixed.",
 
     tip14: "You can create a linear quest chain with node branching, that’s fine..",
+  },
+  leaderboard: {
+    resetScheduleHint_never: "Season never resets — one permanent season that accumulates forever. Nobody can end the season manually.",
+    resetScheduleHint_daily: "Resets every day — the worker automatically manages 3 concurrent seasons (yesterday, today, tomorrow). Manual End Season is not supported.",
+    resetScheduleHint_weekly: "Resets every week — studio members can call End Season manually to finish the current season early.",
+    resetScheduleHint_monthly: "Resets on the first day of each month. Suitable for longer tournaments and monthly reward programs.",
+    resetScheduleHint_season: "No fixed schedule — studio members can call End Season at any time to close the current season and start a new one.",
+    seasonCannotEndNever: "Season cannot be ended manually — this board has no reset schedule.",
+    seasonCannotEndDaily: "Season resets automatically every day — no manual end needed.",
+    seasonCannotEndWeekly: "Season resets automatically every week — no manual end needed.",
+    seasonCannotEndMonthly: "Season resets automatically every month — no manual end needed.",
   }
-}; 
+
+};

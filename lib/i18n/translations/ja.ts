@@ -876,6 +876,7 @@ export const ja = {
     quests: "クエスト",
     nodeDefinitions: "ジャーニーノード",
     eventTypes: "イベントタイプ",
+    boards: "リーダーボード",
     activeSubscriptions: "有効な購読",
     history: "購読履歴",
     noSubscriptions: "まだ購読がありません。",
@@ -949,6 +950,7 @@ export const ja = {
       labelQuests: "クエスト",
       labelNodeDefs: "ジャーニーノード",
       labelEventTypes: "イベントタイプ",
+      labelBoards: "リーダーボード",
       labelGacha: "ガチャ",
       willNotRenew: "更新されません",
       daysLeft: "日残り",
@@ -1033,5 +1035,17 @@ export const ja = {
     tip11: "デフォルトのアイテムプロパティを使う必要はありません。ベースステータスやメタデータで独自のシステムを設計できます。",
     tip12: "コンテナに新しいアイテムを追加する唯一の方法はメールボックスを経由することです。",
     tip13: "グリッドコンテナのサイズを変更してもレイアウトの再計算は行われず、アイテムの位置は固定されたままです。"
+  },
+  leaderboard: {
+    resetScheduleHint_never: "シーズンはリセットされません — 永続的な1つのシーズンが蓄積し続けます。手動でシーズンを終了することはできません。",
+    resetScheduleHint_daily: "毎日リセット — ワーカーが自動的に3つの並行シーズン（昨日・今日・明日）を管理します。手動のEnd Seasonはサポートされていません。",
+    resetScheduleHint_weekly: "毎週リセット — スタジオメンバーはEnd Seasonを手動で呼び出して現在のシーズンを早期終了できます。",
+    resetScheduleHint_monthly: "毎月1日にリセット。長期トーナメントや月次報酬プログラムに最適です。",
+    resetScheduleHint_season: "固定スケジュールなし — スタジオメンバーはいつでもEnd Seasonを呼び出して現在のシーズンを終了し、新しいシーズンを開始できます。",
+    seasonCannotEndNever: "このボードにはリセットスケジュールがないため、シーズンを手動で終了できません。",
+    seasonCannotEndDaily: "シーズンは毎日自動的にリセットされます — 手動終了は不要です。",
+    seasonCannotEndWeekly: "シーズンは毎週自動的にリセットされます — 手動終了は不要です。",
+    seasonCannotEndMonthly: "シーズンは毎月自動的にリセットされます — 手動終了は不要です。",
   }
+
 };

@@ -650,7 +650,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
 
 // ─── Definitions Tab ──────────────────────────────────────────────────────────
 
-function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?: string | null }) {
+function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null; editQuestId?: string | null; onGameUpdate?: (g: Game) => void }) {
   const { id: gameId } = useParams() as { id: string }
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -826,6 +826,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       toast({ title: "Quest created", description: form.name })
       setCreateOpen(false)
       await loadQuests(offset)
+      getGame(gameId).then(onGameUpdate).catch(() => {})
     } catch (e) {
       toast({
         variant: "destructive",
@@ -867,6 +868,7 @@ function DefinitionsTab({ game, editQuestId }: { game: Game | null; editQuestId?
       toast({ title: "Quest deleted", description: deleteQuest.name })
       setDeleteQuest(null)
       await loadQuests(offset)
+      getGame(gameId).then(onGameUpdate).catch(() => {})
     } catch (e) {
       toast({
         variant: "destructive",
@@ -1616,7 +1618,7 @@ function QuestsPageInner() {
         </TabsList>
 
         <TabsContent value="definitions" className="mt-6 space-y-4">
-          <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} />
+          <DefinitionsTab game={game} editQuestId={searchParams.get("editQuestId")} onGameUpdate={setGame} />
         </TabsContent>
 
         <TabsContent value="chains" className="mt-6 space-y-4">

@@ -109,6 +109,7 @@ interface PluginFormState {
   shops_grant: string
   node_defs_grant: string
   event_types_grant: string
+  boards_grant: string
   duration_days: string
   is_template: boolean
 }
@@ -122,6 +123,7 @@ const defaultForm: PluginFormState = {
   shops_grant: "0",
   node_defs_grant: "0",
   event_types_grant: "0",
+  boards_grant: "0",
   duration_days: "0",
   is_template: false,
 }
@@ -136,6 +138,7 @@ function pluginToForm(p: Plugin): PluginFormState {
     shops_grant: String(p.shops_grant ?? 0),
     node_defs_grant: String(p.node_defs_grant ?? 0),
     event_types_grant: String(p.event_types_grant ?? 0),
+    boards_grant: String(p.boards_grant ?? 0),
     duration_days: String(p.duration_days ?? 0),
     is_template: p.is_template ?? false,
   }
@@ -297,6 +300,7 @@ export default function AdminPluginsPage() {
         shops_grant: Number(form.shops_grant) || 0,
         node_defs_grant: Number(form.node_defs_grant) || 0,
         event_types_grant: Number(form.event_types_grant) || 0,
+        boards_grant: Number(form.boards_grant) || 0,
         duration_days: Number(form.duration_days) || null,
         is_template: form.is_template,
       }
@@ -348,6 +352,7 @@ export default function AdminPluginsPage() {
         getGamePlugins(gameId),
       ])
       const el = pluginsResult.effective_limits
+      const leaderboardsLimit = el.max_leaderboards ?? el.max_boards ?? fresh.limits?.max_leaderboards ?? 0
       // Overlay effective_limits onto the game object so the UI reflects plugin contributions
       setGameLimits({
         ...fresh,
@@ -358,6 +363,7 @@ export default function AdminPluginsPage() {
           max_items: el.max_items,
           max_shops: el.max_shops,
           max_gacha_packs: el.max_gacha_packs ?? fresh.limits?.max_gacha_packs ?? 0,
+          max_leaderboards: leaderboardsLimit,
         },
       })
     } catch (err: any) {
@@ -447,6 +453,7 @@ export default function AdminPluginsPage() {
           max_items: result.totals.max_items,
           max_shops: result.totals.max_shops,
           max_quests: result.totals.max_quests,
+          max_leaderboards: result.totals.max_leaderboards ?? 0,
         },
       } : prev)
     } catch (err: any) {
@@ -516,6 +523,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Quests</TableHead>
                     <TableHead>Journey Node</TableHead>
                     <TableHead>Event Types</TableHead>
+                    <TableHead>Leaderboards</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -546,8 +554,8 @@ export default function AdminPluginsPage() {
                           <TableCell>{(plugin.shops_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
-                          <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.event_types_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.boards_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>
                             {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
                           </TableCell>
@@ -620,6 +628,7 @@ export default function AdminPluginsPage() {
                                       { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
                                       { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
                                       { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
+                                      { icon: "📋", label: "Leaderboards", val: plugin.boards_grant ?? 0 },
                                     ] as { icon: string; label: string; val: number }[]).map((r) => (
                                       <div key={r.label} className="flex items-center gap-1.5">
                                         <span>{r.icon}</span>
@@ -772,6 +781,7 @@ export default function AdminPluginsPage() {
                             { label: "Max Profiles", value: gameLimits.limits?.max_player_profiles, usage: gameLimits.usage?.player_profiles },
                             { label: "Max Items", value: gameLimits.limits?.max_items },
                             { label: "Max Shops", value: gameLimits.limits?.max_shops },
+                            { label: "Max Leaderboards", value: gameLimits.limits?.max_leaderboards ?? 0, usage: gameLimits.usage?.leaderboards ?? 0 },
                           ] as { label: string; value?: number | null; usage?: number | null }[]).map(({ label, value, usage }) => (
                             <div key={label} className="flex items-center justify-between">
                               <span className="text-muted-foreground">{label}</span>
@@ -787,13 +797,14 @@ export default function AdminPluginsPage() {
                               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Recalculate Result</p>
 
                               {/* Totals */}
-                              <div className="grid grid-cols-5 gap-1 text-center">
+                              <div className="grid grid-cols-3 gap-1 text-center">
                                 {([
                                   { icon: "👥", label: "CCU", val: recalcResult.totals.max_concurrent_users },
                                   { icon: "👤", label: "Profiles", val: recalcResult.totals.max_player_profiles },
                                   { icon: "📦", label: "Items", val: recalcResult.totals.max_items },
                                   { icon: "🏪", label: "Shops", val: recalcResult.totals.max_shops },
                                   { icon: "📜", label: "Quests", val: recalcResult.totals.max_quests },
+                                  { icon: "📋", label: "Leaderboards", val: recalcResult.totals.max_leaderboards ?? 0 },
                                 ]).map((r) => (
                                   <div key={r.label} className="rounded-md bg-muted/60 px-1 py-1.5">
                                     <p className="text-xs">{r.icon}</p>
@@ -823,13 +834,14 @@ export default function AdminPluginsPage() {
                                           }`}>{sub.status}</span>
                                         </div>
                                       </div>
-                                      <div className="grid grid-cols-5 gap-1 text-center">
+                                      <div className="grid grid-cols-3 gap-1 text-center">
                                         {([
                                           { label: "CCU", val: sub.contribution.max_concurrent_users },
                                           { label: "Profiles", val: sub.contribution.max_player_profiles },
                                           { label: "Items", val: sub.contribution.max_items },
                                           { label: "Shops", val: sub.contribution.max_shops },
                                           { label: "Quests", val: sub.contribution.max_quests },
+                                          { label: "Leaderboards", val: sub.contribution.max_leaderboards ?? 0 },
                                         ]).map((r) => (
                                           <div key={r.label}>
                                             <p className={`font-semibold tabular-nums ${r.val > 0 && isActive ? "text-green-400" : "text-muted-foreground"}`}>
@@ -1079,6 +1091,7 @@ export default function AdminPluginsPage() {
                                                   { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
                                                   { icon: "🔗", label: "Journey Node", val: pluginDef.node_defs_grant ?? 0 },
                                                   { icon: "📡", label: "Event Types", val: pluginDef.event_types_grant ?? 0 },
+                                                  { icon: "📋", label: "Leaderboards", val: pluginDef.boards_grant ?? 0 },
                                                 ] as { icon: string; label: string; val: number }[])
                                                   .filter((r) => r.val > 0)
                                                   .map((r) => (
@@ -1154,6 +1167,7 @@ export default function AdminPluginsPage() {
                   { key: "shops_grant", label: t('plugins.fieldShopsGrant') || "Shops Grant" },
                   { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Journey Node Grant" },
                   { key: "event_types_grant", label: t('plugins.fieldEventTypesGrant') || "Event Types Grant" },
+                  { key: "boards_grant", label: t('plugins.fieldBoardsGrant') || "Leaderboard Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-1">

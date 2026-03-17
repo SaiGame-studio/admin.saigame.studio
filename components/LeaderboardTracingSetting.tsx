@@ -19,11 +19,10 @@ interface Props {
 }
 
 /**
- * Read-only banner for the "Allow tracing player event" game setting.
- * Self-fetches game data when no `game` prop is provided, so it stays
- * in sync regardless of which page renders it.
+ * Read-only banner for the "Leaderboard tracing" game setting.
+ * Automatically enabled when a Rare+ plugin or admin grant is active.
  */
-export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
+export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
   const [game, setGame] = useState<Game | null>(gameProp ?? null)
   const [loading, setLoading] = useState(!gameProp)
 
@@ -51,10 +50,10 @@ export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact
     }
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Allow tracing player event</span>
+        <span className="text-xs text-muted-foreground">Leaderboard tracing</span>
         <Switch
-          id={`allow-tracing-${gameId}`}
-          checked={game?.settings?.allow_tracing_player_event ?? false}
+          id={`leaderboard-tracing-${gameId}`}
+          checked={game?.settings?.leaderboard_tracing ?? false}
           disabled
           className="scale-75 origin-left"
         />
@@ -77,12 +76,12 @@ export function AllowTracingPlayerEventSetting({ gameId, game: gameProp, compact
   return (
     <div className="w-full flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor={`allow-tracing-${gameId}`} className="text-sm font-medium">
-          Allow tracing player event
+        <Label htmlFor={`leaderboard-tracing-${gameId}`} className="text-sm font-medium">
+          Leaderboard tracing
         </Label>
         <Switch
-          id={`allow-tracing-${gameId}`}
-          checked={game?.settings?.allow_tracing_player_event ?? false}
+          id={`leaderboard-tracing-${gameId}`}
+          checked={game?.settings?.leaderboard_tracing ?? false}
           disabled
         />
       </div>
