@@ -58,12 +58,19 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { getGame } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { ApiError } from "@/lib/api-client"
 import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { CopyButton } from "@/components/CopyButton"
 import {
   listBoards,
   createBoard,
@@ -71,6 +78,7 @@ import {
   deleteBoard,
   startSeason,
   endSeason,
+  deleteSeason,
   getBoardHistory,
   type LeaderboardBoard,
   type LeaderboardSeason,
@@ -103,6 +111,16 @@ const RESET_SCHEDULE_OPTIONS: { value: ResetSchedule; label: string }[] = [
   { value: "monthly", label: "Monthly" },
 ]
 
+function resetScheduleBadge(schedule: ResetSchedule) {
+  switch (schedule) {
+    case "daily":   return "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700"
+    case "weekly":  return "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-700"
+    case "monthly": return "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700"
+    case "season":  return "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700"
+    default:        return "bg-muted text-muted-foreground border-border"
+  }
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -117,6 +135,29 @@ function slugify(text: string): string {
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—"
   return new Date(iso).toLocaleString()
+}
+
+function timeAgo(iso: string | null | undefined) {
+  if (!iso) return "—"
+  const diff = Date.now() - new Date(iso).getTime()
+  const abs = Math.abs(diff)
+  const future = diff < 0
+  const s = Math.floor(abs / 1000)
+  const m = Math.floor(s / 60)
+  const h = Math.floor(m / 60)
+  const d = Math.floor(h / 24)
+  const w = Math.floor(d / 7)
+  const mo = Math.floor(d / 30)
+  const y = Math.floor(d / 365)
+  let rel: string
+  if (s < 60) rel = `${s}s`
+  else if (m < 60) rel = `${m}m`
+  else if (h < 24) rel = `${h}h`
+  else if (d < 7) rel = `${d}d`
+  else if (w < 5) rel = `${w}w`
+  else if (mo < 12) rel = `${mo}mo`
+  else rel = `${y}y`
+  return future ? `in ${rel}` : `${rel} ago`
 }
 
 // ─── DateTimePicker ───────────────────────────────────────────────────────────
@@ -720,12 +761,25 @@ interface BoardRowProps {
   onDelete: () => void
   onStartSeason: () => void
   onEndSeason: () => void
+  onDeleteSeason: (seasonId: string) => void
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, onEndSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
+  const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
+  const LS_KEY = "leaderboard-season-time-ago"
+  const [showTimeAgo, setShowTimeAgo] = useState<boolean>(() => {
+    try { return localStorage.getItem(LS_KEY) === "1" } catch { return false }
+  })
+  const toggleTimeAgo = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowTimeAgo(v => {
+      try { localStorage.setItem(LS_KEY, v ? "0" : "1") } catch {}
+      return !v
+    })
+  }
   // Use history data when available; fall back to board.season_id while loading
   const activeSeasonFromHistory = seasons != null
     ? seasons.find((s) => !s.ended_at) ?? null
@@ -756,7 +810,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
           <Badge variant="outline" className="text-xs">{board.sort_direction}</Badge>
         </TableCell>
         <TableCell>
-          <Badge variant="secondary" className="text-xs capitalize">{board.reset_schedule}</Badge>
+          <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
         </TableCell>
         <TableCell>
           {board.is_active
@@ -798,7 +852,10 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Board ID</p>
-                  <p className="font-mono text-xs break-all">{board.id}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="font-mono text-xs break-all">{board.id}</p>
+                    <CopyButton text={board.id} size="h-3 w-3" />
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Board Key</p>
@@ -814,7 +871,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Reset Schedule</p>
-                  <Badge variant="secondary" className="text-xs capitalize">{board.reset_schedule}</Badge>
+                  <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Max Score Delta</p>
@@ -843,7 +900,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                     <p className="text-sm font-medium">Season History</p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {!hasSeason ? (
+                    {!hasSeason && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -852,24 +909,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                       >
                         <Play className="h-3 w-3" />
                         Start Season
-                      </Button>
-                    ) : board.reset_schedule === "never" ? (
-                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndNever")}</span>
-                    ) : board.reset_schedule === "daily" ? (
-                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndDaily")}</span>
-                    ) : board.reset_schedule === "weekly" ? (
-                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndWeekly")}</span>
-                    ) : board.reset_schedule === "monthly" ? (
-                      <span className="text-xs text-muted-foreground italic">{t("leaderboard.seasonCannotEndMonthly")}</span>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation(); onEndSeason() }}
-                      >
-                        <StopCircle className="h-3 w-3" />
-                        End Season
                       </Button>
                     )}
                   </div>
@@ -885,25 +924,106 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                       <TableHeader>
                         <TableRow>
                           <TableHead className="h-8 text-xs">#</TableHead>
+                          <TableHead className="h-8 text-xs">Season ID</TableHead>
                           <TableHead className="h-8 text-xs">Name</TableHead>
-                          <TableHead className="h-8 text-xs">Started At</TableHead>
+                          <TableHead className="h-8 text-xs">
+                            <button
+                              className="flex items-center gap-1 hover:text-foreground transition-colors"
+                              title={showTimeAgo ? "Switch to full datetime" : "Switch to relative time"}
+                              onClick={toggleTimeAgo}
+                            >
+                              Started At
+                              <span className="text-[10px] font-normal opacity-60">{showTimeAgo ? "(ago)" : "(abs)"}</span>
+                            </button>
+                          </TableHead>
                           <TableHead className="h-8 text-xs">Ended At</TableHead>
                           <TableHead className="h-8 text-xs">Reward Dispatched</TableHead>
                           <TableHead className="h-8 text-xs">Status</TableHead>
+                          <TableHead className="h-8 text-xs w-[110px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {seasons.map((s) => (
                           <TableRow key={s.id}>
                             <TableCell className="text-xs py-2">{s.season_number}</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono text-muted-foreground break-all">{s.id}</span>
+                                <CopyButton text={s.id} size="h-3 w-3" />
+                              </div>
+                            </TableCell>
                             <TableCell className="text-xs py-2 font-medium">{s.name}</TableCell>
-                            <TableCell className="text-xs py-2 font-mono">{formatDate(s.started_at)}</TableCell>
-                            <TableCell className="text-xs py-2 font-mono">{formatDate(s.ended_at)}</TableCell>
-                            <TableCell className="text-xs py-2 font-mono">{s.reward_dispatched_at ? formatDate(s.reward_dispatched_at) : "—"}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{showTimeAgo ? timeAgo(s.started_at) : formatDate(s.started_at)}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{showTimeAgo ? timeAgo(s.ended_at) : formatDate(s.ended_at)}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{s.reward_dispatched_at ? (showTimeAgo ? timeAgo(s.reward_dispatched_at) : formatDate(s.reward_dispatched_at)) : "—"}</TableCell>
                             <TableCell className="text-xs py-2">
                               {s.ended_at
                                 ? <Badge variant="secondary" className="text-xs">Ended</Badge>
                                 : <Badge variant="default" className="text-xs bg-green-600">Active</Badge>}
+                            </TableCell>
+                            <TableCell className="text-xs py-2">
+                              {(() => {
+                                const now = new Date()
+                                const isUpcoming = new Date(s.started_at) > now
+                                const isEnded = !!s.ended_at
+                                const isActive = !isUpcoming && !isEnded
+                                const isStarted = !isUpcoming
+                                const endDisabled = !isActive
+                                const endTooltip = isUpcoming
+                                  ? "Cannot end a season that hasn't started yet"
+                                  : isEnded
+                                  ? "This season has already ended"
+                                  : undefined
+                                return (
+                                  <div className="flex items-center gap-1">
+                                    <TooltipProvider delayDuration={100}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span tabIndex={endDisabled ? 0 : undefined}>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-6 text-xs gap-1 px-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+                                              disabled={endDisabled}
+                                              onClick={(e) => { e.stopPropagation(); onEndSeason() }}
+                                            >
+                                              <StopCircle className="h-3 w-3" />
+                                              End
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        {endDisabled && endTooltip && (
+                                          <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
+                                            {endTooltip}
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <TooltipProvider delayDuration={100}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span tabIndex={isStarted ? 0 : undefined}>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              disabled={isStarted}
+                                              onClick={(e) => { e.stopPropagation(); setDeleteSeasonConfirm(s) }}
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        {isStarted && (
+                                          <TooltipContent side="top" className="text-xs max-w-[220px] text-center">
+                                            Season has already started and cannot be deleted. Only upcoming seasons can be deleted.
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                )
+                              })()}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -917,6 +1037,28 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
             </div>
           </TableCell>
         </TableRow>
+      )}
+      {/* Delete Season Confirmation */}
+      {deleteSeasonConfirm && (
+        <AlertDialog open={!!deleteSeasonConfirm} onOpenChange={(o) => { if (!o) setDeleteSeasonConfirm(null) }}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Season</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete season <strong>{deleteSeasonConfirm.name}</strong>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => { onDeleteSeason(deleteSeasonConfirm.id); setDeleteSeasonConfirm(null) }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   )
@@ -1024,6 +1166,20 @@ function LeaderboardPageInner() {
         .then((seasons) => setSeasonsMap((m) => ({ ...m, [board.id]: seasons })))
         .catch(() => setSeasonsMap((m) => ({ ...m, [board.id]: [] })))
         .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(board.id); return n }))
+    }
+  }
+
+  const handleDeleteSeason = async (boardId: string, seasonId: string) => {
+    if (!studioId) return
+    try {
+      await deleteSeason(studioId, gameId, boardId, seasonId)
+      setSeasonsMap((m) => ({ ...m, [boardId]: (m[boardId] ?? []).filter((s) => s.id !== seasonId) }))
+      loadBoards(true)
+      toast({ title: "Season deleted", description: "The season has been deleted." })
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to delete season." })
+      }
     }
   }
 
@@ -1169,6 +1325,7 @@ function LeaderboardPageInner() {
                     onDelete={() => setDeleteBoardItem(board)}
                     onStartSeason={() => setStartSeasonBoard(board)}
                     onEndSeason={() => setEndSeasonBoard(board)}
+                    onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
                     seasons={seasonsMap[board.id] ?? null}
                     seasonsLoading={seasonsLoadingIds.has(board.id)}
                   />

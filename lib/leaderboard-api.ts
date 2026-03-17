@@ -144,6 +144,19 @@ export async function endSeason(
   return data.result
 }
 
+// ─── Delete Season ────────────────────────────────────────────────────────────
+
+export async function deleteSeason(
+  studioId: string,
+  gameId: string,
+  boardId: string,
+  seasonId: string
+): Promise<void> {
+  await api.delete(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/${seasonId}`
+  )
+}
+
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
 export async function deleteBoard(
