@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2,
-  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -262,9 +262,29 @@ function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: D
               }}
             />
           </div>
+          <div className="flex gap-1.5">
+            <Button
+              type="button" variant="outline" size="sm" className="h-7 text-xs flex-1"
+              onClick={() => {
+                const now = new Date()
+                setDraftDate(now)
+                setDraftHour(String(now.getHours()).padStart(2, "0"))
+                setDraftMinute(String(now.getMinutes()).padStart(2, "0"))
+              }}
+            >Now</Button>
+            <Button
+              type="button" variant="outline" size="sm" className="h-7 text-xs flex-1"
+              onClick={() => {
+                const tmr = new Date(); tmr.setDate(tmr.getDate() + 1); tmr.setHours(0, 0, 0, 0)
+                setDraftDate(tmr)
+                setDraftHour("00")
+                setDraftMinute("00")
+              }}
+            >Tmr 00:00</Button>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="button" size="sm" className="h-8" onClick={handleConfirm} disabled={!draftDate}>OK</Button>
+            <Button type="button" size="sm" className="h-8" onClick={handleConfirm} disabled={!draftDate}>Confirm</Button>
           </div>
         </div>
       </PopoverContent>
@@ -759,16 +779,21 @@ interface BoardRowProps {
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
-  onStartSeason: () => void
+  onCreateSeason: (name: string, startAt: string | null) => Promise<void>
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
+  const [showCreateRow, setShowCreateRow] = useState(false)
+  const [newSeasonName, setNewSeasonName] = useState("")
+  const [newSeasonStartAt, setNewSeasonStartAt] = useState("")
+  const [savingCreate, setSavingCreate] = useState(false)
+  const [savingNextSeason, setSavingNextSeason] = useState(false)
   const LS_KEY = "leaderboard-season-time-ago"
   const [showTimeAgo, setShowTimeAgo] = useState<boolean>(() => {
     try { return localStorage.getItem(LS_KEY) === "1" } catch { return false }
@@ -900,16 +925,61 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                     <p className="text-sm font-medium">Season History</p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {!hasSeason && (
+                    {board.reset_schedule === "season" && !showCreateRow && (
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
-                        onClick={(e) => { e.stopPropagation(); onStartSeason() }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
                       >
                         <Play className="h-3 w-3" />
-                        Start Season
+                        Create Season
                       </Button>
+                    )}
+                    {board.reset_schedule === "daily" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-blue-600 border-blue-600/40 hover:bg-blue-50 hover:text-blue-700"
+                        disabled={savingNextSeason}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          setSavingNextSeason(true)
+                          try {
+                            const lastSeason = seasons && seasons.length > 0
+                              ? [...seasons].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()).pop()!
+                              : null
+                            const nextStart = lastSeason
+                              ? (() => {
+                                  const d = new Date(lastSeason.started_at)
+                                  d.setUTCDate(d.getUTCDate() + 1)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                              : (() => {
+                                  const d = new Date()
+                                  d.setUTCDate(d.getUTCDate() + 1)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                            const name = `Season ${(seasons?.length ?? 0) + 1}`
+                            await onCreateSeason(name, nextStart)
+                          } finally {
+                            setSavingNextSeason(false)
+                          }
+                        }}
+                      >
+                        {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                        Create Next Season
+                      </Button>
+                    )}
+                    {showCreateRow && (
+                      <span className="text-xs text-muted-foreground italic">Fill in the new season below</span>
                     )}
                   </div>
                 </div>
@@ -918,7 +988,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Loading seasons...
                   </div>
-                ) : seasons && seasons.length > 0 ? (
+                ) : (showCreateRow || (seasons && seasons.length > 0)) ? (
                   <div className="rounded-md border overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -943,7 +1013,69 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onStartSeason, 
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {seasons.map((s) => (
+                        {showCreateRow && (
+                          <TableRow className="bg-green-500/5 border-b border-green-500/20">
+                            <TableCell className="text-xs py-2 text-muted-foreground">New</TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <Input
+                                value={newSeasonName}
+                                onChange={(e) => setNewSeasonName(e.target.value)}
+                                placeholder="Season name"
+                                className="h-6 text-xs px-2"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs py-2" colSpan={1}>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <DateTimePicker
+                                  value={newSeasonStartAt || null}
+                                  onChange={(iso) => setNewSeasonStartAt(iso ?? "")}
+                                  placeholder="Now (optional)"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-6 text-xs gap-1 px-2 bg-green-600 hover:bg-green-700"
+                                  disabled={savingCreate || !newSeasonName.trim()}
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    setSavingCreate(true)
+                                    try {
+                                      const startAt = newSeasonStartAt ? new Date(newSeasonStartAt).toISOString() : null
+                                      await onCreateSeason(newSeasonName.trim(), startAt)
+                                      setShowCreateRow(false)
+                                      setNewSeasonName("")
+                                      setNewSeasonStartAt("")
+                                    } finally {
+                                      setSavingCreate(false)
+                                    }
+                                  }}
+                                >
+                                  {savingCreate ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => { e.stopPropagation(); setShowCreateRow(false) }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {seasons?.map((s) => (
                           <TableRow key={s.id}>
                             <TableCell className="text-xs py-2">{s.season_number}</TableCell>
                             <TableCell className="text-xs py-2">
@@ -1083,7 +1215,6 @@ function LeaderboardPageInner() {
   const [expandedBoardId, setExpandedBoardId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
-  const [startSeasonBoard, setStartSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [deleteBoardItem, setDeleteBoardItem] = useState<LeaderboardBoard | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -1180,6 +1311,20 @@ function LeaderboardPageInner() {
       if (!(e instanceof ApiError)) {
         toast({ variant: "destructive", title: "Error", description: "Failed to delete season." })
       }
+    }
+  }
+
+  const handleCreateSeason = async (board: LeaderboardBoard, name: string, startAt: string | null) => {
+    if (!studioId) return
+    try {
+      await startSeason(studioId, gameId, board.id, name, startAt)
+      toast({ title: "Season created", description: `Season "${name}" has been created.` })
+      handleSeasonChange(board)
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to create season." })
+      }
+      throw e
     }
   }
 
@@ -1323,7 +1468,7 @@ function LeaderboardPageInner() {
                     onToggle={() => handleToggleBoard(board)}
                     onEdit={() => setEditBoard(board)}
                     onDelete={() => setDeleteBoardItem(board)}
-                    onStartSeason={() => setStartSeasonBoard(board)}
+                    onCreateSeason={(name, startAt) => handleCreateSeason(board, name, startAt)}
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
                     seasons={seasonsMap[board.id] ?? null}
@@ -1348,13 +1493,6 @@ function LeaderboardPageInner() {
         board={editBoard}
         onClose={() => setEditBoard(null)}
         onUpdated={handleBoardUpdated}
-        studioId={studioId}
-        gameId={gameId}
-      />
-      <StartSeasonDialog
-        board={startSeasonBoard}
-        onClose={() => setStartSeasonBoard(null)}
-        onStarted={handleSeasonChange}
         studioId={studioId}
         gameId={gameId}
       />

@@ -122,11 +122,14 @@ export async function startSeason(
   studioId: string,
   gameId: string,
   boardId: string,
-  seasonName: string
+  seasonName: string,
+  startAt?: string | null
 ): Promise<LeaderboardSeason> {
+  const body: Record<string, unknown> = { season_name: seasonName }
+  if (startAt) body.start_at = startAt
   const data = await api.post(
     `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons`,
-    { season_name: seasonName }
+    body
   )
   return data.season
 }
