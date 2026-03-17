@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -72,6 +73,7 @@ import type { Game } from "@/types/game"
 import type { Studio } from "@/types/studio"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
+import { LeaderboardTracingSetting } from "@/components/LeaderboardTracingSetting"
 import { listGachaPacks, listItemDefinitions, getGachaPack, getItemDefinition } from "@/lib/inventory-api"
 import type { GachaPack } from "@/types/inventory"
 import type { ItemDefinition } from "@/types/inventory"
@@ -1518,9 +1520,23 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
 
 // ─── Page Inner ───────────────────────────────────────────────────────────────
 
+// ─── Tab config ────────────────────────────────────────────────────────────────
+
+type LBTabValue = "boards" | "coming-soon"
+
+const LB_TABS: { value: LBTabValue; label: string }[] = [
+  { value: "boards", label: "Boards" },
+  { value: "coming-soon", label: "Coming Soon" },
+]
+
+const VALID_LB_TABS = new Set<string>(LB_TABS.map((t) => t.value))
+
+// ─── LeaderboardPageInner ─────────────────────────────────────────────────────
+
 function LeaderboardPageInner() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const gameId = params.id as string
 
@@ -1665,6 +1681,15 @@ function LeaderboardPageInner() {
 
   const studioId = game?.studio_id ?? ""
 
+  const rawTab = searchParams.get("tab") ?? "boards"
+  const activeTab: LBTabValue = VALID_LB_TABS.has(rawTab) ? (rawTab as LBTabValue) : "boards"
+
+  const handleTabChange = (value: string) => {
+    const p = new URLSearchParams(searchParams.toString())
+    p.set("tab", value)
+    router.push(`?${p.toString()}`, { scroll: false })
+  }
+
   return (
     <div className="container mx-auto py-6">
       {/* Breadcrumb */}
@@ -1747,60 +1772,107 @@ function LeaderboardPageInner() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Boards</h2>
-          {!loading && (
-            <Badge variant="secondary" className="text-xs">{boards.length}</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => loadBoards(true)}
-            disabled={refreshing || loading}
-            title="Refresh"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
-          {(() => {
-            const limitReached = game?.limits?.max_leaderboards != null && boards.length >= game.limits.max_leaderboards
-            return limitReached ? (
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button size="sm" disabled>
+      {/* Tabs: 2-col header (TabsList + toolbar | tracing setting) + full-width content */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        {/* 2-col header */}
+        <div className="flex gap-6 items-start mb-4">
+          {/* Col 1: tab triggers + boards toolbar */}
+          <div className="flex-1 min-w-0 space-y-4">
+            <TabsList>
+              {LB_TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {activeTab === "boards" && (
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  {!loading && (
+                    <Badge variant="secondary" className="text-xs">{boards.length}</Badge>
+                  )}
+                  {game?.limits?.max_leaderboards != null && (() => {
+                    const used = game.usage?.leaderboards ?? 0
+                    const max = game.limits.max_leaderboards!
+                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                    return (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className={used >= max ? "text-destructive font-medium" : ""}>
+                          {used.toLocaleString()} / {max.toLocaleString()}
+                        </span>
+                        <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                          <span
+                            className={`block h-full rounded-full transition-all ${
+                              used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <Link
+                          href={`/games/${gameId}/plugins`}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          title="Manage plugins / raise limits"
+                        >
+                          <Hammer className="h-3.5 w-3.5" />
+                        </Link>
+                      </p>
+                    )
+                  })()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => loadBoards(true)}
+                    disabled={refreshing || loading}
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                  {(() => {
+                    const limitReached = game?.limits?.max_leaderboards != null && boards.length >= game.limits.max_leaderboards
+                    return limitReached ? (
+                      <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button size="sm" disabled>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Create Board
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Leaderboard limit reached ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
+                            <Link href={`/games/${gameId}/plugins`} className="underline">Upgrade plugin</Link> to add more.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => setCreateOpen(true)}
+                        disabled={!studioId}
+                      >
                         <Plus className="h-4 w-4 mr-1" />
                         Create Board
                       </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Leaderboard limit reached ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
-                    <Link href={`/games/${gameId}/plugins`} className="underline">Upgrade plugin</Link> to add more.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => setCreateOpen(true)}
-                disabled={!studioId}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Create Board
-              </Button>
-            )
-          })()}
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Col 2: Leaderboard tracing setting */}
+          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
+            <LeaderboardTracingSetting gameId={gameId} game={game} />
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
+        {/* Full-width content */}
+        {activeTab === "boards" && (
+          <Card>
+          <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1879,8 +1951,18 @@ function LeaderboardPageInner() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "coming-soon" && (
+          <div className="flex flex-col items-center justify-center py-24 gap-3 text-center text-muted-foreground">
+            <Trophy className="h-10 w-10 opacity-30" />
+            <p className="font-medium">Coming Soon</p>
+            <p className="text-sm">More leaderboard features are on the way.</p>
+          </div>
+        )}
+      </Tabs>
 
       {/* Dialogs / Sheets */}
       <CreateSheet

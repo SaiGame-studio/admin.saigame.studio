@@ -73,7 +73,7 @@ import {
 } from "@/lib/event-type-api"
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
-import { TracingSettingsGroup } from "@/components/TracingSettingsGroup"
+import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
@@ -1153,9 +1153,9 @@ export default function AnalyticPage() {
               </div>
             )}
           </div>
-          {/* Col 2: Tracing settings */}
-          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px] space-y-4">
-            <TracingSettingsGroup gameId={gameId} game={game} />
+          {/* Col 2: Player event tracing setting */}
+          <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
+            <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
           </div>
         </div>
 
