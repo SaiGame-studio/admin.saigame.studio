@@ -1038,6 +1038,7 @@ export const ja = {
     resetScheduleHint_never: "シーズンはリセットされません — 永続的な1つのシーズンが蓄積し続けます。手動でシーズンを終了することはできません。",
     resetScheduleHint_daily: "毎日リセット — ワーカーが自動的に3つの並行シーズン（昨日・今日・明日）を管理します。手動のEnd Seasonはサポートされていません。",
     resetScheduleHint_weekly: "毎週リセット — スタジオメンバーはEnd Seasonを手動で呼び出して現在のシーズンを早期終了できます。",
+    resetScheduleHint_monthly: "毎月1日にリセット。長期トーナメントや月次報酬プログラムに最適です。",
     resetScheduleHint_season: "固定スケジュールなし — スタジオメンバーはいつでもEnd Seasonを呼び出して現在のシーズンを終了し、新しいシーズンを開始できます。",
     seasonCannotEndNever: "このボードにはリセットスケジュールがないため、シーズンを手動で終了できません。",
     seasonCannotEndDaily: "シーズンは毎日自動的にリセットされます — 手動終了は不要です。",

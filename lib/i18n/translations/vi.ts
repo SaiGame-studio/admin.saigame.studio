@@ -1049,6 +1049,7 @@ export const vi = {
     resetScheduleHint_never: "Season không bao giờ reset — 1 season duy nhất, tích lũy mãi. Không ai có thể kết thúc season thủ công.",
     resetScheduleHint_daily: "Reset mỗi ngày — worker tự động quản lý 3 season song song (hôm qua, hôm nay, ngày mai). Không hỗ trợ End Season thủ công.",
     resetScheduleHint_weekly: "Reset mỗi tuần — studio member có thể gọi End Season thủ công để kết thúc sớm.",
+    resetScheduleHint_monthly: "Reset vào ngày đầu tiên mỗi tháng. Phù hợp cho giải đấu dài hạn và chương trình thưởng hàng tháng.",
     resetScheduleHint_season: "Không có lịch cố định — studio member gọi End Season bất kỳ lúc nào để kết thúc season hiện tại và tạo season mới.",
     seasonCannotEndNever: "Season không thể kết thúc thủ công — board này không có lịch reset.",
     seasonCannotEndDaily: "Season tự động reset mỗi ngày — không cần kết thúc thủ công.",

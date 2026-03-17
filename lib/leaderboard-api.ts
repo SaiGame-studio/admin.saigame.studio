@@ -184,3 +184,20 @@ export async function getBoardHistory(
   )
   return data.seasons ?? []
 }
+
+// ─── Reset Schedule Options ───────────────────────────────────────────────────
+
+export interface ResetScheduleOption {
+  value: ResetSchedule
+  label: string
+  description: string
+}
+
+let _resetScheduleOptionsCache: ResetScheduleOption[] | null = null
+
+export async function getResetScheduleOptions(): Promise<ResetScheduleOption[]> {
+  if (_resetScheduleOptionsCache) return _resetScheduleOptionsCache
+  const data = await api.get('/api/v1/leaderboards/reset-schedule-options')
+  _resetScheduleOptionsCache = data.reset_schedules ?? []
+  return _resetScheduleOptionsCache!
+}

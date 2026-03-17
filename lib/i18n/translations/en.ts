@@ -1057,6 +1057,7 @@ export const en = {
     resetScheduleHint_never: "Season never resets — one permanent season that accumulates forever. Nobody can end the season manually.",
     resetScheduleHint_daily: "Resets every day — the worker automatically manages 3 concurrent seasons (yesterday, today, tomorrow). Manual End Season is not supported.",
     resetScheduleHint_weekly: "Resets every week — studio members can call End Season manually to finish the current season early.",
+    resetScheduleHint_monthly: "Resets on the first day of each month. Suitable for longer tournaments and monthly reward programs.",
     resetScheduleHint_season: "No fixed schedule — studio members can call End Season at any time to close the current season and start a new one.",
     seasonCannotEndNever: "Season cannot be ended manually — this board has no reset schedule.",
     seasonCannotEndDaily: "Season resets automatically every day — no manual end needed.",

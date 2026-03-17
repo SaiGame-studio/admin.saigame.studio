@@ -80,6 +80,7 @@ import {
   endSeason,
   deleteSeason,
   getBoardHistory,
+  getResetScheduleOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
   type CreateBoardPayload,
@@ -87,6 +88,7 @@ import {
   type ScoreMode,
   type SortDirection,
   type ResetSchedule,
+  type ResetScheduleOption,
 } from "@/lib/leaderboard-api"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -309,6 +311,9 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const [autoSlug, setAutoSlug] = useState(true)
   const [scheduleFlash, setScheduleFlash] = useState(false)
   const scheduleFlashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [scheduleOptions, setScheduleOptions] = useState<ResetScheduleOption[]>(
+    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.label, description: "" }))
+  )
   const [form, setForm] = useState<CreateBoardPayload>({
     board_key: "",
     name: "",
@@ -325,6 +330,12 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     if (open) {
       setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", max_score_delta: null, first_season_start_at: null })
       setAutoSlug(true)
+      getResetScheduleOptions()
+        .then((opts) => {
+          setScheduleOptions(opts)
+          if (opts.length > 0) set("reset_schedule", opts[0].value)
+        })
+        .catch(() => { /* keep static fallback */ })
     }
   }, [open])
 
@@ -472,7 +483,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {RESET_SCHEDULE_OPTIONS.map((o) => (
+                {scheduleOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -1097,9 +1108,26 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                             <TableCell className="text-xs py-2 font-mono">{showTimeAgo ? timeAgo(s.ended_at) : formatDate(s.ended_at)}</TableCell>
                             <TableCell className="text-xs py-2 font-mono">{s.reward_dispatched_at ? (showTimeAgo ? timeAgo(s.reward_dispatched_at) : formatDate(s.reward_dispatched_at)) : "—"}</TableCell>
                             <TableCell className="text-xs py-2">
-                              {s.ended_at
-                                ? <Badge variant="secondary" className="text-xs">Ended</Badge>
-                                : <Badge variant="default" className="text-xs bg-green-600">Active</Badge>}
+                              {(() => {
+                                const now = new Date()
+                                const isUpcoming = new Date(s.started_at) > now
+                                const isEnded = !!s.ended_at
+                                if (isEnded) return <Badge variant="secondary" className="text-xs">Ended</Badge>
+                                if (isUpcoming) return (
+                                  <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/40 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400">
+                                    Upcoming
+                                  </Badge>
+                                )
+                                return (
+                                  <Badge variant="default" className="text-xs bg-green-600 gap-1.5">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                    </span>
+                                    Active
+                                  </Badge>
+                                )
+                              })()}
                             </TableCell>
                             <TableCell className="text-xs py-2">
                               {(() => {
