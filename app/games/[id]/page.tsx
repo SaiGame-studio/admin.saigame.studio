@@ -669,6 +669,25 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                                {/* Leaderboards */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <Link href={`/games/${game.id}/leaderboard`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            {t('game.leaderboards') ?? 'Leaderboards'}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
+                                        <span className={`text-muted-foreground ${game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(game.usage?.leaderboards ?? 0)} / {game.limits?.max_leaderboards != null ? fmt(game.limits.max_leaderboards) : '∞'}
+                                            {game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards && ` (${t('game.limitReached')})`}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_leaderboards
+                                            ? Math.min(((game.usage?.leaderboards ?? 0) / game.limits.max_leaderboards) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
                                 {/* Journey Node */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">

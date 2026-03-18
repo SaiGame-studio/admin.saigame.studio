@@ -197,6 +197,7 @@ export const ja = {
   game: {
     shops: "ショップ",
     quests: "クエスト",
+    leaderboards: "リーダーボード",
     nodeDefinitions: "ジャーニーノード",
     eventTypes: "イベントタイプ",
     itemProfiles: "アイテムプロフィール",
@@ -874,6 +875,7 @@ export const ja = {
     items: "アイテム",
     shops: "ショップ",
     quests: "クエスト",
+    leaderboards: "リーダーボード",
     nodeDefinitions: "ジャーニーノード",
     eventTypes: "イベントタイプ",
     boards: "リーダーボード",
