@@ -87,11 +87,14 @@ import {
   deleteSeason,
   getBoardHistory,
   getCurrentSeasonRaw,
+  getSeasonArchive,
   getResetScheduleOptions,
   getScoreSourceTypeOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
   type CurrentSeasonRaw,
+  type SeasonArchiveRaw,
+  type SeasonArchiveEntry,
   type CreateBoardPayload,
   type UpdateBoardPayload,
   type ScoreMode,
@@ -1195,6 +1198,185 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
   )
 }
 
+// ─── Season Archive Sheet ─────────────────────────────────────────────────────
+
+interface ArchiveSheetProps {
+  target: { board: LeaderboardBoard; season: LeaderboardSeason } | null
+  studioId: string
+  gameId: string
+  onClose: () => void
+}
+
+const ARCHIVE_PAGE_SIZE = 100
+
+function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) {
+  const [data, setData] = useState<SeasonArchiveRaw | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
+
+  useEffect(() => {
+    if (!target) return
+    setData(null)
+    setLoadError(false)
+    setIdentities({})
+    setOffset(0)
+  }, [target])
+
+  useEffect(() => {
+    if (!target) return
+    setLoading(true)
+    setLoadError(false)
+    getSeasonArchive(studioId, gameId, target.board.id, target.season.id, offset, ARCHIVE_PAGE_SIZE)
+      .then(async (result) => {
+        setData(result)
+        const ids = result.entries.map((e) => e.user_id)
+        if (ids.length > 0) {
+          const map = await getPlayerIdentityMapByUserIds(ids)
+          setIdentities(map)
+        }
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }, [target, studioId, gameId, offset])
+
+  const totalPages = data ? Math.ceil(data.total / ARCHIVE_PAGE_SIZE) : 0
+  const currentPage = Math.floor(offset / ARCHIVE_PAGE_SIZE) + 1
+
+  return (
+    <Sheet open={!!target} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col">
+        <SheetHeader className="shrink-0">
+          <SheetTitle className="flex items-center gap-2">
+            <Archive className="h-5 w-5" />
+            {target?.board.name} — {target?.season.name} Archive
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
+              <Info className="h-8 w-8 opacity-40" />
+              <p className="text-sm">Failed to load archived scores.</p>
+            </div>
+          ) : data && (
+            <>
+              {/* Season info */}
+              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Name</p>
+                    <p className="font-medium">{data.season.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Season #</p>
+                    <p className="font-medium">{data.season.season_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Started At</p>
+                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Archived</p>
+                    <p className="font-medium">{data.total}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Entries table */}
+              {data.entries.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
+                  <Archive className="h-8 w-8 opacity-30" />
+                  <p className="text-sm">No archived entries found.</p>
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="h-8 text-xs w-[50px]">Rank</TableHead>
+                        <TableHead className="h-8 text-xs">Player</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Final Score</TableHead>
+                        <TableHead className="h-8 text-xs">Archived At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.entries.map((entry) => {
+                        const identity = identities[entry.user_id]
+                        return (
+                          <TableRow key={entry.id} className="text-xs">
+                            <TableCell className="py-2 font-medium">
+                              {entry.final_rank === 1 ? "🥇" : entry.final_rank === 2 ? "🥈" : entry.final_rank === 3 ? "🥉" : `#${entry.final_rank}`}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex flex-col gap-0.5">
+                                {identity?.username ? (
+                                  <span className="font-medium">{identity.username}</span>
+                                ) : null}
+                                <span className="font-mono text-muted-foreground text-[10px] flex items-center gap-1">
+                                  {entry.user_id}
+                                  <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2 text-right font-mono font-medium">
+                              {entry.final_score.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="py-2 font-mono text-muted-foreground">
+                              {formatDate(entry.archived_at)}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {data.total > ARCHIVE_PAGE_SIZE && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  <span>Page {currentPage} of {totalPages} · {data.total} total</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs px-2"
+                      disabled={offset === 0 || loading}
+                      onClick={() => setOffset(Math.max(0, offset - ARCHIVE_PAGE_SIZE))}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs px-2"
+                      disabled={offset + ARCHIVE_PAGE_SIZE >= data.total || loading}
+                      onClick={() => setOffset(offset + ARCHIVE_PAGE_SIZE)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ─── Board Row ────────────────────────────────────────────────────────────────
 
 interface BoardRowProps {
@@ -1207,11 +1389,12 @@ interface BoardRowProps {
   onCreateSeason: (name: string, startAt: string | null) => Promise<void>
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
+  onViewArchive: (season: LeaderboardSeason) => void
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
   const [showCreateRow, setShowCreateRow] = useState(false)
@@ -1249,6 +1432,10 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
     ? seasons.find((s) => !s.ended_at) ?? null
     : null
   const hasSeason = seasons != null ? !!activeSeasonFromHistory : !!board.season_id
+  // True only if a season has actually started and not yet ended
+  const hasActiveSeasonNow = seasons != null
+    ? seasons.some((s) => !s.ended_at && new Date(s.started_at) <= new Date())
+    : !!board.season_id
 
   return (
     <>
@@ -1288,15 +1475,26 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="View current season entries"
-              onClick={onViewEntries}
-            >
-              <BarChart2 className="h-3.5 w-3.5" />
-            </Button>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={!hasActiveSeasonNow ? 0 : undefined}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={!hasActiveSeasonNow}
+                      onClick={onViewEntries}
+                    >
+                      <BarChart2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
+                  {hasActiveSeasonNow ? "View current season entries" : "No active season — entries are only available when a season is currently running"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant="ghost"
               size="icon"
@@ -1619,7 +1817,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                           <TableHead className="h-8 text-xs">Ended At</TableHead>
                           <TableHead className="h-8 text-xs">Reward Dispatched</TableHead>
                           <TableHead className="h-8 text-xs">Status</TableHead>
-                          <TableHead className="h-8 text-xs w-[110px]">Actions</TableHead>
+                          <TableHead className="h-8 text-xs w-[150px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1781,6 +1979,26 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                         )}
                                       </Tooltip>
                                     </TooltipProvider>
+                                    <TooltipProvider delayDuration={100}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span tabIndex={!isEnded ? 0 : undefined}>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                              disabled={!isEnded}
+                                              onClick={(e) => { e.stopPropagation(); onViewArchive(s) }}
+                                            >
+                                              <Archive className="h-3 w-3" />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
+                                          {isEnded ? "View archived scores" : "Archive is only available after the season ends"}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
                                 )
                               })()}
@@ -1874,6 +2092,7 @@ function LeaderboardPageInner() {
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [deleteBoardItem, setDeleteBoardItem] = useState<LeaderboardBoard | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [archiveTarget, setArchiveTarget] = useState<{ board: LeaderboardBoard; season: LeaderboardSeason } | null>(null)
   const [seasonsMap, setSeasonsMap] = useState<Record<string, LeaderboardSeason[]>>({})
   const [seasonsLoadingIds, setSeasonsLoadingIds] = useState<Set<string>>(new Set())
 
@@ -2245,6 +2464,7 @@ function LeaderboardPageInner() {
                     onCreateSeason={(name, startAt) => handleCreateSeason(board, name, startAt)}
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
+                    onViewArchive={(season) => setArchiveTarget({ board, season })}
                     seasons={seasonsMap[board.id] ?? null}
                     seasonsLoading={seasonsLoadingIds.has(board.id)}
                   />
@@ -2285,6 +2505,12 @@ function LeaderboardPageInner() {
         studioId={studioId}
         gameId={gameId}
         onClose={() => setEntriesBoard(null)}
+      />
+      <ArchiveSheet
+        target={archiveTarget}
+        studioId={studioId}
+        gameId={gameId}
+        onClose={() => setArchiveTarget(null)}
       />
       <EndSeasonDialog
         board={endSeasonBoard}
