@@ -2247,22 +2247,12 @@ function LeaderboardPageInner() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+              <BreadcrumbLink href="/games">Games</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            {game?.studio_id && (
-              <>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href={`/studios/${game.studio_id}`}>
-                    {studio?.name || game.studio?.name || "Studio"}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator>/</BreadcrumbSeparator>
-              </>
-            )}
             <BreadcrumbItem>
               <BreadcrumbLink href={`/games/${gameId}`}>
-                {gameLoading ? gameId : (game?.name ?? gameId)}
+                {gameLoading ? <span className="inline-block w-20 h-3 bg-muted animate-pulse rounded" /> : (game?.name ?? gameId)}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
