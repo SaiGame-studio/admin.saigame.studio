@@ -1197,6 +1197,22 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                         Create Season
                       </Button>
                     )}
+                    {board.reset_schedule === "daily" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
+                      </Button>
+                    )}
                     {board.reset_schedule === "daily" && (
                       <Button
                         size="sm"
@@ -1232,6 +1248,75 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                       >
                         {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
                         Create Next Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "weekly" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "weekly" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-blue-600 border-blue-600/40 hover:bg-blue-50 hover:text-blue-700"
+                        disabled={savingNextSeason}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          setSavingNextSeason(true)
+                          try {
+                            const lastSeason = seasons && seasons.length > 0
+                              ? [...seasons].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()).pop()!
+                              : null
+                            const nextStart = lastSeason
+                              ? (() => {
+                                  const d = new Date(lastSeason.started_at)
+                                  d.setUTCDate(d.getUTCDate() + 7)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                              : (() => {
+                                  const d = new Date()
+                                  d.setUTCDate(d.getUTCDate() + 7)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                            const name = `Season ${(seasons?.length ?? 0) + 1}`
+                            await onCreateSeason(name, nextStart)
+                          } finally {
+                            setSavingNextSeason(false)
+                          }
+                        }}
+                      >
+                        {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                        Create Next Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "monthly" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
                       </Button>
                     )}
                     {board.reset_schedule === "monthly" && (
@@ -1295,7 +1380,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="h-8 text-xs">#</TableHead>
                           <TableHead className="h-8 text-xs">Season ID</TableHead>
                           <TableHead className="h-8 text-xs">Name</TableHead>
                           <TableHead className="h-8 text-xs">
@@ -1317,7 +1401,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                       <TableBody>
                         {showCreateRow && (
                           <TableRow className="bg-green-500/5 border-b border-green-500/20">
-                            <TableCell className="text-xs py-2 text-muted-foreground">New</TableCell>
                             <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
                             <TableCell className="text-xs py-2">
                               <Input
@@ -1379,7 +1462,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                         )}
                         {seasons?.map((s) => (
                           <TableRow key={s.id}>
-                            <TableCell className="text-xs py-2">{s.season_number}</TableCell>
                             <TableCell className="text-xs py-2">
                               <div className="flex items-center gap-1">
                                 <span className="font-mono text-muted-foreground break-all">{s.id}</span>
@@ -1548,7 +1630,20 @@ function LeaderboardPageInner() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [expandedBoardId, setExpandedBoardId] = useState<string | null>(null)
+  const expandedLsKey = `lb_expanded_${gameId}`
+  const [expandedBoardId, setExpandedBoardIdRaw] = useState<string | null>(() => {
+    try { return localStorage.getItem(`lb_expanded_${gameId}`) ?? null } catch { return null }
+  })
+  const setExpandedBoardId = (val: string | null | ((prev: string | null) => string | null)) => {
+    setExpandedBoardIdRaw((prev) => {
+      const next = typeof val === "function" ? val(prev) : val
+      try {
+        if (next) localStorage.setItem(expandedLsKey, next)
+        else localStorage.removeItem(expandedLsKey)
+      } catch {}
+      return next
+    })
+  }
   const [createOpen, setCreateOpen] = useState(false)
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
@@ -1597,6 +1692,17 @@ function LeaderboardPageInner() {
   useEffect(() => {
     if (game?.studio_id) loadBoards()
   }, [game?.studio_id, loadBoards])
+
+  // Restore expanded board's season history after boards load
+  useEffect(() => {
+    if (!expandedBoardId || !game?.studio_id || seasonsMap[expandedBoardId]) return
+    setSeasonsLoadingIds((s) => new Set(s).add(expandedBoardId))
+    getBoardHistory(game.studio_id, gameId, expandedBoardId)
+      .then((seasons) => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: seasons })))
+      .catch(() => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: [] })))
+      .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(expandedBoardId); return n }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.studio_id, boards])
 
   const handleBoardCreated = (board: LeaderboardBoard) => {
     setBoards((prev) => [board, ...prev])
