@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2, Hammer,
-  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink, BarChart2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,10 +86,15 @@ import {
   endSeason,
   deleteSeason,
   getBoardHistory,
+  getCurrentSeasonRaw,
+  getSeasonArchive,
   getResetScheduleOptions,
   getScoreSourceTypeOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
+  type CurrentSeasonRaw,
+  type SeasonArchiveRaw,
+  type SeasonArchiveEntry,
   type CreateBoardPayload,
   type UpdateBoardPayload,
   type ScoreMode,
@@ -98,6 +103,7 @@ import {
   type ResetScheduleOption,
   type ScoreSourceTypeOption,
 } from "@/lib/leaderboard-api"
+import { getPlayerIdentityMapByUserIds, type PlayerIdentity } from "@/lib/game-user-api"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -981,6 +987,396 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
   )
 }
 
+// ─── Leaderboard Entries Sheet ────────────────────────────────────────────────
+
+interface LeaderboardEntriesSheetProps {
+  board: LeaderboardBoard | null
+  studioId: string
+  gameId: string
+  onClose: () => void
+}
+
+function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
+  const [data, setData] = useState<CurrentSeasonRaw | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
+  const [sourceRefName, setSourceRefName] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!board) return
+    setData(null)
+    setLoadError(false)
+    setIdentities({})
+    setSourceRefName(null)
+    setLoading(true)
+    getCurrentSeasonRaw(studioId, gameId, board.id)
+      .then(async (result) => {
+        setData(result)
+        const ids = result.entries.map((e) => e.user_id)
+        if (ids.length > 0) {
+          const map = await getPlayerIdentityMapByUserIds(ids)
+          setIdentities(map)
+        }
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+    if (board.score_source_ref_id) {
+      if (board.score_source_type?.includes("gacha")) {
+        getGachaPack({ gameId: board.game_id }, board.score_source_ref_id)
+          .then((res) => setSourceRefName(res.pack?.name ?? null))
+          .catch(() => {})
+      } else if (board.score_source_type?.includes("item")) {
+        getItemDefinition({ gameId: board.game_id }, board.score_source_ref_id)
+          .then((res) => setSourceRefName(res.item?.name ?? null))
+          .catch(() => {})
+      }
+    }
+  }, [board, studioId, gameId])
+
+  return (
+    <Sheet open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col">
+        <SheetHeader className="shrink-0">
+          <SheetTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" />
+            {board?.name} — Current Season
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
+              <Info className="h-8 w-8 opacity-40" />
+              <p className="text-sm">No active season found, or failed to load entries.</p>
+            </div>
+          ) : data && (
+            <>
+              {/* Season & board details */}
+              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Name</p>
+                    <p className="font-medium">{data.season.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Season #</p>
+                    <p className="font-medium">{data.season.season_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Started At</p>
+                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                  </div>
+                  {data.season.planned_end_at && (
+                    <div>
+                      <p className="text-muted-foreground">Planned End</p>
+                      <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-muted-foreground">Total Entries</p>
+                    <p className="font-medium">{data.total}</p>
+                  </div>
+                </div>
+                <div className="pt-1 border-t space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Board</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Board Key</p>
+                      <p className="font-mono">{board?.board_key}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Score Mode</p>
+                      <Badge variant="outline" className="text-xs capitalize">{board?.score_mode}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Sort</p>
+                      <Badge variant="outline" className="text-xs">{board?.sort_direction}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Reset Schedule</p>
+                      <Badge variant="outline" className={`text-xs capitalize border ${board ? resetScheduleBadge(board.reset_schedule) : ""}`}>{board?.reset_schedule}</Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground mb-0.5">Score Source</p>
+                      {board?.score_source_ref_id ? (
+                        board.score_source_type?.includes("gacha") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items?tab=gacha&editPack=${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Archive className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : board.score_source_type?.includes("item") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items/${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Package className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : (
+                          <p className="font-mono break-all">{board.score_source_ref_id}</p>
+                        )
+                      ) : (
+                        <p className="italic text-muted-foreground">—</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Entries table */}
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-8 text-xs w-14 text-center">Rank</TableHead>
+                      <TableHead className="h-8 text-xs">Player</TableHead>
+                      <TableHead className="h-8 text-xs text-right pr-4">Score</TableHead>
+                      <TableHead className="h-8 text-xs">Updated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.entries.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
+                          No entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : data.entries.map((entry) => {
+                      const identity = identities[entry.user_id]
+                      const rankIcon = entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : null
+                      return (
+                        <TableRow key={entry.user_id}>
+                          <TableCell className="text-xs py-2 text-center font-bold">
+                            {rankIcon ? <span>{rankIcon}</span> : `#${entry.rank}`}
+                          </TableCell>
+                          <TableCell className="text-xs py-2">
+                            <p className="font-medium">{identity?.display_name ?? `player_${entry.user_id.slice(0, 8)}`}</p>
+                            <div className="flex items-center gap-1">
+                              <p className="text-muted-foreground font-mono text-[10px]">{entry.user_id}</p>
+                              <CopyButton text={entry.user_id} size="h-3 w-3" />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 font-mono font-semibold text-right pr-4">
+                            {entry.score.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs py-2 text-muted-foreground whitespace-nowrap">
+                            {timeAgo(entry.updated_at)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {data.total > data.entries.length && (
+                <p className="text-xs text-muted-foreground text-right">
+                  Showing {data.entries.length} of {data.total} entries (limit {data.limit})
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ─── Season Archive Sheet ─────────────────────────────────────────────────────
+
+interface ArchiveSheetProps {
+  target: { board: LeaderboardBoard; season: LeaderboardSeason } | null
+  studioId: string
+  gameId: string
+  onClose: () => void
+}
+
+const ARCHIVE_PAGE_SIZE = 100
+
+function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) {
+  const [data, setData] = useState<SeasonArchiveRaw | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
+
+  useEffect(() => {
+    if (!target) return
+    setData(null)
+    setLoadError(false)
+    setIdentities({})
+    setOffset(0)
+  }, [target])
+
+  useEffect(() => {
+    if (!target) return
+    setLoading(true)
+    setLoadError(false)
+    getSeasonArchive(studioId, gameId, target.board.id, target.season.id, offset, ARCHIVE_PAGE_SIZE)
+      .then(async (result) => {
+        setData(result)
+        const ids = result.entries.map((e) => e.user_id)
+        if (ids.length > 0) {
+          const map = await getPlayerIdentityMapByUserIds(ids)
+          setIdentities(map)
+        }
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }, [target, studioId, gameId, offset])
+
+  const totalPages = data ? Math.ceil(data.total / ARCHIVE_PAGE_SIZE) : 0
+  const currentPage = Math.floor(offset / ARCHIVE_PAGE_SIZE) + 1
+
+  return (
+    <Sheet open={!!target} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col">
+        <SheetHeader className="shrink-0">
+          <SheetTitle className="flex items-center gap-2">
+            <Archive className="h-5 w-5" />
+            {target?.board.name} — {target?.season.name} Archive
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
+              <Info className="h-8 w-8 opacity-40" />
+              <p className="text-sm">Failed to load archived scores.</p>
+            </div>
+          ) : data && (
+            <>
+              {/* Season info */}
+              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Name</p>
+                    <p className="font-medium">{data.season.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Season #</p>
+                    <p className="font-medium">{data.season.season_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Started At</p>
+                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Archived</p>
+                    <p className="font-medium">{data.total}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Entries table */}
+              {data.entries.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
+                  <Archive className="h-8 w-8 opacity-30" />
+                  <p className="text-sm">No archived entries found.</p>
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="h-8 text-xs w-[50px]">Rank</TableHead>
+                        <TableHead className="h-8 text-xs">Player</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Final Score</TableHead>
+                        <TableHead className="h-8 text-xs">Archived At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.entries.map((entry) => {
+                        const identity = identities[entry.user_id]
+                        return (
+                          <TableRow key={entry.id} className="text-xs">
+                            <TableCell className="py-2 font-medium">
+                              {entry.final_rank === 1 ? "🥇" : entry.final_rank === 2 ? "🥈" : entry.final_rank === 3 ? "🥉" : `#${entry.final_rank}`}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex flex-col gap-0.5">
+                                {identity?.username ? (
+                                  <span className="font-medium">{identity.username}</span>
+                                ) : null}
+                                <span className="font-mono text-muted-foreground text-[10px] flex items-center gap-1">
+                                  {entry.user_id}
+                                  <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2 text-right font-mono font-medium">
+                              {entry.final_score.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="py-2 font-mono text-muted-foreground">
+                              {formatDate(entry.archived_at)}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {data.total > ARCHIVE_PAGE_SIZE && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  <span>Page {currentPage} of {totalPages} · {data.total} total</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs px-2"
+                      disabled={offset === 0 || loading}
+                      onClick={() => setOffset(Math.max(0, offset - ARCHIVE_PAGE_SIZE))}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs px-2"
+                      disabled={offset + ARCHIVE_PAGE_SIZE >= data.total || loading}
+                      onClick={() => setOffset(offset + ARCHIVE_PAGE_SIZE)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ─── Board Row ────────────────────────────────────────────────────────────────
 
 interface BoardRowProps {
@@ -989,14 +1385,16 @@ interface BoardRowProps {
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
+  onViewEntries: () => void
   onCreateSeason: (name: string, startAt: string | null) => Promise<void>
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
+  onViewArchive: (season: LeaderboardSeason) => void
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
   const [showCreateRow, setShowCreateRow] = useState(false)
@@ -1034,6 +1432,10 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
     ? seasons.find((s) => !s.ended_at) ?? null
     : null
   const hasSeason = seasons != null ? !!activeSeasonFromHistory : !!board.season_id
+  // True only if a season has actually started and not yet ended
+  const hasActiveSeasonNow = seasons != null
+    ? seasons.some((s) => !s.ended_at && new Date(s.started_at) <= new Date())
+    : !!board.season_id
 
   return (
     <>
@@ -1073,6 +1475,26 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={!hasActiveSeasonNow ? 0 : undefined}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={!hasActiveSeasonNow}
+                      onClick={onViewEntries}
+                    >
+                      <BarChart2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
+                  {hasActiveSeasonNow ? "View current season entries" : "No active season — entries are only available when a season is currently running"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant="ghost"
               size="icon"
@@ -1197,6 +1619,22 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                         Create Season
                       </Button>
                     )}
+                    {board.reset_schedule === "daily" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
+                      </Button>
+                    )}
                     {board.reset_schedule === "daily" && (
                       <Button
                         size="sm"
@@ -1232,6 +1670,75 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                       >
                         {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
                         Create Next Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "weekly" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "weekly" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-blue-600 border-blue-600/40 hover:bg-blue-50 hover:text-blue-700"
+                        disabled={savingNextSeason}
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          setSavingNextSeason(true)
+                          try {
+                            const lastSeason = seasons && seasons.length > 0
+                              ? [...seasons].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()).pop()!
+                              : null
+                            const nextStart = lastSeason
+                              ? (() => {
+                                  const d = new Date(lastSeason.started_at)
+                                  d.setUTCDate(d.getUTCDate() + 7)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                              : (() => {
+                                  const d = new Date()
+                                  d.setUTCDate(d.getUTCDate() + 7)
+                                  d.setUTCHours(0, 0, 0, 0)
+                                  return d.toISOString()
+                                })()
+                            const name = `Season ${(seasons?.length ?? 0) + 1}`
+                            await onCreateSeason(name, nextStart)
+                          } finally {
+                            setSavingNextSeason(false)
+                          }
+                        }}
+                      >
+                        {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                        Create Next Season
+                      </Button>
+                    )}
+                    {board.reset_schedule === "monthly" && !showCreateRow && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5 text-green-600 border-green-600/40 hover:bg-green-50 hover:text-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNewSeasonName(`Season ${(seasons?.length ?? 0) + 1}`)
+                          setNewSeasonStartAt("")
+                          setShowCreateRow(true)
+                        }}
+                      >
+                        <Play className="h-3 w-3" />
+                        Create Season
                       </Button>
                     )}
                     {board.reset_schedule === "monthly" && (
@@ -1295,7 +1802,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="h-8 text-xs">#</TableHead>
                           <TableHead className="h-8 text-xs">Season ID</TableHead>
                           <TableHead className="h-8 text-xs">Name</TableHead>
                           <TableHead className="h-8 text-xs">
@@ -1311,13 +1817,12 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                           <TableHead className="h-8 text-xs">Ended At</TableHead>
                           <TableHead className="h-8 text-xs">Reward Dispatched</TableHead>
                           <TableHead className="h-8 text-xs">Status</TableHead>
-                          <TableHead className="h-8 text-xs w-[110px]">Actions</TableHead>
+                          <TableHead className="h-8 text-xs w-[150px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {showCreateRow && (
                           <TableRow className="bg-green-500/5 border-b border-green-500/20">
-                            <TableCell className="text-xs py-2 text-muted-foreground">New</TableCell>
                             <TableCell className="text-xs py-2 text-muted-foreground">—</TableCell>
                             <TableCell className="text-xs py-2">
                               <Input
@@ -1379,7 +1884,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                         )}
                         {seasons?.map((s) => (
                           <TableRow key={s.id}>
-                            <TableCell className="text-xs py-2">{s.season_number}</TableCell>
                             <TableCell className="text-xs py-2">
                               <div className="flex items-center gap-1">
                                 <span className="font-mono text-muted-foreground break-all">{s.id}</span>
@@ -1475,6 +1979,26 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
                                         )}
                                       </Tooltip>
                                     </TooltipProvider>
+                                    <TooltipProvider delayDuration={100}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span tabIndex={!isEnded ? 0 : undefined}>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                              disabled={!isEnded}
+                                              onClick={(e) => { e.stopPropagation(); onViewArchive(s) }}
+                                            >
+                                              <Archive className="h-3 w-3" />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
+                                          {isEnded ? "View archived scores" : "Archive is only available after the season ends"}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
                                 )
                               })()}
@@ -1548,12 +2072,27 @@ function LeaderboardPageInner() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [expandedBoardId, setExpandedBoardId] = useState<string | null>(null)
+  const expandedLsKey = `lb_expanded_${gameId}`
+  const [expandedBoardId, setExpandedBoardIdRaw] = useState<string | null>(() => {
+    try { return localStorage.getItem(`lb_expanded_${gameId}`) ?? null } catch { return null }
+  })
+  const setExpandedBoardId = (val: string | null | ((prev: string | null) => string | null)) => {
+    setExpandedBoardIdRaw((prev) => {
+      const next = typeof val === "function" ? val(prev) : val
+      try {
+        if (next) localStorage.setItem(expandedLsKey, next)
+        else localStorage.removeItem(expandedLsKey)
+      } catch {}
+      return next
+    })
+  }
   const [createOpen, setCreateOpen] = useState(false)
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
+  const [entriesBoard, setEntriesBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [deleteBoardItem, setDeleteBoardItem] = useState<LeaderboardBoard | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [archiveTarget, setArchiveTarget] = useState<{ board: LeaderboardBoard; season: LeaderboardSeason } | null>(null)
   const [seasonsMap, setSeasonsMap] = useState<Record<string, LeaderboardSeason[]>>({})
   const [seasonsLoadingIds, setSeasonsLoadingIds] = useState<Set<string>>(new Set())
 
@@ -1597,6 +2136,17 @@ function LeaderboardPageInner() {
   useEffect(() => {
     if (game?.studio_id) loadBoards()
   }, [game?.studio_id, loadBoards])
+
+  // Restore expanded board's season history after boards load
+  useEffect(() => {
+    if (!expandedBoardId || !game?.studio_id || seasonsMap[expandedBoardId]) return
+    setSeasonsLoadingIds((s) => new Set(s).add(expandedBoardId))
+    getBoardHistory(game.studio_id, gameId, expandedBoardId)
+      .then((seasons) => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: seasons })))
+      .catch(() => setSeasonsMap((m) => ({ ...m, [expandedBoardId]: [] })))
+      .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(expandedBoardId); return n }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.studio_id, boards])
 
   const handleBoardCreated = (board: LeaderboardBoard) => {
     setBoards((prev) => [board, ...prev])
@@ -1910,9 +2460,11 @@ function LeaderboardPageInner() {
                     onToggle={() => handleToggleBoard(board)}
                     onEdit={() => setEditBoard(board)}
                     onDelete={() => setDeleteBoardItem(board)}
+                    onViewEntries={() => setEntriesBoard(board)}
                     onCreateSeason={(name, startAt) => handleCreateSeason(board, name, startAt)}
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
+                    onViewArchive={(season) => setArchiveTarget({ board, season })}
                     seasons={seasonsMap[board.id] ?? null}
                     seasonsLoading={seasonsLoadingIds.has(board.id)}
                   />
@@ -1947,6 +2499,18 @@ function LeaderboardPageInner() {
         onUpdated={handleBoardUpdated}
         studioId={studioId}
         gameId={gameId}
+      />
+      <LeaderboardEntriesSheet
+        board={entriesBoard}
+        studioId={studioId}
+        gameId={gameId}
+        onClose={() => setEntriesBoard(null)}
+      />
+      <ArchiveSheet
+        target={archiveTarget}
+        studioId={studioId}
+        gameId={gameId}
+        onClose={() => setArchiveTarget(null)}
       />
       <EndSeasonDialog
         board={endSeasonBoard}

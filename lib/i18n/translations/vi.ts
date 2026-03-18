@@ -197,6 +197,7 @@ export const vi = {
   game: {
     shops: "Cửa hàng",
     quests: "Nhiệm vụ",
+    leaderboards: "Bảng xếp hạng",
     nodeDefinitions: "Journey Node",
     eventTypes: "Event Types",
     itemProfiles: "Hồ sơ vật phẩm",
@@ -885,6 +886,7 @@ export const vi = {
     items: "Vật phẩm",
     shops: "Cửa hàng",
     quests: "Nhiệm vụ",
+    leaderboards: "Bảng xếp hạng",
     nodeDefinitions: "Journey Node",
     eventTypes: "Event Types",
     boards: "Leaderboard",

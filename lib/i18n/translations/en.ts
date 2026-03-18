@@ -197,6 +197,7 @@ export const en = {
   game: {
     shops: "Shops",
     quests: "Quests",
+    leaderboards: "Leaderboards",
     nodeDefinitions: "Journey Node",
     eventTypes: "Event Types",
     itemProfiles: "Item Profiles",
@@ -888,6 +889,7 @@ export const en = {
     items: "Items",
     shops: "Shops",
     quests: "Quests",
+    leaderboards: "Leaderboards",
     nodeDefinitions: "Journey Node",
     eventTypes: "Event Types",
     boards: "Leaderboards",

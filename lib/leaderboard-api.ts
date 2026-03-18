@@ -189,6 +189,91 @@ export async function getBoardHistory(
   return data.seasons ?? []
 }
 
+// ─── Current Season Raw ───────────────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number
+  user_id: string
+  score: number
+  metadata: Record<string, unknown> | null
+  updated_at: string
+}
+
+export interface CurrentSeasonRawSeason {
+  id: string
+  board_id: string
+  season_number: number
+  name: string
+  started_at: string
+  ended_at: string | null
+  reward_dispatched_at: string | null
+  planned_end_at: string | null
+}
+
+export interface CurrentSeasonRaw {
+  entries: LeaderboardEntry[]
+  limit: number
+  offset: number
+  season: CurrentSeasonRawSeason
+  total: number
+}
+
+export async function getCurrentSeasonRaw(
+  studioId: string,
+  gameId: string,
+  boardId: string
+): Promise<CurrentSeasonRaw> {
+  const data = await api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/current/raw`
+  )
+  return data
+}
+
+// ─── Season Archive Raw ───────────────────────────────────────────────────────
+
+export interface SeasonArchiveSeason {
+  id: string
+  board_id: string
+  season_number: number
+  name: string
+  started_at: string
+  ended_at: string | null
+  planned_end_at: string | null
+}
+
+export interface SeasonArchiveEntry {
+  id: string
+  board_id: string
+  season_id: string
+  user_id: string
+  final_score: number
+  final_rank: number
+  metadata: Record<string, unknown> | null
+  archived_at: string
+}
+
+export interface SeasonArchiveRaw {
+  season: SeasonArchiveSeason
+  entries: SeasonArchiveEntry[]
+  total: number
+  offset: number
+  limit: number
+}
+
+export async function getSeasonArchive(
+  studioId: string,
+  gameId: string,
+  boardId: string,
+  seasonId: string,
+  offset = 0,
+  limit = 100
+): Promise<SeasonArchiveRaw> {
+  const data = await api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/${seasonId}/raw?offset=${offset}&limit=${limit}`
+  )
+  return data
+}
+
 // ─── Reset Schedule Options ───────────────────────────────────────────────────
 
 export interface ResetScheduleOption {

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Tag } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Tag, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -1948,12 +1948,15 @@ function EquipmentsTab({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Equipment Slots</h2>
-          <p className="text-sm text-muted-foreground">
-            {slots.length}{" "}
-            <span className={slots.length >= 50 ? "text-destructive font-medium" : ""}>
-              / 50
-            </span>{" "}
-            slot{slots.length !== 1 ? "s" : ""} defined
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <span className={slots.length >= 5000 ? "text-destructive font-medium" : ""}>
+              {slots.length} / 5000
+            </span>
+            {" "}slot{slots.length !== 1 ? "s" : ""} defined
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/50">
+              <Lock className="h-3 w-3" />
+              System maximum, cannot be raised
+            </span>
           </p>
         </div>
         {headerActions}
