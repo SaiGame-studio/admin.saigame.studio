@@ -58,8 +58,9 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div id={id ?? "game-nav-buttons"} className="flex gap-1.5 flex-wrap items-center">
-        {/* Nav items */}
+      <div id={id ?? "game-nav-buttons"} className="flex items-center gap-1.5">
+        {/* Nav items — allowed to wrap */}
+        <div className="flex gap-1.5 flex-wrap items-center">
         {items.map(({ section, href, icon, label }) => {
           const isActive = active === section
           if (expanded) {
@@ -100,14 +101,15 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
             </Tooltip>
           )
         })}
+        </div>
 
-        {/* Toggle button */}
+        {/* Toggle button — never wraps */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={toggle}
             >
               {expanded
