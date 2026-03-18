@@ -189,6 +189,46 @@ export async function getBoardHistory(
   return data.seasons ?? []
 }
 
+// ─── Current Season Raw ───────────────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number
+  user_id: string
+  score: number
+  metadata: Record<string, unknown> | null
+  updated_at: string
+}
+
+export interface CurrentSeasonRawSeason {
+  id: string
+  board_id: string
+  season_number: number
+  name: string
+  started_at: string
+  ended_at: string | null
+  reward_dispatched_at: string | null
+  planned_end_at: string | null
+}
+
+export interface CurrentSeasonRaw {
+  entries: LeaderboardEntry[]
+  limit: number
+  offset: number
+  season: CurrentSeasonRawSeason
+  total: number
+}
+
+export async function getCurrentSeasonRaw(
+  studioId: string,
+  gameId: string,
+  boardId: string
+): Promise<CurrentSeasonRaw> {
+  const data = await api.get(
+    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/current/raw`
+  )
+  return data
+}
+
 // ─── Reset Schedule Options ───────────────────────────────────────────────────
 
 export interface ResetScheduleOption {

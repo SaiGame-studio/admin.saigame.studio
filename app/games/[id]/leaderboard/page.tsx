@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Pencil, Trophy, Loader2, ArrowLeft, Wand2, Hammer,
-  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink,
+  ChevronDown, ChevronRight, Play, StopCircle, History, Trash2, CalendarIcon, Check, X, Info, ChevronsUpDown, Archive, Package, ExternalLink, BarChart2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,10 +86,12 @@ import {
   endSeason,
   deleteSeason,
   getBoardHistory,
+  getCurrentSeasonRaw,
   getResetScheduleOptions,
   getScoreSourceTypeOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
+  type CurrentSeasonRaw,
   type CreateBoardPayload,
   type UpdateBoardPayload,
   type ScoreMode,
@@ -98,6 +100,7 @@ import {
   type ResetScheduleOption,
   type ScoreSourceTypeOption,
 } from "@/lib/leaderboard-api"
+import { getPlayerIdentityMapByUserIds, type PlayerIdentity } from "@/lib/game-user-api"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -981,6 +984,217 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
   )
 }
 
+// ─── Leaderboard Entries Sheet ────────────────────────────────────────────────
+
+interface LeaderboardEntriesSheetProps {
+  board: LeaderboardBoard | null
+  studioId: string
+  gameId: string
+  onClose: () => void
+}
+
+function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
+  const [data, setData] = useState<CurrentSeasonRaw | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
+  const [sourceRefName, setSourceRefName] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!board) return
+    setData(null)
+    setLoadError(false)
+    setIdentities({})
+    setSourceRefName(null)
+    setLoading(true)
+    getCurrentSeasonRaw(studioId, gameId, board.id)
+      .then(async (result) => {
+        setData(result)
+        const ids = result.entries.map((e) => e.user_id)
+        if (ids.length > 0) {
+          const map = await getPlayerIdentityMapByUserIds(ids)
+          setIdentities(map)
+        }
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+    if (board.score_source_ref_id) {
+      if (board.score_source_type?.includes("gacha")) {
+        getGachaPack({ gameId: board.game_id }, board.score_source_ref_id)
+          .then((res) => setSourceRefName(res.pack?.name ?? null))
+          .catch(() => {})
+      } else if (board.score_source_type?.includes("item")) {
+        getItemDefinition({ gameId: board.game_id }, board.score_source_ref_id)
+          .then((res) => setSourceRefName(res.item?.name ?? null))
+          .catch(() => {})
+      }
+    }
+  }, [board, studioId, gameId])
+
+  return (
+    <Sheet open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col">
+        <SheetHeader className="shrink-0">
+          <SheetTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" />
+            {board?.name} — Current Season
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
+              <Info className="h-8 w-8 opacity-40" />
+              <p className="text-sm">No active season found, or failed to load entries.</p>
+            </div>
+          ) : data && (
+            <>
+              {/* Season & board details */}
+              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Name</p>
+                    <p className="font-medium">{data.season.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Season #</p>
+                    <p className="font-medium">{data.season.season_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Started At</p>
+                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                  </div>
+                  {data.season.planned_end_at && (
+                    <div>
+                      <p className="text-muted-foreground">Planned End</p>
+                      <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-muted-foreground">Total Entries</p>
+                    <p className="font-medium">{data.total}</p>
+                  </div>
+                </div>
+                <div className="pt-1 border-t space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Board</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Board Key</p>
+                      <p className="font-mono">{board?.board_key}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Score Mode</p>
+                      <Badge variant="outline" className="text-xs capitalize">{board?.score_mode}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Sort</p>
+                      <Badge variant="outline" className="text-xs">{board?.sort_direction}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Reset Schedule</p>
+                      <Badge variant="outline" className={`text-xs capitalize border ${board ? resetScheduleBadge(board.reset_schedule) : ""}`}>{board?.reset_schedule}</Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground mb-0.5">Score Source</p>
+                      {board?.score_source_ref_id ? (
+                        board.score_source_type?.includes("gacha") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items?tab=gacha&editPack=${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Archive className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : board.score_source_type?.includes("item") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items/${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Package className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : (
+                          <p className="font-mono break-all">{board.score_source_ref_id}</p>
+                        )
+                      ) : (
+                        <p className="italic text-muted-foreground">—</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Entries table */}
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-8 text-xs w-14 text-center">Rank</TableHead>
+                      <TableHead className="h-8 text-xs">Player</TableHead>
+                      <TableHead className="h-8 text-xs text-right pr-4">Score</TableHead>
+                      <TableHead className="h-8 text-xs">Updated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.entries.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
+                          No entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : data.entries.map((entry) => {
+                      const identity = identities[entry.user_id]
+                      const rankIcon = entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : null
+                      return (
+                        <TableRow key={entry.user_id}>
+                          <TableCell className="text-xs py-2 text-center font-bold">
+                            {rankIcon ? <span>{rankIcon}</span> : `#${entry.rank}`}
+                          </TableCell>
+                          <TableCell className="text-xs py-2">
+                            <p className="font-medium">{identity?.display_name ?? `player_${entry.user_id.slice(0, 8)}`}</p>
+                            <div className="flex items-center gap-1">
+                              <p className="text-muted-foreground font-mono text-[10px]">{entry.user_id}</p>
+                              <CopyButton text={entry.user_id} size="h-3 w-3" />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs py-2 font-mono font-semibold text-right pr-4">
+                            {entry.score.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs py-2 text-muted-foreground whitespace-nowrap">
+                            {timeAgo(entry.updated_at)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {data.total > data.entries.length && (
+                <p className="text-xs text-muted-foreground text-right">
+                  Showing {data.entries.length} of {data.total} entries (limit {data.limit})
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ─── Board Row ────────────────────────────────────────────────────────────────
 
 interface BoardRowProps {
@@ -989,6 +1203,7 @@ interface BoardRowProps {
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
+  onViewEntries: () => void
   onCreateSeason: (name: string, startAt: string | null) => Promise<void>
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
@@ -996,7 +1211,7 @@ interface BoardRowProps {
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
   const [showCreateRow, setShowCreateRow] = useState(false)
@@ -1073,6 +1288,15 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onCreateSeason,
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="View current season entries"
+              onClick={onViewEntries}
+            >
+              <BarChart2 className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -1646,6 +1870,7 @@ function LeaderboardPageInner() {
   }
   const [createOpen, setCreateOpen] = useState(false)
   const [editBoard, setEditBoard] = useState<LeaderboardBoard | null>(null)
+  const [entriesBoard, setEntriesBoard] = useState<LeaderboardBoard | null>(null)
   const [endSeasonBoard, setEndSeasonBoard] = useState<LeaderboardBoard | null>(null)
   const [deleteBoardItem, setDeleteBoardItem] = useState<LeaderboardBoard | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -2016,6 +2241,7 @@ function LeaderboardPageInner() {
                     onToggle={() => handleToggleBoard(board)}
                     onEdit={() => setEditBoard(board)}
                     onDelete={() => setDeleteBoardItem(board)}
+                    onViewEntries={() => setEntriesBoard(board)}
                     onCreateSeason={(name, startAt) => handleCreateSeason(board, name, startAt)}
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
@@ -2053,6 +2279,12 @@ function LeaderboardPageInner() {
         onUpdated={handleBoardUpdated}
         studioId={studioId}
         gameId={gameId}
+      />
+      <LeaderboardEntriesSheet
+        board={entriesBoard}
+        studioId={studioId}
+        gameId={gameId}
+        onClose={() => setEntriesBoard(null)}
       />
       <EndSeasonDialog
         board={endSeasonBoard}
