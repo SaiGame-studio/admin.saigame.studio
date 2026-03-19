@@ -97,6 +97,7 @@ const phases: Phase[] = [
       { name: "Co-op Open World", description: "Large-scale open worlds supporting 4-8 player co-op gameplay with persistent world state" },
       { name: "Co-op Dungeons", description: "Instanced dungeon experiences with real-time team coordination" },
       { name: "Co-op Campaigns", description: "Story-driven cooperative campaigns with multiple players" },
+      { name: "In game trading", description: "Player-to-player item and resource trading system with secure transaction handling and fraud prevention" },
     ],
   },
   {
