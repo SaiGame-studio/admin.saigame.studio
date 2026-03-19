@@ -1,6 +1,5 @@
 import { api } from "@/lib/api-client"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
-import { getAllUsersAdmin } from "@/lib/admin-api"
 
 const PLAYER_IDENTITY_CACHE_KEY = "saigame_player_identity_cache_v1"
 
@@ -95,7 +94,8 @@ function saveIdentityCache(cache: PlayerIdentityCacheMap): void {
 
 export async function getPlayerIdentityMapByUserIds(
   userIds: string[],
-  seed?: Array<{ user_id: string; user_display_name?: string; user_email?: string }>
+  seed?: Array<{ user_id: string; user_display_name?: string; user_email?: string }>,
+  gameId?: string,
 ): Promise<Record<string, PlayerIdentity>> {
   const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)))
   if (uniqueUserIds.length === 0) return {}
@@ -135,12 +135,22 @@ export async function getPlayerIdentityMapByUserIds(
 
   if (missingUserIds.length > 0) {
     try {
-      const adminUsers = await getAllUsersAdmin()
-      const userMap = new Map(adminUsers.users.map((user) => [user.id, user]))
+      let userMap: Map<string, { display_name?: string; username?: string; email?: string }>
+
+      if (gameId) {
+        const { progress } = await getGameProgressList(gameId)
+        userMap = new Map(
+          progress.map((p) => [p.user_id, { display_name: p.user_display_name, email: p.user_email }])
+        )
+      } else {
+        const { getAllUsersAdmin } = await import("@/lib/admin-api")
+        const adminUsers = await getAllUsersAdmin()
+        userMap = new Map(adminUsers.users.map((user) => [user.id, user]))
+      }
 
       for (const userId of missingUserIds) {
         const user = userMap.get(userId)
-        const identity = buildIdentityFallback(userId, user?.display_name || user?.username, user?.email)
+        const identity = buildIdentityFallback(userId, user?.display_name || (user as any)?.username, user?.email)
         result[userId] = identity
         cache[userId] = identity
       }
@@ -148,7 +158,7 @@ export async function getPlayerIdentityMapByUserIds(
       for (const userId of missingUserIds) {
         result[userId] = buildIdentityFallback(userId)
       }
-      console.error("Failed to fetch player identities from admin endpoint", error)
+      console.error("Failed to fetch player identities", error)
     }
   }
 

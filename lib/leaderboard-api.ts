@@ -113,7 +113,7 @@ export async function updateBoard(
   boardId: string,
   payload: UpdateBoardPayload
 ): Promise<LeaderboardBoard> {
-  const data = await api.patch(
+  const data = await api.put(
     `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}`,
     payload
   )
