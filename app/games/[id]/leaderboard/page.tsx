@@ -1015,7 +1015,7 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
         setData(result)
         const ids = result.entries.map((e) => e.user_id)
         if (ids.length > 0) {
-          const map = await getPlayerIdentityMapByUserIds(ids)
+          const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
           setIdentities(map)
         }
       })
@@ -1233,7 +1233,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
         setData(result)
         const ids = result.entries.map((e) => e.user_id)
         if (ids.length > 0) {
-          const map = await getPlayerIdentityMapByUserIds(ids)
+          const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
           setIdentities(map)
         }
       })
