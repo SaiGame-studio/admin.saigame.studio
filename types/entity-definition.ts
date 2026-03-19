@@ -48,6 +48,7 @@ export interface CreateEntityDefinitionRequest {
 }
 
 export interface UpdateEntityDefinitionRequest {
+  entity_type?: EntityType
   name?: string
   description?: string
   icon_url?: string

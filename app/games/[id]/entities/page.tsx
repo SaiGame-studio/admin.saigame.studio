@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft,
-  ChevronRight, ChevronDown,
+  ChevronRight, ChevronDown, Wand2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -87,6 +87,10 @@ import type { Game } from "@/types/game"
 
 const DEFAULT_ENTITY_TYPES: EntityType[] = ["enemy", "boss", "room", "relic", "defense_unit", "npc"]
 const ENTITY_RARITIES: EntityRarity[] = ["common", "uncommon", "rare", "epic", "legendary"]
+
+function formatLabel(value: string) {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
   if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
@@ -174,11 +178,13 @@ function EntityInlineEditForm({
   gameId,
   onSaved,
   rarities,
+  availableTypes,
 }: {
   entity: EntityDefinition
   gameId: string
   onSaved: (updated: EntityDefinition) => void
   rarities: string[]
+  availableTypes: EntityType[]
 }) {
   const { toast } = useToast()
   const [editingField, setEditingField] = useState<keyof FormState | null>(null)
@@ -186,10 +192,18 @@ function EntityInlineEditForm({
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState<string | null>(null)
 
+  // stats per-row editor
+  const [editingStatKey, setEditingStatKey] = useState<string | "__new__" | null>(null)
+  const [editingStatFieldKey, setEditingStatFieldKey] = useState("")
+  const [editingStatFieldValue, setEditingStatFieldValue] = useState("")
+
   useEffect(() => {
     setFormState(entityToForm(entity))
     setEditingField(null)
     setJsonError(null)
+    setEditingStatKey(null)
+    setEditingStatFieldKey("")
+    setEditingStatFieldValue("")
   }, [entity])
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -210,7 +224,7 @@ function EntityInlineEditForm({
   }
 
   async function saveField() {
-    if (editingField === "stats" || editingField === "abilities" || editingField === "metadata") {
+    if (editingField === "abilities" || editingField === "metadata") {
       const raw = form[editingField] as string
       if (raw.trim()) {
         try { JSON.parse(raw) } catch {
@@ -226,6 +240,7 @@ function EntityInlineEditForm({
     setSaving(true)
     try {
       const body: UpdateEntityDefinitionRequest = {
+        entity_type: form.entity_type,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         icon_url: form.icon_url.trim() || undefined,
@@ -240,6 +255,65 @@ function EntityInlineEditForm({
       setEditingField(null)
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to save"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function startEditStat(originalKey: string, currentValue: string) {
+    setEditingStatKey(originalKey)
+    setEditingStatFieldKey(originalKey)
+    setEditingStatFieldValue(currentValue)
+  }
+
+  function startAddStat() {
+    setEditingStatKey("__new__")
+    setEditingStatFieldKey("")
+    setEditingStatFieldValue("")
+  }
+
+  function cancelEditStat() {
+    setEditingStatKey(null)
+    setEditingStatFieldKey("")
+    setEditingStatFieldValue("")
+  }
+
+  async function saveStat() {
+    const key = editingStatFieldKey.trim()
+    if (!key) return
+    const raw = editingStatFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    const existing = entity.stats ? { ...entity.stats } : {}
+    if (editingStatKey !== "__new__" && editingStatKey && editingStatKey !== key) {
+      delete existing[editingStatKey]
+    }
+    existing[key] = val
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { stats: existing })
+      toast({ title: "Saved", description: `Stat "${key}" saved` })
+      onSaved(updated)
+      setEditingStatKey(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteStat(key: string) {
+    const existing = entity.stats ? { ...entity.stats } : {}
+    delete existing[key]
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { stats: Object.keys(existing).length > 0 ? existing : undefined })
+      toast({ title: "Deleted", description: `Stat "${key}" removed` })
+      onSaved(updated)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to delete"
       toast({ title: "Error", description: msg, variant: "destructive" })
     } finally {
       setSaving(false)
@@ -271,155 +345,213 @@ function EntityInlineEditForm({
         <span><span className="font-sans font-medium text-foreground">Updated </span>{new Date(entity.updated_at).toLocaleString()}</span>
       </div>
 
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+      <div className="flex gap-8 items-start">
+        {/* ── Column 1 ── */}
+        <dl className="flex-1 space-y-4 min-w-0">
 
-        {/* name */}
-        <div>
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Name</dt>
-          <dd className="group flex items-center gap-1.5">
-            {isEditing("name") ? (
-              <>
-                <Input value={form.name} onChange={(e) => setField("name", e.target.value)} className="h-7 text-sm flex-1" disabled={saving} />
-                {saveCancel}
-              </>
-            ) : (
-              <>
-                <span className="text-sm font-medium">{entity.name || <span className="text-muted-foreground">—</span>}</span>
-                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("name")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
+          {/* name */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Name</dt>
+            <dd className="group flex items-center gap-1.5">
+              {isEditing("name") ? (
+                <>
+                  <Input value={form.name} onChange={(e) => setField("name", e.target.value)} className="h-7 text-sm flex-1" disabled={saving} />
+                  {saveCancel}
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-medium">{entity.name || <span className="text-muted-foreground">—</span>}</span>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("name")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
 
-        {/* rarity */}
-        <div>
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Rarity</dt>
-          <dd className="group flex items-center gap-1.5">
-            {isEditing("rarity") ? (
-              <>
-                <Select value={form.rarity} onValueChange={(v) => setField("rarity", v as EntityRarity)}>
-                  <SelectTrigger className="h-7 text-sm w-36"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {rarities.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {saveCancel}
-              </>
-            ) : (
-              <>
-                <RarityBadge rarity={entity.rarity} />
-                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("rarity")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
-
-        {/* description */}
-        <div className="sm:col-span-2">
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Description</dt>
-          <dd className="group flex items-start gap-1.5">
-            {isEditing("description") ? (
-              <>
-                <div className="flex-1 space-y-1">
-                  <Textarea rows={2} value={form.description} onChange={(e) => setField("description", e.target.value.slice(0, 500))} className="text-sm resize-none" disabled={saving} />
-                  <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
-                </div>
-                <div className="flex flex-col gap-1">{saveCancel}</div>
-              </>
-            ) : (
-              <>
-                <span className="text-sm">{entity.description || <span className="text-muted-foreground text-xs">—</span>}</span>
-                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
-
-        {/* icon_url */}
-        <div className="sm:col-span-2">
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Icon URL</dt>
-          <dd className="group flex items-center gap-1.5">
-            {isEditing("icon_url") ? (
-              <>
-                {form.icon_url && <img src={form.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" />}
-                <Input value={form.icon_url} onChange={(e) => setField("icon_url", e.target.value)} className="h-7 text-sm flex-1" placeholder="https://..." disabled={saving} />
-                {saveCancel}
-              </>
-            ) : (
-              <>
-                {entity.icon_url
-                  ? <div className="flex items-center gap-2"><img src={entity.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" /><span className="text-xs font-mono text-muted-foreground break-all">{entity.icon_url}</span></div>
-                  : <span className="text-muted-foreground text-xs">—</span>}
-                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("icon_url")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
-
-        {/* stats */}
-        <div>
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Stats</dt>
-          <dd className="group flex items-start gap-1.5">
-            {isEditing("stats") ? (
-              <div className="flex flex-col gap-1 flex-1">
-                <div className="flex items-start gap-1.5">
-                  <Textarea rows={4} value={form.stats} onChange={(e) => { setField("stats", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "hp": 60 }'} disabled={saving} />
+          {/* description */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Description</dt>
+            <dd className="group flex items-start gap-1.5">
+              {isEditing("description") ? (
+                <>
+                  <div className="flex-1 space-y-1">
+                    <Textarea rows={2} value={form.description} onChange={(e) => setField("description", e.target.value.slice(0, 500))} className="text-sm resize-none" disabled={saving} />
+                    <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
+                  </div>
                   <div className="flex flex-col gap-1">{saveCancel}</div>
-                </div>
-                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-              </div>
-            ) : (
-              <>
-                <div className="flex-1"><JsonReadonly value={entity.stats} /></div>
-                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("stats")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">{entity.description || <span className="text-muted-foreground text-xs">—</span>}</span>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
 
-        {/* abilities */}
-        <div>
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Abilities</dt>
-          <dd className="group flex items-start gap-1.5">
-            {isEditing("abilities") ? (
-              <div className="flex flex-col gap-1 flex-1">
-                <div className="flex items-start gap-1.5">
-                  <Textarea rows={4} value={form.abilities} onChange={(e) => { setField("abilities", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'[ { "id": "..." } ]'} disabled={saving} />
-                  <div className="flex flex-col gap-1">{saveCancel}</div>
-                </div>
-                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-              </div>
-            ) : (
-              <>
-                <div className="flex-1"><JsonReadonly value={entity.abilities} /></div>
-                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("abilities")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
+          {/* icon_url */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Icon URL</dt>
+            <dd className="group flex items-center gap-1.5">
+              {isEditing("icon_url") ? (
+                <>
+                  {form.icon_url && <img src={form.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" />}
+                  <Input value={form.icon_url} onChange={(e) => setField("icon_url", e.target.value)} className="h-7 text-sm flex-1" placeholder="https://..." disabled={saving} />
+                  {saveCancel}
+                </>
+              ) : (
+                <>
+                  {entity.icon_url
+                    ? <div className="flex items-center gap-2"><img src={entity.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" /><span className="text-xs font-mono text-muted-foreground break-all">{entity.icon_url}</span></div>
+                    : <span className="text-muted-foreground text-xs">—</span>}
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("icon_url")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
 
-        {/* metadata */}
-        <div className="sm:col-span-2">
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Metadata</dt>
-          <dd className="group flex items-start gap-1.5">
-            {isEditing("metadata") ? (
-              <div className="flex flex-col gap-1 flex-1">
-                <div className="flex items-start gap-1.5">
-                  <Textarea rows={3} value={form.metadata} onChange={(e) => { setField("metadata", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "key": "value" }'} disabled={saving} />
-                  <div className="flex flex-col gap-1">{saveCancel}</div>
-                </div>
-                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-              </div>
-            ) : (
-              <>
-                <div className="flex-1"><JsonReadonly value={entity.metadata} /></div>
-                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("metadata")}><Pencil className="w-3.5 h-3.5" /></Button>
-              </>
-            )}
-          </dd>
-        </div>
+          {/* rarity */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Rarity</dt>
+            <dd className="group flex items-center gap-1.5">
+              {isEditing("rarity") ? (
+                <>
+                  <Select value={form.rarity} onValueChange={(v) => setField("rarity", v as EntityRarity)}>
+                    <SelectTrigger className="h-7 text-sm w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {rarities.map((r) => <SelectItem key={r} value={r}>{formatLabel(r)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {saveCancel}
+                </>
+              ) : (
+                <>
+                  <RarityBadge rarity={entity.rarity} />
+                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("rarity")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
 
-      </dl>
+          {/* entity_type */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Type</dt>
+            <dd className="group flex items-center gap-1.5">
+              {isEditing("entity_type") ? (
+                <>
+                  <Select value={form.entity_type} onValueChange={(v) => setField("entity_type", v as EntityType)}>
+                    <SelectTrigger className="h-7 text-sm w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {availableTypes.map((t) => (
+                        <SelectItem key={t} value={t} className="capitalize">{ENTITY_TYPE_LABELS[t] ?? t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {saveCancel}
+                </>
+              ) : (
+                <>
+                  <EntityTypeBadge type={entity.entity_type} />
+                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("entity_type")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
+
+        </dl>
+
+        {/* ── Column 2 ── */}
+        <dl className="flex-1 space-y-4 min-w-0">
+
+          {/* stats */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Stats</dt>
+            <dd>
+              <div className="space-y-0.5">
+                {entity.stats && Object.entries(entity.stats).map(([k, v]) => (
+                  <div key={k} className="group/stat">
+                    {editingStatKey === k ? (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <Input value={editingStatFieldKey} onChange={(e) => setEditingStatFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} />
+                        <span className="text-muted-foreground text-xs">:</span>
+                        <Input value={editingStatFieldValue} onChange={(e) => setEditingStatFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveStat} disabled={saving}>
+                          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditStat} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50 cursor-pointer" onClick={() => startEditStat(k, String(v))}>
+                        <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                        <span className="text-xs text-muted-foreground">:</span>
+                        <span className="text-xs font-mono flex-1">{String(v)}</span>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/stat:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteStat(k) }} disabled={saving}><X className="w-3 h-3" /></Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {editingStatKey === "__new__" ? (
+                  <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                    <Input value={editingStatFieldKey} onChange={(e) => setEditingStatFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} autoFocus />
+                    <span className="text-muted-foreground text-xs">:</span>
+                    <Input value={editingStatFieldValue} onChange={(e) => setEditingStatFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveStat} disabled={saving}>
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditStat} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={startAddStat} disabled={saving || editingStatKey !== null}>
+                    <Plus className="w-3 h-3" /> Add field
+                  </Button>
+                )}
+              </div>
+            </dd>
+          </div>
+
+          {/* abilities */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Abilities</dt>
+            <dd className="group flex items-start gap-1.5">
+              {isEditing("abilities") ? (
+                <div className="flex flex-col gap-1 flex-1">
+                  <div className="flex items-start gap-1.5">
+                    <Textarea rows={4} value={form.abilities} onChange={(e) => { setField("abilities", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'[ { "id": "..." } ]'} disabled={saving} />
+                    <div className="flex flex-col gap-1">{saveCancel}</div>
+                  </div>
+                  {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1"><JsonReadonly value={entity.abilities} /></div>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("abilities")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
+
+          {/* metadata */}
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Metadata</dt>
+            <dd className="group flex items-start gap-1.5">
+              {isEditing("metadata") ? (
+                <div className="flex flex-col gap-1 flex-1">
+                  <div className="flex items-start gap-1.5">
+                    <Textarea rows={3} value={form.metadata} onChange={(e) => { setField("metadata", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "key": "value" }'} disabled={saving} />
+                    <div className="flex flex-col gap-1">{saveCancel}</div>
+                  </div>
+                  {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1"><JsonReadonly value={entity.metadata} /></div>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("metadata")}><Pencil className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </dd>
+          </div>
+
+        </dl>
+      </div>
     </div>
   )
 }
@@ -456,6 +588,7 @@ export default function EntitiesPage() {
   const [form, setForm] = useState<FormState>(emptyForm())
   const [saving, setSaving] = useState(false)
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({})
+  const [autoSlug, setAutoSlug] = useState(true)
 
   // ── delete dialog ────────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null)
@@ -593,6 +726,7 @@ export default function EntitiesPage() {
   function openCreate() {
     setForm(emptyForm())
     setJsonErrors({})
+    setAutoSlug(true)
     setSheetOpen(true)
   }
 
@@ -945,6 +1079,7 @@ export default function EntitiesPage() {
                                     entity={detail}
                                     gameId={gameId}
                                     rarities={rarities}
+                                    availableTypes={availableTypes}
                                     onSaved={(updated) => {
                                       setEntities((prev) => prev.map((e) => e.id === updated.id ? updated : e))
                                       setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
@@ -976,17 +1111,55 @@ export default function EntitiesPage() {
           </SheetHeader>
 
           <div className="space-y-4 py-4">
+            {/* name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="name">
+                Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="name"
+                placeholder="e.g. Goblin Archer"
+                value={form.name}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setField("name", v)
+                  if (autoSlug) {
+                    setField("entity_key", v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""))
+                  }
+                }}
+              />
+            </div>
+
             {/* entity_key */}
             <div className="space-y-1.5">
               <Label htmlFor="entity_key">
                 Entity Key <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="entity_key"
-                placeholder="e.g. goblin_archer"
-                value={form.entity_key}
-                onChange={(e) => setField("entity_key", e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="entity_key"
+                  placeholder="e.g. goblin_archer"
+                  value={form.entity_key}
+                  onChange={(e) => {
+                    setAutoSlug(false)
+                    setField("entity_key", e.target.value)
+                  }}
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant={autoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0"
+                  title={autoSlug ? "Auto-slug is ON — key generated from name" : "Auto-slug is OFF — click to re-enable"}
+                  onClick={() => {
+                    setAutoSlug(true)
+                    setField("entity_key", form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""))
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">Unique slug identifier. Cannot be changed after creation.</p>
             </div>
 
@@ -1012,17 +1185,24 @@ export default function EntitiesPage() {
               </Select>
             </div>
 
-            {/* name */}
+            {/* rarity */}
             <div className="space-y-1.5">
-              <Label htmlFor="name">
-                Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="Display name"
-                value={form.name}
-                onChange={(e) => setField("name", e.target.value)}
-              />
+              <Label htmlFor="rarity">Rarity</Label>
+              <Select
+                value={form.rarity}
+                onValueChange={(v) => setField("rarity", v as EntityRarity)}
+              >
+                <SelectTrigger id="rarity">
+                  <SelectValue placeholder="Select rarity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rarities.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {formatLabel(r)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* description */}
@@ -1049,82 +1229,10 @@ export default function EntitiesPage() {
               />
             </div>
 
-            {/* rarity */}
-            <div className="space-y-1.5">
-              <Label htmlFor="rarity">Rarity</Label>
-              <Select
-                value={form.rarity}
-                onValueChange={(v) => setField("rarity", v as EntityRarity)}
-              >
-                <SelectTrigger id="rarity">
-                  <SelectValue placeholder="Select rarity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rarities.map((r) => (
-                    <SelectItem key={r} value={r} className="capitalize">
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* stats */}
-            <div className="space-y-1.5">
-              <Label htmlFor="stats">Stats (JSON)</Label>
-              <Textarea
-                id="stats"
-                placeholder={'{\n  "hp": 60,\n  "atk": 12\n}'}
-                rows={4}
-                value={form.stats}
-                onChange={(e) => {
-                  setField("stats", e.target.value)
-                  validateJsonField("stats", e.target.value)
-                }}
-                className={jsonErrors.stats ? "border-destructive" : ""}
-              />
-              {jsonErrors.stats && (
-                <p className="text-xs text-destructive">{jsonErrors.stats}</p>
-              )}
-            </div>
-
             {/* abilities */}
-            <div className="space-y-1.5">
-              <Label htmlFor="abilities">Abilities (JSON array)</Label>
-              <Textarea
-                id="abilities"
-                placeholder={'[\n  {\n    "id": "ability_id",\n    "trigger": "on_hit",\n    "effect_type": "debuff"\n  }\n]'}
-                rows={5}
-                value={form.abilities}
-                onChange={(e) => {
-                  setField("abilities", e.target.value)
-                  validateJsonField("abilities", e.target.value)
-                }}
-                className={jsonErrors.abilities ? "border-destructive" : ""}
-              />
-              {jsonErrors.abilities && (
-                <p className="text-xs text-destructive">{jsonErrors.abilities}</p>
-              )}
-            </div>
-
             {/* metadata */}
-            <div className="space-y-1.5">
-              <Label htmlFor="metadata">Metadata (JSON)</Label>
-              <Textarea
-                id="metadata"
-                placeholder={'{\n  "drop_table": "goblin_common"\n}'}
-                rows={3}
-                value={form.metadata}
-                onChange={(e) => {
-                  setField("metadata", e.target.value)
-                  validateJsonField("metadata", e.target.value)
-                }}
-                className={jsonErrors.metadata ? "border-destructive" : ""}
-              />
-              {jsonErrors.metadata && (
-                <p className="text-xs text-destructive">{jsonErrors.metadata}</p>
-              )}
-            </div>
+            {/* (added via inline editor after creation) */}
           </div>
 
           <SheetFooter className="gap-2">
