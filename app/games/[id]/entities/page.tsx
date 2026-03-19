@@ -1311,24 +1311,21 @@ export default function EntitiesPage() {
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() => toggleExpand(entity)}
                           >
-                            <TableCell className="font-mono text-xs">
+                            <TableCell>
                               <div className="flex items-center gap-1.5">
                                 {isExpanded
                                   ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                   : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                <div className="font-medium">{entity.name}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              <div className="flex items-center gap-1.5">
                                 <span>{entity.entity_key}</span>
                                 <span onClick={(e) => e.stopPropagation()}>
                                   <CopyButton text={entity.entity_key} />
                                 </span>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{entity.name}</div>
-                              {entity.description && (
-                                <div className="text-xs text-muted-foreground truncate max-w-[240px]">
-                                  {entity.description}
-                                </div>
-                              )}
                             </TableCell>
                             <TableCell>
                               <EntityTypeBadge type={entity.entity_type} />
