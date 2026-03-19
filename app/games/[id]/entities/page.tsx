@@ -92,6 +92,10 @@ function formatLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function randomAbilityId() {
+  return "ability_" + Math.random().toString(36).slice(2, 8)
+}
+
 function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
   if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
   const c = ENTITY_RARITY_COLORS[rarity]
@@ -197,6 +201,18 @@ function EntityInlineEditForm({
   const [editingStatFieldKey, setEditingStatFieldKey] = useState("")
   const [editingStatFieldValue, setEditingStatFieldValue] = useState("")
 
+  // metadata per-row editor
+  const [editingMetaKey, setEditingMetaKey] = useState<string | "__new__" | null>(null)
+  const [editingMetaFieldKey, setEditingMetaFieldKey] = useState("")
+  const [editingMetaFieldValue, setEditingMetaFieldValue] = useState("")
+
+  // abilities 2-level editor
+  const [expandedAbilityIdx, setExpandedAbilityIdx] = useState<number | null>(null)
+  const [editingAbilityIdx, setEditingAbilityIdx] = useState<number | null>(null)
+  const [editingAbilityKey, setEditingAbilityKey] = useState<string | "__new__" | null>(null)
+  const [editingAbilityFieldKey, setEditingAbilityFieldKey] = useState("")
+  const [editingAbilityFieldValue, setEditingAbilityFieldValue] = useState("")
+
   useEffect(() => {
     setFormState(entityToForm(entity))
     setEditingField(null)
@@ -204,6 +220,14 @@ function EntityInlineEditForm({
     setEditingStatKey(null)
     setEditingStatFieldKey("")
     setEditingStatFieldValue("")
+    setEditingMetaKey(null)
+    setEditingMetaFieldKey("")
+    setEditingMetaFieldValue("")
+    setExpandedAbilityIdx(null)
+    setEditingAbilityIdx(null)
+    setEditingAbilityKey(null)
+    setEditingAbilityFieldKey("")
+    setEditingAbilityFieldValue("")
   }, [entity])
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -320,6 +344,183 @@ function EntityInlineEditForm({
     }
   }
 
+  function startEditMeta(originalKey: string, currentValue: string) {
+    setEditingMetaKey(originalKey)
+    setEditingMetaFieldKey(originalKey)
+    setEditingMetaFieldValue(currentValue)
+  }
+
+  function startAddMeta() {
+    setEditingMetaKey("__new__")
+    setEditingMetaFieldKey("")
+    setEditingMetaFieldValue("")
+  }
+
+  function cancelEditMeta() {
+    setEditingMetaKey(null)
+    setEditingMetaFieldKey("")
+    setEditingMetaFieldValue("")
+  }
+
+  async function saveMeta() {
+    const key = editingMetaFieldKey.trim()
+    if (!key) return
+    const raw = editingMetaFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    const existing: Record<string, unknown> = entity.metadata ? { ...(entity.metadata as Record<string, unknown>) } : {}
+    if (editingMetaKey !== "__new__" && editingMetaKey && editingMetaKey !== key) {
+      delete existing[editingMetaKey]
+    }
+    existing[key] = val
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { metadata: existing })
+      toast({ title: "Saved", description: `Metadata "${key}" saved` })
+      onSaved(updated)
+      setEditingMetaKey(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteMeta(key: string) {
+    const existing: Record<string, unknown> = entity.metadata ? { ...(entity.metadata as Record<string, unknown>) } : {}
+    delete existing[key]
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { metadata: Object.keys(existing).length > 0 ? existing : undefined })
+      toast({ title: "Deleted", description: `Metadata "${key}" removed` })
+      onSaved(updated)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to delete"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── abilities helpers ──────────────────────────────────────────────────────
+  function getAbilities(): Record<string, unknown>[] {
+    if (!entity.abilities) return []
+    if (Array.isArray(entity.abilities)) return entity.abilities as unknown as Record<string, unknown>[]
+    return []
+  }
+
+  function toggleAbility(idx: number) {
+    setExpandedAbilityIdx((prev) => prev === idx ? null : idx)
+    setEditingAbilityIdx(null)
+    setEditingAbilityKey(null)
+    setEditingAbilityFieldKey("")
+    setEditingAbilityFieldValue("")
+  }
+
+  function startEditAbilityField(abilityIdx: number, fieldKey: string, fieldValue: string) {
+    setEditingAbilityIdx(abilityIdx)
+    setEditingAbilityKey(fieldKey)
+    setEditingAbilityFieldKey(fieldKey)
+    setEditingAbilityFieldValue(fieldValue)
+  }
+
+  function startAddAbilityField(abilityIdx: number) {
+    setEditingAbilityIdx(abilityIdx)
+    setEditingAbilityKey("__new__")
+    setEditingAbilityFieldKey("")
+    setEditingAbilityFieldValue("")
+  }
+
+  function cancelEditAbilityField() {
+    setEditingAbilityIdx(null)
+    setEditingAbilityKey(null)
+    setEditingAbilityFieldKey("")
+    setEditingAbilityFieldValue("")
+  }
+
+  async function saveAbilityField() {
+    const key = editingAbilityFieldKey.trim()
+    if (!key || editingAbilityIdx === null) return
+    const raw = editingAbilityFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    const abilities = getAbilities().map((ab, i) => {
+      if (i !== editingAbilityIdx) return ab
+      const updated = { ...ab }
+      if (editingAbilityKey !== "__new__" && editingAbilityKey && editingAbilityKey !== key) {
+        delete updated[editingAbilityKey]
+      }
+      updated[key] = val
+      return updated
+    })
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities as any })
+      toast({ title: "Saved", description: `Field "${key}" saved` })
+      onSaved(updated)
+      setEditingAbilityIdx(null)
+      setEditingAbilityKey(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteAbilityField(abilityIdx: number, fieldKey: string) {
+    const abilities = getAbilities().map((ab, i) => {
+      if (i !== abilityIdx) return ab
+      const updated = { ...ab }
+      delete updated[fieldKey]
+      return updated
+    })
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities as any })
+      toast({ title: "Deleted", description: `Field "${fieldKey}" removed` })
+      onSaved(updated)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to delete"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteAbility(abilityIdx: number) {
+    const abilities = getAbilities().filter((_, i) => i !== abilityIdx)
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities.length > 0 ? abilities as any : undefined })
+      toast({ title: "Deleted", description: "Ability removed" })
+      onSaved(updated)
+      if (expandedAbilityIdx === abilityIdx) setExpandedAbilityIdx(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to delete"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function addAbility() {
+    const abilities = [...getAbilities(), { id: randomAbilityId(), trigger: "passive" }]
+    setSaving(true)
+    try {
+      const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities as any })
+      toast({ title: "Added", description: "New ability added" })
+      onSaved(updated)
+      setExpandedAbilityIdx(abilities.length - 1)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to add"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const isEditing = (f: keyof FormState) => editingField === f
   const saveCancel = (
     <>
@@ -409,51 +610,97 @@ function EntityInlineEditForm({
             </dd>
           </div>
 
-          {/* rarity */}
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">Rarity</dt>
-            <dd className="group flex items-center gap-1.5">
-              {isEditing("rarity") ? (
-                <>
-                  <Select value={form.rarity} onValueChange={(v) => setField("rarity", v as EntityRarity)}>
-                    <SelectTrigger className="h-7 text-sm w-36"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {rarities.map((r) => <SelectItem key={r} value={r}>{formatLabel(r)}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {saveCancel}
-                </>
-              ) : (
-                <>
-                  <RarityBadge rarity={entity.rarity} />
-                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("rarity")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
-            </dd>
+          {/* rarity + entity_type */}
+          <div className="flex gap-4">
+            <div className="flex-1 min-w-0">
+              <dt className="text-xs font-medium text-muted-foreground mb-1">Rarity</dt>
+              <dd className="group flex items-center gap-1.5">
+                {isEditing("rarity") ? (
+                  <>
+                    <Select value={form.rarity} onValueChange={(v) => setField("rarity", v as EntityRarity)}>
+                      <SelectTrigger className="h-7 text-sm w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {rarities.map((r) => <SelectItem key={r} value={r}>{formatLabel(r)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {saveCancel}
+                  </>
+                ) : (
+                  <>
+                    <RarityBadge rarity={entity.rarity} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("rarity")}><Pencil className="w-3.5 h-3.5" /></Button>
+                  </>
+                )}
+              </dd>
+            </div>
+            <div className="flex-1 min-w-0">
+              <dt className="text-xs font-medium text-muted-foreground mb-1">Type</dt>
+              <dd className="group flex items-center gap-1.5">
+                {isEditing("entity_type") ? (
+                  <>
+                    <Select value={form.entity_type} onValueChange={(v) => setField("entity_type", v as EntityType)}>
+                      <SelectTrigger className="h-7 text-sm w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {availableTypes.map((t) => (
+                          <SelectItem key={t} value={t} className="capitalize">{ENTITY_TYPE_LABELS[t] ?? t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {saveCancel}
+                  </>
+                ) : (
+                  <>
+                    <EntityTypeBadge type={entity.entity_type} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("entity_type")}><Pencil className="w-3.5 h-3.5" /></Button>
+                  </>
+                )}
+              </dd>
+            </div>
           </div>
 
-          {/* entity_type */}
+          {/* metadata */}
           <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">Type</dt>
-            <dd className="group flex items-center gap-1.5">
-              {isEditing("entity_type") ? (
-                <>
-                  <Select value={form.entity_type} onValueChange={(v) => setField("entity_type", v as EntityType)}>
-                    <SelectTrigger className="h-7 text-sm w-40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {availableTypes.map((t) => (
-                        <SelectItem key={t} value={t} className="capitalize">{ENTITY_TYPE_LABELS[t] ?? t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {saveCancel}
-                </>
-              ) : (
-                <>
-                  <EntityTypeBadge type={entity.entity_type} />
-                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("entity_type")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
+            <dt className="text-xs font-medium text-muted-foreground mb-1">Metadata</dt>
+            <dd>
+              <div className="space-y-0.5">
+                {entity.metadata && Object.entries(entity.metadata as Record<string, unknown>).map(([k, v]) => (
+                  <div key={k} className="group/meta">
+                    {editingMetaKey === k ? (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} />
+                        <span className="text-muted-foreground text-xs">:</span>
+                        <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
+                          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMeta} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50 cursor-pointer" onClick={() => startEditMeta(k, String(v))}>
+                        <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                        <span className="text-xs text-muted-foreground">:</span>
+                        <span className="text-xs font-mono flex-1">{String(v)}</span>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteMeta(k) }} disabled={saving}><X className="w-3 h-3" /></Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {editingMetaKey === "__new__" ? (
+                  <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                    <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} autoFocus />
+                    <span className="text-muted-foreground text-xs">:</span>
+                    <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMeta} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={startAddMeta} disabled={saving || editingMetaKey !== null}>
+                    <Plus className="w-3 h-3" /> Add field
+                  </Button>
+                )}
+              </div>
             </dd>
           </div>
 
@@ -511,42 +758,88 @@ function EntityInlineEditForm({
           {/* abilities */}
           <div>
             <dt className="text-xs font-medium text-muted-foreground mb-1">Abilities</dt>
-            <dd className="group flex items-start gap-1.5">
-              {isEditing("abilities") ? (
-                <div className="flex flex-col gap-1 flex-1">
-                  <div className="flex items-start gap-1.5">
-                    <Textarea rows={4} value={form.abilities} onChange={(e) => { setField("abilities", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'[ { "id": "..." } ]'} disabled={saving} />
-                    <div className="flex flex-col gap-1">{saveCancel}</div>
+            <dd>
+              <div className="space-y-1">
+                {getAbilities().map((ability, idx) => (
+                  <div key={idx} className="border rounded">
+                    {/* ability header */}
+                    <div
+                      className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-muted/50 group/ab"
+                      onClick={() => toggleAbility(idx)}
+                    >
+                      {expandedAbilityIdx === idx
+                        ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                        : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />}
+                      <span className="text-xs font-mono flex-1 truncate text-muted-foreground">
+                        {String((ability as any).id ?? (ability as any).name ?? `ability[${idx}]`)}
+                      </span>
+                      <Button
+                        size="icon" variant="ghost"
+                        className="h-5 w-5 shrink-0 opacity-0 group-hover/ab:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); deleteAbility(idx) }}
+                        disabled={saving}
+                      ><X className="w-3 h-3" /></Button>
+                    </div>
+                    {/* ability fields (expanded) */}
+                    {expandedAbilityIdx === idx && (
+                      <div className="px-2 pb-2 border-t space-y-0.5 pt-1">
+                        {Object.entries(ability).map(([k, v]) => (
+                          <div key={k} className="group/abfield">
+                            {editingAbilityIdx === idx && editingAbilityKey === k ? (
+                              <div className="flex items-center gap-1.5 py-0.5">
+                                <Input value={editingAbilityFieldKey} onChange={(e) => setEditingAbilityFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-28 font-mono" disabled={saving || k === "id" || k === "trigger"} />
+                                <span className="text-muted-foreground text-xs">:</span>
+                                <Input value={editingAbilityFieldValue} onChange={(e) => setEditingAbilityFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveAbilityField} disabled={saving}>
+                                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditAbilityField} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                              </div>
+                            ) : (
+                              <div
+                                className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50 cursor-pointer"
+                                onClick={() => startEditAbilityField(idx, k, String(v))}
+                              >
+                                <span className="text-xs font-mono text-muted-foreground w-28 truncate shrink-0">
+                                  {k}{(k === "id" || k === "trigger") && <span className="text-destructive ml-0.5">*</span>}
+                                </span>
+                                <span className="text-xs text-muted-foreground">:</span>
+                                <span className="text-xs font-mono flex-1">{String(v)}</span>
+                                {k !== "id" && k !== "trigger" && (
+                                  <Button
+                                    size="icon" variant="ghost"
+                                    className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                    onClick={(e) => { e.stopPropagation(); deleteAbilityField(idx, k) }}
+                                    disabled={saving}
+                                  ><X className="w-3 h-3" /></Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {editingAbilityIdx === idx && editingAbilityKey === "__new__" ? (
+                          <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                            <Input value={editingAbilityFieldKey} onChange={(e) => setEditingAbilityFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-28 font-mono" disabled={saving} autoFocus />
+                            <span className="text-muted-foreground text-xs">:</span>
+                            <Input value={editingAbilityFieldValue} onChange={(e) => setEditingAbilityFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveAbilityField} disabled={saving}>
+                              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditAbilityField} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={() => startAddAbilityField(idx)} disabled={saving}>
+                            <Plus className="w-3 h-3" /> Add field
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-                </div>
-              ) : (
-                <>
-                  <div className="flex-1"><JsonReadonly value={entity.abilities} /></div>
-                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("abilities")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
-            </dd>
-          </div>
-
-          {/* metadata */}
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">Metadata</dt>
-            <dd className="group flex items-start gap-1.5">
-              {isEditing("metadata") ? (
-                <div className="flex flex-col gap-1 flex-1">
-                  <div className="flex items-start gap-1.5">
-                    <Textarea rows={3} value={form.metadata} onChange={(e) => { setField("metadata", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "key": "value" }'} disabled={saving} />
-                    <div className="flex flex-col gap-1">{saveCancel}</div>
-                  </div>
-                  {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-                </div>
-              ) : (
-                <>
-                  <div className="flex-1"><JsonReadonly value={entity.metadata} /></div>
-                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("metadata")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
+                ))}
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={addAbility} disabled={saving}>
+                  <Plus className="w-3 h-3" /> Add ability
+                </Button>
+              </div>
             </dd>
           </div>
 
