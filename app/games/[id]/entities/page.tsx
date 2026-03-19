@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
-  Plus, RefreshCw, Trash2, Pencil, Loader2, Search, X, Skull, ArrowLeft,
+  Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft,
+  ChevronRight, ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,9 +65,11 @@ import {
   createEntityDefinition,
   updateEntityDefinition,
   deleteEntityDefinition,
+  getEntityDefinition,
   getEntityDefinitionByKey,
   getEntityDefinitionTypes,
 } from "@/lib/entity-definition-api"
+import { fetchItemRarities } from "@/lib/inventory-api"
 import type {
   EntityDefinition,
   EntityType,
@@ -154,12 +157,280 @@ function entityToForm(e: EntityDefinition): FormState {
   }
 }
 
+// ─── inline edit form (shown inside expanded row) ────────────────────────────
+
+function JsonReadonly({ value }: { value: Record<string, unknown> | unknown[] | undefined }) {
+  if (!value || (Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0))
+    return <span className="text-muted-foreground text-xs">—</span>
+  return (
+    <pre className="text-xs font-mono bg-muted/40 rounded border px-2 py-1.5 overflow-x-auto whitespace-pre-wrap break-all">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  )
+}
+
+function EntityInlineEditForm({
+  entity,
+  gameId,
+  onSaved,
+  rarities,
+}: {
+  entity: EntityDefinition
+  gameId: string
+  onSaved: (updated: EntityDefinition) => void
+  rarities: string[]
+}) {
+  const { toast } = useToast()
+  const [editingField, setEditingField] = useState<keyof FormState | null>(null)
+  const [form, setFormState] = useState<FormState>(() => entityToForm(entity))
+  const [saving, setSaving] = useState(false)
+  const [jsonError, setJsonError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFormState(entityToForm(entity))
+    setEditingField(null)
+    setJsonError(null)
+  }, [entity])
+
+  function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setFormState((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function startEdit(field: keyof FormState) {
+    // reset to latest entity value before opening
+    setFormState(entityToForm(entity))
+    setJsonError(null)
+    setEditingField(field)
+  }
+
+  function cancelEdit() {
+    setFormState(entityToForm(entity))
+    setJsonError(null)
+    setEditingField(null)
+  }
+
+  async function saveField() {
+    if (editingField === "stats" || editingField === "abilities" || editingField === "metadata") {
+      const raw = form[editingField] as string
+      if (raw.trim()) {
+        try { JSON.parse(raw) } catch {
+          setJsonError("Invalid JSON")
+          return
+        }
+      }
+    }
+    if (editingField === "name" && !form.name.trim()) {
+      toast({ title: "Validation", description: "Name is required", variant: "destructive" })
+      return
+    }
+    setSaving(true)
+    try {
+      const body: UpdateEntityDefinitionRequest = {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        icon_url: form.icon_url.trim() || undefined,
+        rarity: (form.rarity || undefined) as EntityRarity | undefined,
+        stats: tryParseJson(form.stats),
+        abilities: tryParseJson(form.abilities) as any,
+        metadata: tryParseJson(form.metadata),
+      }
+      const updated = await updateEntityDefinition(gameId, entity.id, body)
+      toast({ title: "Saved", description: `"${updated.name}" updated` })
+      onSaved(updated)
+      setEditingField(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to save"
+      toast({ title: "Error", description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isEditing = (f: keyof FormState) => editingField === f
+  const saveCancel = (
+    <>
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={saveField} disabled={saving}>
+        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+      </Button>
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit} disabled={saving}>
+        <X className="w-3.5 h-3.5" />
+      </Button>
+    </>
+  )
+
+  return (
+    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
+      {/* meta strip */}
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs font-mono text-muted-foreground border-b pb-3">
+        <span className="flex items-center gap-1">
+          <span className="font-sans font-medium text-foreground">ID</span>
+          {entity.id}
+          <CopyButton text={entity.id} />
+        </span>
+        <span><span className="font-sans font-medium text-foreground">Created </span>{new Date(entity.created_at).toLocaleString()}</span>
+        <span><span className="font-sans font-medium text-foreground">Updated </span>{new Date(entity.updated_at).toLocaleString()}</span>
+      </div>
+
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+
+        {/* name */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Name</dt>
+          <dd className="group flex items-center gap-1.5">
+            {isEditing("name") ? (
+              <>
+                <Input value={form.name} onChange={(e) => setField("name", e.target.value)} className="h-7 text-sm flex-1" disabled={saving} />
+                {saveCancel}
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium">{entity.name || <span className="text-muted-foreground">—</span>}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("name")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* rarity */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Rarity</dt>
+          <dd className="group flex items-center gap-1.5">
+            {isEditing("rarity") ? (
+              <>
+                <Select value={form.rarity} onValueChange={(v) => setField("rarity", v as EntityRarity)}>
+                  <SelectTrigger className="h-7 text-sm w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {rarities.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {saveCancel}
+              </>
+            ) : (
+              <>
+                <RarityBadge rarity={entity.rarity} />
+                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("rarity")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* description */}
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Description</dt>
+          <dd className="group flex items-start gap-1.5">
+            {isEditing("description") ? (
+              <>
+                <div className="flex-1 space-y-1">
+                  <Textarea rows={2} value={form.description} onChange={(e) => setField("description", e.target.value.slice(0, 500))} className="text-sm resize-none" disabled={saving} />
+                  <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
+                </div>
+                <div className="flex flex-col gap-1">{saveCancel}</div>
+              </>
+            ) : (
+              <>
+                <span className="text-sm">{entity.description || <span className="text-muted-foreground text-xs">—</span>}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* icon_url */}
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Icon URL</dt>
+          <dd className="group flex items-center gap-1.5">
+            {isEditing("icon_url") ? (
+              <>
+                {form.icon_url && <img src={form.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" />}
+                <Input value={form.icon_url} onChange={(e) => setField("icon_url", e.target.value)} className="h-7 text-sm flex-1" placeholder="https://..." disabled={saving} />
+                {saveCancel}
+              </>
+            ) : (
+              <>
+                {entity.icon_url
+                  ? <div className="flex items-center gap-2"><img src={entity.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" /><span className="text-xs font-mono text-muted-foreground break-all">{entity.icon_url}</span></div>
+                  : <span className="text-muted-foreground text-xs">—</span>}
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("icon_url")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* stats */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Stats</dt>
+          <dd className="group flex items-start gap-1.5">
+            {isEditing("stats") ? (
+              <div className="flex flex-col gap-1 flex-1">
+                <div className="flex items-start gap-1.5">
+                  <Textarea rows={4} value={form.stats} onChange={(e) => { setField("stats", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "hp": 60 }'} disabled={saving} />
+                  <div className="flex flex-col gap-1">{saveCancel}</div>
+                </div>
+                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+              </div>
+            ) : (
+              <>
+                <div className="flex-1"><JsonReadonly value={entity.stats} /></div>
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("stats")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* abilities */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Abilities</dt>
+          <dd className="group flex items-start gap-1.5">
+            {isEditing("abilities") ? (
+              <div className="flex flex-col gap-1 flex-1">
+                <div className="flex items-start gap-1.5">
+                  <Textarea rows={4} value={form.abilities} onChange={(e) => { setField("abilities", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'[ { "id": "..." } ]'} disabled={saving} />
+                  <div className="flex flex-col gap-1">{saveCancel}</div>
+                </div>
+                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+              </div>
+            ) : (
+              <>
+                <div className="flex-1"><JsonReadonly value={entity.abilities} /></div>
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("abilities")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* metadata */}
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Metadata</dt>
+          <dd className="group flex items-start gap-1.5">
+            {isEditing("metadata") ? (
+              <div className="flex flex-col gap-1 flex-1">
+                <div className="flex items-start gap-1.5">
+                  <Textarea rows={3} value={form.metadata} onChange={(e) => { setField("metadata", e.target.value); setJsonError(null) }} className={`text-xs font-mono flex-1 resize-none ${jsonError ? "border-destructive" : ""}`} placeholder={'{ "key": "value" }'} disabled={saving} />
+                  <div className="flex flex-col gap-1">{saveCancel}</div>
+                </div>
+                {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+              </div>
+            ) : (
+              <>
+                <div className="flex-1"><JsonReadonly value={entity.metadata} /></div>
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("metadata")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+      </dl>
+    </div>
+  )
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function EntitiesPage() {
   const params = useParams<{ id: string }>()
   const gameId = params.id
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
 
   const [game, setGame] = useState<Game | null>(null)
@@ -168,6 +439,7 @@ export default function EntitiesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [typeFilter, setTypeFilter] = useState<EntityType | "all">("all")
   const [availableTypes, setAvailableTypes] = useState<EntityType[]>(DEFAULT_ENTITY_TYPES)
+  const [rarities, setRarities] = useState<string[]>(ENTITY_RARITIES)
 
   // ── name search (local) ─────────────────────────────────────────
   const [nameFilter, setNameFilter] = useState("")
@@ -179,9 +451,8 @@ export default function EntitiesPage() {
   const [keyLoading, setKeyLoading] = useState(false)
   const keyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── sheet state ──────────────────────────────────────────────────────────────
+  // ── create sheet state ───────────────────────────────────────────────────────
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<EntityDefinition | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [saving, setSaving] = useState(false)
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({})
@@ -189,6 +460,38 @@ export default function EntitiesPage() {
   // ── delete dialog ────────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // ── expandable rows ──────────────────────────────────────────────────────────
+  const [expandedId, setExpandedId] = useState<string | null>(
+    () => searchParams.get("expanded")
+  )
+  const [detailCache, setDetailCache] = useState<Record<string, EntityDefinition | "loading" | "error">>({}
+  )
+
+  // On mount: if URL already has ?expanded=..., kick off its detail fetch
+  useEffect(() => {
+    const id = searchParams.get("expanded")
+    if (!id) return
+    setDetailCache((prev) => ({ ...prev, [id]: "loading" }))
+    getEntityDefinition(gameId, id)
+      .then((detail) => setDetailCache((prev) => ({ ...prev, [id]: detail })))
+      .catch(() => setDetailCache((prev) => ({ ...prev, [id]: "error" })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function toggleExpand(entity: EntityDefinition) {
+    const next = expandedId === entity.id ? null : entity.id
+    setExpandedId(next)
+    const sp = new URLSearchParams(searchParams.toString())
+    if (next) sp.set("expanded", next)
+    else sp.delete("expanded")
+    router.replace(`?${sp.toString()}`, { scroll: false })
+    if (!next || detailCache[entity.id]) return
+    setDetailCache((prev) => ({ ...prev, [entity.id]: "loading" }))
+    getEntityDefinition(gameId, entity.id)
+      .then((detail) => setDetailCache((prev) => ({ ...prev, [entity.id]: detail })))
+      .catch(() => setDetailCache((prev) => ({ ...prev, [entity.id]: "error" })))
+  }
 
   // ── initial load ─────────────────────────────────────────────────────────────
   const loadData = useCallback(
@@ -225,6 +528,13 @@ export default function EntitiesPage() {
   useEffect(() => {
     getEntityDefinitionTypes()
       .then((types) => setAvailableTypes(types as EntityType[]))
+      .catch(() => {}) // keep defaults on failure
+  }, [])
+
+  // Fetch available rarities from API
+  useEffect(() => {
+    fetchItemRarities()
+      .then((list) => { if (list.length > 0) setRarities(list) })
       .catch(() => {}) // keep defaults on failure
   }, [])
 
@@ -281,31 +591,21 @@ export default function EntitiesPage() {
   }
 
   function openCreate() {
-    setEditTarget(null)
     setForm(emptyForm())
     setJsonErrors({})
     setSheetOpen(true)
   }
 
-  function openEdit(entity: EntityDefinition) {
-    setEditTarget(entity)
-    setForm(entityToForm(entity))
-    setJsonErrors({})
-    setSheetOpen(true)
-  }
-
   async function handleSave() {
-    // Validate required fields
     if (!form.name.trim()) {
       toast({ title: "Validation", description: "Name is required", variant: "destructive" })
       return
     }
-    if (!editTarget && !form.entity_key.trim()) {
+    if (!form.entity_key.trim()) {
       toast({ title: "Validation", description: "Entity key is required", variant: "destructive" })
       return
     }
 
-    // Validate JSON fields
     const statsOk = validateJsonField("stats", form.stats)
     const abilitiesOk = validateJsonField("abilities", form.abilities)
     const metaOk = validateJsonField("metadata", form.metadata)
@@ -316,35 +616,20 @@ export default function EntitiesPage() {
 
     setSaving(true)
     try {
-      if (editTarget) {
-        const body: UpdateEntityDefinitionRequest = {
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-          icon_url: form.icon_url.trim() || undefined,
-          rarity: form.rarity || undefined,
-          stats: tryParseJson(form.stats),
-          abilities: tryParseJson(form.abilities) as any,
-          metadata: tryParseJson(form.metadata),
-        }
-        const updated = await updateEntityDefinition(gameId, editTarget.id, body)
-        setEntities((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
-        toast({ title: "Saved", description: `"${updated.name}" updated` })
-      } else {
-        const body: CreateEntityDefinitionRequest = {
-          entity_key: form.entity_key.trim(),
-          entity_type: form.entity_type,
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-          icon_url: form.icon_url.trim() || undefined,
-          rarity: form.rarity || undefined,
-          stats: tryParseJson(form.stats),
-          abilities: tryParseJson(form.abilities) as any,
-          metadata: tryParseJson(form.metadata),
-        }
-        const created = await createEntityDefinition(gameId, body)
-        setEntities((prev) => [...prev, created])
-        toast({ title: "Created", description: `"${created.name}" created` })
+      const body: CreateEntityDefinitionRequest = {
+        entity_key: form.entity_key.trim(),
+        entity_type: form.entity_type,
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        icon_url: form.icon_url.trim() || undefined,
+        rarity: form.rarity || undefined,
+        stats: tryParseJson(form.stats),
+        abilities: tryParseJson(form.abilities) as any,
+        metadata: tryParseJson(form.metadata),
       }
+      const created = await createEntityDefinition(gameId, body)
+      setEntities((prev) => [...prev, created])
+      toast({ title: "Created", description: `"${created.name}" created` })
       setSheetOpen(false)
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to save entity"
@@ -537,9 +822,6 @@ export default function EntitiesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(keyResult as EntityDefinition)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(keyResult as EntityDefinition)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -592,55 +874,89 @@ export default function EntitiesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayed.map((entity) => (
-                      <TableRow key={entity.id}>
-                        <TableCell className="font-mono text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span>{entity.entity_key}</span>
-                            <CopyButton text={entity.entity_key} />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{entity.name}</div>
-                          {entity.description && (
-                            <div className="text-xs text-muted-foreground truncate max-w-[240px]">
-                              {entity.description}
-                            </div>
+                    {displayed.map((entity) => {
+                      const isExpanded = expandedId === entity.id
+                      const detail = detailCache[entity.id]
+                      return (
+                        <>
+                          <TableRow
+                            key={entity.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => toggleExpand(entity)}
+                          >
+                            <TableCell className="font-mono text-xs">
+                              <div className="flex items-center gap-1.5">
+                                {isExpanded
+                                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                  : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                <span>{entity.entity_key}</span>
+                                <span onClick={(e) => e.stopPropagation()}>
+                                  <CopyButton text={entity.entity_key} />
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{entity.name}</div>
+                              {entity.description && (
+                                <div className="text-xs text-muted-foreground truncate max-w-[240px]">
+                                  {entity.description}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <EntityTypeBadge type={entity.entity_type} />
+                            </TableCell>
+                            <TableCell>
+                              <RarityBadge rarity={entity.rarity} />
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={entity.is_active ? "default" : "secondary"}>
+                                {entity.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div
+                                className="flex items-center justify-end gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  onClick={() => setDeleteTarget(entity)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow key={`${entity.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={6} className="px-6 py-4">
+                                {detail === "loading" ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading detail…
+                                  </div>
+                                ) : detail === "error" ? (
+                                  <p className="text-sm text-destructive">Failed to load entity detail.</p>
+                                ) : detail ? (
+                                  <EntityInlineEditForm
+                                    entity={detail}
+                                    gameId={gameId}
+                                    rarities={rarities}
+                                    onSaved={(updated) => {
+                                      setEntities((prev) => prev.map((e) => e.id === updated.id ? updated : e))
+                                      setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
+                                    }}
+                                  />
+                                ) : null}
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <EntityTypeBadge type={entity.entity_type} />
-                        </TableCell>
-                        <TableCell>
-                          <RarityBadge rarity={entity.rarity} />
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={entity.is_active ? "default" : "secondary"}>
-                            {entity.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => openEdit(entity)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteTarget(entity)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )
@@ -655,56 +971,46 @@ export default function EntitiesPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>
-              {editTarget ? `Edit — ${editTarget.name}` : "New Entity Definition"}
-            </SheetTitle>
-            <SheetDescription>
-              {editTarget
-                ? "Update fields and save changes."
-                : "Fill in the required fields to create a new entity."}
-            </SheetDescription>
+            <SheetTitle>New Entity Definition</SheetTitle>
+            <SheetDescription>Fill in the required fields to create a new entity.</SheetDescription>
           </SheetHeader>
 
           <div className="space-y-4 py-4">
-            {/* entity_key — only for create */}
-            {!editTarget && (
-              <div className="space-y-1.5">
-                <Label htmlFor="entity_key">
-                  Entity Key <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="entity_key"
-                  placeholder="e.g. goblin_archer"
-                  value={form.entity_key}
-                  onChange={(e) => setField("entity_key", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Unique slug identifier. Cannot be changed after creation.</p>
-              </div>
-            )}
+            {/* entity_key */}
+            <div className="space-y-1.5">
+              <Label htmlFor="entity_key">
+                Entity Key <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="entity_key"
+                placeholder="e.g. goblin_archer"
+                value={form.entity_key}
+                onChange={(e) => setField("entity_key", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Unique slug identifier. Cannot be changed after creation.</p>
+            </div>
 
-            {/* entity_type — only for create */}
-            {!editTarget && (
-              <div className="space-y-1.5">
-                <Label htmlFor="entity_type">
-                  Entity Type <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={form.entity_type}
-                  onValueChange={(v) => setField("entity_type", v as EntityType)}
-                >
-                  <SelectTrigger id="entity_type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTypes.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {ENTITY_TYPE_LABELS[t] ?? t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* entity_type */}
+            <div className="space-y-1.5">
+              <Label htmlFor="entity_type">
+                Entity Type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={form.entity_type}
+                onValueChange={(v) => setField("entity_type", v as EntityType)}
+              >
+                <SelectTrigger id="entity_type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTypes.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {ENTITY_TYPE_LABELS[t] ?? t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* name */}
             <div className="space-y-1.5">
@@ -727,8 +1033,9 @@ export default function EntitiesPage() {
                 placeholder="Optional description"
                 rows={2}
                 value={form.description}
-                onChange={(e) => setField("description", e.target.value)}
+                onChange={(e) => setField("description", e.target.value.slice(0, 500))}
               />
+              <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
             </div>
 
             {/* icon_url */}
@@ -746,15 +1053,14 @@ export default function EntitiesPage() {
             <div className="space-y-1.5">
               <Label htmlFor="rarity">Rarity</Label>
               <Select
-                value={form.rarity || "none"}
-                onValueChange={(v) => setField("rarity", v === "none" ? "" : (v as EntityRarity))}
+                value={form.rarity}
+                onValueChange={(v) => setField("rarity", v as EntityRarity)}
               >
                 <SelectTrigger id="rarity">
                   <SelectValue placeholder="Select rarity" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {ENTITY_RARITIES.map((r) => (
+                  {rarities.map((r) => (
                     <SelectItem key={r} value={r} className="capitalize">
                       {r}
                     </SelectItem>
@@ -829,7 +1135,7 @@ export default function EntitiesPage() {
             </SheetClose>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              {editTarget ? "Save Changes" : "Create Entity"}
+              Create Entity
             </Button>
           </SheetFooter>
         </SheetContent>
