@@ -19,6 +19,7 @@ export interface Plugin {
   event_types_grant: number
   gacha_grant: number
   boards_grant: number
+  entity_defs_grant: number
   cost_coins: number
   max_stacks: number
   sort_order: number
