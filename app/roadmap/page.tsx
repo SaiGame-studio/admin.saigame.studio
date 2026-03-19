@@ -68,6 +68,12 @@ const phases: Phase[] = [
       { name: "Quest Chain System", description: "Sequential and branching quest chains with unlock conditions and graph visualisation", completed: "Mar 4, 2026" },
       { name: "Daily Quest System", description: "Daily quest pools with weighted-random, fixed-rotation, weekly, and monthly assignment strategies", completed: "Mar 5, 2026" },
       { name: "Player Containers", description: "Grid-based inventory containers with item placement, grid visualisation, and per-player container management", completed: "Mar 6, 2026" },
+      { name: "Equipment Slot System", description: "Equippable item slots for player characters with active/inactive state management", completed: "Mar 10, 2026" },
+      { name: "Game Tags / Item Tags", description: "Categorization system for games and items with tag-based filtering and organization", completed: "Mar 10, 2026" },
+      { name: "Player Journey / Analytics", description: "Track player progression metrics, behavior analysis, and engagement analytics", completed: "Mar 13, 2026" },
+      { name: "Leaderboard System", description: "Ranked player leaderboards with scoring, seasonal resets, and real-time rankings", completed: "Mar 16, 2026" },
+      { name: "Achievement System", description: "Badge and achievement unlock system with milestone tracking and reward distribution", completed: "Mar 17, 2026" },
+      { name: "Entity Definitions", description: "Unified system for defining game entities, properties, and metadata", completed: "Mar 19, 2026" },
     ],
     planned: [
       { name: "Battle Pass", group: "Progression" },

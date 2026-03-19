@@ -108,6 +108,7 @@ interface PluginFormState {
   items_grant: string
   shops_grant: string
   node_defs_grant: string
+  entity_defs_grant: string
   event_types_grant: string
   boards_grant: string
   duration_days: string
@@ -122,6 +123,7 @@ const defaultForm: PluginFormState = {
   items_grant: "0",
   shops_grant: "0",
   node_defs_grant: "0",
+  entity_defs_grant: "0",
   event_types_grant: "0",
   boards_grant: "0",
   duration_days: "0",
@@ -137,6 +139,7 @@ function pluginToForm(p: Plugin): PluginFormState {
     items_grant: String(p.items_grant ?? 0),
     shops_grant: String(p.shops_grant ?? 0),
     node_defs_grant: String(p.node_defs_grant ?? 0),
+    entity_defs_grant: String(p.entity_defs_grant ?? 0),
     event_types_grant: String(p.event_types_grant ?? 0),
     boards_grant: String(p.boards_grant ?? 0),
     duration_days: String(p.duration_days ?? 0),
@@ -299,6 +302,7 @@ export default function AdminPluginsPage() {
         items_grant: Number(form.items_grant) || 0,
         shops_grant: Number(form.shops_grant) || 0,
         node_defs_grant: Number(form.node_defs_grant) || 0,
+        entity_defs_grant: Number(form.entity_defs_grant) || 0,
         event_types_grant: Number(form.event_types_grant) || 0,
         boards_grant: Number(form.boards_grant) || 0,
         duration_days: Number(form.duration_days) || null,
@@ -522,6 +526,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Shops</TableHead>
                     <TableHead>Quests</TableHead>
                     <TableHead>Journey Node</TableHead>
+                    <TableHead>Entity Defs</TableHead>
                     <TableHead>Event Types</TableHead>
                     <TableHead>Leaderboards</TableHead>
                     <TableHead>Duration</TableHead>
@@ -545,8 +550,7 @@ export default function AdminPluginsPage() {
                               : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                           </TableCell>
                           <TableCell className="font-medium">
-                            <div>{plugin.display_name}</div>
-                            <div className="text-xs text-muted-foreground font-mono flex items-center">{plugin.id}<CopyButton text={plugin.id} /></div>
+                            {plugin.display_name}
                           </TableCell>
                           <TableCell>{(plugin.ccu_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.profiles_grant ?? 0).toLocaleString()}</TableCell>
@@ -554,6 +558,7 @@ export default function AdminPluginsPage() {
                           <TableCell>{(plugin.shops_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.quests_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.node_defs_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.entity_defs_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.event_types_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.boards_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>
@@ -1166,6 +1171,7 @@ export default function AdminPluginsPage() {
                   { key: "items_grant", label: t('plugins.fieldItemsGrant') || "Items Grant" },
                   { key: "shops_grant", label: t('plugins.fieldShopsGrant') || "Shops Grant" },
                   { key: "node_defs_grant", label: t('plugins.fieldNodeDefsGrant') || "Journey Node Grant" },
+                  { key: "entity_defs_grant", label: t('plugins.fieldEntityDefsGrant') || "Entity Definitions Grant" },
                   { key: "event_types_grant", label: t('plugins.fieldEventTypesGrant') || "Event Types Grant" },
                   { key: "boards_grant", label: t('plugins.fieldBoardsGrant') || "Leaderboard Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
