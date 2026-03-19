@@ -1390,11 +1390,12 @@ interface BoardRowProps {
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
   onViewArchive: (season: LeaderboardSeason) => void
+  onUpdateStatus: (board: LeaderboardBoard, is_active: boolean) => Promise<void>
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, onUpdateStatus, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
   const [showCreateRow, setShowCreateRow] = useState(false)
@@ -1452,7 +1453,10 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
           </div>
         </TableCell>
         <TableCell>
-          <span className="font-mono text-xs text-muted-foreground">{board.board_key}</span>
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-xs text-muted-foreground">{board.board_key}</span>
+            <CopyButton text={board.board_key} size="h-3 w-3" />
+          </div>
         </TableCell>
         <TableCell>
           <Badge variant="outline" className="text-xs capitalize">{board.score_mode}</Badge>
@@ -1464,9 +1468,13 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
           <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
         </TableCell>
         <TableCell>
-          {board.is_active
-            ? <Badge variant="default" className="text-xs">Active</Badge>
-            : <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+          <Switch
+            checked={board.is_active}
+            onCheckedChange={(checked) => {
+              onUpdateStatus(board, checked)
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
         </TableCell>
         <TableCell>
           {hasSeason
@@ -2216,6 +2224,29 @@ function LeaderboardPageInner() {
     }
   }
 
+  const handleUpdateBoardStatus = async (board: LeaderboardBoard, is_active: boolean) => {
+    if (!studioId) return
+    try {
+      const payload: UpdateBoardPayload = {
+        name: board.name,
+        board_key: board.board_key,
+        is_active,
+        score_mode: board.score_mode,
+        sort_direction: board.sort_direction,
+        reset_schedule: board.reset_schedule,
+        score_source_type: board.score_source_type,
+        score_source_ref_id: board.score_source_ref_id,
+      }
+      await updateBoard(studioId, gameId, board.id, payload)
+      toast({ title: "Status updated", description: `Leaderboard is now ${is_active ? "active" : "inactive"}.` })
+      loadBoards(true)
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to update leaderboard status." })
+      }
+    }
+  }
+
   const handleToggleBoard = useCallback((board: LeaderboardBoard) => {
     const boardId = board.id
     setExpandedBoardId((prev) => prev === boardId ? null : boardId)
@@ -2455,6 +2486,7 @@ function LeaderboardPageInner() {
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
                     onViewArchive={(season) => setArchiveTarget({ board, season })}
+                    onUpdateStatus={(board, is_active) => handleUpdateBoardStatus(board, is_active)}
                     seasons={seasonsMap[board.id] ?? null}
                     seasonsLoading={seasonsLoadingIds.has(board.id)}
                   />
