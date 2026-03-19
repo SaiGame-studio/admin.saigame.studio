@@ -10,7 +10,7 @@ export interface GameLimits {
   max_leaderboards?: number
   max_daily_quest_sets?: number
   max_battle_pass_sets?: number
-  max_entity_definitions?: number
+  max_entity_defs?: number
 }
 
 export interface GameUsage {

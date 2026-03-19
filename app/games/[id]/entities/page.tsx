@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft,
-  ChevronRight, ChevronDown, Wand2,
+  ChevronRight, ChevronDown, Wand2, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,6 +56,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
@@ -1058,6 +1060,8 @@ export default function EntitiesPage() {
       setEntities((prev) => [...prev, created])
       toast({ title: "Created", description: `"${created.name}" created` })
       setSheetOpen(false)
+      // Refresh game data to update usage count
+      getGame(gameId).then(setGame).catch(() => {})
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to save entity"
       toast({ title: "Error", description: msg, variant: "destructive" })
@@ -1074,6 +1078,8 @@ export default function EntitiesPage() {
       setEntities((prev) => prev.filter((e) => e.id !== deleteTarget.id))
       toast({ title: "Deleted", description: `"${deleteTarget.name}" deleted` })
       setDeleteTarget(null)
+      // Refresh game data to update usage count
+      getGame(gameId).then(setGame).catch(() => {})
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to delete entity"
       toast({ title: "Error", description: msg, variant: "destructive" })
@@ -1112,8 +1118,34 @@ export default function EntitiesPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Entity Definitions</h1>
-            <p className="text-muted-foreground text-sm">
-              Entity can be alot of thing
+            <p className="text-muted-foreground flex items-center gap-2">
+              {game?.limits?.max_entity_defs != null
+                ? (() => {
+                    const used = game.usage?.entity_definitions ?? 0
+                    const max = game.limits.max_entity_defs
+                    return <>
+                    <span className={used >= max ? "text-destructive font-medium" : ""}>
+                      {used.toLocaleString()} / {max.toLocaleString()} entities
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          used >= max ? "bg-destructive" : used / max >= 0.8 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min((used / max) * 100, 100)}%` }}
+                      />
+                    </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
+                  })()
+                : entities.length > 0 ? `${entities.length} ${entities.length === 1 ? "entity" : "entities"} defined` : "No entities yet"
+              }
             </p>
           </div>
         </div>
@@ -1123,8 +1155,9 @@ export default function EntitiesPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-        <div>
+      <TooltipProvider>
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+          <div>
           <h2 className="text-lg font-semibold">Entities</h2>
           <p className="text-sm text-muted-foreground">
             {keyInput.trim()
@@ -1194,12 +1227,28 @@ export default function EntitiesPage() {
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button size="sm" className="h-8" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            New Entity
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                size="sm" 
+                className="h-8" 
+                onClick={openCreate}
+                disabled={game?.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                New Entity
+              </Button>
+            </TooltipTrigger>
+            {game?.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs && (
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p>Entity definitions limit reached ({game.usage?.entity_definitions} / {game.limits.max_entity_defs})</p>
+                <p className="text-xs text-muted-foreground mt-1">Upgrade your plugins to increase the limit</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
         </div>
       </div>
+      </TooltipProvider>
 
       {/* Key search result */}
       {keyInput.trim() && (
