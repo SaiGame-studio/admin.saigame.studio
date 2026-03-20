@@ -41,6 +41,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack, ContainerDefinition } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
@@ -148,6 +155,10 @@ export default function ItemDefinitionDetailPage() {
   const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({})
   const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({})
   const [savingGenConfig, setSavingGenConfig] = useState(false)
+
+  // explanation panel state
+  const [showExplanationPanel, setShowExplanationPanel] = useState(false)
+  const [explanationTopic, setExplanationTopic] = useState<'write_props' | 'update_qty' | null>(null)
 
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
@@ -767,7 +778,22 @@ export default function ItemDefinitionDetailPage() {
 
             {/* Allow Client Write Player Properties */}
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Allow client write properties</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground shrink-0">Allow client write properties</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setExplanationTopic('write_props')
+                    setShowExplanationPanel(true)
+                  }}
+                  title="Learn more about Write Props"
+                >
+                  <span className="text-[10px] font-bold">?</span>
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={item.client_writable ?? false}
@@ -784,7 +810,22 @@ export default function ItemDefinitionDetailPage() {
 
             {/* Allow Client Update Qty */}
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Allow client update qty</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground shrink-0">Allow client update qty</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setExplanationTopic('update_qty')
+                    setShowExplanationPanel(true)
+                  }}
+                  title="Learn more about Update Qty"
+                >
+                  <span className="text-[10px] font-bold">?</span>
+                </button>
+              </div>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={item.allow_client_update_qty ?? false}
@@ -1302,6 +1343,95 @@ export default function ItemDefinitionDetailPage() {
         })()}
 
       </div>
+
+      {/* ── Explanation Panel ───────────────────────────────────────────────── */}
+      <Sheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>
+              {explanationTopic === 'write_props' 
+                ? 'Write Props' 
+                : explanationTopic === 'update_qty' 
+                ? 'Update Qty' 
+                : 'Help'}
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 py-4 flex-1 overflow-y-auto">
+            {explanationTopic === 'write_props' && (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1.5">Write Props</h3>
+                  <p className="text-muted-foreground">
+                    Allows clients (players) to modify and update the item's player-specific properties directly.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients can update item properties without server validation</li>
+                    <li>Useful for cosmetic properties or client-side data</li>
+                    <li>Increases flexibility for custom player item modifications</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients cannot modify item properties</li>
+                    <li>All changes must go through the server API</li>
+                    <li>Better security for critical properties</li>
+                  </ul>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
+                  💡 <strong>Tip:</strong> Use this for non-critical properties like display names, colors, or personal notes.
+                </div>
+              </div>
+            )}
+
+            {explanationTopic === 'update_qty' && (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1.5">Update Qty</h3>
+                  <p className="text-muted-foreground">
+                    Allows clients to modify the quantity value of items they own.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients can directly update item quantities</li>
+                    <li>Faster item management on client side</li>
+                    <li>Useful for consumable or stackable items</li>
+                    <li>Reduces network requests for quantity updates</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Quantity changes must be validated by server</li>
+                    <li>Prevents accidental or malicious quantity modifications</li>
+                    <li>Better control over limited resource items</li>
+                    <li>More secure for valuable or currency-type items</li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
+                  ⚠️ <strong>Warning:</strong> Disable this for limited resources, premium items, or currency to prevent cheating.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <SheetFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>Close</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
