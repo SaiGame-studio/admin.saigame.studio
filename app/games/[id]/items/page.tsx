@@ -82,10 +82,17 @@ import {
   createItemTag,
   updateItemTag,
   deleteItemTag,
+  listPresetDefinitions,
+  createPresetDefinition,
+  updatePresetDefinition,
+  deletePresetDefinition,
   type ListItemsParams,
   type ItemTag,
   type CreateItemTagRequest,
   type UpdateItemTagRequest,
+  type PresetDefinition,
+  type CreatePresetDefinitionRequest,
+  type UpdatePresetDefinitionRequest,
 } from "@/lib/inventory-api"
 import type {
   ItemDefinition,
@@ -3224,6 +3231,17 @@ export default function GameItemsPage() {
   const [tagsLoading, setTagsLoading] = useState(false)
   const [tagsError, setTagsError] = useState<string | null>(null)
 
+  // preset tab state
+  const [presetDefs, setPresetDefs] = useState<PresetDefinition[]>([])
+  const [presetLoading, setPresetLoading] = useState(false)
+  const [presetError, setPresetError] = useState<string | null>(null)
+  const [presetSearch, setPresetSearch] = useState("")
+  const [presetSearchDebounced, setPresetSearchDebounced] = useState("")
+  const [showCreatePreset, setShowCreatePreset] = useState(false)
+  const [editingPreset, setEditingPreset] = useState<PresetDefinition | null>(null)
+  const [deletingPreset, setDeletingPreset] = useState<PresetDefinition | null>(null)
+  const [deletePresetLoading, setDeletePresetLoading] = useState(false)
+
   // gacha tab state
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaAllItems, setGachaAllItems] = useState<ItemDefinition[]>([])
@@ -3242,7 +3260,7 @@ export default function GameItemsPage() {
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags") {
+    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset") {
       setActiveTab(tab)
     }
     // initialize container search from URL `q` param
@@ -3269,6 +3287,12 @@ export default function GameItemsPage() {
     const t = setTimeout(() => setContainerSearchDebounced(containerSearch), 250)
     return () => clearTimeout(t)
   }, [containerSearch])
+
+  // debounce preset search
+  useEffect(() => {
+    const t = setTimeout(() => setPresetSearchDebounced(presetSearch), 250)
+    return () => clearTimeout(t)
+  }, [presetSearch])
 
   // sync container search to URL
   useEffect(() => {
@@ -3610,6 +3634,36 @@ export default function GameItemsPage() {
     return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "…"
   }
 
+  // ─── Preset Definitions ──────────────────────────────────────────────────────
+  const fetchPresetDefs = useCallback(async () => {
+    if (!gameId) return
+    setPresetLoading(true)
+    setPresetError(null)
+    try {
+      const result = await listPresetDefinitions({ gameId })
+      setPresetDefs(result.definitions ?? [])
+    } catch (err: any) {
+      setPresetError(err?.message ?? 'Failed to load preset definitions')
+    } finally {
+      setPresetLoading(false)
+    }
+  }, [gameId])
+
+  useEffect(() => {
+    if (activeTab === 'preset') {
+      fetchPresetDefs()
+    }
+  }, [activeTab, fetchPresetDefs])
+
+  const filteredPresetDefs = presetSearchDebounced
+    ? presetDefs.filter(
+        (d) =>
+          d.name.toLowerCase().includes(presetSearchDebounced.toLowerCase()) ||
+          d.preset_type.toLowerCase().includes(presetSearchDebounced.toLowerCase()) ||
+          d.id.toLowerCase().includes(presetSearchDebounced.toLowerCase()),
+      )
+    : presetDefs
+
   const totalPages = Math.ceil(total / LIMIT)
   const currentPage = Math.floor(offset / LIMIT) + 1
 
@@ -3688,6 +3742,7 @@ export default function GameItemsPage() {
             <TabsTrigger value="gacha">Gacha</TabsTrigger>
             <TabsTrigger value="generators">Generators</TabsTrigger>
             <TabsTrigger value="equipments">Equipments</TabsTrigger>
+            <TabsTrigger value="preset">Preset</TabsTrigger>
           </TabsList>
 
         <TabsContent value="catalogue" className="space-y-4">
@@ -4579,6 +4634,154 @@ export default function GameItemsPage() {
             activeTab={activeTab}
           />
         </TabsContent>
+
+        <TabsContent value="preset" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Preset Definitions</h2>
+              {(() => {
+                const used = presetDefs.length
+                const max = 500
+                const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
+                return (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span className={used >= max ? "text-destructive font-medium" : ""}>
+                      {used.toLocaleString()} / {max.toLocaleString()}
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </span>
+                    <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+                    {presetSearchDebounced && (
+                      <span className="text-xs text-muted-foreground">({filteredPresetDefs.length} matching)</span>
+                    )}
+                  </p>
+                )
+              })()}
+            </div>
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search by name, type or ID…"
+                  value={presetSearch}
+                  onChange={(e) => setPresetSearch(e.target.value)}
+                  className="pl-8 h-8 w-64 text-sm"
+                />
+                {presetSearch && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setPresetSearch("")}
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button variant="outline" size="icon" onClick={fetchPresetDefs} title="Refresh">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => setShowCreatePreset(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Preset
+              </Button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <Card>
+            <CardContent className="p-0">
+              {presetLoading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : presetError ? (
+                <div className="p-6 text-center text-destructive">{presetError}</div>
+              ) : filteredPresetDefs.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">
+                    {presetSearchDebounced ? "No matching presets" : "No preset definitions"}
+                  </p>
+                  <p className="text-sm mt-1">
+                    {presetSearchDebounced
+                      ? `No presets match "${presetSearchDebounced}". Try a different keyword.`
+                      : `Click "New Preset" to create the first preset definition.`}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Preset Type</TableHead>
+                      <TableHead>Max Slots</TableHead>
+                      <TableHead>Metadata</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPresetDefs.map((def) => (
+                      <TableRow key={def.id} className="hover:bg-muted/40">
+                        <TableCell className="font-medium">
+                          {def.name}
+                          <div
+                            className="text-xs font-mono text-muted-foreground mt-0.5 max-w-[180px] truncate"
+                            title={def.id}
+                          >
+                            {def.id}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-blue-500/15 text-blue-400 border-blue-400/40 capitalize">
+                            {def.preset_type}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {def.max_slots}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                          {Object.keys(def.metadata ?? {}).length > 0
+                            ? Object.entries(def.metadata).map(([k, v]) => `${k}: ${v}`).join(", ")
+                            : <span className="italic">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit"
+                              onClick={() => setEditingPreset(def)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeletingPreset(def)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Create Item Modal */}
@@ -4950,6 +5153,266 @@ export default function GameItemsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Preset Create Sheet ──────────────────────────────────────────────── */}
+      <CreatePresetDefinitionSheet
+        open={showCreatePreset}
+        gameId={gameId}
+        onCreated={fetchPresetDefs}
+        onClose={() => setShowCreatePreset(false)}
+      />
+
+      {/* ── Preset Edit Sheet ────────────────────────────────────────────────── */}
+      {editingPreset && (
+        <EditPresetDefinitionSheet
+          open={!!editingPreset}
+          gameId={gameId}
+          definition={editingPreset}
+          onUpdated={fetchPresetDefs}
+          onClose={() => setEditingPreset(null)}
+        />
+      )}
+
+      {/* ── Preset Delete Confirmation ───────────────────────────────────────── */}
+      <AlertDialog open={!!deletingPreset} onOpenChange={(o) => { if (!o) setDeletingPreset(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete preset "{deletingPreset?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the preset definition. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePresetLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={async () => {
+                if (!deletingPreset) return
+                setDeletePresetLoading(true)
+                try {
+                  await deletePresetDefinition({ gameId }, deletingPreset.id)
+                  toast({ title: "Preset definition deleted" })
+                  setDeletingPreset(null)
+                  fetchPresetDefs()
+                } catch (err: any) {
+                  if (err?.status === 403) {
+                    toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to delete preset definitions." })
+                  } else {
+                    toast({ variant: "destructive", title: "Failed to delete", description: err?.message ?? "Unknown error" })
+                  }
+                } finally {
+                  setDeletePresetLoading(false)
+                }
+              }}
+              disabled={deletePresetLoading}
+            >
+              {deletePresetLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  )
+}
+
+// ─── Create Preset Definition Sheet ──────────────────────────────────────────
+function CreatePresetDefinitionSheet({
+  open,
+  gameId,
+  onCreated,
+  onClose,
+}: {
+  open: boolean
+  gameId: string
+  onCreated: () => void
+  onClose: () => void
+}) {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [name, setName] = useState("")
+  const [containerType, setContainerType] = useState("")
+  const [maxSlots, setMaxSlots] = useState("20")
+  const [meta, setMeta] = useState<{ key: string; value: string }[]>([])
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function resetForm() {
+    setName("")
+    setContainerType("")
+    setMaxSlots("20")
+    setMeta([])
+    setErrors({})
+  }
+
+  function validate(): boolean {
+    const e: Record<string, string> = {}
+    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
+    if (!containerType.trim()) e.containerType = "Container type is required"
+    const slots = Number(maxSlots)
+    if (!maxSlots || !slots || slots < 1) e.maxSlots = "Max slots must be a positive number"
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return
+    setLoading(true)
+    try {
+      const metadata: Record<string, unknown> = {}
+      meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+      const body: CreatePresetDefinitionRequest = {
+        preset_type: containerType.trim(),
+        name: name.trim(),
+        max_slots: Number(maxSlots),
+        metadata,
+      }
+      await createPresetDefinition({ gameId }, body)
+      toast({ title: "Preset definition created", description: `"${name.trim()}" added.` })
+      resetForm()
+      onCreated()
+      onClose()
+    } catch (err: any) {
+      if (err?.status === 403) {
+        toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to create preset definitions." })
+      } else {
+        toast({ variant: "destructive", title: "Failed to create", description: err?.message ?? "Unknown error" })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>New Preset Definition</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
+          <div className="space-y-1">
+            <Label htmlFor="pd-name">Name <span className="text-destructive">*</span></Label>
+            <Input id="pd-name" placeholder="e.g. Standard Deck" value={name} onChange={(e) => setName(e.target.value)} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pd-type">Preset Type <span className="text-destructive">*</span></Label>
+            <Input id="pd-type" placeholder="e.g. deck, party" value={containerType} onChange={(e) => setContainerType(e.target.value)} />
+            {errors.containerType && <p className="text-xs text-destructive">{errors.containerType}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pd-slots">Max Slots <span className="text-destructive">*</span></Label>
+            <Input id="pd-slots" type="number" min={1} placeholder="e.g. 20" value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
+          </div>
+          <div className="space-y-1">
+            <KVEditor entries={meta} onChange={setMeta} label="Metadata (optional)" />
+          </div>
+        </div>
+        <SheetFooter className="pt-4 border-t">
+          <Button variant="outline" onClick={() => { resetForm(); onClose() }} disabled={loading}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Create
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ─── Edit Preset Definition Sheet ────────────────────────────────────────────
+function EditPresetDefinitionSheet({
+  open,
+  gameId,
+  definition,
+  onUpdated,
+  onClose,
+}: {
+  open: boolean
+  gameId: string
+  definition: PresetDefinition
+  onUpdated: () => void
+  onClose: () => void
+}) {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [name, setName] = useState(definition.name)
+  const [maxSlots, setMaxSlots] = useState(String(definition.max_slots))
+  const [meta, setMeta] = useState<{ key: string; value: string }[]>(
+    Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
+  )
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function validate(): boolean {
+    const e: Record<string, string> = {}
+    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
+    const slots = Number(maxSlots)
+    if (!maxSlots || !slots || slots < 1) e.maxSlots = "Max slots must be a positive number"
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return
+    setLoading(true)
+    try {
+      const metadata: Record<string, unknown> = {}
+      meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+      const body: UpdatePresetDefinitionRequest = {
+        name: name.trim(),
+        max_slots: Number(maxSlots),
+        metadata,
+      }
+      await updatePresetDefinition({ gameId }, definition.id, body)
+      toast({ title: "Preset definition updated", description: `"${name.trim()}" saved.` })
+      onUpdated()
+      onClose()
+    } catch (err: any) {
+      if (err?.status === 403) {
+        toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to update preset definitions." })
+      } else {
+        toast({ variant: "destructive", title: "Failed to update", description: err?.message ?? "Unknown error" })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Edit Preset Definition</SheetTitle>
+          <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
+        </SheetHeader>
+        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
+          <div className="space-y-1">
+            <Label htmlFor="epd-name">Name <span className="text-destructive">*</span></Label>
+            <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label>Preset Type</Label>
+            <Input value={definition.preset_type} disabled className="opacity-60" />
+            <p className="text-xs text-muted-foreground">Preset type cannot be changed after creation.</p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="epd-slots">Max Slots <span className="text-destructive">*</span></Label>
+            <Input id="epd-slots" type="number" min={1} value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
+          </div>
+          <div className="space-y-1">
+            <KVEditor entries={meta} onChange={setMeta} label="Metadata (optional)" />
+          </div>
+        </div>
+        <SheetFooter className="pt-4 border-t">
+          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save changes
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }

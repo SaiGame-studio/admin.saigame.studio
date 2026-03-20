@@ -422,3 +422,60 @@ export async function removeTagsFromItemDefinition(
 ): Promise<void> {
   return api.delete(`/api/v1/games/${ctx.gameId}/items/${itemId}/tags`, { body: { tag_keys } })
 }
+
+// ─── Preset Definitions ───────────────────────────────────────────────────────
+
+export interface PresetDefinition {
+  id: string
+  preset_type: string
+  name: string
+  max_slots: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePresetDefinitionRequest {
+  preset_type: string
+  name: string
+  max_slots: number
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdatePresetDefinitionRequest {
+  name?: string
+  max_slots?: number
+  metadata?: Record<string, unknown>
+}
+
+/** GET /api/v1/games/:gameId/preset-definitions */
+export async function listPresetDefinitions(
+  ctx: TenantCtx,
+): Promise<{ definitions: PresetDefinition[] }> {
+  return api.get(`/api/v1/games/${ctx.gameId}/preset-definitions`)
+}
+
+/** POST /api/v1/games/:gameId/preset-definitions */
+export async function createPresetDefinition(
+  ctx: TenantCtx,
+  body: CreatePresetDefinitionRequest,
+): Promise<PresetDefinition> {
+  return api.post(`/api/v1/games/${ctx.gameId}/preset-definitions`, body)
+}
+
+/** PATCH /api/v1/games/:gameId/preset-definitions/:presetId */
+export async function updatePresetDefinition(
+  ctx: TenantCtx,
+  presetId: string,
+  body: UpdatePresetDefinitionRequest,
+): Promise<PresetDefinition> {
+  return api.patch(`/api/v1/games/${ctx.gameId}/preset-definitions/${presetId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/preset-definitions/:presetId */
+export async function deletePresetDefinition(
+  ctx: TenantCtx,
+  presetId: string,
+): Promise<void> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/preset-definitions/${presetId}`)
+}

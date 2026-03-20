@@ -502,9 +502,10 @@ export default function GamePluginsPage() {
             max_node_definitions: acc.max_node_definitions + (plugin.node_defs_grant ?? 0) * n,
             max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
             max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
+            max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -661,6 +662,7 @@ export default function GamePluginsPage() {
                   { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
                   { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
                   { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
+                  { key: "entity_defs", label: "Entity Defs", max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
             const col2 = statsData.slice(0, 3)
             const col3 = statsData.slice(3, 6)
@@ -852,6 +854,7 @@ export default function GamePluginsPage() {
                         { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
                         { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
+                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -958,6 +961,7 @@ export default function GamePluginsPage() {
                         { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
                         { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
                         { icon: "📋", label: "Leaderboards", val: plugin.boards_grant ?? 0 },
+                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
                       ] as { icon: string; label: string; val: number }[]).map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>

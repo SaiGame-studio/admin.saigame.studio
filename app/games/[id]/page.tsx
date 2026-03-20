@@ -646,6 +646,25 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                                {/* Entity Defs */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <Link href={`/games/${game.id}/entities`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            Entity Defs
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
+                                        <span className={`text-muted-foreground ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(game.usage?.entity_definitions ?? 0)} / {game.limits?.max_entity_defs != null ? fmt(game.limits.max_entity_defs) : '∞'}
+                                            {game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs && ` (${t('game.limitReached')})`}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_entity_defs
+                                            ? Math.min(((game.usage?.entity_definitions ?? 0) / game.limits.max_entity_defs) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
                             </div>
 
                             {/* Column 2: Second set of limits */}
