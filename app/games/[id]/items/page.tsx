@@ -115,6 +115,13 @@ import { CopyButton } from "@/components/CopyButton"
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
+  if (!c) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border text-gray-400 border-gray-400 bg-gray-400/10 capitalize">
+        {rarity}
+      </span>
+    )
+  }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}>
       {rarity}
@@ -4734,10 +4741,11 @@ export default function GameItemsPage() {
                         <TableCell className="font-medium">
                           {def.name}
                           <div
-                            className="text-xs font-mono text-muted-foreground mt-0.5 max-w-[180px] truncate"
+                            className="text-xs font-mono text-muted-foreground mt-0.5 flex items-center gap-0.5"
                             title={def.id}
                           >
-                            {def.id}
+                            <span className="truncate max-w-[180px]">{def.id}</span>
+                            <CopyButton text={def.id} />
                           </div>
                         </TableCell>
                         <TableCell>
