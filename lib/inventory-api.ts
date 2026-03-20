@@ -52,6 +52,7 @@ export interface ListItemsParams {
   rarity?: ItemRarity
   name?: string
   tags?: string[]
+  allow_client_update_qty?: boolean
 }
 
 /** GET /api/v1/games/:gameId/items — List item definitions with optional filtering */
@@ -66,6 +67,7 @@ export async function listItemDefinitions(
   if (params.rarity)           qs.set('rarity',   params.rarity)
   if (params.name)             qs.set('name',     params.name)
   if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
+  if (params.allow_client_update_qty != null) qs.set('allow_client_update_qty', String(params.allow_client_update_qty))
 
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/items${query ? `?${query}` : ''}`)

@@ -61,6 +61,7 @@ import {
   listItemDefinitions,
   createItemDefinition,
   getItemDefinition,
+  updateItemDefinition,
   fetchItemCategories,
   fetchItemRarities,
   listContainerDefinitions,
@@ -99,6 +100,7 @@ import type {
   ItemCategory,
   ItemRarity,
   CreateItemRequest,
+  UpdateItemRequest,
   ContainerDefinition,
   ContainerType,
   CreateContainerDefinitionRequest,
@@ -117,13 +119,13 @@ function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
   if (!c) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border text-gray-400 border-gray-400 bg-gray-400/10 capitalize">
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold border text-gray-400 border-gray-400 bg-gray-400/10 capitalize w-fit">
         {rarity}
       </span>
     )
   }
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold border ${c.text} ${c.border} ${c.bg} capitalize w-fit`}>
       {rarity}
     </span>
   )
@@ -744,6 +746,7 @@ function CreateItemDialog({
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [clientWritable, setClientWritable] = useState(false)
+  const [allowClientUpdateQty, setAllowClientUpdateQty] = useState(false)
 
   // Generator config
   interface GenPoolEntry { item_definition_id: string; drop_rate: string; quantity_min: string; quantity_max: string; collect_cap: string; initial_output: string }
@@ -782,6 +785,7 @@ function CreateItemDialog({
     setMeta([])
     setErrors({})
     setClientWritable(false)
+    setAllowClientUpdateQty(false)
     setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
     setGenInterval("3600")
     setGenTickCapacity("24")
@@ -859,6 +863,7 @@ function CreateItemDialog({
         base_stats,
         metadata,
         client_writable: clientWritable,
+        allow_client_update_qty: allowClientUpdateQty,
       }
       if (isStackable) {
         body.max_stack_size = maxStack === "" ? null : Number(maxStack)
@@ -1081,6 +1086,23 @@ function CreateItemDialog({
             {clientWritable && (
               <p className="text-xs text-muted-foreground pl-1">
                 When enabled, the game client can update <code className="font-mono text-[11px] bg-muted px-1 rounded">public_properties</code> on inventory items owned by the player (e.g. skin, nickname). Max 50 properties total including nested keys.
+              </p>
+            )}
+          </div>
+
+          {/* Allow Client Update Qty */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="allow-client-update-qty"
+                checked={allowClientUpdateQty}
+                onCheckedChange={setAllowClientUpdateQty}
+              />
+              <Label htmlFor="allow-client-update-qty">Allow client to update quantity</Label>
+            </div>
+            {allowClientUpdateQty && (
+              <p className="text-xs text-muted-foreground pl-1">
+                When enabled, the game client can update the quantity of this item in the player's inventory.
               </p>
             )}
           </div>
@@ -3194,6 +3216,7 @@ export default function GameItemsPage() {
   const [debouncedName, setDebouncedName] = useState("")
   const [selectedTagKeys, setSelectedTagKeys] = useState<string[]>([])
   const [tagFilterOpen, setTagFilterOpen] = useState(false)
+  const [filterAllowClientUpdateQty, setFilterAllowClientUpdateQty] = useState<string>("all")
 
   // pagination
   const LIMIT = 50
@@ -3237,6 +3260,9 @@ export default function GameItemsPage() {
   const [itemTags, setItemTags] = useState<ItemTag[]>([])
   const [tagsLoading, setTagsLoading] = useState(false)
   const [tagsError, setTagsError] = useState<string | null>(null)
+
+  // track which item is being updated
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
 
   // preset tab state
   const [presetDefs, setPresetDefs] = useState<PresetDefinition[]>([])
@@ -3364,6 +3390,7 @@ export default function GameItemsPage() {
       if (filterRarity !== "all") params.rarity = filterRarity as ItemRarity
       if (debouncedName) params.name = debouncedName
       if (selectedTagKeys.length > 0) params.tags = selectedTagKeys
+      if (filterAllowClientUpdateQty !== "all") params.allow_client_update_qty = filterAllowClientUpdateQty === "true"
 
       const result = await listItemDefinitions({ studioId, gameId }, params)
       setItems(result.items ?? [])
@@ -3379,7 +3406,7 @@ export default function GameItemsPage() {
     } finally {
       setLoading(false)
     }
-  }, [studioId, gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, offset])
+  }, [studioId, gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty, offset])
 
   useEffect(() => {
     fetchItems()
@@ -3388,7 +3415,26 @@ export default function GameItemsPage() {
   // reset offset when filters change
   useEffect(() => {
     setOffset(0)
-  }, [filterCategory, filterRarity, debouncedName, selectedTagKeys])
+  }, [filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty])
+
+  // handle updating a single item field
+  const handleUpdateItemField = useCallback(async (itemId: string, patch: Partial<ItemDefinition>) => {
+    setUpdatingItemId(itemId)
+    try {
+      const updated = await updateItemDefinition({ gameId }, itemId, patch as UpdateItemRequest)
+      // update local state
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, ...updated.item } : item
+        )
+      )
+      toast({ title: "Item updated" })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to update item", description: err?.message ?? "Unknown error" })
+    } finally {
+      setUpdatingItemId(null)
+    }
+  }, [gameId, toast])
 
   // ─── Containers ──────────────────────────────────────────────────────────────
   const fetchContainerDefs = useCallback(async () => {
@@ -3803,6 +3849,16 @@ export default function GameItemsPage() {
                   <option key={r} value={r} className="capitalize">{r}</option>
                 ))}
               </select>
+              {/* Allow Client Update Qty */}
+              <select
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                value={filterAllowClientUpdateQty}
+                onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}
+              >
+                <option value="all">All qty permissions</option>
+                <option value="true">Can update qty</option>
+                <option value="false">Cannot update qty</option>
+              </select>
               {/* Tags filter */}
               {itemTags.length > 0 && (
                 <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
@@ -3851,10 +3907,10 @@ export default function GameItemsPage() {
                 </Popover>
               )}
               {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all" || selectedTagKeys.length > 0) && (
+              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (
                 <button
                   className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setSelectedTagKeys([]) }}
+                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]) }}
                 >
                   Clear
                 </button>
@@ -3895,13 +3951,14 @@ export default function GameItemsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Item Code</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Rarity</TableHead>
-                      <TableHead>Tags</TableHead>
-                      <TableHead>Stackable</TableHead>
-                      <TableHead>Grid</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-center">Category</TableHead>
+                      <TableHead className="text-center">Rarity</TableHead>
+                      <TableHead className="text-center">Write Props</TableHead>
+                      <TableHead className="text-center">Update Qty</TableHead>
+                      <TableHead className="text-center">Tags</TableHead>
+                      <TableHead className="text-center">Stackable</TableHead>
+                      <TableHead className="text-center">Grid</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -3925,63 +3982,54 @@ export default function GameItemsPage() {
                             {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                             <Link
                               href={`/games/${gameId}/items/${item.id}`}
-                              className="hover:text-primary hover:underline"
+                              className="hover:text-primary hover:underline font-medium"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {item.name}
                             </Link>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {item.item_code ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
-                              <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                                title="Copy item code"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const text = item.item_code!
-                                  if (navigator.clipboard && navigator.clipboard.writeText) {
-                                    navigator.clipboard.writeText(text).catch(() => {
-                                      const el = document.createElement('textarea')
-                                      el.value = text
-                                      document.body.appendChild(el)
-                                      el.select()
-                                      document.execCommand('copy')
-                                      document.body.removeChild(el)
-                                    })
-                                  } else {
-                                    const el = document.createElement('textarea')
-                                    el.value = text
-                                    document.body.appendChild(el)
-                                    el.select()
-                                    document.execCommand('copy')
-                                    document.body.removeChild(el)
-                                  }
-                                  setCopiedCode(item.id)
-                                  setTimeout(() => setCopiedCode(null), 1500)
-                                }}
-                              >
-                                {copiedCode === item.id
-                                  ? <Check className="h-3 w-3 text-green-500" />
-                                  : <Copy className="h-3 w-3" />}
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize text-xs">
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="capitalize text-xs w-fit mx-auto">
                             {item.category}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <RarityBadge rarity={item.rarity} />
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <RarityBadge rarity={item.rarity} />
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center">
+                          <div 
+                            className="flex items-center justify-center cursor-pointer hover:opacity-80"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUpdateItemField(item.id, { client_writable: !item.client_writable })
+                            }}
+                          >
+                            <span className={`inline-flex h-6 w-10 items-center rounded-full border px-0.5 transition-all ${
+                              updatingItemId === item.id ? 'opacity-50' : ''
+                            } ${item.client_writable ? 'bg-green-100 border-green-300' : 'bg-muted border-muted-foreground'}`}>
+                              <span className={`h-5 w-5 rounded-full transition-all ${item.client_writable ? 'ml-auto bg-green-500' : 'bg-muted-foreground'}`} />
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div 
+                            className="flex items-center justify-center cursor-pointer hover:opacity-80"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUpdateItemField(item.id, { allow_client_update_qty: !item.allow_client_update_qty })
+                            }}
+                          >
+                            <span className={`inline-flex h-6 w-10 items-center rounded-full border px-0.5 transition-all ${
+                              updatingItemId === item.id ? 'opacity-50' : ''
+                            } ${item.allow_client_update_qty ? 'bg-blue-100 border-blue-300' : 'bg-muted border-muted-foreground'}`}>
+                              <span className={`h-5 w-5 rounded-full transition-all ${item.allow_client_update_qty ? 'ml-auto bg-blue-500' : 'bg-muted-foreground'}`} />
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
                           {item.tags && item.tags.length > 0 ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                               <Tag className="h-3 w-3" />
@@ -3991,7 +4039,7 @@ export default function GameItemsPage() {
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center">
                           {item.is_stackable ? (
                             <span className="text-green-500 text-sm font-medium">
                               ✓ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
@@ -4000,10 +4048,10 @@ export default function GameItemsPage() {
                             <span className="text-muted-foreground text-sm">✗</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-center text-sm text-muted-foreground">
                           {item.grid_width}×{item.grid_height}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <Button variant="ghost" size="icon" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                             <Link href={`/games/${gameId}/items/${item.id}`}>
                               <Pencil className="h-4 w-4" />
@@ -4015,7 +4063,7 @@ export default function GameItemsPage() {
                       {/* Expanded detail row */}
                       {isExpanded && (
                         <TableRow className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={8} className="p-0">
+                          <TableCell colSpan={9} className="p-0">
                             <div className="px-6 py-4 space-y-4">
                               {/* Definition ID */}
                               <div className="flex items-center gap-2">

@@ -765,6 +765,40 @@ export default function ItemDefinitionDetailPage() {
               )}
             </div>
 
+            {/* Allow Client Write Player Properties */}
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-muted-foreground shrink-0">Allow client write properties</span>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={item.client_writable ?? false}
+                  onCheckedChange={(checked) =>
+                    saveField({ client_writable: checked })
+                  }
+                  disabled={saving}
+                />
+                <span className={item.client_writable ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
+                  {item.client_writable ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+
+            {/* Allow Client Update Qty */}
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-muted-foreground shrink-0">Allow client update qty</span>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={item.allow_client_update_qty ?? false}
+                  onCheckedChange={(checked) =>
+                    saveField({ allow_client_update_qty: checked })
+                  }
+                  disabled={saving}
+                />
+                <span className={item.allow_client_update_qty ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
+                  {item.allow_client_update_qty ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+
             {/* Stackable — immediate toggle, no pencil confirm needed */}
             <div className="flex justify-between items-center py-1.5">
               <span className="text-muted-foreground shrink-0">Stackable</span>

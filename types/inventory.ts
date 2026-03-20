@@ -38,6 +38,7 @@ export interface ItemDefinition {
   base_stats: Record<string, number>
   metadata: Record<string, unknown>
   client_writable: boolean
+  allow_client_update_qty?: boolean
   tags?: import('@/lib/inventory-api').ItemTag[]
   created_at: string
   updated_at: string
@@ -55,6 +56,7 @@ export interface CreateItemRequest {
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
   client_writable?: boolean
+  allow_client_update_qty?: boolean
 }
 
 export interface UpdateItemRequest {
@@ -68,6 +70,7 @@ export interface UpdateItemRequest {
   base_stats?: Record<string, number>
   metadata?: Record<string, unknown>
   client_writable?: boolean
+  allow_client_update_qty?: boolean
 }
 
 export interface GachaPoolEntry {
