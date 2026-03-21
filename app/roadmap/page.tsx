@@ -77,6 +77,7 @@ const phases: Phase[] = [
       { name: "Leaderboard System", description: "Ranked player leaderboards with scoring, seasonal resets, and real-time rankings", completed: "Mar 16, 2026" },
       { name: "Achievement System", description: "Badge and achievement unlock system with milestone tracking and reward distribution", completed: "Mar 17, 2026" },
       { name: "Entity Definitions", description: "Unified system for defining game entities, properties, and metadata", completed: "Mar 19, 2026" },
+      { name: "Crafting System", description: "Recipe-based item crafting — enables Merge-3 and RPG game types", completed: "Mar 21, 2026" },
     ],
     planned: [
       { name: "Battle Pass", group: "Progression" },
@@ -84,7 +85,6 @@ const phases: Phase[] = [
       { name: "World Zone", group: "World" },
       { name: "IAP (Apple + Google Play)", group: "Monetization" },
       { name: "Clone Game Data", group: "Platform" },
-      { name: "Crafting System", description: "Recipe-based item crafting — enables Merge-3 and RPG game types", group: "Game Support" },
     ],
   },
   {
