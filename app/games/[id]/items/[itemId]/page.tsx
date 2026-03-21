@@ -30,6 +30,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions, listItemTags, getItemDefinitionTags, assignTagsToItemDefinition, removeTagsFromItemDefinition, type ItemTag } from "@/lib/inventory-api"
+import { getCraftingRecipe } from "@/lib/crafting-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, GachaPack, ContainerDefinition } from "@/types/inventory"
 import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
@@ -122,6 +130,9 @@ export default function ItemDefinitionDetailPage() {
   // gacha pack info resolved from gacha_pack_ids
   const [gachaPackInfo, setGachaPackInfo] = useState<Record<string, { name: string; is_enabled: boolean }>>({})
 
+  // crafting recipe info resolved from craft_recipe_input_ids / craft_recipe_output_ids
+  const [craftRecipeInfo, setCraftRecipeInfo] = useState<Record<string, { name: string; recipe_key: string }>>({})
+
   // linked container definition info resolved from metadata.linked_container_definition_id
   const [linkedContainerInfo, setLinkedContainerInfo] = useState<{ id: string; name: string } | null>(null)
 
@@ -148,6 +159,10 @@ export default function ItemDefinitionDetailPage() {
   const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({})
   const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({})
   const [savingGenConfig, setSavingGenConfig] = useState(false)
+
+  // explanation panel state
+  const [showExplanationPanel, setShowExplanationPanel] = useState(false)
+  const [explanationTopic, setExplanationTopic] = useState<'write_props' | 'update_qty' | null>(null)
 
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
@@ -229,6 +244,25 @@ export default function ItemDefinitionDetailPage() {
           )
           setGachaPackInfo(info)
         }
+        // resolve crafting recipe names
+        const inputRecipeIds = Array.isArray(data.item.metadata?.craft_recipe_input_ids)
+          ? (data.item.metadata.craft_recipe_input_ids as string[])
+          : []
+        const outputRecipeIds = Array.isArray(data.item.metadata?.craft_recipe_output_ids)
+          ? (data.item.metadata.craft_recipe_output_ids as string[])
+          : []
+        const allRecipeIds = [...new Set([...inputRecipeIds, ...outputRecipeIds])]
+        if (allRecipeIds.length > 0) {
+          const info: Record<string, { name: string; recipe_key: string }> = {}
+          await Promise.allSettled(
+            allRecipeIds.map((rid) =>
+              getCraftingRecipe({ gameId }, rid).then((res) => {
+                info[rid] = { name: res.name, recipe_key: res.recipe_key }
+              })
+            )
+          )
+          setCraftRecipeInfo(info)
+        }
         // resolve linked container definition
         const linkedContainerId = typeof data.item.metadata?.linked_container_definition_id === "string"
           ? data.item.metadata.linked_container_definition_id
@@ -306,7 +340,7 @@ export default function ItemDefinitionDetailPage() {
   }
 
   // Keys managed separately (read-only in the UI)
-  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config"]
+  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"]
 
   function startEditGenConfig() {
     if (!item) return
@@ -440,6 +474,8 @@ export default function ItemDefinitionDetailPage() {
 
   const c = RARITY_COLORS[item.rarity]
   const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[]
+  const craftInputIds = (Array.isArray(item.metadata?.craft_recipe_input_ids) ? item.metadata.craft_recipe_input_ids : []) as string[]
+  const craftOutputIds = (Array.isArray(item.metadata?.craft_recipe_output_ids) ? item.metadata.craft_recipe_output_ids : []) as string[]
 
   return (
     <div className="container mx-auto py-6">
@@ -765,6 +801,70 @@ export default function ItemDefinitionDetailPage() {
               )}
             </div>
 
+            {/* Allow Client Write Player Properties */}
+            <div className="flex justify-between items-center py-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground shrink-0">Allow client write properties</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setExplanationTopic('write_props')
+                    setShowExplanationPanel(true)
+                  }}
+                  title="Learn more about Write Props"
+                >
+                  <span className="text-[10px] font-bold">?</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={item.client_writable ?? false}
+                  onCheckedChange={(checked) =>
+                    saveField({ client_writable: checked })
+                  }
+                  disabled={saving}
+                />
+                <span className={item.client_writable ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
+                  {item.client_writable ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+
+            {/* Allow Client Update Qty */}
+            <div className="flex justify-between items-center py-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground shrink-0">Allow client update qty</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setExplanationTopic('update_qty')
+                    setShowExplanationPanel(true)
+                  }}
+                  title="Learn more about Update Qty"
+                >
+                  <span className="text-[10px] font-bold">?</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={item.allow_client_update_qty ?? false}
+                  onCheckedChange={(checked) =>
+                    saveField({ allow_client_update_qty: checked })
+                  }
+                  disabled={saving}
+                />
+                <span className={item.allow_client_update_qty ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
+                  {item.allow_client_update_qty ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+
             {/* Stackable — immediate toggle, no pencil confirm needed */}
             <div className="flex justify-between items-center py-1.5">
               <span className="text-muted-foreground shrink-0">Stackable</span>
@@ -964,6 +1064,54 @@ export default function ItemDefinitionDetailPage() {
                     <span className="font-medium">{linkedContainerInfo.name || "Unknown container"}</span>
                     <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
                   </Link>
+                </div>
+              </div>
+            )}
+            {/* ── Craft Recipe Input IDs (read-only) ──────────────── */}
+            {craftInputIds.length > 0 && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">craft_recipe_input_ids</span>
+                <div className="flex flex-col gap-1 ml-1">
+                  {craftInputIds.map((rid) => {
+                    const recipe = craftRecipeInfo[rid]
+                    return (
+                      <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
+                        <Link
+                          href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
+                          title="Open recipe"
+                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="font-medium">{recipe?.name || "…"}</span>
+                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
+                        </Link>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {/* ── Craft Recipe Output IDs (read-only) ─────────────── */}
+            {craftOutputIds.length > 0 && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">craft_recipe_output_ids</span>
+                <div className="flex flex-col gap-1 ml-1">
+                  {craftOutputIds.map((rid) => {
+                    const recipe = craftRecipeInfo[rid]
+                    return (
+                      <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
+                        <Link
+                          href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
+                          title="Open recipe"
+                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="font-medium">{recipe?.name || "…"}</span>
+                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
+                        </Link>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -1268,6 +1416,95 @@ export default function ItemDefinitionDetailPage() {
         })()}
 
       </div>
+
+      {/* ── Explanation Panel ───────────────────────────────────────────────── */}
+      <Sheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>
+              {explanationTopic === 'write_props' 
+                ? 'Write Props' 
+                : explanationTopic === 'update_qty' 
+                ? 'Update Qty' 
+                : 'Help'}
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 py-4 flex-1 overflow-y-auto">
+            {explanationTopic === 'write_props' && (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1.5">Write Props</h3>
+                  <p className="text-muted-foreground">
+                    Allows clients (players) to modify and update the item's player-specific properties directly.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients can update item properties without server validation</li>
+                    <li>Useful for cosmetic properties or client-side data</li>
+                    <li>Increases flexibility for custom player item modifications</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients cannot modify item properties</li>
+                    <li>All changes must go through the server API</li>
+                    <li>Better security for critical properties</li>
+                  </ul>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
+                  💡 <strong>Tip:</strong> Use this for non-critical properties like display names, colors, or personal notes.
+                </div>
+              </div>
+            )}
+
+            {explanationTopic === 'update_qty' && (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1.5">Update Qty</h3>
+                  <p className="text-muted-foreground">
+                    Allows clients to modify the quantity value of items they own.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Clients can directly update item quantities</li>
+                    <li>Faster item management on client side</li>
+                    <li>Useful for consumable or stackable items</li>
+                    <li>Reduces network requests for quantity updates</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
+                    <li>Quantity changes must be validated by server</li>
+                    <li>Prevents accidental or malicious quantity modifications</li>
+                    <li>Better control over limited resource items</li>
+                    <li>More secure for valuable or currency-type items</li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
+                  ⚠️ <strong>Warning:</strong> Disable this for limited resources, premium items, or currency to prevent cheating.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <SheetFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>Close</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
