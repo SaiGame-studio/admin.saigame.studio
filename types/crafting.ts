@@ -58,6 +58,19 @@ export interface CreateCraftingRecipeRequest {
   outputs: Omit<CraftingRecipeOutput, "id" | "recipe_id" | "studio_id" | "game_id" | "created_at" | "updated_at">[]
 }
 
+export interface UpdateCraftingRecipeRequest {
+  recipe_key?: string
+  name?: string
+  description?: string
+  category?: string
+  success_rate?: number
+  bonus_rate?: number
+  is_active?: boolean
+  metadata?: Record<string, unknown>
+  inputs?: Omit<CraftingRecipeInput, "id" | "recipe_id" | "studio_id" | "game_id" | "created_at" | "updated_at">[]
+  outputs?: Omit<CraftingRecipeOutput, "id" | "recipe_id" | "studio_id" | "game_id" | "created_at" | "updated_at">[]
+}
+
 export interface ListCraftingRecipesParams {
   category?: string
   page?: number

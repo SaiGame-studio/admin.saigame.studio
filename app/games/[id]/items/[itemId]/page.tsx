@@ -30,6 +30,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions, listItemTags, getItemDefinitionTags, assignTagsToItemDefinition, removeTagsFromItemDefinition, type ItemTag } from "@/lib/inventory-api"
+import { getCraftingRecipe } from "@/lib/crafting-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,6 +129,9 @@ export default function ItemDefinitionDetailPage() {
 
   // gacha pack info resolved from gacha_pack_ids
   const [gachaPackInfo, setGachaPackInfo] = useState<Record<string, { name: string; is_enabled: boolean }>>({})
+
+  // crafting recipe info resolved from craft_recipe_input_ids / craft_recipe_output_ids
+  const [craftRecipeInfo, setCraftRecipeInfo] = useState<Record<string, { name: string; recipe_key: string }>>({})
 
   // linked container definition info resolved from metadata.linked_container_definition_id
   const [linkedContainerInfo, setLinkedContainerInfo] = useState<{ id: string; name: string } | null>(null)
@@ -240,6 +244,25 @@ export default function ItemDefinitionDetailPage() {
           )
           setGachaPackInfo(info)
         }
+        // resolve crafting recipe names
+        const inputRecipeIds = Array.isArray(data.item.metadata?.craft_recipe_input_ids)
+          ? (data.item.metadata.craft_recipe_input_ids as string[])
+          : []
+        const outputRecipeIds = Array.isArray(data.item.metadata?.craft_recipe_output_ids)
+          ? (data.item.metadata.craft_recipe_output_ids as string[])
+          : []
+        const allRecipeIds = [...new Set([...inputRecipeIds, ...outputRecipeIds])]
+        if (allRecipeIds.length > 0) {
+          const info: Record<string, { name: string; recipe_key: string }> = {}
+          await Promise.allSettled(
+            allRecipeIds.map((rid) =>
+              getCraftingRecipe({ gameId }, rid).then((res) => {
+                info[rid] = { name: res.name, recipe_key: res.recipe_key }
+              })
+            )
+          )
+          setCraftRecipeInfo(info)
+        }
         // resolve linked container definition
         const linkedContainerId = typeof data.item.metadata?.linked_container_definition_id === "string"
           ? data.item.metadata.linked_container_definition_id
@@ -317,7 +340,7 @@ export default function ItemDefinitionDetailPage() {
   }
 
   // Keys managed separately (read-only in the UI)
-  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config"]
+  const RESERVED_META_KEYS = ["gacha_pack_ids", "gacha_pack_id", "linked_container_definition_id", "generator_config", "craft_recipe_input_ids", "craft_recipe_output_ids"]
 
   function startEditGenConfig() {
     if (!item) return
@@ -451,6 +474,8 @@ export default function ItemDefinitionDetailPage() {
 
   const c = RARITY_COLORS[item.rarity]
   const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[]
+  const craftInputIds = (Array.isArray(item.metadata?.craft_recipe_input_ids) ? item.metadata.craft_recipe_input_ids : []) as string[]
+  const craftOutputIds = (Array.isArray(item.metadata?.craft_recipe_output_ids) ? item.metadata.craft_recipe_output_ids : []) as string[]
 
   return (
     <div className="container mx-auto py-6">
@@ -1039,6 +1064,54 @@ export default function ItemDefinitionDetailPage() {
                     <span className="font-medium">{linkedContainerInfo.name || "Unknown container"}</span>
                     <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
                   </Link>
+                </div>
+              </div>
+            )}
+            {/* ── Craft Recipe Input IDs (read-only) ──────────────── */}
+            {craftInputIds.length > 0 && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">craft_recipe_input_ids</span>
+                <div className="flex flex-col gap-1 ml-1">
+                  {craftInputIds.map((rid) => {
+                    const recipe = craftRecipeInfo[rid]
+                    return (
+                      <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
+                        <Link
+                          href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
+                          title="Open recipe"
+                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="font-medium">{recipe?.name || "…"}</span>
+                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
+                        </Link>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {/* ── Craft Recipe Output IDs (read-only) ─────────────── */}
+            {craftOutputIds.length > 0 && (
+              <div className="mb-3 border-b border-muted/50 pb-2 space-y-1">
+                <span className="text-muted-foreground font-mono text-xs">craft_recipe_output_ids</span>
+                <div className="flex flex-col gap-1 ml-1">
+                  {craftOutputIds.map((rid) => {
+                    const recipe = craftRecipeInfo[rid]
+                    return (
+                      <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
+                        <Link
+                          href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
+                          title="Open recipe"
+                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                          <span className="font-medium">{recipe?.name || "…"}</span>
+                          <span className="font-mono text-[10px] opacity-60">{rid.slice(0, 8)}…</span>
+                        </Link>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

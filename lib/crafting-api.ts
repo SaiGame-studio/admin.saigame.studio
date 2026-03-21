@@ -3,6 +3,7 @@ import type { TenantCtx } from '@/lib/inventory-api'
 import type {
   CraftingRecipe,
   CreateCraftingRecipeRequest,
+  UpdateCraftingRecipeRequest,
   ListCraftingRecipesParams,
 } from '@/types/crafting'
 import type { Paginated } from '@/types/inventory'
@@ -35,4 +36,21 @@ export async function getCraftingRecipe(
   recipeId: string,
 ): Promise<CraftingRecipe> {
   return api.get(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`)
+}
+
+/** DELETE /api/v1/games/:gameId/crafting/recipes/:id — Delete a crafting recipe */
+export async function deleteCraftingRecipe(
+  ctx: TenantCtx,
+  recipeId: string,
+): Promise<void> {
+  return api.delete(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`)
+}
+
+/** PUT /api/v1/games/:gameId/crafting/recipes/:id — Update a crafting recipe */
+export async function updateCraftingRecipe(
+  ctx: TenantCtx,
+  recipeId: string,
+  body: UpdateCraftingRecipeRequest,
+): Promise<CraftingRecipe> {
+  return api.put(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`, body)
 }
