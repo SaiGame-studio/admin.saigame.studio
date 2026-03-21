@@ -12,7 +12,10 @@ import {
   ShoppingBag,
   Gamepad2,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react"
+import { useState } from "react"
+import { FeatureRequestList } from "@/components/roadmap/feature-request-list"
 
 type PhaseStatus = "complete" | "in-progress" | "planned" | "planning"
 
@@ -114,7 +117,6 @@ const phases: Phase[] = [
   },
 ]
 
-// All colors use CSS variable tokens — works with all custom themes (dark-green, light-warm, etc.)
 const statusConfig: Record<
   PhaseStatus,
   { badgeClass: string; borderClass: string; headerClass: string; icon: React.ReactNode }
@@ -152,12 +154,19 @@ const phaseIcons: React.ReactNode[] = [
   <Wifi key={4} className="h-5 w-5" />,
 ]
 
-// Single universal group badge style — adapts to any theme
 const groupBadgeClass = "bg-muted text-muted-foreground border border-border"
 
-import { FeatureRequestList } from "@/components/roadmap/feature-request-list"
-
 export default function RoadmapPage() {
+  const [collapsedPhases, setCollapsedPhases] = useState<number[]>([1])
+
+  const togglePhase = (phaseNumber: number) => {
+    setCollapsedPhases(prev => 
+      prev.includes(phaseNumber) 
+        ? prev.filter(n => n !== phaseNumber) 
+        : [...prev, phaseNumber]
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -181,7 +190,8 @@ export default function RoadmapPage() {
           return (
             <div
               key={phase.number}
-              className={`rounded-lg border p-3 bg-card ${cfg.borderClass}`}
+              className={`rounded-lg border p-3 bg-card ${cfg.borderClass} cursor-pointer hover:bg-muted/30 transition-colors`}
+              onClick={() => togglePhase(phase.number)}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 {cfg.icon}
@@ -204,12 +214,17 @@ export default function RoadmapPage() {
             <p className="text-sm text-muted-foreground mb-6">Our high-level strategy for evolving the platform foundation.</p>
           </div>
           
-          <div className="space-y-8">
+          <div className="space-y-6">
             {phases.map((phase) => {
               const cfg = statusConfig[phase.status]
+              const isCollapsed = collapsedPhases.includes(phase.number)
+              
               return (
-                <Card key={phase.number} className={`border-2 ${cfg.borderClass}`}>
-                  <CardHeader className={`rounded-t-lg ${cfg.headerClass}`}>
+                <Card key={phase.number} className={`border-2 transition-all duration-300 ${cfg.borderClass} ${isCollapsed ? 'opacity-80' : 'opacity-100'}`}>
+                  <CardHeader 
+                    className={`rounded-t-lg transition-colors cursor-pointer group ${cfg.headerClass}`}
+                    onClick={() => togglePhase(phase.number)}
+                  >
                     <div className="flex items-start gap-3">
                       <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background/60 text-primary mt-0.5 flex-shrink-0">
                         {phaseIcons[phase.number - 1]}
@@ -223,94 +238,99 @@ export default function RoadmapPage() {
                             {phase.statusLabel}
                           </span>
                         </div>
-                        <CardTitle className="text-lg mt-0.5">{phase.title}</CardTitle>
+                        <CardTitle className="text-lg mt-0.5 flex items-center justify-between">
+                          {phase.title}
+                          <ChevronDown className={`h-5 w-5 text-muted-foreground/50 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : ''} group-hover:text-primary`} />
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">{phase.theme}</p>
-                        {phase.footnote && (
-                          <p className="text-xs text-muted-foreground mt-1.5 italic">{phase.footnote}</p>
+                        {phase.footnote && !isCollapsed && (
+                          <p className="text-xs text-muted-foreground mt-1.5 italic animate-in fade-in duration-500">{phase.footnote}</p>
                         )}
                       </div>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-5 space-y-5">
-                    {/* Completed items */}
-                    {phase.completed && phase.completed.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                          Completed
-                        </h4>
-                        <div className="space-y-2">
-                          {phase.completed.map((item) => (
-                            <div
-                              key={item.name}
-                              className="flex items-start gap-3 p-2.5 rounded-md bg-muted/50 border-l-2 border-primary/50"
-                            >
-                              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium text-foreground">{item.name}</span>
+                  {!isCollapsed && (
+                    <CardContent className="pt-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                      {/* Completed items */}
+                      {phase.completed && phase.completed.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                            Completed
+                          </h4>
+                          <div className="space-y-2">
+                            {phase.completed.map((item) => (
+                              <div
+                                key={item.name}
+                                className="flex items-start gap-3 p-2.5 rounded-md bg-muted/50 border-l-2 border-primary/50"
+                              >
+                                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-medium text-foreground">{item.name}</span>
+                                  {item.description && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                                  )}
+                                </div>
+                                {item.completed && (
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{item.completed}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Planned items */}
+                      {phase.planned && phase.planned.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                            <Circle className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            Planned
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {phase.planned.map((item) => (
+                              <div
+                                key={item.name}
+                                className="flex items-center gap-2 p-2.5 rounded-md bg-muted/30 border border-border"
+                              >
+                                <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
+                                <span className="text-sm flex-1 text-foreground">{item.name}</span>
+                                {item.group && (
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium flex-shrink-0 ${groupBadgeClass}`}>
+                                    {item.group}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Capabilities */}
+                      {phase.capabilities && phase.capabilities.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            Capabilities
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {phase.capabilities.map((item) => (
+                              <div
+                                key={item.name}
+                                className="p-2.5 rounded-md bg-muted/30 border border-border"
+                              >
+                                <p className="text-sm font-medium text-foreground">{item.name}</p>
                                 {item.description && (
                                   <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
                                 )}
                               </div>
-                              {item.completed && (
-                                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{item.completed}</span>
-                              )}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Planned items */}
-                    {phase.planned && phase.planned.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                          <Circle className="h-3.5 w-3.5 text-muted-foreground/60" />
-                          Planned
-                        </h4>
-                        <div className="grid grid-cols-1 gap-2">
-                          {phase.planned.map((item) => (
-                            <div
-                              key={item.name}
-                              className="flex items-center gap-2 p-2.5 rounded-md bg-muted/30 border border-border"
-                            >
-                              <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
-                              <span className="text-sm flex-1 text-foreground">{item.name}</span>
-                              {item.group && (
-                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium flex-shrink-0 ${groupBadgeClass}`}>
-                                  {item.group}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Capabilities */}
-                    {phase.capabilities && phase.capabilities.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                          <Zap className="h-3.5 w-3.5 text-muted-foreground/60" />
-                          Capabilities
-                        </h4>
-                        <div className="grid grid-cols-1 gap-2">
-                          {phase.capabilities.map((item) => (
-                            <div
-                              key={item.name}
-                              className="p-2.5 rounded-md bg-muted/30 border border-border"
-                            >
-                              <p className="text-sm font-medium text-foreground">{item.name}</p>
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
               )
             })}
@@ -318,7 +338,7 @@ export default function RoadmapPage() {
         </div>
 
         {/* Right Column: Feature Requests */}
-        <div>
+        <div className="sticky top-8">
           <FeatureRequestList />
         </div>
       </div>
