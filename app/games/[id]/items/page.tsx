@@ -114,6 +114,7 @@ import { RARITY_COLORS } from "@/types/inventory"
 import type { GameLimits } from "@/types/game"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
+import { CraftingTab } from "@/components/crafting/crafting-tab"
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
@@ -3297,7 +3298,7 @@ export default function GameItemsPage() {
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset") {
+    if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting") {
       setActiveTab(tab)
     }
     // initialize container search from URL `q` param
@@ -3800,7 +3801,12 @@ export default function GameItemsPage() {
             <TabsTrigger value="generators">Generators</TabsTrigger>
             <TabsTrigger value="equipments">Equipments</TabsTrigger>
             <TabsTrigger value="preset">Preset</TabsTrigger>
+            <TabsTrigger value="crafting">Crafting</TabsTrigger>
           </TabsList>
+
+        <TabsContent value="crafting" className="space-y-4">
+          <CraftingTab gameId={gameId} studioId={studioId} />
+        </TabsContent>
 
         <TabsContent value="catalogue" className="space-y-4">
           {/* Toolbar */}
