@@ -5,6 +5,8 @@ import type {
   CreateCraftingRecipeRequest,
   UpdateCraftingRecipeRequest,
   ListCraftingRecipesParams,
+  ListCraftingRecipeHistoryParams,
+  CraftingRecipeHistoryResponse,
 } from '@/types/crafting'
 import type { Paginated } from '@/types/inventory'
 
@@ -53,4 +55,19 @@ export async function updateCraftingRecipe(
   body: UpdateCraftingRecipeRequest,
 ): Promise<CraftingRecipe> {
   return api.put(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`, body)
+}
+
+/** GET /api/v1/games/:gameId/crafting/recipes/:recipeId/history — List craft history */
+export async function listCraftingRecipeHistory(
+  ctx: TenantCtx,
+  recipeId: string,
+  params: ListCraftingRecipeHistoryParams = {},
+): Promise<CraftingRecipeHistoryResponse> {
+  const qs = new URLSearchParams()
+  if (params.status) qs.set('status', params.status)
+  if (params.page != null) qs.set('page', String(params.page))
+  if (params.page_size != null) qs.set('page_size', String(params.page_size))
+
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}/history${query ? `?${query}` : ''}`)
 }
