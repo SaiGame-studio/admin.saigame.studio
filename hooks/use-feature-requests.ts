@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { FeatureRequest, FeatureRequestListResponse, Review, FeatureRequestStatus } from "@/types/feature-request"
-import { getFeatureRequests, upvoteFeatureRequest, submitFeatureRequest, submitReview, updateFeatureStatus } from "@/lib/feature-request-api"
+import { getFeatureRequests, upvoteFeatureRequest, submitFeatureRequest, submitReview, updateFeatureStatus, updateFeatureRequest } from "@/lib/feature-request-api"
 import { toast } from "@/hooks/use-toast"
 
 export function useFeatureRequests(initialSize = 100) {
@@ -124,6 +124,36 @@ export function useFeatureRequests(initialSize = 100) {
     }
   }
 
+  const update = async (id: string, title?: string, description?: string) => {
+    try {
+      const updated = await updateFeatureRequest(id, { title, description })
+      
+      // Update locally
+      if (data) {
+        setData({
+          ...data,
+          items: data.items.map(item => 
+            item.id === id ? { ...item, ...updated } : item
+          )
+        })
+      }
+      
+      toast({
+        title: "Success",
+        description: "Feature request updated successfully.",
+      })
+      return true
+    } catch (error) {
+      console.error("Failed to update feature request:", error)
+      toast({
+        title: "Update Failed",
+        description: "Could not update feature request. Please try again.",
+        variant: "destructive",
+      })
+      return false
+    }
+  }
+
   return {
     featureRequests: data?.items || [],
     total: data?.total || 0,
@@ -133,6 +163,8 @@ export function useFeatureRequests(initialSize = 100) {
     submit,
     postReview,
     updateStatus,
+    update,
     refresh: fetchRequests
   }
+
 }

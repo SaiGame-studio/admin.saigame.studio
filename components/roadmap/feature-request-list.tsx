@@ -25,8 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ThumbsUp, MessageSquare, Plus, Loader2, RefreshCw, User, Calendar, ShieldCheck } from "lucide-react"
+import { ThumbsUp, MessageSquare, Plus, Loader2, RefreshCw, User, Calendar, ShieldCheck, Pencil } from "lucide-react"
 import { useFeatureRequests } from "@/hooks/use-feature-requests"
+import { useAuth } from "@/contexts/auth-context"
 import { FeatureRequest, FeatureRequestStatus, Review } from "@/types/feature-request"
 import { getFeatureReviews, getMyFeatureReview } from "@/lib/feature-request-api"
 import { useCapabilities } from "@/hooks/use-capabilities"
@@ -81,6 +82,8 @@ interface FeatureRequestCardProps {
   onUpvote: (id: string, e: React.MouseEvent) => void
   onPostReview: (id: string, content: string) => Promise<boolean>
   onUpdateStatus: (id: string, status: FeatureRequestStatus) => Promise<boolean>
+  isOwner?: boolean
+  onUpdate?: (id: string, title: string, description: string) => Promise<boolean>
 }
 
 function FeatureRequestCard({ 
@@ -90,7 +93,9 @@ function FeatureRequestCard({
   onToggle, 
   onUpvote, 
   onPostReview,
-  onUpdateStatus
+  onUpdateStatus,
+  isOwner,
+  onUpdate
 }: FeatureRequestCardProps) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [isLoadingReviews, setIsLoadingReviews] = useState(false)
@@ -98,6 +103,12 @@ function FeatureRequestCard({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [hasExistingReview, setHasExistingReview] = useState(false)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  
+  // Edit state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState(request.title)
+  const [editDescription, setEditDescription] = useState(request.description)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   const fetchReviewsAndMyReview = async () => {
     setIsLoadingReviews(true)
@@ -147,6 +158,18 @@ function FeatureRequestCard({
     setIsUpdatingStatus(false)
   }
 
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!onUpdate || !editTitle.trim() || !editDescription.trim()) return
+    
+    setIsUpdating(true)
+    const success = await onUpdate(request.id, editTitle, editDescription)
+    if (success) {
+      setIsEditDialogOpen(false)
+    }
+    setIsUpdating(false)
+  }
+
   const currentStatus = statusConfig[request.status]
 
   return (
@@ -168,7 +191,82 @@ function FeatureRequestCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-bold text-base leading-tight truncate">{request.title}</h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="font-bold text-base leading-tight truncate">{request.title}</h3>
+              {isOwner && (
+                <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20 shrink-0">
+                  My Request
+                </Badge>
+              )}
+              {(isSuperAdmin || (isOwner && request.status === 'voting')) && (
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditTitle(request.title)
+                        setEditDescription(request.description)
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent onClick={(e) => e.stopPropagation()}>
+                    <form onSubmit={handleEditSubmit}>
+                      <DialogHeader>
+                        <DialogTitle>Edit Feature Request</DialogTitle>
+                        <DialogDescription>
+                          {isSuperAdmin && !isOwner 
+                            ? "As an administrator, you can edit this request at any time."
+                            : "You can edit your request while it is still in the voting phase."
+                          }
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <label htmlFor="edit-title" className="text-sm font-medium">Title</label>
+                          <Input 
+                            id="edit-title" 
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label htmlFor="edit-description" className="text-sm font-medium">Description</label>
+                            <span className={cn(
+                              "text-[10px] font-mono",
+                              editDescription.length >= 700 ? "text-destructive font-bold" : "text-muted-foreground"
+                            )}>
+                              {editDescription.length} / 700
+                            </span>
+                          </div>
+                          <Textarea 
+                            id="edit-description" 
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value.slice(0, 700))}
+                            required
+                            rows={4}
+                            placeholder="Describe how this feature would work..."
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isUpdating}>
+                          {isUpdating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Save Changes
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
             <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
               {isSuperAdmin ? (
                 <Select
@@ -205,6 +303,7 @@ function FeatureRequestCard({
               )}
             </div>
           </div>
+
           <p className={`text-sm text-muted-foreground mb-2 ${isExpanded ? '' : 'line-clamp-2'}`}>
             {request.description}
           </p>
@@ -294,8 +393,9 @@ import {
 } from "@/components/ui/tabs"
 
 export function FeatureRequestList() {
-  const { featureRequests, isLoading, upvote, submit, postReview, updateStatus, refresh } = useFeatureRequests()
+  const { featureRequests, isLoading, upvote, submit, postReview, updateStatus, update, refresh } = useFeatureRequests()
   const { is_super_admin } = useCapabilities()
+  const { user } = useAuth()
   const [newTitle, setNewTitle] = useState("")
   const [newDescription, setNewDescription] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -342,6 +442,10 @@ export function FeatureRequestList() {
     return await updateStatus(id, status)
   }
 
+  const handleUpdate = async (id: string, title: string, description: string) => {
+    return await update(id, title, description)
+  }
+
   // Filter requests for each tab
   const votingRequests = featureRequests.filter(req => 
     req.status === 'voting' || req.status === 'approved'
@@ -382,6 +486,8 @@ export function FeatureRequestList() {
             onUpvote={handleUpvoteClick}
             onPostReview={handleCardPostReview}
             onUpdateStatus={handleUpdateStatus}
+            isOwner={user?.id === request.submitted_by}
+            onUpdate={handleUpdate}
           />
         ))}
       </div>
@@ -432,12 +538,20 @@ export function FeatureRequestList() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="description" className="text-sm font-medium">Description</label>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="description" className="text-sm font-medium">Description</label>
+                      <span className={cn(
+                        "text-[10px] font-mono",
+                        newDescription.length >= 700 ? "text-destructive font-bold" : "text-muted-foreground"
+                      )}>
+                        {newDescription.length} / 700
+                      </span>
+                    </div>
                     <Textarea 
                       id="description" 
                       placeholder="Describe how this feature would work..." 
                       value={newDescription}
-                      onChange={(e) => setNewDescription(e.target.value)}
+                      onChange={(e) => setNewDescription(e.target.value.slice(0, 700))}
                       required
                       rows={4}
                     />

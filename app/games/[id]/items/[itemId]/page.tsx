@@ -597,6 +597,15 @@ export default function ItemDefinitionDetailPage() {
               </div>
             )}
 
+            <div className="flex justify-between py-1.5">
+              <span className="text-muted-foreground">Created</span>
+              <span className="text-xs">{new Date(item.created_at).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between py-1.5">
+              <span className="text-muted-foreground">Updated</span>
+              <span className="text-xs">{new Date(item.updated_at).toLocaleString()}</span>
+            </div>
+
             {/* Tags */}
             <div className="pt-2 border-t border-muted/50 space-y-2">
               <div className="flex items-center justify-between">
@@ -964,14 +973,6 @@ export default function ItemDefinitionDetailPage() {
               )}
             </div>
 
-            <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Created</span>
-              <span className="text-xs">{new Date(item.created_at).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Updated</span>
-              <span className="text-xs">{new Date(item.updated_at).toLocaleString()}</span>
-            </div>
           </CardContent>
         </Card>
 
