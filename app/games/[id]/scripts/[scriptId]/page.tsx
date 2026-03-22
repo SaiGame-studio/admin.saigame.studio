@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode,
+  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,12 @@ import { getGame } from "@/lib/game-api"
 import { getScript, updateScript, listSampleScripts } from "@/lib/script-api"
 import type { Game } from "@/types/game"
 import type { GameScript, SampleScript } from "@/types/script"
+import CodeMirror from "@uiw/react-codemirror"
+import { StreamLanguage } from "@codemirror/language"
+import { lua } from "@codemirror/legacy-modes/mode/lua"
+import { vscodeDark } from "@uiw/codemirror-theme-vscode"
+import { EditorView } from "@codemirror/view"
+import { undo, redo } from "@codemirror/commands"
 
 // ---------------------------------------------------------------------------
 // Lua Editor
@@ -31,57 +37,47 @@ import type { GameScript, SampleScript } from "@/types/script"
 interface LuaEditorProps {
   value: string
   onChange: (v: string) => void
+  fontSize?: number
 }
 
-function LuaEditor({ value, onChange }: LuaEditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const lineNumRef = useRef<HTMLDivElement>(null)
+export interface LuaEditorHandle {
+  undo: () => void
+  redo: () => void
+}
 
-  const lines = value.split("\n")
+const LuaEditor = forwardRef<LuaEditorHandle, LuaEditorProps>(function LuaEditor({ value, onChange, fontSize = 13 }, ref) {
+  const viewRef = useRef<EditorView | null>(null)
 
-  const syncScroll = () => {
-    if (lineNumRef.current && textareaRef.current) {
-      lineNumRef.current.scrollTop = textareaRef.current.scrollTop
-    }
-  }
+  useImperativeHandle(ref, () => ({
+    undo() { if (viewRef.current) undo(viewRef.current) },
+    redo() { if (viewRef.current) redo(viewRef.current) },
+  }))
 
   return (
-    <div className="flex h-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 font-mono text-sm leading-6">
-      {/* Line numbers */}
-      <div
-        ref={lineNumRef}
-        className="select-none overflow-hidden border-r border-zinc-800 bg-zinc-900/60 py-3 pr-3 pl-2 text-right text-zinc-600 shrink-0 min-w-[3rem]"
-      >
-        {lines.map((_, i) => (
-          <div key={i}>{i + 1}</div>
-        ))}
-      </div>
-
-      {/* Editable area */}
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onScroll={syncScroll}
-        spellCheck={false}
-        className="flex-1 resize-none overflow-auto bg-transparent py-3 px-4 text-zinc-100 outline-none caret-primary placeholder:text-zinc-700"
-        onKeyDown={e => {
-          if (e.key === "Tab") {
-            e.preventDefault()
-            const el = e.currentTarget
-            const start = el.selectionStart
-            const end = el.selectionEnd
-            const next = value.substring(0, start) + "  " + value.substring(end)
-            onChange(next)
-            requestAnimationFrame(() => {
-              el.selectionStart = el.selectionEnd = start + 2
-            })
-          }
-        }}
-      />
-    </div>
+    <CodeMirror
+      value={value}
+      onChange={onChange}
+      theme={vscodeDark}
+      extensions={[StreamLanguage.define(lua)]}
+      onCreateEditor={view => { viewRef.current = view }}
+      basicSetup={{
+        lineNumbers: true,
+        foldGutter: false,
+        dropCursor: false,
+        allowMultipleSelections: false,
+        indentOnInput: true,
+        bracketMatching: true,
+        closeBrackets: true,
+        autocompletion: false,
+        highlightActiveLine: true,
+        highlightSelectionMatches: true,
+        tabSize: 2,
+      }}
+      style={{ height: "100%", fontSize: `${fontSize}px` }}
+      className="h-full overflow-hidden rounded-lg border border-zinc-700 [&_.cm-editor]:h-full [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto"
+    />
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // Page
@@ -106,6 +102,8 @@ export default function ScriptEditPage() {
 
   const [savingInfo, setSavingInfo] = useState(false)
   const [savingBody, setSavingBody] = useState(false)
+  const editorRef = useRef<LuaEditorHandle>(null)
+  const [fontSize, setFontSize] = useState(13)
   const [samples, setSamples] = useState<SampleScript[]>([])
   const [samplesLoading, setSamplesLoading] = useState(true)
   const [sampleTab, setSampleTab] = useState<string>("all")
@@ -294,17 +292,54 @@ export default function ScriptEditPage() {
                 Script Body
                 <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
               </p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
-                    {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Save script</TooltipContent>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.undo()}>
+                      <Undo2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.redo()}>
+                      <Redo2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+                </Tooltip>
+                <Separator orientation="vertical" className="h-4 mx-0.5" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.max(10, s - 1))} disabled={fontSize <= 10}>
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Decrease font size</TooltipContent>
+                </Tooltip>
+                <span className="text-[11px] text-muted-foreground tabular-nums w-6 text-center select-none">{fontSize}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.min(24, s + 1))} disabled={fontSize >= 24}>
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Increase font size</TooltipContent>
+                </Tooltip>
+                <Separator orientation="vertical" className="h-4 mx-0.5" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
+                      {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Save script</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
-              <LuaEditor value={scriptBody} onChange={setScriptBody} />
+              <LuaEditor ref={editorRef} value={scriptBody} onChange={setScriptBody} fontSize={fontSize} />
             </div>
           </div>
 
