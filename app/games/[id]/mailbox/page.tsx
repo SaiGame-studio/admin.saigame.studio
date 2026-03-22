@@ -185,15 +185,16 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
       }
 
       // Fetch item definitions if we have IDs not yet in the map
-      const missingIds = [...defIds].filter((id) => !itemDefsMap[id])
-      if (missingIds.length > 0) {
+      if (defIds.size > 0) {
         try {
           const res = await listItemDefinitions({ gameId }, { limit: 200 })
-          const map: Record<string, ItemDefinition> = { ...itemDefsMap }
-          for (const item of (res.items ?? [])) {
-            map[item.id] = item
-          }
-          setItemDefsMap(map)
+          setItemDefsMap((prev) => {
+            const map: Record<string, ItemDefinition> = { ...prev }
+            for (const item of (res.items ?? [])) {
+              map[item.id] = item
+            }
+            return map
+          })
         } catch {
           // silently ignore — will fall back to showing IDs
         }
@@ -204,7 +205,7 @@ export default function MailboxPage({ params }: { params: { id: string } }) {
     } finally {
       setMailboxLoading(false)
     }
-  }, [gameId, itemDefsMap])
+  }, [gameId])
 
   // Debounced fetch when receiver_id changes
   useEffect(() => {
