@@ -56,30 +56,66 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
     { section: "mailbox",     href: `/games/${gameId}/mailbox`,     icon: <Mail className="h-4 w-4" />,       label: "Mailbox"       },
   ]
 
+  const toggleBtn = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className={`h-8 w-8 shrink-0 transition-all border-dashed ${expanded ? "border-primary text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground"}`}
+          onClick={toggle}
+        >
+          {expanded
+            ? <ChevronsLeftRight className="h-4 w-4" />
+            : <AlignJustify className="h-4 w-4" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {expanded ? "Compact nav" : "Expand nav"}
+      </TooltipContent>
+    </Tooltip>
+  )
+
+  if (expanded) {
+    const half = Math.ceil(items.length / 2)
+    const row1 = items.slice(0, half)
+    const row2 = items.slice(half)
+
+    const renderBtn = ({ section, href, icon, label }: NavItem) => {
+      const isActive = active === section
+      return (
+        <Button
+          key={section}
+          asChild
+          variant={isActive ? "default" : "outline"}
+          size="sm"
+          className="flex items-center gap-1.5"
+        >
+          <Link href={href}>{icon}{label}</Link>
+        </Button>
+      )
+    }
+
+    return (
+      <TooltipProvider delayDuration={300}>
+        <div id={id ?? "game-nav-buttons"} className="flex flex-col gap-1.5">
+          <div className="flex gap-1.5 flex-wrap items-center">
+            {row1.map(renderBtn)}
+          </div>
+          <div className="flex gap-1.5 flex-wrap items-center">
+            {row2.map(renderBtn)}
+            {toggleBtn}
+          </div>
+        </div>
+      </TooltipProvider>
+    )
+  }
+
   return (
     <TooltipProvider delayDuration={300}>
-      <div id={id ?? "game-nav-buttons"} className="flex items-center gap-1.5">
-        {/* Nav items — allowed to wrap */}
-        <div className="flex gap-1.5 flex-wrap items-center">
+      <div id={id ?? "game-nav-buttons"} className="flex gap-1.5 flex-wrap items-center">
         {items.map(({ section, href, icon, label }) => {
           const isActive = active === section
-          if (expanded) {
-            return (
-              <Button
-                key={section}
-                asChild
-                variant={isActive ? "default" : "outline"}
-                size="sm"
-                className="flex items-center gap-1.5"
-              >
-                <Link href={href}>
-                  {icon}
-                  {label}
-                </Link>
-              </Button>
-            )
-          }
-          // Compact mode
           if (isActive) {
             return (
               <Button key={section} asChild variant="default" size="sm" className="flex items-center gap-1.5">
@@ -101,26 +137,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
             </Tooltip>
           )
         })}
-        </div>
-
-        {/* Toggle button — never wraps */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={toggle}
-            >
-              {expanded
-                ? <ChevronsLeftRight className="h-4 w-4" />
-                : <AlignJustify className="h-4 w-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {expanded ? "Compact nav" : "Expand nav"}
-          </TooltipContent>
-        </Tooltip>
+        {toggleBtn}
       </div>
     </TooltipProvider>
   )
