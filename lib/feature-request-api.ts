@@ -32,3 +32,9 @@ export async function getMyFeatureReview(id: string): Promise<Review> {
 export async function updateFeatureStatus(id: string, status: FeatureRequestStatus): Promise<void> {
   await api.patch(`/api/v1/admin/feature-requests/${id}/status`, { status })
 }
+
+export async function updateFeatureRequest(id: string, data: { title?: string; description?: string }): Promise<FeatureRequest> {
+  return await api.patch(`/api/v1/feature-requests/${id}`, data)
+}
+
+
