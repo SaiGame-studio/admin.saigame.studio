@@ -1234,7 +1234,7 @@ export default function GameUserProgressDetailPage({
                             </span>
                           ) : "—"}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm">{item.quantity}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">{item.quantity?.toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm">{item.level}</TableCell>
                         <TableCell className="text-sm">
                           {(() => {

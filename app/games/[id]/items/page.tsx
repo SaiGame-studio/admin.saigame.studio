@@ -3208,7 +3208,6 @@ export default function GameItemsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [copiedPackId, setCopiedPackId] = useState(false)
-  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
 
   // filters
   const [filterCategory, setFilterCategory] = useState<string>("all")
@@ -3961,6 +3960,7 @@ export default function GameItemsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Item Code</TableHead>
                       <TableHead className="text-center">Category</TableHead>
                       <TableHead className="text-center">Rarity</TableHead>
                       <TableHead className="text-center">
@@ -3999,39 +3999,37 @@ export default function GameItemsPage() {
                           </button>
                         </div>
                       </TableHead>
-                      <TableHead className="text-center">Tags</TableHead>
                       <TableHead className="text-center">Stackable</TableHead>
                       <TableHead className="text-center">Grid</TableHead>
                       <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => {
-                      const isExpanded = expandedItemIds.has(item.id)
-                      return (
-                      <Fragment key={item.id}>
-                      <TableRow
-                        className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
-                        onClick={() => {
-                          setExpandedItemIds(prev => {
-                            const next = new Set(prev)
-                            if (next.has(item.id)) next.delete(item.id)
-                            else next.add(item.id)
-                            return next
-                          })
-                        }}
-                      >
+                    {items.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-muted/40">
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                          <div className="flex flex-col gap-0.5">
                             <Link
                               href={`/games/${gameId}/items/${item.id}`}
                               className="hover:text-primary hover:underline font-medium"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               {item.name}
                             </Link>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-mono text-muted-foreground">{item.id}</span>
+                              <CopyButton text={item.id} size="h-3 w-3" />
+                            </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.item_code ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
+                              <CopyButton text={item.item_code} size="h-3 w-3" />
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className="capitalize text-xs w-fit mx-auto">
@@ -4044,8 +4042,7 @@ export default function GameItemsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div 
-                            className="flex items-center justify-center cursor-pointer hover:opacity-80"
+                          <div className="flex items-center justify-center cursor-pointer hover:opacity-80"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleUpdateItemField(item.id, { client_writable: !item.client_writable })
@@ -4059,8 +4056,7 @@ export default function GameItemsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div 
-                            className="flex items-center justify-center cursor-pointer hover:opacity-80"
+                          <div className="flex items-center justify-center cursor-pointer hover:opacity-80"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleUpdateItemField(item.id, { allow_client_update_qty: !item.allow_client_update_qty })
@@ -4072,16 +4068,6 @@ export default function GameItemsPage() {
                               <span className={`h-5 w-5 rounded-full transition-all ${item.allow_client_update_qty ? 'ml-auto bg-blue-500' : 'bg-muted-foreground'}`} />
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {item.tags && item.tags.length > 0 ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                              <Tag className="h-3 w-3" />
-                              {item.tags.length}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {item.is_stackable ? (
@@ -4096,131 +4082,21 @@ export default function GameItemsPage() {
                           {item.grid_width}×{item.grid_height}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                            <Link href={`/games/${gameId}/items/${item.id}`}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="icon" asChild title="View">
+                              <Link href={`/games/${gameId}/items/${item.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button variant="ghost" size="icon" asChild title="Edit">
+                              <Link href={`/games/${gameId}/items/${item.id}`}>
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-
-                      {/* Expanded detail row */}
-                      {isExpanded && (
-                        <TableRow className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={9} className="p-0">
-                            <div className="px-6 py-4 space-y-4">
-                              {/* Definition ID */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-foreground">Definition ID:</span>
-                                <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                                <CopyButton text={item.id} />
-                              </div>
-
-                              {/* Item Code */}
-                              {item.item_code && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-foreground">Item Code:</span>
-                                  <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
-                                  <CopyButton text={item.item_code} />
-                                </div>
-                              )}
-
-                              {/* Core info grid */}
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                                <div>
-                                  <span className="text-muted-foreground">Category: </span>
-                                  <Badge variant="outline" className="capitalize text-xs">{item.category}</Badge>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Rarity: </span>
-                                  <RarityBadge rarity={item.rarity} />
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Grid: </span>
-                                  <span className="font-medium">{item.grid_width}×{item.grid_height}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Stackable: </span>
-                                  {item.is_stackable ? (
-                                    <span className="text-green-500 font-medium">
-                                      Yes {item.max_stack_size != null ? `(max ${item.max_stack_size.toLocaleString()})` : "(∞)"}
-                                    </span>
-                                  ) : (
-                                    <span className="font-medium">No</span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Base Stats */}
-                              {item.base_stats && Object.keys(item.base_stats).length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Base Stats</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {Object.entries(item.base_stats).map(([k, v]) => (
-                                      <div key={k} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-xs">
-                                        <span className="text-muted-foreground">{k}:</span>
-                                        <span className="font-semibold">{String(v)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Tags */}
-                              {item.tags && item.tags.length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Tags</p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {item.tags.map((tag) => (
-                                      <span
-                                        key={tag.tag_key}
-                                        className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
-                                        style={{
-                                          borderColor: tag.color ?? "#A855F7",
-                                          color: tag.color ?? "#A855F7",
-                                          background: `${tag.color ?? "#A855F7"}18`,
-                                        }}
-                                        title={tag.tag_key}
-                                      >
-                                        {tag.label || tag.tag_key}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Metadata */}
-                              {item.metadata && Object.keys(item.metadata).length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Metadata</p>
-                                  <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
-                                    {JSON.stringify(item.metadata, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-
-                              {/* Timestamps */}
-                              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                                <span>Created: {new Date(item.created_at).toLocaleString()}</span>
-                                <span>Updated: {new Date(item.updated_at).toLocaleString()}</span>
-                              </div>
-
-                              {/* Link to detail page */}
-                              <div>
-                                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                                  <Link href={`/games/${gameId}/items/${item.id}`}>
-                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                    Open Detail Page
-                                  </Link>
-                                </Button>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      </Fragment>
-                      )
-                    })}
+                    ))}
                   </TableBody>
                 </Table>
               )}
