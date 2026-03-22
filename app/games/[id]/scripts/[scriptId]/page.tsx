@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus,
+  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -104,6 +104,42 @@ export default function ScriptEditPage() {
   const [savingBody, setSavingBody] = useState(false)
   const editorRef = useRef<LuaEditorHandle>(null)
   const [fontSize, setFontSize] = useState(13)
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState("")
+  const [savingName, setSavingName] = useState(false)
+
+  async function handleSaveName() {
+    if (!nameInput.trim() || nameInput === script?.name) { setEditingName(false); return }
+    setSavingName(true)
+    try {
+      const updated = await updateScript(gameId, scriptId, { name: nameInput.trim() })
+      setScript(updated)
+      toast({ title: "Name updated" })
+      setEditingName(false)
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Failed to rename", description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setSavingName(false)
+    }
+  }
+  const [togglingActive, setTogglingActive] = useState(false)
+
+  async function handleToggleActive(value: boolean) {
+    setIsActive(value)
+    setTogglingActive(true)
+    try {
+      const updated = await updateScript(gameId, scriptId, { is_active: value })
+      setScript(updated)
+      toast({ title: value ? "Script activated" : "Script deactivated" })
+    } catch (err: unknown) {
+      setIsActive(!value)
+      toast({ variant: "destructive", title: "Failed to update", description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setTogglingActive(false)
+    }
+  }
+
   const [samples, setSamples] = useState<SampleScript[]>([])
   const [samplesLoading, setSamplesLoading] = useState(true)
   const [sampleTab, setSampleTab] = useState<string>("all")
@@ -203,15 +239,44 @@ export default function ScriptEditPage() {
             <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}/scripts`)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
+            <div className="group">
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 <Code2 className="h-6 w-6 text-muted-foreground" />
                 {loading ? (
                   <span className="text-muted-foreground">Loading…</span>
+                ) : editingName ? (
+                  <span className="flex items-center gap-1.5">
+                    <Input
+                      value={nameInput}
+                      onChange={e => setNameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      onKeyDown={e => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false) }}
+                      className="h-8 w-48 font-mono text-base px-2"
+                      disabled={savingName}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSaveName} disabled={savingName}>
+                      {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingName(false) }} disabled={savingName}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
                 ) : (
                   <span className="flex items-center gap-1.5 font-mono">
                     {script?.name}
                     {script && <CopyButton text={script.name} />}
+                    <Button
+                      size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => { setNameInput(script?.name ?? ""); setEditingName(true) }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Switch
+                      checked={isActive}
+                      onCheckedChange={handleToggleActive}
+                      disabled={togglingActive}
+                      className="ml-1"
+                    />
                   </span>
                 )}
               </h1>
@@ -246,14 +311,6 @@ export default function ScriptEditPage() {
             onChange={e => setDescription(e.target.value)}
             placeholder="Describe what this script does…"
             className="h-8 text-sm"
-            disabled={loading}
-          />
-        </div>
-        <div className="flex items-center gap-2 pb-0.5">
-          <Label className="text-xs text-muted-foreground">Active</Label>
-          <Switch
-            checked={isActive}
-            onCheckedChange={setIsActive}
             disabled={loading}
           />
         </div>

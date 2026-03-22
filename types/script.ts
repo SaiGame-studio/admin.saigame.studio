@@ -21,6 +21,7 @@ export interface CreateScriptRequest {
 }
 
 export interface UpdateScriptRequest {
+  name?: string
   description?: string
   script_body?: string
   is_active?: boolean
