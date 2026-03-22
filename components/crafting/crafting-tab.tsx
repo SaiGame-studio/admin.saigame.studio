@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, RefreshCw, Hammer, ExternalLink, Dices, Save, X, ChevronRight, ChevronDown, Loader2, Check, ChevronsUpDown, Wand2, ArrowDownRight, ArrowUpRight, Pencil, Trash2 } from "lucide-react"
+import { Plus, RefreshCw, Hammer, ExternalLink, Dices, Save, X, ChevronRight, ChevronDown, Loader2, Check, ChevronsUpDown, Wand2, ArrowDownRight, ArrowUpRight, Pencil, Trash2, History } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -524,6 +524,16 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         </span>
                         <p className="text-[10px] text-muted-foreground uppercase">Bonus</p>
                       </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                        title="View craft history"
+                        onClick={e => { e.stopPropagation(); router.push(`/games/${gameId}/crafting/recipes/${recipe.id}/history`) }}
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
 
                       <Button
                         variant="ghost"

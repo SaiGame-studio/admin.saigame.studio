@@ -76,3 +76,45 @@ export interface ListCraftingRecipesParams {
   page?: number
   page_size?: number
 }
+
+export interface CraftingHistoryMaterialSnapshot {
+  item_definition_id: string
+  item_definition_name: string
+  quantity: number
+  was_consumed: boolean
+}
+
+export interface CraftingHistoryOutputSnapshot {
+  item_definition_id: string
+  item_definition_name: string
+  quantity: number
+  was_consumed: boolean
+}
+
+export interface CraftingHistoryTransaction {
+  id: string
+  game_id: string
+  user_id: string
+  recipe_id: string
+  idempotency_key: string
+  status: "success" | "failed" | string
+  success: boolean
+  bonus_triggered: boolean
+  materials_snapshot: CraftingHistoryMaterialSnapshot[]
+  outputs_snapshot: CraftingHistoryOutputSnapshot[]
+  craft_count_at_time: number
+  created_at: string
+}
+
+export interface ListCraftingRecipeHistoryParams {
+  status?: "success" | "failed"
+  page?: number
+  page_size?: number
+}
+
+export interface CraftingRecipeHistoryResponse {
+  transactions: CraftingHistoryTransaction[]
+  total: number
+  page: number
+  page_size: number
+}

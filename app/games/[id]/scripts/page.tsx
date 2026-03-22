@@ -1,0 +1,400 @@
+"use client"
+
+import { useEffect, useState, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import {
+  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from "@/components/ui/sheet"
+import {
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList,
+} from "@/components/ui/breadcrumb"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CopyButton } from "@/components/CopyButton"
+import { GameNavButtons } from "@/components/GameNavButtons"
+import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/useTranslation"
+import { getGame } from "@/lib/game-api"
+import { listScripts, createScript, updateScript } from "@/lib/script-api"
+import type { Game } from "@/types/game"
+import type { GameScript, CreateScriptRequest } from "@/types/script"
+
+const TRIGGER_TYPE_SUGGESTIONS = [
+  "on_match_end",
+  "on_match_start",
+  "on_player_join",
+  "on_player_leave",
+  "on_item_craft",
+  "on_quest_complete",
+  "on_level_up",
+  "on_purchase",
+  "manual",
+]
+
+function TriggerBadge({ trigger }: { trigger: string }) {
+  return (
+    <Badge variant="outline" className="text-xs font-mono font-normal text-muted-foreground">
+      {trigger}
+    </Badge>
+  )
+}
+
+function VersionBadge({ version }: { version: number }) {
+  return (
+    <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border font-mono">
+      v{version}
+    </span>
+  )
+}
+
+interface ScriptRowProps {
+  script: GameScript
+  onUpdated: (s: GameScript) => void
+}
+
+function ScriptRow({ script, onUpdated }: ScriptRowProps) {
+  const { toast } = useToast()
+  const router = useRouter()
+  const [saving, setSaving] = useState(false)
+
+  async function toggleActive() {
+    try {
+      const updated = await updateScript(script.game_id, script.id, { is_active: !script.is_active })
+      onUpdated(updated)
+    } catch {
+      toast({ variant: "destructive", title: "Failed to toggle script" })
+    }
+  }
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
+      {/* Name */}
+      <div className="w-[180px] shrink-0 min-w-0 flex items-center gap-1">
+        <p className="font-semibold text-sm truncate">{script.name}</p>
+        <CopyButton text={script.name} />
+      </div>
+
+      {/* Trigger type */}
+      <div className="w-[150px] shrink-0">
+        <TriggerBadge trigger={script.trigger_type} />
+      </div>
+
+      {/* Description */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-muted-foreground truncate">{script.description || <span className="italic opacity-50">—</span>}</p>
+      </div>
+
+      {/* Version */}
+      <VersionBadge version={script.version} />
+
+      {/* Active switch */}
+      <Switch checked={script.is_active} onCheckedChange={toggleActive} className="shrink-0" />
+
+      {/* Edit button → navigate to edit page */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+        title="Edit script"
+        onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
+const DEFAULT_SCRIPT_BODY = "-- Lua script"
+
+const defaultForm: CreateScriptRequest = {
+  name: "",
+  description: "",
+  trigger_type: "",
+  script_body: DEFAULT_SCRIPT_BODY,
+}
+
+export default function ScriptsPage() {
+  const params = useParams() as { id: string }
+  const router = useRouter()
+  const { toast } = useToast()
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
+
+  const gameId = params.id
+
+  const [game, setGame] = useState<Game | null>(null)
+  const [scripts, setScripts] = useState<GameScript[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Create sheet
+  const [createOpen, setCreateOpen] = useState(false)
+  const [form, setForm] = useState<CreateScriptRequest>(defaultForm)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [triggerOpen, setTriggerOpen] = useState(false)
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [g, s] = await Promise.all([
+        getGame(gameId).catch(() => null),
+        listScripts(gameId),
+      ])
+      if (g) setGame(g)
+      setScripts(Array.isArray(s) ? s : [])
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load scripts")
+    } finally {
+      setLoading(false)
+    }
+  }, [gameId])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  function handleUpdated(updated: GameScript) {
+    setScripts(prev => prev.map(s => s.id === updated.id ? updated : s))
+  }
+
+  function validateForm(): string | null {
+    if (!form.name.trim()) return "Name is required."
+    if (!form.trigger_type.trim()) return "Trigger type is required."
+    return null
+  }
+
+  async function handleCreate() {
+    const err = validateForm()
+    if (err) { setFormError(err); return }
+    setFormError(null)
+    setCreating(true)
+    try {
+      const created = await createScript(gameId, {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        trigger_type: form.trigger_type.trim(),
+        script_body: form.script_body,
+      })
+      setScripts(prev => [created, ...prev])
+      setCreateOpen(false)
+      setForm(defaultForm)
+      toast({ title: "Script created", description: created.name })
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to create script")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="container mx-auto py-6">
+      {/* Breadcrumb */}
+      <div className="mb-2">
+        <Breadcrumb>
+          <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/games">Games</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/games/${gameId}`}>{game?.name ?? gameId}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>/</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <span>Scripts</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Code2 className="h-7 w-7 text-muted-foreground" />
+              Scripts
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {scripts.length} script{scripts.length !== 1 ? "s" : ""}
+              {game ? ` · ${game.name}` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          <GameNavButtons gameId={gameId} active="scripts" />
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {scripts.length > 0
+            ? `${scripts.length} script${scripts.length !== 1 ? "s" : ""} defined`
+            : "No scripts yet"}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchAll} disabled={loading}>
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" onClick={() => { setForm(defaultForm); setFormError(null); setCreateOpen(true) }}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Script
+          </Button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading scripts…</span>
+        </div>
+      ) : scripts.length === 0 ? (
+        <div className="py-16 text-center">
+          <Code2 className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+          <p className="text-sm text-muted-foreground">No scripts yet. Create your first script to get started.</p>
+          <Button size="sm" className="mt-4" onClick={() => { setForm(defaultForm); setFormError(null); setCreateOpen(true) }}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Script
+          </Button>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          {/* Column header */}
+          <div className="flex items-center gap-3 px-4 py-2 bg-muted/40 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="w-[180px] shrink-0">Name</div>
+            <div className="w-[150px] shrink-0">Trigger</div>
+            <div className="flex-1">Description</div>
+            <div className="w-[36px] shrink-0 text-center">Ver</div>
+            <div className="w-[48px] shrink-0 text-center">Active</div>
+            <div className="w-8 shrink-0" />
+          </div>
+          <div className="divide-y">
+            {scripts.map(script => (
+              <ScriptRow key={script.id} script={script} onUpdated={handleUpdated} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Create Sheet */}
+      <Sheet open={createOpen} onOpenChange={open => { if (!creating) setCreateOpen(open) }}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Code2 className="h-5 w-5" />
+              New Script
+            </SheetTitle>
+            <SheetDescription>
+              Write a Lua script triggered by a game event.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="s-name">Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="s-name"
+                placeholder="calc_reward"
+                value={form.name}
+                onChange={e => {
+                  // Sanitize on the fly: strip everything that's not a-z, 0-9, or _
+                  // and prevent leading digit (replace leading digit with empty)
+                  let val = e.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "")
+                  if (/^[0-9]/.test(val)) val = val.replace(/^[0-9]+/, "")
+                  setForm(f => ({ ...f, name: val }))
+                }}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                This is the <span className="font-semibold text-foreground">trigger key</span> — your game client calls this exact name to invoke the script.
+                Must start with a letter; lowercase letters, digits and underscores only.
+              </p>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label htmlFor="s-desc">Description</Label>
+              <Input
+                id="s-desc"
+                placeholder="Describe what this script does…"
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+
+            {/* Trigger type */}
+            <div className="space-y-1.5">
+              <Label htmlFor="s-trigger">Trigger Type <span className="text-destructive">*</span></Label>
+              <Input
+                id="s-trigger"
+                placeholder="on_match_end"
+                value={form.trigger_type}
+                onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))}
+                className="font-mono"
+                list="trigger-suggestions"
+              />
+              <datalist id="trigger-suggestions">
+                {TRIGGER_TYPE_SUGGESTIONS.map(s => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {TRIGGER_TYPE_SUGGESTIONS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, trigger_type: s }))}
+                    className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {formError && (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              Create Script
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </div>
+  )
+}
