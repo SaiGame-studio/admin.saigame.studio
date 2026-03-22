@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull } from "lucide-react"
+import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 
 const LS_KEY = "game-nav-expanded"
 
-type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail"
+type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts"
 
 interface GameNavButtonsProps {
   gameId: string
@@ -54,6 +54,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
     { section: "analytic",    href: `/games/${gameId}/analytic`,    icon: <BarChart2 className="h-4 w-4" />,  label: "Analytic"      },
     { section: "plugins",     href: `/games/${gameId}/plugins`,     icon: <Hammer className="h-4 w-4" />,     label: "Upgrade"       },
     { section: "mailbox",     href: `/games/${gameId}/mailbox`,     icon: <Mail className="h-4 w-4" />,       label: "Mailbox"       },
+    { section: "scripts",     href: `/games/${gameId}/scripts`,     icon: <Code2 className="h-4 w-4" />,      label: "Scripts"       },
   ]
 
   const toggleBtn = (
