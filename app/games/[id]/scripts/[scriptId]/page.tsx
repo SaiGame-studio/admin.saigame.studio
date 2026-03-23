@@ -30,6 +30,31 @@ import { lua } from "@codemirror/legacy-modes/mode/lua"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { EditorView } from "@codemirror/view"
 import { undo, redo } from "@codemirror/commands"
+import { linter, lintGutter } from "@codemirror/lint"
+import type { Diagnostic } from "@codemirror/lint"
+import luaparse from "luaparse"
+
+// ---------------------------------------------------------------------------
+// Lua linter
+// ---------------------------------------------------------------------------
+function luaLinter(view: EditorView): Diagnostic[] {
+  const code = view.state.doc.toString()
+  if (!code.trim()) return []
+  try {
+    luaparse.parse(code, { luaVersion: "5.3" })
+    return []
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "line" in err && "column" in err) {
+      const e = err as { line: number; column: number; message: string }
+      const line = Math.max(0, e.line - 1)
+      const lineStart = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from
+      const lineEnd = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).to
+      const from = Math.min(lineStart + e.column, lineEnd)
+      return [{ from, to: Math.max(from + 1, lineEnd), severity: "error", message: e.message }]
+    }
+    return []
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Lua Editor
@@ -58,7 +83,7 @@ const LuaEditor = forwardRef<LuaEditorHandle, LuaEditorProps>(function LuaEditor
       value={value}
       onChange={onChange}
       theme={vscodeDark}
-      extensions={[StreamLanguage.define(lua)]}
+      extensions={[StreamLanguage.define(lua), lintGutter(), linter(luaLinter, { delay: 600 })]}
       onCreateEditor={view => { viewRef.current = view }}
       basicSetup={{
         lineNumbers: true,
