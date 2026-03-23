@@ -28,6 +28,7 @@ export interface UpdateScriptRequest {
 }
 
 export interface SampleScript {
+  no: number
   name: string
   description: string
   trigger_type: string
