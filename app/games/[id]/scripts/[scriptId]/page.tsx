@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X,
+  ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +30,31 @@ import { lua } from "@codemirror/legacy-modes/mode/lua"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { EditorView } from "@codemirror/view"
 import { undo, redo } from "@codemirror/commands"
+import { linter, lintGutter } from "@codemirror/lint"
+import type { Diagnostic } from "@codemirror/lint"
+import luaparse from "luaparse"
+
+// ---------------------------------------------------------------------------
+// Lua linter
+// ---------------------------------------------------------------------------
+function luaLinter(view: EditorView): Diagnostic[] {
+  const code = view.state.doc.toString()
+  if (!code.trim()) return []
+  try {
+    luaparse.parse(code, { luaVersion: "5.3" })
+    return []
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "line" in err && "column" in err) {
+      const e = err as { line: number; column: number; message: string }
+      const line = Math.max(0, e.line - 1)
+      const lineStart = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from
+      const lineEnd = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).to
+      const from = Math.min(lineStart + e.column, lineEnd)
+      return [{ from, to: Math.max(from + 1, lineEnd), severity: "error", message: e.message }]
+    }
+    return []
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Lua Editor
@@ -58,7 +83,7 @@ const LuaEditor = forwardRef<LuaEditorHandle, LuaEditorProps>(function LuaEditor
       value={value}
       onChange={onChange}
       theme={vscodeDark}
-      extensions={[StreamLanguage.define(lua)]}
+      extensions={[StreamLanguage.define(lua), lintGutter(), linter(luaLinter, { delay: 600 })]}
       onCreateEditor={view => { viewRef.current = view }}
       basicSetup={{
         lineNumbers: true,
@@ -102,6 +127,8 @@ export default function ScriptEditPage() {
 
   const [savingInfo, setSavingInfo] = useState(false)
   const [savingBody, setSavingBody] = useState(false)
+  const [savedBody, setSavedBody] = useState(false)
+  const savedBodyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorRef = useRef<LuaEditorHandle>(null)
   const [fontSize, setFontSize] = useState(13)
 
@@ -191,18 +218,36 @@ export default function ScriptEditPage() {
     }
   }
 
+  const handleSaveBodyRef = useRef<() => Promise<void>>(null!)
+
   async function handleSaveBody() {
+    if (savingBody) return
     setSavingBody(true)
     try {
       const updated = await updateScript(gameId, scriptId, { script_body: scriptBody })
       setScript(updated)
-      toast({ title: "Script saved", description: `Version bumped to v${updated.version}` })
+      if (savedBodyTimer.current) clearTimeout(savedBodyTimer.current)
+      setSavedBody(true)
+      savedBodyTimer.current = setTimeout(() => setSavedBody(false), 2000)
     } catch (err: unknown) {
       toast({ variant: "destructive", title: "Failed to save script", description: err instanceof Error ? err.message : undefined })
     } finally {
       setSavingBody(false)
     }
   }
+
+  useEffect(() => { handleSaveBodyRef.current = handleSaveBody })
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault()
+        handleSaveBodyRef.current()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Render
@@ -385,13 +430,14 @@ export default function ScriptEditPage() {
                   <TooltipContent side="bottom">Increase font size</TooltipContent>
                 </Tooltip>
                 <Separator orientation="vertical" className="h-4 mx-0.5" />
+                <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
                       {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Save script</TooltipContent>
+                  <TooltipContent side="bottom">Save script (Ctrl+S)</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -466,6 +512,7 @@ export default function ScriptEditPage() {
                       >
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <FileCode className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
+                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{s.no}</span>
                           <span className="text-xs font-semibold font-mono truncate group-hover:text-primary">{s.name}</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
