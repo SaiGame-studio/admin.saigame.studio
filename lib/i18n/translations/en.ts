@@ -2613,4 +2613,57 @@ export const en = {
       saving: "Saving…",
     },
   },
+  scripts: {
+    // Page
+    pageTitle: "Scripts",
+    breadcrumbGames: "Games",
+    breadcrumbScripts: "Scripts",
+
+    // Header
+    scriptCount: "script",
+    scriptCountPlural: "scripts",
+
+    // Toolbar
+    scriptsDefinedSingular: "script defined",
+    scriptsDefinedPlural: "scripts defined",
+    noScriptsYet: "No scripts yet",
+    newScript: "New Script",
+    loadingScripts: "Loading scripts…",
+
+    // Empty state
+    emptyTitle: "No scripts yet. Create your first script to get started.",
+
+    // Table headers
+    tableHeaderName: "Name",
+    tableHeaderTrigger: "Trigger",
+    tableHeaderDescription: "Description",
+    tableHeaderVer: "Ver",
+    tableHeaderActive: "Active",
+
+    // Script row
+    editScript: "Edit script",
+    toastFailedToggle: "Failed to toggle script",
+
+    // Create sheet
+    createTitle: "New Script",
+    createDescription: "Write a Lua script triggered by a game event.",
+    labelName: "Name",
+    labelDescription: "Description",
+    labelTriggerType: "Trigger Type",
+    placeholderName: "calc_reward",
+    placeholderDescription: "Describe what this script does…",
+    placeholderTriggerType: "on_match_end",
+    nameHint: "This is the <strong>trigger key</strong> — your game client calls this exact name to invoke the script. Must start with a letter; lowercase letters, digits and underscores only.",
+    btnCancel: "Cancel",
+    btnCreateScript: "Create Script",
+
+    // Validation
+    validationNameRequired: "Name is required.",
+    validationTriggerRequired: "Trigger type is required.",
+
+    // Toasts
+    toastScriptCreated: "Script created",
+    toastFailedCreate: "Failed to create script",
+    toastFailedLoad: "Failed to load scripts",
+  },
 };

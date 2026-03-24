@@ -2571,4 +2571,57 @@ export const vi = {
       saving: "Đang lưu…",
     },
   },
+  scripts: {
+    // Page
+    pageTitle: "Scripts",
+    breadcrumbGames: "Games",
+    breadcrumbScripts: "Scripts",
+
+    // Header
+    scriptCount: "script",
+    scriptCountPlural: "scripts",
+
+    // Toolbar
+    scriptsDefinedSingular: "script đã định nghĩa",
+    scriptsDefinedPlural: "scripts đã định nghĩa",
+    noScriptsYet: "Chưa có script nào",
+    newScript: "Script mới",
+    loadingScripts: "Đang tải scripts…",
+
+    // Empty state
+    emptyTitle: "Chưa có script nào. Tạo script đầu tiên để bắt đầu.",
+
+    // Table headers
+    tableHeaderName: "Tên",
+    tableHeaderTrigger: "Trigger",
+    tableHeaderDescription: "Mô tả",
+    tableHeaderVer: "Ver",
+    tableHeaderActive: "Hoạt động",
+
+    // Script row
+    editScript: "Sửa script",
+    toastFailedToggle: "Không thể chuyển đổi trạng thái script",
+
+    // Create sheet
+    createTitle: "Script mới",
+    createDescription: "Viết script Lua được kích hoạt bởi sự kiện game.",
+    labelName: "Tên",
+    labelDescription: "Mô tả",
+    labelTriggerType: "Loại trigger",
+    placeholderName: "calc_reward",
+    placeholderDescription: "Mô tả script này làm gì…",
+    placeholderTriggerType: "on_match_end",
+    nameHint: "Đây là <strong>trigger key</strong> — game client gọi chính xác tên này để thực thi script. Phải bắt đầu bằng chữ cái; chỉ chữ thường, số và dấu gạch dưới.",
+    btnCancel: "Hủy",
+    btnCreateScript: "Tạo Script",
+
+    // Validation
+    validationNameRequired: "Tên là bắt buộc.",
+    validationTriggerRequired: "Loại trigger là bắt buộc.",
+
+    // Toasts
+    toastScriptCreated: "Đã tạo script",
+    toastFailedCreate: "Không thể tạo script",
+    toastFailedLoad: "Không thể tải scripts",
+  },
 };

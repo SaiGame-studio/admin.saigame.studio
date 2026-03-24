@@ -63,6 +63,8 @@ interface ScriptRowProps {
 
 function ScriptRow({ script, onUpdated }: ScriptRowProps) {
   const { toast } = useToast()
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
   const router = useRouter()
   const [saving, setSaving] = useState(false)
 
@@ -71,7 +73,7 @@ function ScriptRow({ script, onUpdated }: ScriptRowProps) {
       const updated = await updateScript(script.game_id, script.id, { is_active: !script.is_active })
       onUpdated(updated)
     } catch {
-      toast({ variant: "destructive", title: "Failed to toggle script" })
+      toast({ variant: "destructive", title: t('scripts.toastFailedToggle') })
     }
   }
 
@@ -104,7 +106,7 @@ function ScriptRow({ script, onUpdated }: ScriptRowProps) {
         variant="ghost"
         size="icon"
         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-        title="Edit script"
+        title={t('scripts.editScript')}
         onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
       >
         <Pencil className="h-4 w-4" />
@@ -154,7 +156,7 @@ export default function ScriptsPage() {
       if (g) setGame(g)
       setScripts(Array.isArray(s) ? s : [])
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load scripts")
+      setError(err instanceof Error ? err.message : t('scripts.toastFailedLoad'))
     } finally {
       setLoading(false)
     }
@@ -167,8 +169,8 @@ export default function ScriptsPage() {
   }
 
   function validateForm(): string | null {
-    if (!form.name.trim()) return "Name is required."
-    if (!form.trigger_type.trim()) return "Trigger type is required."
+    if (!form.name.trim()) return t('scripts.validationNameRequired')
+    if (!form.trigger_type.trim()) return t('scripts.validationTriggerRequired')
     return null
   }
 
@@ -187,9 +189,9 @@ export default function ScriptsPage() {
       setScripts(prev => [created, ...prev])
       setCreateOpen(false)
       setForm(defaultForm)
-      toast({ title: "Script created", description: created.name })
+      toast({ title: t('scripts.toastScriptCreated'), description: created.name })
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to create script")
+      setFormError(err instanceof Error ? err.message : t('scripts.toastFailedCreate'))
     } finally {
       setCreating(false)
     }
@@ -202,7 +204,7 @@ export default function ScriptsPage() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/games">Games</BreadcrumbLink>
+              <BreadcrumbLink href="/games">{t('scripts.breadcrumbGames')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -210,7 +212,7 @@ export default function ScriptsPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span>Scripts</span>
+              <span>{t('scripts.breadcrumbScripts')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -225,10 +227,10 @@ export default function ScriptsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
               <Code2 className="h-7 w-7 text-muted-foreground" />
-              Scripts
+              {t('scripts.pageTitle')}
             </h1>
             <p className="text-muted-foreground text-sm">
-              {scripts.length} script{scripts.length !== 1 ? "s" : ""}
+              {scripts.length} {scripts.length !== 1 ? t('scripts.scriptCountPlural') : t('scripts.scriptCount')}
               {game ? ` · ${game.name}` : ""}
             </p>
           </div>
@@ -242,8 +244,8 @@ export default function ScriptsPage() {
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <p className="text-sm text-muted-foreground">
           {scripts.length > 0
-            ? `${scripts.length} script${scripts.length !== 1 ? "s" : ""} defined`
-            : "No scripts yet"}
+            ? `${scripts.length} ${scripts.length !== 1 ? t('scripts.scriptsDefinedPlural') : t('scripts.scriptsDefinedSingular')}`
+            : t('scripts.noScriptsYet')}
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchAll} disabled={loading}>
@@ -251,7 +253,7 @@ export default function ScriptsPage() {
           </Button>
           <Button size="sm" onClick={() => { setForm(defaultForm); setFormError(null); setCreateOpen(true) }}>
             <Plus className="h-4 w-4 mr-1" />
-            New Script
+            {t('scripts.newScript')}
           </Button>
         </div>
       </div>
@@ -267,26 +269,26 @@ export default function ScriptsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading scripts…</span>
+          <span className="text-sm">{t('scripts.loadingScripts')}</span>
         </div>
       ) : scripts.length === 0 ? (
         <div className="py-16 text-center">
           <Code2 className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-30" />
-          <p className="text-sm text-muted-foreground">No scripts yet. Create your first script to get started.</p>
+          <p className="text-sm text-muted-foreground">{t('scripts.emptyTitle')}</p>
           <Button size="sm" className="mt-4" onClick={() => { setForm(defaultForm); setFormError(null); setCreateOpen(true) }}>
             <Plus className="h-4 w-4 mr-1" />
-            New Script
+            {t('scripts.newScript')}
           </Button>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
           {/* Column header */}
           <div className="flex items-center gap-3 px-4 py-2 bg-muted/40 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            <div className="w-[180px] shrink-0">Name</div>
-            <div className="w-[150px] shrink-0">Trigger</div>
-            <div className="flex-1">Description</div>
-            <div className="w-[36px] shrink-0 text-center">Ver</div>
-            <div className="w-[48px] shrink-0 text-center">Active</div>
+            <div className="w-[180px] shrink-0">{t('scripts.tableHeaderName')}</div>
+            <div className="w-[150px] shrink-0">{t('scripts.tableHeaderTrigger')}</div>
+            <div className="flex-1">{t('scripts.tableHeaderDescription')}</div>
+            <div className="w-[36px] shrink-0 text-center">{t('scripts.tableHeaderVer')}</div>
+            <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderActive')}</div>
             <div className="w-8 shrink-0" />
           </div>
           <div className="divide-y">
@@ -303,20 +305,20 @@ export default function ScriptsPage() {
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Code2 className="h-5 w-5" />
-              New Script
+              {t('scripts.createTitle')}
             </SheetTitle>
             <SheetDescription>
-              Write a Lua script triggered by a game event.
+              {t('scripts.createDescription')}
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-4 py-4">
             {/* Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="s-name">Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="s-name">{t('scripts.labelName')} <span className="text-destructive">*</span></Label>
               <Input
                 id="s-name"
-                placeholder="calc_reward"
+                placeholder={t('scripts.placeholderName')}
                 value={form.name}
                 onChange={e => {
                   // Sanitize on the fly: strip everything that's not a-z, 0-9, or _
@@ -329,18 +331,15 @@ export default function ScriptsPage() {
                 }}
                 className="font-mono"
               />
-              <p className="text-xs text-muted-foreground">
-                This is the <span className="font-semibold text-foreground">trigger key</span> — your game client calls this exact name to invoke the script.
-                Must start with a letter; lowercase letters, digits and underscores only.
-              </p>
+              <p className="text-xs text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('scripts.nameHint') }} />
             </div>
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label htmlFor="s-desc">Description</Label>
+              <Label htmlFor="s-desc">{t('scripts.labelDescription')}</Label>
               <Input
                 id="s-desc"
-                placeholder="Describe what this script does…"
+                placeholder={t('scripts.placeholderDescription')}
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               />
@@ -348,10 +347,10 @@ export default function ScriptsPage() {
 
             {/* Trigger type */}
             <div className="space-y-1.5">
-              <Label htmlFor="s-trigger">Trigger Type <span className="text-destructive">*</span></Label>
+              <Label htmlFor="s-trigger">{t('scripts.labelTriggerType')} <span className="text-destructive">*</span></Label>
               <Input
                 id="s-trigger"
-                placeholder="on_match_end"
+                placeholder={t('scripts.placeholderTriggerType')}
                 value={form.trigger_type}
                 onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))}
                 className="font-mono"
@@ -386,11 +385,11 @@ export default function ScriptsPage() {
 
           <SheetFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
-              Cancel
+              {t('scripts.btnCancel')}
             </Button>
             <Button onClick={handleCreate} disabled={creating}>
               {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-              Create Script
+              {t('scripts.btnCreateScript')}
             </Button>
           </SheetFooter>
         </SheetContent>

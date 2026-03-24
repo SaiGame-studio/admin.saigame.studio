@@ -2560,4 +2560,57 @@ export const ja = {
       saving: "保存中…",
     },
   },
+  scripts: {
+    // Page
+    pageTitle: "スクリプト",
+    breadcrumbGames: "ゲーム",
+    breadcrumbScripts: "スクリプト",
+
+    // Header
+    scriptCount: "スクリプト",
+    scriptCountPlural: "スクリプト",
+
+    // Toolbar
+    scriptsDefinedSingular: "件のスクリプトが定義済み",
+    scriptsDefinedPlural: "件のスクリプトが定義済み",
+    noScriptsYet: "スクリプトがまだありません",
+    newScript: "新規スクリプト",
+    loadingScripts: "スクリプトを読み込み中…",
+
+    // Empty state
+    emptyTitle: "スクリプトがまだありません。最初のスクリプトを作成して始めましょう。",
+
+    // Table headers
+    tableHeaderName: "名前",
+    tableHeaderTrigger: "トリガー",
+    tableHeaderDescription: "説明",
+    tableHeaderVer: "Ver",
+    tableHeaderActive: "アクティブ",
+
+    // Script row
+    editScript: "スクリプトを編集",
+    toastFailedToggle: "スクリプトの切り替えに失敗しました",
+
+    // Create sheet
+    createTitle: "新規スクリプト",
+    createDescription: "ゲームイベントでトリガーされるLuaスクリプトを作成します。",
+    labelName: "名前",
+    labelDescription: "説明",
+    labelTriggerType: "トリガータイプ",
+    placeholderName: "calc_reward",
+    placeholderDescription: "このスクリプトの機能を説明…",
+    placeholderTriggerType: "on_match_end",
+    nameHint: "これは<strong>トリガーキー</strong>です — ゲームクライアントはこの名前でスクリプトを呼び出します。英小文字で始まり、英小文字、数字、アンダースコアのみ使用できます。",
+    btnCancel: "キャンセル",
+    btnCreateScript: "スクリプト作成",
+
+    // Validation
+    validationNameRequired: "名前は必須です。",
+    validationTriggerRequired: "トリガータイプは必須です。",
+
+    // Toasts
+    toastScriptCreated: "スクリプトを作成しました",
+    toastFailedCreate: "スクリプトの作成に失敗しました",
+    toastFailedLoad: "スクリプトの読み込みに失敗しました",
+  },
 };
