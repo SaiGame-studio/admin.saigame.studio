@@ -1462,6 +1462,111 @@ export const ja = {
     agoSuffix: "(前)",
     absSuffix: "(絶対)",
   },
+  analytic: {
+    // Page
+    pageTitle: "アナリティクス",
+    breadcrumbStudios: "スタジオ",
+    breadcrumbStudio: "スタジオ",
+
+    // Tabs
+    tabJourney: "ジャーニー",
+    tabEventTypes: "イベントタイプ",
+
+    // Journey toolbar
+    fixedLimitNote: "固定制限 · アップグレード不可",
+    newJourney: "新規ジャーニー",
+
+    // Journey table
+    tableHeaderName: "名前",
+    tableHeaderKey: "キー",
+    tableHeaderActive: "アクティブ",
+    tableHeaderCreated: "作成日",
+    tableHeaderActions: "操作",
+    emptyJourneys: "ジャーニーがまだありません。最初のジャーニーを作成してください。",
+
+    // Journey create sheet
+    createJourneyTitle: "新規ジャーニー",
+    labelName: "名前",
+    labelJourneyKey: "ジャーニーキー",
+    labelDescription: "説明",
+    labelMetadata: "メタデータ",
+    placeholderJourneyName: "チュートリアルジャーニー",
+    placeholderJourneyKey: "tutorial_journey",
+    placeholderJourneyDescription: "ジャーニーの説明...",
+    autoSlugEnabled: "自動スラグ有効",
+    autoSlugDisabled: "自動スラグ無効",
+    autoSlugHint: "ジャーニーキーは名前から自動生成されます",
+    btnCancel: "キャンセル",
+    btnCreate: "作成",
+
+    // Journey edit sheet
+    editJourneyTitle: "ジャーニー編集",
+    placeholderEditJourneyName: "ジャーニー名",
+    labelActive: "アクティブ",
+    btnSave: "保存",
+
+    // Journey delete dialog
+    deleteJourneyTitle: "ジャーニー削除",
+    deleteJourneyDesc: "本当に削除しますか：",
+    deleteJourneyDescSuffix: "？この操作は元に戻せません。",
+    btnDelete: "削除",
+
+    // Journey toasts
+    toastValidation: "バリデーション",
+    toastNameKeyRequired: "名前とジャーニーキーは必須です。",
+    toastJourneyCreated: "ジャーニーを作成しました",
+    toastJourneyUpdated: "ジャーニーを更新しました",
+    toastJourneyDeleted: "ジャーニーを削除しました",
+    toastError: "エラー",
+    toastFailedLoadJourneys: "ジャーニーの読み込みに失敗しました",
+    toastFailedCreateJourney: "ジャーニーの作成に失敗しました",
+    toastFailedUpdateJourney: "ジャーニーの更新に失敗しました",
+    toastFailedDeleteJourney: "ジャーニーの削除に失敗しました",
+    toastFailedLoadGame: "ゲームの読み込みに失敗しました",
+
+    // MetaEditor
+    metaKeyValue: "キー / 値",
+    metaKeysCount: "キー",
+    metaPlaceholderKey: "キー",
+    metaPlaceholderValue: "値",
+    metaAddField: "フィールド追加",
+    metaLimitReached: "(上限に達しました)",
+
+    // Event type toolbar
+    newEventType: "新規イベントタイプ",
+    managePluginsTitle: "プラグイン管理 / 制限を引き上げ",
+
+    // Event type table
+    tableHeaderEventType: "イベントタイプ",
+    tableHeaderDescription: "説明",
+    emptyEventTypes: "イベントタイプがまだありません。最初のイベントタイプを作成してください。",
+
+    // Event type create sheet
+    createEventTypeTitle: "新規イベントタイプ",
+    labelEventType: "イベントタイプ",
+    placeholderEventType: "join_game",
+    eventTypeValidationRegex: "英小文字で始まり、英小文字、数字、アンダースコアのみ使用できます。",
+    eventTypeValidationRequired: "イベントタイプは必須です。",
+    eventTypeHint: "このイベントの一意の識別子（例：join_game、ending1）",
+    placeholderEventDescription: "このイベントが何を表すか説明してください...",
+
+    // Event type edit sheet
+    editEventTypeTitle: "イベントタイプ編集",
+
+    // Event type delete dialog
+    deleteEventTypeTitle: "イベントタイプ削除",
+    deleteEventTypeDesc: "本当に削除しますか：",
+    deleteEventTypeDescSuffix: "？この操作は元に戻せません。",
+
+    // Event type toasts
+    toastEventTypeCreated: "イベントタイプを作成しました",
+    toastEventTypeUpdated: "イベントタイプを更新しました",
+    toastEventTypeDeleted: "イベントタイプを削除しました",
+    toastFailedLoadEventTypes: "イベントタイプの読み込みに失敗しました",
+    toastFailedCreateEventType: "イベントタイプの作成に失敗しました",
+    toastFailedUpdateEventType: "イベントタイプの更新に失敗しました",
+    toastFailedDeleteEventType: "イベントタイプの削除に失敗しました",
+  },
   items: {
     // Tabs
     tabItems: "アイテム",

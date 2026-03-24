@@ -1481,6 +1481,111 @@ export const en = {
     agoSuffix: "(ago)",
     absSuffix: "(abs)",
   },
+  analytic: {
+    // Page
+    pageTitle: "Analytic",
+    breadcrumbStudios: "Studios",
+    breadcrumbStudio: "Studio",
+
+    // Tabs
+    tabJourney: "Journey",
+    tabEventTypes: "Event Types",
+
+    // Journey toolbar
+    fixedLimitNote: "fixed limit · cannot be upgraded",
+    newJourney: "New Journey",
+
+    // Journey table
+    tableHeaderName: "Name",
+    tableHeaderKey: "Key",
+    tableHeaderActive: "Active",
+    tableHeaderCreated: "Created",
+    tableHeaderActions: "Actions",
+    emptyJourneys: "No journeys yet. Create your first journey.",
+
+    // Journey create sheet
+    createJourneyTitle: "New Journey",
+    labelName: "Name",
+    labelJourneyKey: "Journey Key",
+    labelDescription: "Description",
+    labelMetadata: "Metadata",
+    placeholderJourneyName: "Tutorial Journey",
+    placeholderJourneyKey: "tutorial_journey",
+    placeholderJourneyDescription: "Journey description...",
+    autoSlugEnabled: "Auto-slug enabled",
+    autoSlugDisabled: "Auto-slug disabled",
+    autoSlugHint: "Journey key will auto-generate from name",
+    btnCancel: "Cancel",
+    btnCreate: "Create",
+
+    // Journey edit sheet
+    editJourneyTitle: "Edit Journey",
+    placeholderEditJourneyName: "Journey name",
+    labelActive: "Active",
+    btnSave: "Save",
+
+    // Journey delete dialog
+    deleteJourneyTitle: "Delete Journey",
+    deleteJourneyDesc: "Are you sure you want to delete",
+    deleteJourneyDescSuffix: "? This action cannot be undone.",
+    btnDelete: "Delete",
+
+    // Journey toasts
+    toastValidation: "Validation",
+    toastNameKeyRequired: "Name and Journey Key are required.",
+    toastJourneyCreated: "Journey created",
+    toastJourneyUpdated: "Journey updated",
+    toastJourneyDeleted: "Journey deleted",
+    toastError: "Error",
+    toastFailedLoadJourneys: "Failed to load journeys",
+    toastFailedCreateJourney: "Failed to create journey",
+    toastFailedUpdateJourney: "Failed to update journey",
+    toastFailedDeleteJourney: "Failed to delete journey",
+    toastFailedLoadGame: "Failed to load game",
+
+    // MetaEditor
+    metaKeyValue: "Key / Value",
+    metaKeysCount: "keys",
+    metaPlaceholderKey: "key",
+    metaPlaceholderValue: "value",
+    metaAddField: "Add field",
+    metaLimitReached: "(limit reached)",
+
+    // Event type toolbar
+    newEventType: "New Event Type",
+    managePluginsTitle: "Manage plugins / raise limits",
+
+    // Event type table
+    tableHeaderEventType: "Event Type",
+    tableHeaderDescription: "Description",
+    emptyEventTypes: "No event types yet. Create your first event type.",
+
+    // Event type create sheet
+    createEventTypeTitle: "New Event Type",
+    labelEventType: "Event Type",
+    placeholderEventType: "join_game",
+    eventTypeValidationRegex: "Must start with a letter and contain only lowercase letters, digits, and underscores.",
+    eventTypeValidationRequired: "Event Type is required.",
+    eventTypeHint: "Unique identifier for this event (e.g. join_game, ending1)",
+    placeholderEventDescription: "Describe what this event represents...",
+
+    // Event type edit sheet
+    editEventTypeTitle: "Edit Event Type",
+
+    // Event type delete dialog
+    deleteEventTypeTitle: "Delete Event Type",
+    deleteEventTypeDesc: "Are you sure you want to delete",
+    deleteEventTypeDescSuffix: "? This action cannot be undone.",
+
+    // Event type toasts
+    toastEventTypeCreated: "Event type created",
+    toastEventTypeUpdated: "Event type updated",
+    toastEventTypeDeleted: "Event type deleted",
+    toastFailedLoadEventTypes: "Failed to load event types",
+    toastFailedCreateEventType: "Failed to create event type",
+    toastFailedUpdateEventType: "Failed to update event type",
+    toastFailedDeleteEventType: "Failed to delete event type",
+  },
   items: {
     // Tabs
     tabItems: "Items",

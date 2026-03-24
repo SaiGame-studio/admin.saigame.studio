@@ -1473,6 +1473,111 @@ export const vi = {
     agoSuffix: "(trước)",
     absSuffix: "(tuyệt đối)",
   },
+  analytic: {
+    // Page
+    pageTitle: "Phân tích",
+    breadcrumbStudios: "Studios",
+    breadcrumbStudio: "Studio",
+
+    // Tabs
+    tabJourney: "Hành trình",
+    tabEventTypes: "Loại sự kiện",
+
+    // Journey toolbar
+    fixedLimitNote: "giới hạn cố định · không thể nâng cấp",
+    newJourney: "Hành trình mới",
+
+    // Journey table
+    tableHeaderName: "Tên",
+    tableHeaderKey: "Khóa",
+    tableHeaderActive: "Hoạt động",
+    tableHeaderCreated: "Ngày tạo",
+    tableHeaderActions: "Thao tác",
+    emptyJourneys: "Chưa có hành trình nào. Tạo hành trình đầu tiên.",
+
+    // Journey create sheet
+    createJourneyTitle: "Hành trình mới",
+    labelName: "Tên",
+    labelJourneyKey: "Khóa hành trình",
+    labelDescription: "Mô tả",
+    labelMetadata: "Metadata",
+    placeholderJourneyName: "Hành trình hướng dẫn",
+    placeholderJourneyKey: "tutorial_journey",
+    placeholderJourneyDescription: "Mô tả hành trình...",
+    autoSlugEnabled: "Tự động tạo slug đang bật",
+    autoSlugDisabled: "Tự động tạo slug đang tắt",
+    autoSlugHint: "Khóa hành trình sẽ được tạo tự động từ tên",
+    btnCancel: "Hủy",
+    btnCreate: "Tạo",
+
+    // Journey edit sheet
+    editJourneyTitle: "Sửa hành trình",
+    placeholderEditJourneyName: "Tên hành trình",
+    labelActive: "Hoạt động",
+    btnSave: "Lưu",
+
+    // Journey delete dialog
+    deleteJourneyTitle: "Xóa hành trình",
+    deleteJourneyDesc: "Bạn có chắc chắn muốn xóa",
+    deleteJourneyDescSuffix: "? Hành động này không thể hoàn tác.",
+    btnDelete: "Xóa",
+
+    // Journey toasts
+    toastValidation: "Xác thực",
+    toastNameKeyRequired: "Tên và Khóa hành trình là bắt buộc.",
+    toastJourneyCreated: "Đã tạo hành trình",
+    toastJourneyUpdated: "Đã cập nhật hành trình",
+    toastJourneyDeleted: "Đã xóa hành trình",
+    toastError: "Lỗi",
+    toastFailedLoadJourneys: "Không thể tải danh sách hành trình",
+    toastFailedCreateJourney: "Không thể tạo hành trình",
+    toastFailedUpdateJourney: "Không thể cập nhật hành trình",
+    toastFailedDeleteJourney: "Không thể xóa hành trình",
+    toastFailedLoadGame: "Không thể tải game",
+
+    // MetaEditor
+    metaKeyValue: "Khóa / Giá trị",
+    metaKeysCount: "khóa",
+    metaPlaceholderKey: "khóa",
+    metaPlaceholderValue: "giá trị",
+    metaAddField: "Thêm trường",
+    metaLimitReached: "(đã đạt giới hạn)",
+
+    // Event type toolbar
+    newEventType: "Loại sự kiện mới",
+    managePluginsTitle: "Quản lý plugin / nâng giới hạn",
+
+    // Event type table
+    tableHeaderEventType: "Loại sự kiện",
+    tableHeaderDescription: "Mô tả",
+    emptyEventTypes: "Chưa có loại sự kiện nào. Tạo loại sự kiện đầu tiên.",
+
+    // Event type create sheet
+    createEventTypeTitle: "Loại sự kiện mới",
+    labelEventType: "Loại sự kiện",
+    placeholderEventType: "join_game",
+    eventTypeValidationRegex: "Phải bắt đầu bằng chữ cái và chỉ chứa chữ thường, số và dấu gạch dưới.",
+    eventTypeValidationRequired: "Loại sự kiện là bắt buộc.",
+    eventTypeHint: "Định danh duy nhất cho sự kiện này (ví dụ: join_game, ending1)",
+    placeholderEventDescription: "Mô tả sự kiện này đại diện cho điều gì...",
+
+    // Event type edit sheet
+    editEventTypeTitle: "Sửa loại sự kiện",
+
+    // Event type delete dialog
+    deleteEventTypeTitle: "Xóa loại sự kiện",
+    deleteEventTypeDesc: "Bạn có chắc chắn muốn xóa",
+    deleteEventTypeDescSuffix: "? Hành động này không thể hoàn tác.",
+
+    // Event type toasts
+    toastEventTypeCreated: "Đã tạo loại sự kiện",
+    toastEventTypeUpdated: "Đã cập nhật loại sự kiện",
+    toastEventTypeDeleted: "Đã xóa loại sự kiện",
+    toastFailedLoadEventTypes: "Không thể tải danh sách loại sự kiện",
+    toastFailedCreateEventType: "Không thể tạo loại sự kiện",
+    toastFailedUpdateEventType: "Không thể cập nhật loại sự kiện",
+    toastFailedDeleteEventType: "Không thể xóa loại sự kiện",
+  },
   items: {
     // Tabs
     tabItems: "Vật phẩm",
