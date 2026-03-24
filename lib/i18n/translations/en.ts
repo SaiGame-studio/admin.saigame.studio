@@ -60,7 +60,10 @@ export const en = {
     payment: "Payment",
     transactions: "Payments",
     allPlugins: "Plugins",
-    mailbox: "Mailbox"
+    mailbox: "Mailbox",
+    roadmap: "Roadmap",
+    discordSupport: "Discord Support",
+    bugReport: "Bug Report",
   },
   shop: {
     title: "Game Shops",

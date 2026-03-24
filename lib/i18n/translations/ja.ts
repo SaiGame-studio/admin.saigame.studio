@@ -60,7 +60,10 @@ export const ja = {
     payment: "お支払い",
     transactions: "お支払い",
     allPlugins: "プラグイン",
-    mailbox: "メールボックス"
+    mailbox: "メールボックス",
+    roadmap: "ロードマップ",
+    discordSupport: "Discordサポート",
+    bugReport: "バグ報告",
   },
   shop: {
     title: "ゲームショップ",

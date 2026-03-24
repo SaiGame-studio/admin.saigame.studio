@@ -60,7 +60,10 @@ export const vi = {
     payment: "Thanh toán",
     transactions: "Thanh toán",
     allPlugins: "Plugin",
-    mailbox: "Hộp Thư"
+    mailbox: "Hộp Thư",
+    roadmap: "Lộ trình",
+    discordSupport: "Hỗ trợ Discord",
+    bugReport: "Báo lỗi",
   },
   shop: {
     title: "Cửa hàng Game",
