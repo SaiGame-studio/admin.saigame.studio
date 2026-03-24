@@ -279,12 +279,12 @@ export function SideNav() {
                   {theme === "dark-green" ? (
                     <>
                       <Sun className="h-4 w-4 flex-shrink-0" />
-                      {!isCollapsed && <span className="whitespace-nowrap">Warm Light</span>}
+                      {!isCollapsed && <span className="whitespace-nowrap">{t('settings.themes.lightWarm' as any)}</span>}
                     </>
                   ) : (
                     <>
                       <Moon className="h-4 w-4 flex-shrink-0" />
-                      {!isCollapsed && <span className="whitespace-nowrap">Dark Green</span>}
+                      {!isCollapsed && <span className="whitespace-nowrap">{t('settings.themes.darkGreen' as any)}</span>}
                     </>
                   )}
                 </Button>

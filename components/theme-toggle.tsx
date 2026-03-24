@@ -4,6 +4,7 @@ import { useTheme } from "next-themes"
 import { useEffect, useRef, useState } from "react"
 import { Moon, Sun, Monitor, Leaf } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 const THEMES = ["light-warm", "dark-green", "light", "dark", "system"] as const
 type Theme = typeof THEMES[number]
@@ -16,12 +17,12 @@ const ICONS: Record<Theme, React.ReactNode> = {
   system:       <Monitor className="h-[1.2rem] w-[1.2rem]" />,
 }
 
-const LABELS: Record<Theme, string> = {
-  "light-warm": "Warm Light",
-  "dark-green": "Dark Green",
-  light:        "Light",
-  dark:         "Dark",
-  system:       "System",
+const LABEL_KEYS: Record<Theme, string> = {
+  "light-warm": "settings.themes.lightWarm",
+  "dark-green": "settings.themes.darkGreen",
+  light:        "settings.themes.light",
+  dark:         "settings.themes.dark",
+  system:       "settings.themes.system",
 }
 
 function resolveTheme(theme: string | undefined): Theme {
@@ -32,6 +33,7 @@ function resolveTheme(theme: string | undefined): Theme {
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const { t } = useTranslation()
   const [mounted, setMounted] = useState(false)
   const [showLabel, setShowLabel] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -69,7 +71,7 @@ export function ThemeToggle() {
           showLabel ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
         }`}
       >
-        {LABELS[current]}
+        {t(LABEL_KEYS[current] as any)}
       </span>
 
       <Button variant="outline" size="icon" onClick={mounted ? cycle : undefined} disabled={!mounted}>
