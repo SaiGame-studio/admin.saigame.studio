@@ -586,6 +586,27 @@ export async function getWorkersStatus(): Promise<WorkersStatusResult> {
   return api.get(`/api/v1/admin/workers/status`)
 }
 
+// Trigger: System Monitor — send CPU/RAM report via Telegram
+export async function triggerSystemMonitorNotify(): Promise<void> {
+  return api.post(`/api/v1/admin/system-monitor/notify`)
+}
+
+// Trigger: Platform Notification — send daily report via Telegram
+export async function triggerPlatformReport(date?: string): Promise<void> {
+  const qs = date ? `?date=${encodeURIComponent(date)}` : ""
+  return api.post(`/api/v1/admin/notifications/platform/report${qs}`)
+}
+
+// Trigger: Report Aggregation — backfill specific dates
+export interface BackfillRequest {
+  studio_id: string
+  game_id: string
+  dates: string[]
+}
+export async function triggerReportBackfill(body: BackfillRequest): Promise<void> {
+  return api.post(`/api/v1/admin/reports/backfill`, body)
+}
+
 // ---------------------------------------------------------------------------
 // SuperAdmin — Payment Transactions
 // ---------------------------------------------------------------------------
