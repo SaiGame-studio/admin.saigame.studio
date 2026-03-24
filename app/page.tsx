@@ -96,6 +96,7 @@ function GameStatusDot({ status }: { status?: string }) {
 // ---------------------------------------------------------------------------
 
 function StudioCard({ studio }: { studio: Studio }) {
+  const { t } = useTranslation()
   const [games, setGames] = useState<Game[]>([])
   const [loadingGames, setLoadingGames] = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -133,7 +134,7 @@ function StudioCard({ studio }: { studio: Studio }) {
         </div>
         <Link href={`/games/new?studio_id=${studio.id}`} className="shrink-0">
           <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
-            <Plus className="h-3.5 w-3.5" /> Game
+            <Plus className="h-3.5 w-3.5" /> {t('common.game')}
           </Button>
         </Link>
       </div>
@@ -141,7 +142,7 @@ function StudioCard({ studio }: { studio: Studio }) {
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2 px-5 pb-4">
         <div className="rounded-xl bg-muted/40 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Games</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">{t('common.games')}</p>
           {loadingGames
             ? <span className="inline-block h-5 w-8 animate-pulse rounded bg-muted" />
             : <p className="text-lg font-bold tabular-nums leading-tight">
@@ -151,7 +152,7 @@ function StudioCard({ studio }: { studio: Studio }) {
           {gamesMax && !loadingGames && <UsageBar used={gamesUsed} max={gamesMax} />}
         </div>
         <div className="rounded-xl bg-muted/40 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">CCU Cap</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">{t('home.ccuCap')}</p>
           {loadingGames
             ? <span className="inline-block h-5 w-12 animate-pulse rounded bg-muted" />
             : <p className="text-lg font-bold tabular-nums leading-tight">{fmt(totalCCU)}</p>
@@ -159,7 +160,7 @@ function StudioCard({ studio }: { studio: Studio }) {
           {!loadingGames && usedCCU > 0 && <UsageBar used={usedCCU} max={totalCCU} />}
         </div>
         <div className="rounded-xl bg-muted/40 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Active</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">{t('common.active')}</p>
           {loadingGames
             ? <span className="inline-block h-5 w-6 animate-pulse rounded bg-muted" />
             : <p className="text-lg font-bold tabular-nums leading-tight text-green-500">{activeGames.length}</p>
@@ -174,7 +175,7 @@ function StudioCard({ studio }: { studio: Studio }) {
             onClick={() => setExpanded((v) => !v)}
             className="w-full flex items-center justify-between px-5 py-2 border-t border-border/40 text-xs text-muted-foreground hover:bg-muted/30 transition-colors"
           >
-            <span>{expanded ? "Hide" : "Show"} {games.length} game{games.length !== 1 ? "s" : ""}</span>
+            <span>{expanded ? t('home.hide') : t('home.show')} {games.length} {games.length !== 1 ? t('home.games') : t('home.game')}</span>
             {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>
           {expanded && (
@@ -209,10 +210,10 @@ function StudioCard({ studio }: { studio: Studio }) {
 
       {!loadingGames && games.length === 0 && (
         <div className="px-5 py-6 text-center border-t border-border/40">
-          <p className="text-sm text-muted-foreground mb-3">No games yet</p>
+          <p className="text-sm text-muted-foreground mb-3">{t('home.noGamesYet')}</p>
           <Link href={`/games/new?studio_id=${studio.id}`}>
             <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-              <Plus className="h-3.5 w-3.5" /> Create first game
+              <Plus className="h-3.5 w-3.5" /> {t('home.createFirstGame')}
             </Button>
           </Link>
         </div>
@@ -254,15 +255,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const update = () => {
       const hour = getUserLocalHour()
-      if (hour < 5 || hour >= 22) setGreeting({ text: "Good night", icon: <Moon className="inline h-4 w-4 mb-0.5 text-indigo-400" /> })
-      else if (hour < 12) setGreeting({ text: "Good morning", icon: <Sunrise className="inline h-4 w-4 mb-0.5 text-amber-400" /> })
-      else if (hour < 18) setGreeting({ text: "Good afternoon", icon: <Sun className="inline h-4 w-4 mb-0.5 text-yellow-400" /> })
-      else setGreeting({ text: "Good evening", icon: <Sunset className="inline h-4 w-4 mb-0.5 text-orange-400" /> })
+      if (hour < 5 || hour >= 22) setGreeting({ text: t('home.goodNight'), icon: <Moon className="inline h-4 w-4 mb-0.5 text-indigo-400" /> })
+      else if (hour < 12) setGreeting({ text: t('home.goodMorning'), icon: <Sunrise className="inline h-4 w-4 mb-0.5 text-amber-400" /> })
+      else if (hour < 18) setGreeting({ text: t('home.goodAfternoon'), icon: <Sun className="inline h-4 w-4 mb-0.5 text-yellow-400" /> })
+      else setGreeting({ text: t('home.goodEvening'), icon: <Sunset className="inline h-4 w-4 mb-0.5 text-orange-400" /> })
     }
     update()
     const interval = setInterval(update, 60_000)
     return () => clearInterval(interval)
-  }, [])
+  }, [t])
   const displayName = user?.display_name || user?.username || "there"
 
   const totalGamesUsed = studios.reduce((s, st) => s + (st.usage?.games ?? 0), 0)
@@ -278,16 +279,16 @@ export default function DashboardPage() {
         <div>
           <p className="text-sm text-muted-foreground mb-1">{greeting.icon} {greeting.text} 👋</p>
           <h1 className="text-3xl font-extrabold tracking-tight">{displayName}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Here's an overview of your studios and games.</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('home.overview')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            {t('common.refresh')}
           </Button>
           <Link href="/payment">
             <Button size="sm" className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Buy Coins
+              <Sparkles className="h-4 w-4" /> {t('home.buyCoins')}
             </Button>
           </Link>
         </div>
@@ -297,35 +298,35 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatChip
           icon={<Layers className="h-4 w-4" />}
-          label="Studios"
+          label={t('common.studios')}
           value={loading ? <Skeleton className="h-7 w-10 inline-block" /> : studios.length}
-          sub={`${activeStudios} active`}
+          sub={`${activeStudios} ${t('home.active')}`}
           href="/studios"
           color="text-primary"
         />
         <StatChip
           icon={<Gamepad2 className="h-4 w-4" />}
-          label="Games"
+          label={t('common.games')}
           value={loading ? <Skeleton className="h-7 w-10 inline-block" /> : totalGamesUsed}
-          sub={totalGamesMax > 0 ? `of ${totalGamesMax} capacity` : "across all studios"}
+          sub={totalGamesMax > 0 ? `of ${totalGamesMax} ${t('home.capacity')}` : t('home.acrossAllStudios')}
           href="/games"
           color="text-blue-500"
         />
         <StatChip
           icon={<Users className="h-4 w-4" />}
-          label="Members"
+          label={t('home.members')}
           value={loading ? <Skeleton className="h-7 w-10 inline-block" /> : totalMembers}
-          sub="across all studios"
+          sub={t('home.acrossAllStudios')}
           color="text-green-500"
         />
         <StatChip
           icon={<span className="text-base leading-none">🪙</span>}
-          label="Coin Balance"
+          label={t('home.coinBalance')}
           value={loading || wallet === null
             ? <Skeleton className="h-7 w-16 inline-block" />
             : wallet.balance.toLocaleString()
           }
-          sub="in your wallet"
+          sub={t('home.inYourWallet')}
           href="/payment"
           color="text-yellow-500"
         />
@@ -333,16 +334,16 @@ export default function DashboardPage() {
 
       {/* ── Quick actions ── */}
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Quick Actions</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">{t('home.quickActions')}</p>
         <div className="flex flex-wrap gap-2">
-          <Link href="/studios"><Button variant="outline" size="sm" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> My Studios</Button></Link>
-          <Link href="/games"><Button variant="outline" size="sm" className="gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> All Games</Button></Link>
-          <Link href="/payment?tab=transactions"><Button variant="outline" size="sm" className="gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Transactions</Button></Link>
-          <Link href="/profile"><Button variant="outline" size="sm" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Profile</Button></Link>
+          <Link href="/studios"><Button variant="outline" size="sm" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> {t('home.myStudios')}</Button></Link>
+          <Link href="/games"><Button variant="outline" size="sm" className="gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> {t('home.allGames')}</Button></Link>
+          <Link href="/payment?tab=transactions"><Button variant="outline" size="sm" className="gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> {t('common.transactions')}</Button></Link>
+          <Link href="/profile"><Button variant="outline" size="sm" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {t('common.profile')}</Button></Link>
           {user?.capabilities?.is_super_admin && (
             <Link href="/admin/users">
               <Button variant="outline" size="sm" className="gap-1.5 border-destructive/50 text-destructive hover:text-destructive hover:bg-destructive/10">
-                <Zap className="h-3.5 w-3.5" /> Admin Panel
+                <Zap className="h-3.5 w-3.5" /> {t('home.adminPanel')}
               </Button>
             </Link>
           )}
@@ -352,11 +353,11 @@ export default function DashboardPage() {
       {/* ── Studios section ── */}
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Your Studios</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('home.yourStudios')}</p>
           <div className="flex-1 h-px bg-border" />
           <Link href="/studios">
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-              View all <ChevronRight className="h-3 w-3" />
+              {t('home.viewAll')} <ChevronRight className="h-3 w-3" />
             </Button>
           </Link>
         </div>
@@ -369,11 +370,11 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-dashed border-border/60 p-12 text-center space-y-4">
             <Layers className="h-10 w-10 mx-auto text-muted-foreground/40" />
             <div>
-              <p className="font-semibold">No studios yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Create your first studio to get started.</p>
+              <p className="font-semibold">{t('home.noStudiosYet')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('home.noStudiosDesc')}</p>
             </div>
             <Link href="/studios">
-              <Button className="gap-1.5 mt-2"><Plus className="h-4 w-4" /> Create Studio</Button>
+              <Button className="gap-1.5 mt-2"><Plus className="h-4 w-4" /> {t('studio.create')}</Button>
             </Link>
           </div>
         ) : (
