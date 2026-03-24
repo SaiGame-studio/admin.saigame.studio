@@ -2,7 +2,7 @@
 
 import { Fragment, use, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
+import { ArrowLeft, Archive, ArrowUpRight, Box, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, Coins, Dice6, ExternalLink, Eye, Hash, HelpCircle, Loader2, Package, RefreshCw, Search, ShieldBan, ShieldCheck, ShoppingBag, Star, Trophy, User, X, Zap } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack } from "@/lib/inventory-api"
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -436,12 +436,15 @@ export default function GameUserProgressDetailPage({
   const [itemFilterContainerId, setItemFilterContainerId] = useState(() =>
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_cid") ?? "" : ""
   )
+  const [itemFilterId, setItemFilterId] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item_iid") ?? "" : ""
+  )
   const [itemFilterNameDebounced, setItemFilterNameDebounced] = useState(itemFilterName)
   const [itemCategories, setItemCategories] = useState<string[]>([])
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "generators" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -459,7 +462,7 @@ export default function GameUserProgressDetailPage({
   // reset offset when any filter changes
   useEffect(() => {
     setItemsOffset(0)
-  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId])
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId, itemFilterId])
 
   // sync item filters to URL
   useEffect(() => {
@@ -468,8 +471,9 @@ export default function GameUserProgressDetailPage({
     itemFilterCategory      ? newParams.set("item_cat", itemFilterCategory)       : newParams.delete("item_cat")
     itemFilterRarity        ? newParams.set("item_rar", itemFilterRarity)         : newParams.delete("item_rar")
     itemFilterContainerId   ? newParams.set("item_cid", itemFilterContainerId)    : newParams.delete("item_cid")
+    itemFilterId            ? newParams.set("item_iid", itemFilterId)             : newParams.delete("item_iid")
     router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
-  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId, itemFilterId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // load categories & rarities once
   useEffect(() => {
@@ -489,6 +493,17 @@ export default function GameUserProgressDetailPage({
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
+
+  // Presets tab
+  const [presets, setPresets] = useState<PlayerPresetContainer[]>([])
+  const [presetsLoading, setPresetsLoading] = useState(false)
+  const [presetsError, setPresetsError] = useState<string | null>(null)
+  const [expandedPresetIds, setExpandedPresetIds] = useState<Set<string>>(new Set())
+  const [presetDetails, setPresetDetails] = useState<Record<string, PlayerPresetDetail>>({})
+  const [presetDetailsLoading, setPresetDetailsLoading] = useState<Set<string>>(new Set())
+  const [presetDetailsError, setPresetDetailsError] = useState<Record<string, string>>({})
+  // inventory_item_id → { name, definitionId }
+  const [presetSlotItemNames, setPresetSlotItemNames] = useState<Record<string, { name: string; definitionId: string }>>({})
 
   // Generators tab
   const [generatorItems, setGeneratorItems] = useState<PlayerItem[]>([])
@@ -579,16 +594,17 @@ export default function GameUserProgressDetailPage({
     try {
       const [res, containersRes] = await Promise.all([
         getProgressItems(progressId, {
-          limit: ITEMS_LIMIT,
-          offset: itemsOffset,
-          name:     itemFilterNameDebounced || undefined,
+          limit:        itemFilterId ? 500 : ITEMS_LIMIT,
+          offset:       itemFilterId ? 0   : itemsOffset,
+          name:         !itemFilterId ? (itemFilterNameDebounced || undefined) : undefined,
           category:     itemFilterCategory    || undefined,
           rarity:       itemFilterRarity      || undefined,
           container_id: itemFilterContainerId || undefined,
         }),
         getProgressContainers(progressId, { limit: 500 }),
       ])
-      setPlayerItems(res.items ?? [])
+      const rawItems = res.items ?? []
+      setPlayerItems(itemFilterId ? rawItems.filter(item => item.id === itemFilterId) : rawItems)
       setItemsTotal(res.total ?? 0)
       const map: Record<string, PlayerContainer> = {}
       for (const c of containersRes.containers ?? []) map[c.id] = c
@@ -598,7 +614,7 @@ export default function GameUserProgressDetailPage({
     } finally {
       setItemsLoading(false)
     }
-  }, [progressId, itemsOffset, itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId])
+  }, [progressId, itemsOffset, itemFilterNameDebounced, itemFilterCategory, itemFilterRarity, itemFilterContainerId, itemFilterId])
 
   const loadGachaTransactions = useCallback(async () => {
     setGachaTxnsLoading(true)
@@ -636,6 +652,60 @@ export default function GameUserProgressDetailPage({
       setContainersLoading(false)
     }
   }, [progressId, containersOffset, containersType])
+
+  const loadPresets = useCallback(async () => {
+    if (!detail?.user_id) return
+    setPresetsLoading(true)
+    setPresetsError(null)
+    try {
+      const res = await getPlayerPresets(gameId, detail.user_id)
+      setPresets(res.containers ?? [])
+    } catch (err: any) {
+      setPresetsError(err?.message ?? "Failed to load presets")
+    } finally {
+      setPresetsLoading(false)
+    }
+  }, [gameId, detail?.user_id])
+
+  const togglePresetRow = useCallback((presetId: string) => {
+    setExpandedPresetIds(prev => {
+      const next = new Set(prev)
+      if (next.has(presetId)) {
+        next.delete(presetId)
+      } else {
+        next.add(presetId)
+        // Lazy-load detail if not already fetched or loading
+        if (!presetDetails[presetId] && !presetDetailsLoading.has(presetId) && detail?.user_id) {
+          setPresetDetailsLoading(s => { const n = new Set(s); n.add(presetId); return n })
+          setPresetDetailsError(s => { const n = { ...s }; delete n[presetId]; return n })
+          getPlayerPresetDetail(gameId, detail.user_id, presetId)
+            .then(res => {
+              setPresetDetails(s => ({ ...s, [presetId]: res }))
+              // Resolve inventory item names for all slots in parallel
+              const idsToResolve = res.slots
+                .map(sl => sl.inventory_item_id)
+                .filter(id => id && !presetSlotItemNames[id])
+              if (idsToResolve.length > 0) {
+                getProgressItems(progressId, { limit: 200 })
+                  .then(itemsRes => {
+                    const newNames: Record<string, { name: string; definitionId: string }> = {}
+                    for (const item of itemsRes.items ?? []) {
+                      if (idsToResolve.includes(item.id)) {
+                        newNames[item.id] = { name: item.definition?.name ?? "", definitionId: item.item_definition_id }
+                      }
+                    }
+                    setPresetSlotItemNames(s => ({ ...s, ...newNames }))
+                  })
+                  .catch(() => {})
+              }
+            })
+            .catch((err: any) => setPresetDetailsError(s => ({ ...s, [presetId]: err?.message ?? "Failed to load preset detail" })))
+            .finally(() => setPresetDetailsLoading(s => { const n = new Set(s); n.delete(presetId); return n }))
+        }
+      }
+      return next
+    })
+  }, [gameId, detail?.user_id, presetDetails, presetDetailsLoading])
 
   const loadGenerators = useCallback(async () => {
     setGeneratorsLoading(true)
@@ -781,6 +851,10 @@ export default function GameUserProgressDetailPage({
   }, [activeTab, loadContainers])
 
   useEffect(() => {
+    if (activeTab === "presets") loadPresets()
+  }, [activeTab, loadPresets])
+
+  useEffect(() => {
     if (activeTab === "generators") loadGenerators()
   }, [activeTab, loadGenerators])
 
@@ -885,6 +959,7 @@ export default function GameUserProgressDetailPage({
             items: itemsTotal || undefined,
             containers: containers.length || undefined,
             containersHasMore,
+            presets: presets.length || undefined,
             generators: generatorItems.length || undefined,
             quests: questHistory ? (questHistory.claims_total + questHistory.starts_total) || undefined : undefined,
             transactions: gachaTxnsTotal || undefined,
@@ -1068,6 +1143,25 @@ export default function GameUserProgressDetailPage({
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Instance ID search */}
+              <div className="relative">
+                <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Instance ID…"
+                  value={itemFilterId}
+                  onChange={(e) => setItemFilterId(e.target.value.trim())}
+                  className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm font-mono outline-none focus:ring-1 focus:ring-ring"
+                />
+                {itemFilterId && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setItemFilterId("")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               {/* Name search */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1125,10 +1219,10 @@ export default function GameUserProgressDetailPage({
                 </select>
               )}
               {/* Clear all */}
-              {(itemFilterName || itemFilterCategory || itemFilterRarity || itemFilterContainerId) && (
+              {(itemFilterName || itemFilterCategory || itemFilterRarity || itemFilterContainerId || itemFilterId) && (
                 <button
                   className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity(""); setItemFilterContainerId("") }}
+                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity(""); setItemFilterContainerId(""); setItemFilterId("") }}
                 >
                   Clear
                 </button>
@@ -1156,10 +1250,10 @@ export default function GameUserProgressDetailPage({
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">
-                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId) ? "No matching items" : "No items"}
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId || itemFilterId) ? "No matching items" : "No items"}
                   </p>
                   <p className="text-sm mt-1">
-                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId)
+                    {(itemFilterNameDebounced || itemFilterCategory || itemFilterRarity || itemFilterContainerId || itemFilterId)
                       ? "No items match the current filters."
                       : "This player has no items in their inventory."}
                   </p>
@@ -1339,7 +1433,7 @@ export default function GameUserProgressDetailPage({
           </Card>
 
           {/* Pagination */}
-          {itemsTotal > ITEMS_LIMIT && (
+          {itemsTotal > ITEMS_LIMIT && !itemFilterId && (
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>Page {Math.floor(itemsOffset / ITEMS_LIMIT) + 1} of {Math.ceil(itemsTotal / ITEMS_LIMIT)} — {itemsTotal} items</span>
               <div className="flex gap-2">
@@ -2390,6 +2484,292 @@ export default function GameUserProgressDetailPage({
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="presets" className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Player Presets</h2>
+              <p className="text-sm text-muted-foreground">
+                {presetsLoading
+                  ? "Loading…"
+                  : presets.length > 0
+                  ? `${presets.length} preset${presets.length !== 1 ? "s" : ""}`
+                  : "No presets found"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadPresets} disabled={presetsLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${presetsLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {presetsLoading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : presetsError ? (
+                <div className="p-6 text-center">
+                  <p className="text-destructive text-sm mb-3">{presetsError}</p>
+                  <Button variant="outline" size="sm" onClick={loadPresets}>Try Again</Button>
+                </div>
+              ) : presets.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No presets</p>
+                  <p className="text-sm mt-1">This player has no preset containers.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Max Slots</TableHead>
+                      <TableHead>Temp</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Updated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {presets.map((p) => {
+                      const pExpanded = expandedPresetIds.has(p.id)
+                      return (
+                        <Fragment key={p.id}>
+                          <TableRow
+                            className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`}
+                            onClick={() => togglePresetRow(p.id)}
+                          >
+                            <TableCell className="font-mono text-xs">
+                              <span className="flex items-center gap-1">
+                                {pExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                {p.id.slice(0, 8)}…
+                                <CopyButton text={p.id} size="h-3 w-3" />
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">{p.name || "—"}</TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
+                                <Package className="h-3 w-3 shrink-0" />
+                                {p.preset_type || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-mono">{p.max_slots}</TableCell>
+                            <TableCell className="text-sm">
+                              {p.is_temp
+                                ? <span className="text-yellow-500">Yes</span>
+                                : <span className="text-muted-foreground">No</span>}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{p.created_at ? formatISODate(p.created_at) : "—"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{p.updated_at ? formatISODate(p.updated_at) : "—"}</TableCell>
+                          </TableRow>
+
+                          {/* Expanded detail row */}
+                          {pExpanded && (
+                            <TableRow className="bg-muted/30 hover:bg-muted/40">
+                              <TableCell colSpan={7} className="p-0">
+                                <div className="px-6 py-4 space-y-4">
+                                  {/* Full Preset ID */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Preset ID:</span>
+                                    <span className="text-xs font-mono text-muted-foreground">{p.id}</span>
+                                    <CopyButton text={p.id} />
+                                  </div>
+
+                                  {/* Loading / Error / Detail */}
+                                  {presetDetailsLoading.has(p.id) ? (
+                                    <div className="space-y-2">
+                                      <Skeleton className="h-4 w-full" />
+                                      <Skeleton className="h-4 w-3/4" />
+                                      <Skeleton className="h-16 w-full" />
+                                    </div>
+                                  ) : presetDetailsError[p.id] ? (
+                                    <div className="flex items-center gap-3">
+                                      <p className="text-destructive text-sm">{presetDetailsError[p.id]}</p>
+                                      <Button variant="outline" size="sm" onClick={() => {
+                                        setPresetDetailsError(s => { const n = { ...s }; delete n[p.id]; return n })
+                                        togglePresetRow(p.id)
+                                        togglePresetRow(p.id)
+                                      }}>Retry</Button>
+                                    </div>
+                                  ) : presetDetails[p.id] ? (() => {
+                                    const d = presetDetails[p.id]
+                                    return (
+                                      <>
+                                        {/* Definition ID */}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                          <span className="text-xs font-mono text-muted-foreground">{d.container.definition_id}</span>
+                                          <CopyButton text={d.container.definition_id} />
+                                        </div>
+
+                                        {/* Container fields */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                                          <div>
+                                            <span className="text-muted-foreground">Type: </span>
+                                            <span className="font-medium capitalize">{d.container.preset_type || "—"}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Max Slots: </span>
+                                            <span className="font-medium">{d.container.max_slots}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Temp: </span>
+                                            <span className="font-medium">{d.container.is_temp ? "Yes" : "No"}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Created: </span>
+                                            <span className="font-medium">{d.container.created_at ? formatISODate(d.container.created_at) : "—"}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Updated: </span>
+                                            <span className="font-medium">{d.container.updated_at ? formatISODate(d.container.updated_at) : "—"}</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Container Metadata */}
+                                        {d.container.metadata && Object.keys(d.container.metadata).length > 0 && (
+                                          <div className="space-y-1">
+                                            <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                            <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[160px]">
+                                              {JSON.stringify(d.container.metadata, null, 2)}
+                                            </pre>
+                                          </div>
+                                        )}
+
+                                        {/* Definition */}
+                                        {d.container.definition && (
+                                          <div className="space-y-2">
+                                            <p className="text-xs font-semibold text-foreground">Definition</p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                                              <div>
+                                                <span className="text-muted-foreground">Name: </span>
+                                                <span className="font-medium">{d.container.definition.name}</span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Type: </span>
+                                                <span className="font-medium capitalize">{d.container.definition.preset_type}</span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Max Slots: </span>
+                                                <span className="font-medium">{d.container.definition.max_slots}</span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Def Created: </span>
+                                                <span className="font-medium">{formatISODate(d.container.definition.created_at)}</span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Def Updated: </span>
+                                                <span className="font-medium">{formatISODate(d.container.definition.updated_at)}</span>
+                                              </div>
+                                            </div>
+                                            {d.container.definition.metadata && Object.keys(d.container.definition.metadata).length > 0 && (
+                                              <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[160px]">
+                                                {JSON.stringify(d.container.definition.metadata, null, 2)}
+                                              </pre>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Slots */}
+                                        <div className="space-y-1.5">
+                                          <p className="text-xs font-semibold text-foreground">
+                                            Slots
+                                            <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none font-normal text-muted-foreground">
+                                              {d.slots.length} / {d.container.max_slots}
+                                            </span>
+                                          </p>
+                                          {d.slots.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground italic">No items in slots.</p>
+                                          ) : (
+                                            <div className="rounded-md border overflow-hidden">
+                                              <table className="w-full text-xs">
+                                                <thead>
+                                                  <tr className="border-b bg-muted/50">
+                                                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground w-16">Slot</th>
+                                                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Item Definition</th>
+                                                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Instance</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {d.slots.map((slot) => {
+                                                    const resolved = presetSlotItemNames[slot.inventory_item_id]
+                                                    return (
+                                                      <tr key={slot.slot_index} className="border-b last:border-0 hover:bg-muted/30">
+                                                        <td className="px-3 py-1.5 font-mono tabular-nums">{slot.slot_index}</td>
+                                                        <td className="px-3 py-1.5">
+                                                          {resolved ? (
+                                                            <a
+                                                              href={`/games/${gameId}/items/${resolved.definitionId}`}
+                                                              target="_blank"
+                                                              rel="noreferrer"
+                                                              className="text-primary hover:underline font-medium flex items-center gap-1 text-xs"
+                                                              title="Open item definition"
+                                                            >
+                                                              {resolved.name}
+                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
+                                                            </a>
+                                                          ) : (
+                                                            <span className="text-muted-foreground text-xs">—</span>
+                                                          )}
+                                                        </td>
+                                                        <td className="px-3 py-1.5">
+                                                          <div className="flex items-center gap-1">
+                                                            <a
+                                                              href={`/games/${gameId}/players/${progressId}?tab=items&item_iid=${slot.inventory_item_id}`}
+                                                              className="text-muted-foreground hover:text-primary flex items-center gap-0.5 text-xs font-mono"
+                                                              title={slot.inventory_item_id}
+                                                            >
+                                                              {slot.inventory_item_id.slice(0, 8)}…
+                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
+                                                            </a>
+                                                            <CopyButton text={slot.inventory_item_id} size="h-3 w-3" />
+                                                          </div>
+                                                        </td>
+                                                      </tr>
+                                                    )
+                                                  })}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </>
+                                    )
+                                  })() : (
+                                    /* Fallback while detail hasn't loaded yet (shouldn't normally show) */
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Type: </span>
+                                        <span className="font-medium capitalize">{p.preset_type || "—"}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Max Slots: </span>
+                                        <span className="font-medium">{p.max_slots}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Temp: </span>
+                                        <span className="font-medium">{p.is_temp ? "Yes" : "No"}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="generators" className="space-y-4">
