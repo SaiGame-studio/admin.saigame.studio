@@ -85,20 +85,9 @@ import {
   type ShopType,
   type CreateShopPayload,
 } from "@/lib/shop-admin-api"
-import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { useTranslation } from "@/lib/i18n/useTranslation"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
-
-const SHOP_TYPE_LABELS: Record<ShopType, string> = {
-  permanent: "Permanent",
-  event: "Event",
-}
-
-const SHOP_TYPE_NO_DATE_LABEL: Record<ShopType, string> = {
-  permanent: "Available forever",
-  event: "No dates set",
-}
 
 const SHOP_TYPE_BADGE: Record<ShopType, string> = {
   permanent: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -114,7 +103,7 @@ function formatDate(iso: string | null | undefined) {
   })
 }
 
-function getEventTimeStatus(starts_at?: string | null, ends_at?: string | null): {
+function getEventTimeStatus(starts_at: string | null | undefined, ends_at: string | null | undefined, t: (key: string) => string): {
   label: string
   className: string
 } | null {
@@ -133,13 +122,13 @@ function getEventTimeStatus(starts_at?: string | null, ends_at?: string | null):
   }
 
   if (end && now > end) {
-    return { label: `Ended ${relTime(now - end)} ago`, className: "text-muted-foreground" }
+    return { label: t('shop.endedAgo').replace('{time}', relTime(now - end)), className: "text-muted-foreground" }
   }
   if (start && now < start) {
-    return { label: `Starts in ${relTime(start - now)}`, className: "text-yellow-600 dark:text-yellow-400 font-medium" }
+    return { label: t('shop.startsIn').replace('{time}', relTime(start - now)), className: "text-yellow-600 dark:text-yellow-400 font-medium" }
   }
   if ((!start || now >= start) && end && now <= end) {
-    return { label: `Active · ends in ${relTime(end - now)}`, className: "text-green-600 dark:text-green-400 font-medium" }
+    return { label: t('shop.activeEndsIn').replace('{time}', relTime(end - now)), className: "text-green-600 dark:text-green-400 font-medium" }
   }
   return null
 }
@@ -157,8 +146,17 @@ const defaultForm: CreateShopPayload = {
 
 export default function GameShopsPage() {
   const params = useParams() as { id: string }
-  const { locale } = useLanguage()
-  const { t } = useTranslation(locale)
+  const { t } = useTranslation()
+
+  const SHOP_TYPE_LABELS: Record<ShopType, string> = {
+    permanent: t('shop.permanent'),
+    event: t('shop.eventType'),
+  }
+
+  const SHOP_TYPE_NO_DATE_LABEL: Record<ShopType, string> = {
+    permanent: t('shop.availableForever'),
+    event: t('shop.noDatesSet'),
+  }
 
   const [shops, setShops] = useState<ShopDefinition[]>([])
   const [total, setTotal] = useState(0)
@@ -335,7 +333,7 @@ export default function GameShopsPage() {
           <Breadcrumb>
             <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
               <BreadcrumbItem>
-                <BreadcrumbLink href="/studios">{game.studio?.name || "Studios"}</BreadcrumbLink>
+                <BreadcrumbLink href="/studios">{game.studio?.name || t('common.studios')}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
@@ -343,7 +341,7 @@ export default function GameShopsPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <span>Shops</span>
+                <span>{t('breadcrumb.shops')}</span>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -360,7 +358,7 @@ export default function GameShopsPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Shops{game ? ` - ${game.name}` : ""}
+              {t('breadcrumb.shops')}{game ? ` - ${game.name}` : ""}
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               {game?.limits?.max_shops != null
@@ -371,7 +369,7 @@ export default function GameShopsPage() {
                     return (
                       <>
                         <span className={used >= max ? "text-destructive font-medium" : ""}>
-                          {used.toLocaleString()} / {max.toLocaleString()} shops
+                          {used.toLocaleString()} / {max.toLocaleString()} {t('shop.shopsCount')}
                         </span>
                         <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                           <span
@@ -391,7 +389,7 @@ export default function GameShopsPage() {
                       </>
                     )
                   })()
-                : <span>{total.toLocaleString()} shops</span>
+                : <span>{total.toLocaleString()} {t('shop.shopsCount')}</span>
               }
             </p>
           </div>
@@ -404,9 +402,9 @@ export default function GameShopsPage() {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
         <div>
-          <h2 className="text-lg font-semibold">Shops</h2>
+          <h2 className="text-lg font-semibold">{t('breadcrumb.shops')}</h2>
           <p className="text-sm text-muted-foreground">
-            {total > 0 ? `${total.toLocaleString()} shop${total !== 1 ? "s" : ""} defined` : "No shops yet"}
+            {total > 0 ? `${total.toLocaleString()} ${total !== 1 ? t('shop.shopsDefined') : t('shop.shopDefined')}` : t('shop.noShopsYet')}
           </p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
@@ -417,10 +415,10 @@ export default function GameShopsPage() {
               onCheckedChange={(v) => setActiveOnly(!!v)}
             />
             <label htmlFor="active_only" className="text-sm cursor-pointer select-none">
-              Active only
+              {t('shop.activeOnly')}
             </label>
           </div>
-          <Button variant="outline" size="icon" onClick={() => loadData(activeOnly)} disabled={loading} title="Refresh">
+          <Button variant="outline" size="icon" onClick={() => loadData(activeOnly)} disabled={loading} title={t('common.refresh')}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button
@@ -432,12 +430,12 @@ export default function GameShopsPage() {
             title={
               game?.limits?.max_shops != null &&
               (game?.usage?.shops ?? 0) >= game.limits.max_shops
-                ? `Shop limit reached (${game.limits.max_shops}/${game.limits.max_shops})`
+                ? t('shop.shopLimitReached').replace('{used}', String(game.limits.max_shops)).replace('{max}', String(game.limits.max_shops))
                 : undefined
             }
           >
             <Plus className="h-4 w-4 mr-2" />
-            New Shop
+            {t('shop.newShop')}
           </Button>
         </div>
       </div>
@@ -471,14 +469,14 @@ export default function GameShopsPage() {
           <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
             <PackageSearch className="h-12 w-12 text-muted-foreground" />
             <div>
-              <p className="font-semibold text-lg">No shops yet</p>
+              <p className="font-semibold text-lg">{t('shop.noShopsYet')}</p>
               <p className="text-sm text-muted-foreground">
-                Create your first shop to start selling items to players.
+                {t('shop.createFirstShopDesc')}
               </p>
             </div>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Shop
+              {t('shop.createShop')}
             </Button>
           </CardContent>
         </Card>
@@ -503,9 +501,9 @@ export default function GameShopsPage() {
                       <Switch
                         checked={shop.is_active}
                         onCheckedChange={(checked) => setPendingToggle({ shopId: shop.id, newActive: checked })}
-                        title={shop.is_active ? "Deactivate shop" : "Activate shop"}
+                        title={shop.is_active ? t('shop.deactivateShop') : t('shop.activateShop')}
                       />
-                      <span className="text-xs text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
+                      <span className="text-xs text-muted-foreground">{shop.is_active ? t('common.active') : t('common.inactive')}</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -528,7 +526,7 @@ export default function GameShopsPage() {
                         {formatDate(shop.starts_at)} — {formatDate(shop.ends_at)}
                       </span>
                       {(() => {
-                        const s = getEventTimeStatus(shop.starts_at, shop.ends_at)
+                        const s = getEventTimeStatus(shop.starts_at, shop.ends_at, t)
                         return s ? <span className={s.className}>{s.label}</span> : null
                       })()}
                     </div>
@@ -541,12 +539,12 @@ export default function GameShopsPage() {
                   <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-2">
                     <div className="flex items-center gap-1">
                       <ShoppingBag className="h-3.5 w-3.5" />
-                      <span>{shop.item_count ?? 0} item{(shop.item_count ?? 0) !== 1 ? "s" : ""}</span>
+                      <span>{shop.item_count ?? 0} {(shop.item_count ?? 0) !== 1 ? t('shop.itemPlural') : t('shop.itemSingular')}</span>
                       {shop.item_limit != null && (
                         <span className="text-muted-foreground">/ {shop.item_limit}</span>
                       )}
                     </div>
-                    <Button asChild variant="outline" size="icon" title="View shop details">
+                    <Button asChild variant="outline" size="icon" title={t('shop.viewShopDetails')}>
                       <Link href={`/games/${params.id}/shops/${shop.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
@@ -564,19 +562,17 @@ export default function GameShopsPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingToggle?.newActive ? "Activate shop?" : "Deactivate shop?"}
+              {pendingToggle?.newActive ? t('shop.activateShopQ') : t('shop.deactivateShopQ')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingToggle?.newActive
-                ? "This shop will become visible and purchasable by players."
-                : "This shop will be hidden from players and no longer purchasable."}
+              {pendingToggle?.newActive ? t('shop.activateShopDesc') : t('shop.deactivateShopDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={toggling}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={toggling}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmToggleActive} disabled={toggling}>
               {toggling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirm
+              {t('common.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -586,20 +582,20 @@ export default function GameShopsPage() {
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent side="right" className="sm:max-w-[580px] flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-            <SheetTitle>Create New Shop</SheetTitle>
+            <SheetTitle>{t('shop.createNewShop')}</SheetTitle>
             <SheetDescription>
-              Fill in the details below to create a new shop for your game.
+              {t('shop.createNewShopDesc')}
             </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="shop_name">
-                Name <span className="text-destructive">*</span>
+                {t('shop.name')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="shop_name"
-                placeholder="e.g. Main Shop"
+                placeholder={t('shop.shopNamePlaceholder')}
                 value={form.name}
                 onChange={(e) => {
                   const name = e.target.value
@@ -611,12 +607,12 @@ export default function GameShopsPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="shop_key">
-                Shop Key <span className="text-destructive">*</span>
+                {t('shop.shopKey')} <span className="text-destructive">*</span>
               </Label>
               <div className="flex gap-1.5">
                 <Input
                   id="shop_key"
-                  placeholder="e.g. main_shop"
+                  placeholder={t('shop.shopKeyPlaceholder')}
                   value={form.shop_key}
                   onChange={(e) => {
                     setAutoSlug(false)
@@ -626,7 +622,7 @@ export default function GameShopsPage() {
                 />
                 <button
                   type="button"
-                  title={autoSlug ? "Auto-slug is ON — click to disable" : "Auto-slug is OFF — click to re-enable"}
+                  title={autoSlug ? t('shop.autoSlugOn') : t('shop.autoSlugOff')}
                   onClick={() => {
                     const next = !autoSlug
                     setAutoSlug(next)
@@ -642,14 +638,14 @@ export default function GameShopsPage() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Lowercase letters, digits, underscores only.
-                {autoSlug && <span className="text-primary ml-1">(auto-generated from name)</span>}
+                {t('shop.shopKeyDesc')}
+                {autoSlug && <span className="text-primary ml-1">{t('shop.autoGenFromName')}</span>}
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label>
-                Shop Type <span className="text-destructive">*</span>
+                {t('shop.shopType')} <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={form.shop_type}
@@ -672,7 +668,7 @@ export default function GameShopsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="starts_at">
-                    Start Date
+                    {t('shop.startDate')}
                     {form.shop_type === "event" && <span className="text-destructive"> *</span>}
                   </Label>
                   <div className="flex gap-1.5">
@@ -705,7 +701,7 @@ export default function GameShopsPage() {
                       className="h-7 px-2 text-xs"
                       onClick={() => setField("starts_at", toDatetimeLocal(new Date()))}
                     >
-                      Now
+                      {t('shop.now')}
                     </Button>
                     <Button
                       type="button"
@@ -719,13 +715,13 @@ export default function GameShopsPage() {
                         setField("starts_at", toDatetimeLocal(d))
                       }}
                     >
-                      Start of next month
+                      {t('shop.startOfNextMonth')}
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ends_at">
-                    End Date
+                    {t('shop.endDate')}
                     {form.shop_type === "event" && <span className="text-destructive"> *</span>}
                   </Label>
                   <div className="flex gap-1.5">
@@ -762,7 +758,7 @@ export default function GameShopsPage() {
                         setField("ends_at", toDatetimeLocal(d))
                       }}
                     >
-                      +2 weeks
+                      {t('shop.twoWeeks')}
                     </Button>
                     <Button
                       type="button"
@@ -776,7 +772,7 @@ export default function GameShopsPage() {
                         setField("ends_at", toDatetimeLocal(d))
                       }}
                     >
-                      End of next month
+                      {t('shop.endOfNextMonth')}
                     </Button>
                   </div>
                 </div>
@@ -785,7 +781,7 @@ export default function GameShopsPage() {
 
             <div className="space-y-1.5">
               <Label>
-                Currency Item Def <span className="text-destructive">*</span>
+                {t('shop.currencyItemDef')} <span className="text-destructive">*</span>
               </Label>
               <Popover open={currencyOpen} onOpenChange={setCurrencyOpen} modal={false}>
                 <PopoverTrigger asChild>
@@ -814,7 +810,7 @@ export default function GameShopsPage() {
                         )}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">Select currency item…</span>
+                      <span className="text-muted-foreground">{t('shop.selectCurrencyItem')}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -826,12 +822,12 @@ export default function GameShopsPage() {
                 >
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Search by name or code…"
+                      placeholder={t('shop.searchByNameOrCode')}
                       value={currencySearch}
                       onValueChange={setCurrencySearch}
                     />
                     <CommandList>
-                      <CommandEmpty>No item found.</CommandEmpty>
+                      <CommandEmpty>{t('shop.noItemFound')}</CommandEmpty>
                       <CommandGroup>
                         {itemDefs
                           .filter(
@@ -880,11 +876,11 @@ export default function GameShopsPage() {
                   htmlFor="show_all_types"
                   className="text-xs text-muted-foreground cursor-pointer select-none"
                 >
-                  Show all item types
+                  {t('shop.showAllItemTypes')}
                 </label>
               </div>
               <p className="text-xs text-muted-foreground">
-                The item used as currency for purchases in this shop.
+                {t('shop.currencyItemDesc')}
               </p>
             </div>
 
@@ -895,7 +891,7 @@ export default function GameShopsPage() {
                 onCheckedChange={(v) => setField("is_active", v)}
               />
               <Label htmlFor="is_active" className="cursor-pointer">
-                Active immediately
+                {t('shop.activeImmediately')}
               </Label>
             </div>
 
@@ -909,11 +905,11 @@ export default function GameShopsPage() {
 
           <div className="shrink-0 border-t px-6 py-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleCreate} disabled={creating}>
               {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Shop
+              {t('shop.createShop')}
             </Button>
           </div>
         </SheetContent>
