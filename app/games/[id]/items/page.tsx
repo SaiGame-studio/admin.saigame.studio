@@ -3002,7 +3002,7 @@ function GeneratorTab({
 
   // Fetch generators
   const fetchGenerators = useCallback(() => {
-    if (!studioId || !gameId) return
+    if (!gameId) return
     setGeneratorLoading(true)
     setGeneratorError(null)
     setPoolNames({})
@@ -3027,14 +3027,14 @@ function GeneratorTab({
       })
       .catch((e) => setGeneratorError(e?.message ?? "Failed to load generators"))
       .finally(() => setGeneratorLoading(false))
-  }, [studioId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch on first activation
   useEffect(() => {
-    if (activeTab !== "generators" || !studioId || !gameId) return
+    if (activeTab !== "generators" || !gameId) return
     if (generatorItems.length > 0 || generatorLoading) return
     fetchGenerators()
-  }, [activeTab, studioId, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (generatorLoading) {
     return (
@@ -3449,7 +3449,6 @@ export default function GameItemsPage() {
 
   // ─── Containers ──────────────────────────────────────────────────────────────
   const fetchContainerDefs = useCallback(async () => {
-    if (!studioId) return
     setContainerLoading(true)
     setContainerError(null)
     try {
@@ -3466,7 +3465,7 @@ export default function GameItemsPage() {
     } finally {
       setContainerLoading(false)
     }
-  }, [studioId, gameId, containerOffset])
+  }, [gameId, containerOffset])
 
   useEffect(() => {
     if (activeTab === 'containers') {
@@ -3934,7 +3933,7 @@ export default function GameItemsPage() {
               <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
-              <Button size="sm" className="h-8" onClick={() => setShowCreate(true)} disabled={!studioId}>
+              <Button size="sm" className="h-8" onClick={() => setShowCreate(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t('items.newItem')}
               </Button>
@@ -4171,7 +4170,7 @@ export default function GameItemsPage() {
               <Button variant="outline" size="icon" onClick={fetchContainerDefs} title="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <Button onClick={() => setShowCreateContainer(true)} disabled={!studioId}>
+              <Button onClick={() => setShowCreateContainer(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t('items.newContainer')}
               </Button>
@@ -4768,18 +4767,16 @@ export default function GameItemsPage() {
       </Tabs>
 
       {/* Create Item Modal */}
-      {studioId && (
-        <CreateItemDialog
-          open={showCreate}
-          studioId={studioId}
-          gameId={gameId}
-          onCreated={() => { fetchItems(); loadGameInfo() }}
-          onClose={() => setShowCreate(false)}
-          categories={categories}
-          rarities={rarities}
-          initialCategory={createInitCategory}
-        />
-      )}
+      <CreateItemDialog
+        open={showCreate}
+        studioId={studioId}
+        gameId={gameId}
+        onCreated={() => { fetchItems(); loadGameInfo() }}
+        onClose={() => setShowCreate(false)}
+        categories={categories}
+        rarities={rarities}
+        initialCategory={createInitCategory}
+      />
 
       {/* Create Container Definition Modal */}
       <CreateContainerDefinitionDialog

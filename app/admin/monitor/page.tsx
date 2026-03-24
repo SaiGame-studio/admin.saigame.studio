@@ -43,12 +43,20 @@ function WorkerCard({ worker }: { worker: Worker }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <CardTitle className="text-base font-semibold font-mono">{worker.name}</CardTitle>
-            {worker.last_event_at && (
-              <CardDescription className="flex items-center gap-1 text-xs mt-1">
-                <Clock className="h-3 w-3 shrink-0" />
-                Last event: {formatISORelative(worker.last_event_at)}
-              </CardDescription>
-            )}
+            <div className="flex flex-col gap-0.5 mt-1">
+              {(worker.last_run ?? worker.last_event_at) && (
+                <CardDescription className="flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  Last run: {formatISORelative(worker.last_run ?? worker.last_event_at)}
+                </CardDescription>
+              )}
+              {worker.next_notify_at && (
+                <CardDescription className="flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3 shrink-0 text-blue-400" />
+                  Next notify: {formatISORelative(worker.next_notify_at)}
+                </CardDescription>
+              )}
+            </div>
           </div>
           {worker.running ? (
             <Badge variant="default" className="bg-green-600/90 text-white flex items-center gap-1 shrink-0 mt-0.5">

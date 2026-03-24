@@ -571,6 +571,8 @@ export interface Worker {
   name: string
   running: boolean
   last_event_at?: string
+  last_run?: string
+  next_notify_at?: string
   details?: WorkerDetails
   meta?: WorkerMeta
 }
