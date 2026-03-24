@@ -251,19 +251,18 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [load, refreshKey])
 
-  const [greeting, setGreeting] = useState({ text: "", icon: null as React.ReactNode })
+  const [localHour, setLocalHour] = useState(() => getUserLocalHour())
   useEffect(() => {
-    const update = () => {
-      const hour = getUserLocalHour()
-      if (hour < 5 || hour >= 22) setGreeting({ text: t('home.goodNight'), icon: <Moon className="inline h-4 w-4 mb-0.5 text-indigo-400" /> })
-      else if (hour < 12) setGreeting({ text: t('home.goodMorning'), icon: <Sunrise className="inline h-4 w-4 mb-0.5 text-amber-400" /> })
-      else if (hour < 18) setGreeting({ text: t('home.goodAfternoon'), icon: <Sun className="inline h-4 w-4 mb-0.5 text-yellow-400" /> })
-      else setGreeting({ text: t('home.goodEvening'), icon: <Sunset className="inline h-4 w-4 mb-0.5 text-orange-400" /> })
-    }
-    update()
-    const interval = setInterval(update, 60_000)
+    const interval = setInterval(() => setLocalHour(getUserLocalHour()), 60_000)
     return () => clearInterval(interval)
-  }, [t])
+  }, [])
+  const greeting = localHour < 5 || localHour >= 22
+    ? { text: t('home.goodNight'), icon: <Moon className="inline h-4 w-4 mb-0.5 text-indigo-400" /> }
+    : localHour < 12
+    ? { text: t('home.goodMorning'), icon: <Sunrise className="inline h-4 w-4 mb-0.5 text-amber-400" /> }
+    : localHour < 18
+    ? { text: t('home.goodAfternoon'), icon: <Sun className="inline h-4 w-4 mb-0.5 text-yellow-400" /> }
+    : { text: t('home.goodEvening'), icon: <Sunset className="inline h-4 w-4 mb-0.5 text-orange-400" /> }
   const displayName = user?.display_name || user?.username || "there"
 
   const totalGamesUsed = studios.reduce((s, st) => s + (st.usage?.games ?? 0), 0)

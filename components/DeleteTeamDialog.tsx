@@ -20,12 +20,14 @@ import { deleteTeam } from "@/lib/team-api"
 import type { Team } from "@/types/team"
 import { Trash2, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface DeleteTeamDialogProps {
   team: Team
 }
 
 export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [confirmText, setConfirmText] = useState("")
   const [loading, setLoading] = useState(false)
@@ -42,8 +44,8 @@ export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
       await deleteTeam(team.id)
 
       toast({
-        title: "Success",
-        description: "Team deleted successfully.",
+        title: t('common.success'),
+        description: t('team.deleteSuccess'),
       })
 
       setOpen(false)
@@ -57,8 +59,8 @@ export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
     } catch (err) {
       console.error("Failed to delete team:", err)
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to delete team. Please try again.",
+        title: t('common.error'),
+        description: err instanceof Error ? err.message : t('team.deleteTeam') + ' failed',
         variant: "destructive",
       })
     } finally {
@@ -71,30 +73,30 @@ export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
       <AlertDialogTrigger asChild>
         <Button variant="destructive" size="sm">
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete Team
+          {t('team.deleteTeam')}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Team - Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>{t('team.deleteTitle')}</AlertDialogTitle>
           <AlertDialogDescription className="space-y-3">
             <p className="font-semibold text-destructive">
-              This action cannot be undone! This will permanently delete:
+              {t('team.deleteWarning')}
             </p>
             <ul className="list-disc list-inside space-y-1 text-sm">
-              <li>The team <strong>{team.name}</strong></li>
-              <li>All team member associations</li>
-              <li>All game assignments for this team</li>
+              <li>{t('team.deleteItemTeam')} <strong>{team.name}</strong></li>
+              <li>{t('team.deleteItemMembers')}</li>
+              <li>{t('team.deleteItemGames')}</li>
             </ul>
             <div className="pt-4 space-y-2">
               <Label htmlFor="confirm-name" className="text-foreground">
-                Please type <strong className="font-mono bg-muted px-1 py-0.5 rounded">{team.name}</strong> to confirm:
+                {t('team.deleteConfirmLabel')} <strong className="font-mono bg-muted px-1 py-0.5 rounded">{team.name}</strong> {t('team.deleteConfirmLabelSuffix')}
               </Label>
               <Input
                 id="confirm-name"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Type team name here"
+                placeholder={t('team.deleteConfirmPlaceholder')}
                 disabled={loading}
               />
             </div>
@@ -102,7 +104,7 @@ export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading} onClick={() => setConfirmText("")}>
-            Cancel
+            {t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
@@ -112,10 +114,10 @@ export function DeleteTeamDialog({ team }: DeleteTeamDialogProps) {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {t('team.deleting')}
               </>
             ) : (
-              "Delete Team"
+              t('team.deleteTeam')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

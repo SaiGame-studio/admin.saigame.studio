@@ -34,6 +34,7 @@ import type { Role } from "@/types/role"
 import { Plus, Loader2, Users } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface AddMemberDialogProps {
   teamId: string
@@ -43,6 +44,7 @@ interface AddMemberDialogProps {
 }
 
 export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, studioMembersLimit }: AddMemberDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [userId, setUserId] = useState("")
   const [roleId, setRoleId] = useState("")
@@ -65,11 +67,11 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
       const data = await fetchRoles()
       setRoles(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load roles. Please try again."
+      const errorMessage = err instanceof Error ? err.message : t('team.loadRolesError')
       console.error("Failed to load roles:", err)
-      
+
       toast({
-        title: "Error",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -83,8 +85,8 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
     
     if (!userId.trim() || !roleId) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all fields.",
+        title: t('team.validationError'),
+        description: t('team.addMemberFillAll'),
         variant: "destructive",
       })
       return
@@ -105,8 +107,8 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
       await addMemberToTeam(teamId, userId.trim(), roleId)
       
       toast({
-        title: "Success",
-        description: "Member added successfully.",
+        title: t('common.success'),
+        description: t('team.addMemberSuccess'),
       })
       
       // Refresh coin balance display (triggers float animation)
@@ -120,11 +122,11 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
         onMemberAdded()
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to add member. Please try again."
+      const errorMessage = err instanceof Error ? err.message : t('studio.removeMemberError')
       console.error("Failed to add member:", err)
-      
+
       toast({
-        title: "Error",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -138,21 +140,20 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
       <AlertDialog open={showCoinConfirm} onOpenChange={setShowCoinConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm coin charge</AlertDialogTitle>
+            <AlertDialogTitle>{t('team.confirmCoinTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Your studio has reached its member limit. Adding this member will cost{" "}
-              <span className="font-semibold text-foreground">50 🪙 coins</span>. Do you want to proceed?
+              {t('team.confirmCoinDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 setShowCoinConfirm(false)
                 await doAddMember()
               }}
             >
-              Confirm & Pay 50 coins
+              {t('team.confirmCoinPay')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -161,21 +162,21 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
       <Sheet open={open} onOpenChange={setOpen}>
       <Button onClick={() => setOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
-        Add Member
+        {t('team.addMember')}
       </Button>
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <SheetHeader>
-            <SheetTitle>Add Member to Team</SheetTitle>
+            <SheetTitle>{t('team.addMemberTitle')}</SheetTitle>
             <SheetDescription>
-              Enter the user ID and select a role to add a new member to this team.
+              {t('team.addMemberDesc')}
             </SheetDescription>
             {studioMembersLimit != null && studioMembersUsage != null && (
               <div className="mt-2 space-y-1.5 rounded-md border border-border bg-muted/40 px-3 py-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
                     <Users className="h-3.5 w-3.5 shrink-0" />
-                    Studio member slots
+                    {t('team.studioMemberSlots')}
                   </span>
                   <span className={`font-semibold ${
                     studioMembersUsage >= studioMembersLimit
@@ -184,7 +185,7 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
                   }`}>
                     {studioMembersUsage} / {studioMembersLimit}
                     {studioMembersUsage >= studioMembersLimit && (
-                      <span className="ml-1 font-normal">(limit reached)</span>
+                      <span className="ml-1 font-normal">{t('team.limitReached')}</span>
                     )}
                   </span>
                 </div>
@@ -197,27 +198,27 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
                   }`}
                 />
                 <p className="text-[11px] text-muted-foreground pt-0.5">
-                  💡 Adding a member beyond the limit costs <span className="font-semibold text-foreground">50 coins</span> per slot.
+                  💡 {t('team.memberSlotCostHint')}
                 </p>
               </div>
             )}
           </SheetHeader>
           <div className="flex flex-col gap-4 py-4 flex-1 overflow-y-auto">
             <div className="grid gap-2">
-              <Label htmlFor="user-id">User ID</Label>
+              <Label htmlFor="user-id">{t('team.userIdLabel')}</Label>
               <Input
                 id="user-id"
-                placeholder="Enter user ID"
+                placeholder={t('team.userIdPlaceholder')}
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 disabled={loading}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t('team.roleLabel')}</Label>
               <Select value={roleId} onValueChange={setRoleId} disabled={loading || rolesLoading}>
                 <SelectTrigger id="role">
-                  <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select a role"} />
+                  <SelectValue placeholder={rolesLoading ? t('team.loadingRoles') : t('team.selectRolePlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
@@ -241,11 +242,11 @@ export function AddMemberDialog({ teamId, onMemberAdded, studioMembersUsage, stu
               onClick={() => setOpen(false)}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading || !userId.trim() || !roleId}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Member
+              {t('team.addMember')}
             </Button>
           </SheetFooter>
         </form>

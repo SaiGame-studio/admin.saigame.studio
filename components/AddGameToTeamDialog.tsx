@@ -17,6 +17,7 @@ import { assignGamesToTeam } from "@/lib/team-api"
 import type { Game } from "@/types/game"
 import { Plus, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface AddGameToTeamDialogProps {
   teamId: string
@@ -25,12 +26,13 @@ interface AddGameToTeamDialogProps {
   onGamesAdded?: () => void
 }
 
-export function AddGameToTeamDialog({ 
-  teamId, 
-  studioId, 
+export function AddGameToTeamDialog({
+  teamId,
+  studioId,
   existingGameIds,
-  onGamesAdded 
+  onGamesAdded
 }: AddGameToTeamDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>([])
   const [availableGames, setAvailableGames] = useState<Game[]>([])
@@ -52,11 +54,11 @@ export function AddGameToTeamDialog({
       const unassignedGames = data.filter(game => !existingGameIds.includes(game.id))
       setAvailableGames(unassignedGames)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load games. Please try again."
+      const errorMessage = err instanceof Error ? err.message : t('team.loadGamesForTeamError')
       console.error("Failed to load games:", err)
-      
+
       toast({
-        title: "Error",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -78,8 +80,8 @@ export function AddGameToTeamDialog({
     
     if (selectedGameIds.length === 0) {
       toast({
-        title: "Validation Error",
-        description: "Please select at least one game.",
+        title: t('team.validationError'),
+        description: t('team.selectAtLeastOneGame'),
         variant: "destructive",
       })
       return
@@ -90,8 +92,8 @@ export function AddGameToTeamDialog({
       await assignGamesToTeam(teamId, selectedGameIds)
       
       toast({
-        title: "Success",
-        description: `${selectedGameIds.length} game(s) added successfully.`,
+        title: t('common.success'),
+        description: t('team.addGamesSuccess'),
       })
       
       setOpen(false)
@@ -101,11 +103,11 @@ export function AddGameToTeamDialog({
         onGamesAdded()
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to add games. Please try again."
+      const errorMessage = err instanceof Error ? err.message : t('team.addGamesError')
       console.error("Failed to add games:", err)
-      
+
       toast({
-        title: "Error",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -118,15 +120,15 @@ export function AddGameToTeamDialog({
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
-        Add Games
+        {t('team.addGames')}
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             <SheetHeader>
-              <SheetTitle>Add Games to Team</SheetTitle>
+              <SheetTitle>{t('team.addGamesTitle')}</SheetTitle>
               <SheetDescription>
-                Select one or more games from your studio to assign to this team.
+                {t('team.addGamesDesc')}
               </SheetDescription>
             </SheetHeader>
             <div className="py-4 flex-1 overflow-y-auto">
@@ -174,8 +176,8 @@ export function AddGameToTeamDialog({
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>No available games to add.</p>
-                  <p className="text-sm mt-2">All games from this studio are already assigned to this team.</p>
+                  <p>{t('team.noAvailableGames')}</p>
+                  <p className="text-sm mt-2">{t('team.allGamesAssigned')}</p>
                 </div>
               )}
             </div>
@@ -186,14 +188,14 @@ export function AddGameToTeamDialog({
                 onClick={() => setOpen(false)}
                 disabled={loading}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading || selectedGameIds.length === 0}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Add {selectedGameIds.length > 0 && `(${selectedGameIds.length})`}
+                {t('team.add')} {selectedGameIds.length > 0 && `(${selectedGameIds.length})`}
               </Button>
             </SheetFooter>
           </form>
