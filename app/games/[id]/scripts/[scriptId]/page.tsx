@@ -16,14 +16,14 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { getGame } from "@/lib/game-api"
-import { getScript, updateScript, listSampleScripts } from "@/lib/script-api"
+import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts } from "@/lib/script-api"
 import type { Game } from "@/types/game"
 import type { GameScript, SampleScript } from "@/types/script"
 import CodeMirror from "@uiw/react-codemirror"
@@ -172,8 +172,9 @@ export default function ScriptEditPage() {
   }
 
   const [samples, setSamples] = useState<SampleScript[]>([])
+  const [turnBaseSamples, setTurnBaseSamples] = useState<SampleScript[]>([])
   const [samplesLoading, setSamplesLoading] = useState(true)
-  const [sampleTab, setSampleTab] = useState<string>("all")
+  const [sampleTab, setSampleTab] = useState<string>("core")
   const [appendMode, setAppendMode] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -200,9 +201,14 @@ export default function ScriptEditPage() {
 
   useEffect(() => {
     setSamplesLoading(true)
-    listSampleScripts()
-      .then(setSamples)
-      .catch(() => setSamples([]))
+    Promise.all([
+      listSampleScripts().catch(() => [] as SampleScript[]),
+      listTurnBaseSampleScripts().catch(() => [] as SampleScript[]),
+    ])
+      .then(([core, turnBase]) => {
+        setSamples(core)
+        setTurnBaseSamples(turnBase)
+      })
       .finally(() => setSamplesLoading(false))
   }, [])
 
@@ -477,56 +483,55 @@ export default function ScriptEditPage() {
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ) : samples.length === 0 ? (
-              <div className="flex-1 rounded-lg border border-dashed bg-muted/20 flex flex-col items-center justify-center gap-2 text-center p-4">
-                <Code2 className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground/60">{t('scripts.noSamplesAvailable')}</p>
-              </div>
             ) : (() => {
-              const gameTypes = ["all", ...Array.from(new Set(samples.map(s => s.game_type).filter(Boolean)))]
-              const filtered = sampleTab === "all" ? samples : samples.filter(s => s.game_type === sampleTab)
+              const activeSamples = sampleTab === "core" ? samples : turnBaseSamples
               return (
                 <>
-                  <Select value={sampleTab} onValueChange={setSampleTab}>
-                    <SelectTrigger className="h-7 text-xs shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {gameTypes.map(gt => (
-                        <SelectItem key={gt} value={gt} className="text-xs capitalize">
-                          {gt === "all" ? `${t('scripts.sampleFilterAll')} (${samples.length})` : `${gt} (${samples.filter(s => s.game_type === gt).length})`}
-                        </SelectItem>
+                  <Tabs value={sampleTab} onValueChange={setSampleTab} className="shrink-0">
+                    <TabsList className="h-7 w-full">
+                      <TabsTrigger value="core" className="text-xs flex-1 h-5">
+                        Core ({samples.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="turn-base" className="text-xs flex-1 h-5">
+                        Turn base ({turnBaseSamples.length})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  {activeSamples.length === 0 ? (
+                    <div className="flex-1 rounded-lg border border-dashed bg-muted/20 flex flex-col items-center justify-center gap-2 text-center p-4">
+                      <Code2 className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-xs text-muted-foreground/60">{t('scripts.noSamplesAvailable')}</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                      {activeSamples.map(s => (
+                        <button
+                          key={s.name}
+                          type="button"
+                          className="w-full text-left rounded-md border bg-card px-3 py-2.5 hover:border-primary hover:bg-primary/5 transition-colors group"
+                          onClick={() => {
+                            const block = `-- ${s.name}: ${s.description}\n${s.script_body}`
+                            if (appendMode) {
+                              setScriptBody(prev => prev ? prev + "\n\n" + block : block)
+                            } else {
+                              setScriptBody(block)
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <FileCode className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
+                            <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{s.no}</span>
+                            <span className="text-xs font-semibold font-mono truncate group-hover:text-primary">{s.name}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <Badge variant="outline" className="text-[10px] font-mono font-normal px-1 py-0">{s.trigger_type}</Badge>
+                            {s.game_type && <Badge variant="secondary" className="text-[10px] font-normal px-1 py-0 capitalize">{s.game_type}</Badge>}
+                          </div>
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-                    {filtered.map(s => (
-                      <button
-                        key={s.name}
-                        type="button"
-                        className="w-full text-left rounded-md border bg-card px-3 py-2.5 hover:border-primary hover:bg-primary/5 transition-colors group"
-                        onClick={() => {
-                          const block = `-- ${s.name}: ${s.description}\n${s.script_body}`
-                          if (appendMode) {
-                            setScriptBody(prev => prev ? prev + "\n\n" + block : block)
-                          } else {
-                            setScriptBody(block)
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <FileCode className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
-                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{s.no}</span>
-                          <span className="text-xs font-semibold font-mono truncate group-hover:text-primary">{s.name}</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Badge variant="outline" className="text-[10px] font-mono font-normal px-1 py-0">{s.trigger_type}</Badge>
-                          {s.game_type && <Badge variant="secondary" className="text-[10px] font-normal px-1 py-0 capitalize">{s.game_type}</Badge>}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </>
               )
             })()}

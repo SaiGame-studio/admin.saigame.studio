@@ -19,6 +19,11 @@ export async function listSampleScripts(): Promise<SampleScript[]> {
   return api.get(`/api/v1/scripts/samples`)
 }
 
+/** GET /api/v1/scripts/turn-base-samples — List turn-base Lua script templates */
+export async function listTurnBaseSampleScripts(): Promise<SampleScript[]> {
+  return api.get(`/api/v1/scripts/turn-base-samples`)
+}
+
 export async function getScript(gameId: string, scriptId: string): Promise<GameScript> {
   return api.get(`/api/v1/games/${gameId}/scripts/${scriptId}`)
 }
