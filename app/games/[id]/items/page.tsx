@@ -2774,7 +2774,7 @@ function TagsTab({
                   size="icon"
                   className="h-7 w-7"
                   onClick={(e) => openEdit(tag, e)}
-                  title="Edit"
+                  title={t('common.edit')}
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -2783,7 +2783,7 @@ function TagsTab({
                   size="icon"
                   className="h-7 w-7 text-destructive hover:text-destructive"
                   onClick={(e) => { e.stopPropagation(); setDeletingTag(tag) }}
-                  title="Delete"
+                  title={t('common.delete')}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -2802,7 +2802,7 @@ function TagsTab({
                   <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
                     {tag.tag_key}
                   </Badge>
-                  <span className="text-xs text-muted-foreground ml-auto">{tag.item_count} item{tag.item_count !== 1 ? "s" : ""}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{tag.item_count} {t('items.itemsUnit')}</span>
                 </div>
                 {/* metadata preview */}
                 {tag.metadata && Object.keys(tag.metadata).length > 0 && (
@@ -2822,7 +2822,7 @@ function TagsTab({
           <SheetHeader>
             <SheetTitle>{editingTag ? t('items.editTag') : t('items.createTag')}</SheetTitle>
             <SheetDescription>
-              {editingTag ? `Editing "${editingTag.label}"` : t('items.createTagDesc')}
+              {editingTag ? `${t('items.editTagDesc')} "${editingTag.label}"` : t('items.createTagDesc')}
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSave} className="space-y-4 mt-4">
@@ -2831,17 +2831,17 @@ function TagsTab({
               <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3" /> {t('items.tagKeyRules')}</p>
               <ul className="space-y-0.5 pl-1">
                 <li>• Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
-                <li>• Lowercase letters, numbers and hyphens only — no spaces</li>
-                <li>• Must start and end with a letter or number</li>
-                <li>• Length: 2–20 characters</li>
+                <li>• {t('items.tagRuleLower')}</li>
+                <li>• {t('items.tagRuleStart')}</li>
+                <li>• {t('items.tagRuleLength')}</li>
                 <li>• <span className="text-amber-500 font-medium">{t('items.tagImmutableNote')}</span></li>
-                <li>• Max <span className="font-medium">50 tags</span> per game · max <span className="font-medium">20 tags</span> per item</li>
+                <li>• {t('items.tagRuleMax')}</li>
               </ul>
             </div>
             {!editingTag && (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="label">{t('items.label')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="label"
                     placeholder="e.g. Rare"
@@ -2859,7 +2859,7 @@ function TagsTab({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="tag_key">Tag Key <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="tag_key">{t('items.tagKey')} <span className="text-destructive">*</span></Label>
                   <div className="flex items-center gap-2">
                     <Input
                       id="tag_key"
@@ -2878,14 +2878,14 @@ function TagsTab({
                       size="icon"
                       variant={autoSlug ? "default" : "outline"}
                       className="h-9 w-9 shrink-0"
-                      title={autoSlug ? "Auto-slug from label (on)" : "Auto-slug from label (off)"}
+                      title={autoSlug ? t('items.tagAutoSlugOn') : t('items.tagAutoSlugOff')}
                       onClick={() => setAutoSlug((v) => !v)}
                     >
                       <Wand2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{autoSlug ? <span className="text-primary">Auto-generating from label</span> : <span>Lowercase, only <code className="font-mono">a-z 0-9 -</code> allowed</span>}</span>
+                    <span>{autoSlug ? <span className="text-primary">{t('items.tagAutoGenerating')}</span> : <span>{t('items.tagAutoLowercaseOnly')}</span>}</span>
                     <span className={form.tag_key.length > 18 ? "text-amber-500" : ""}>{form.tag_key.length}/20</span>
                   </div>
                 </div>
@@ -2894,7 +2894,7 @@ function TagsTab({
             {editingTag && (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="label">Label <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="label">{t('items.label')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="label"
                     placeholder="e.g. Rare"
@@ -2905,16 +2905,16 @@ function TagsTab({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Tag Key</Label>
+                  <Label>{t('items.tagKey')}</Label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono text-muted-foreground">{editingTag.tag_key}</code>
-                    <span className="text-[11px] text-amber-500 font-medium whitespace-nowrap">Immutable</span>
+                    <span className="text-[11px] text-amber-500 font-medium whitespace-nowrap">{t('items.tagImmutable')}</span>
                   </div>
                 </div>
               </>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="color">Color</Label>
+              <Label htmlFor="color">{t('items.color')}</Label>
               <div className="flex items-center gap-2">
                 <input
                   id="color"
