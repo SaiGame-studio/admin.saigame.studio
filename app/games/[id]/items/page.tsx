@@ -4326,7 +4326,7 @@ export default function GameItemsPage() {
                 {gameLimits?.max_gacha_packs != null
                   ? <>
                       <span className={gachaPacks.length >= gameLimits.max_gacha_packs ? "text-destructive font-medium" : ""}>
-                        {gachaPacks.length} / {gameLimits.max_gacha_packs} packs
+                        {gachaPacks.length} / {gameLimits.max_gacha_packs} {t('items.gachaPacksUnit')}
                       </span>
                       <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                         <span
@@ -4339,17 +4339,17 @@ export default function GameItemsPage() {
                       <Link
                         href={`/games/${gameId}/plugins`}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                        title="Manage plugins / raise limits"
+                        title={t('items.managePlugins')}
                       >
                         <Hammer className="h-3.5 w-3.5" />
                       </Link>
                     </>
-                  : `${gachaPacks.length} pack${gachaPacks.length !== 1 ? "s" : ""} configured`
+                  : `${gachaPacks.length} ${t('items.gachaPacksConfigured')}`
                 }
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={fetchGachaData} title="Refresh">
+              <Button variant="outline" size="icon" onClick={fetchGachaData} title={t('common.refresh')}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button
@@ -4416,17 +4416,17 @@ export default function GameItemsPage() {
                           {/* Col 2: Keys */}
                           <div className="w-52 shrink-0 text-sm text-muted-foreground">
                             {(pack.key_requirements ?? []).length === 0 ? (
-                              <span className="italic text-xs">No key required</span>
+                              <span className="italic text-xs">{t('items.noKeyRequired')}</span>
                             ) : pack.key_requirements.length === 1 ? (
                               <span>🔑 <strong className="text-foreground">{pack.key_requirements[0].quantity}×</strong> {gachaItemShortName(pack.key_requirements[0].item_definition_id)}</span>
                             ) : (
-                              <span>🔑 {pack.key_requirements.length} keys</span>
+                              <span>🔑 {pack.key_requirements.length} {t('items.gachaKeysCount')}</span>
                             )}
                           </div>
 
                           {/* Col 3: Items in pool */}
                           <div className="w-28 shrink-0 text-sm text-muted-foreground">
-                            🎲 {pack.item_pool.length} item{pack.item_pool.length !== 1 ? "s" : ""}
+                            🎲 {pack.item_pool.length} {t('items.itemsUnit')}
                           </div>
 
                           {/* Actions */}
@@ -4435,7 +4435,7 @@ export default function GameItemsPage() {
                               checked={pack.is_enabled}
                               onCheckedChange={() => handleGachaToggle(pack)}
                               disabled={togglingId === pack.id}
-                              title={pack.is_enabled ? "Disable pack" : "Enable pack"}
+                              title={pack.is_enabled ? t('items.disablePack') : t('items.enablePack')}
                               onClick={(e) => e.stopPropagation()}
                             />
                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); gachaOpenEdit(pack) }}>
@@ -4462,13 +4462,13 @@ export default function GameItemsPage() {
                             {/* Col 1 — Key Requirements (narrow, fixed width) */}
                             {(pack.key_requirements ?? []).length > 0 && (
                               <div className="w-[300px] shrink-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 Key Requirements</p>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 {t('items.keyRequirements')}</p>
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8">Item</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-12">Qty</TableHead>
+                                        <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -4502,16 +4502,16 @@ export default function GameItemsPage() {
                             {/* Col 2 — Drop Table (takes remaining width) */}
                             {pack.item_pool.length > 0 && (
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 Drop Table</p>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 {t('items.dropTable')}</p>
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8">Item</TableHead>
-                                        <TableHead className="text-xs h-8 w-24">Rarity</TableHead>
-                                        <TableHead className="text-xs h-8">Drop Rate</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-24">Weight</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-14">Qty</TableHead>
+                                        <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
+                                        <TableHead className="text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
+                                        <TableHead className="text-xs h-8">{t('items.dropRate')}</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-24">{t('items.weight')}</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">{t('items.quantity')}</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -4834,9 +4834,9 @@ export default function GameItemsPage() {
       <Sheet open={gachaSheetOpen} onOpenChange={(open) => { if (!open) gachaCloseSheet() }}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader className="mb-4">
-            <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : t('items.newGachaPack')}</SheetTitle>
+            <SheetTitle>{editingPack ? `${t('items.editPackPrefix')}: ${editingPack.name}` : t('items.newGachaPack')}</SheetTitle>
             <SheetDescription className="text-xs">
-              Configure pack name, key requirements (items consumed on open), and item drop pool weights.
+              {t('items.gachaSheetDesc')}
             </SheetDescription>
             {editingPack && (
               <div className="flex items-center gap-1 pt-1">
@@ -4846,7 +4846,7 @@ export default function GameItemsPage() {
                 <button
                   type="button"
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Copy ID"
+                  title={t('items.copyId')}
                   onClick={(event) => {
                     const text = editingPack.id
                     console.log('[CopyPackId] clicked, text:', text)
@@ -4900,18 +4900,18 @@ export default function GameItemsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Key Requirements</Label>
-                  <p className="text-xs text-muted-foreground">Items consumed when opening this pack. Leave empty for a free pack.</p>
+                  <Label className="text-base">{t('items.keyRequirements')}</Label>
+                  <p className="text-xs text-muted-foreground">{t('items.keyReqDesc')}</p>
                 </div>
                 <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add key
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.addKey')}
                 </Button>
               </div>
               {gachaForm.keyReqs.length > 0 && (
                 <div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
                   <span />
-                  <span>Item</span>
-                  <span>Quantity</span>
+                  <span>{t('items.name')}</span>
+                  <span>{t('items.quantity')}</span>
                   <span />
                 </div>
               )}
@@ -4962,14 +4962,14 @@ export default function GameItemsPage() {
                 ))}
               </div>
               {gachaForm.keyReqs.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No key items — pack is free to open.</p>
+                <p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>
               )}
               <Link
                 href={`/games/${gameId}/items?create=1&category=key`}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
                 <ExternalLink className="h-3 w-3" />
-                Create new item
+                {t('items.createNewItem')}
               </Link>
             </div>
 
@@ -4982,7 +4982,7 @@ export default function GameItemsPage() {
                 disabled={formSaving}
               />
               <Label htmlFor="gacha-enabled" className="cursor-pointer">{t('items.enabled')}</Label>
-              <span className="text-xs text-muted-foreground">Players can open this pack when enabled.</span>
+              <span className="text-xs text-muted-foreground">{t('items.playersCanOpen')}</span>
             </div>
 
             <Separator />
@@ -4991,24 +4991,24 @@ export default function GameItemsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base">Item Pool</Label>
+                  <Label className="text-base">{t('items.itemPoolLabel')}</Label>
                   {formTotalWeight > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Total weight: {formTotalWeight.toLocaleString()}
+                      {t('items.totalWeight')}: {formTotalWeight.toLocaleString()}
                       {formTotalWeight === 1_000_000 && " ✓ (1M = % notation)"}
                     </p>
                   )}
                 </div>
                 <Button size="sm" variant="outline" type="button" onClick={addPoolRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add item
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.addItem')}
                 </Button>
               </div>
               {gachaForm.pool.length > 0 && (
                 <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 px-1 font-medium">
-                  <span>Item</span>
-                  <span>Weight</span>
-                  <span>Min</span>
-                  <span>Max</span>
+                  <span>{t('items.name')}</span>
+                  <span>{t('items.weight')}</span>
+                  <span>{t('items.min')}</span>
+                  <span>{t('items.max')}</span>
                   <span />
                 </div>
               )}
@@ -5075,7 +5075,7 @@ export default function GameItemsPage() {
               </div>
               {gachaForm.pool.some((r) => r.item_definition_id && Number(r.weight) > 0) && (
                 <div className="mt-3 rounded border bg-muted/40 p-3 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Drop rate preview</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">{t('items.dropRatePreview')}</p>
                   {[...gachaForm.pool]
                     .filter((r) => r.item_definition_id)
                     .sort((a, b) => (Number(b.weight) || 0) - (Number(a.weight) || 0))
@@ -5092,7 +5092,7 @@ export default function GameItemsPage() {
               )}
               {gachaForm.pool.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">
-                  No items added. The pack can be saved with an empty pool.
+                  {t('items.noItemsPool')}
                 </p>
               )}
             </div>
