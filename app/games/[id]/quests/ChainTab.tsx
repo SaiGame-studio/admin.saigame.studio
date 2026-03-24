@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
@@ -67,6 +67,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChainFlowView } from "./ChainFlowView"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api-client"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import type { Game } from "@/types/game"
 import {
   listQuestChains,
@@ -89,12 +90,6 @@ import {
 } from "@/lib/quest-api"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CHAIN_TYPE_OPTIONS: { value: ChainType; label: string; icon: React.ReactNode; description: string }[] = [
-  { value: "linear", label: "Linear", icon: <ArrowRight className="h-4 w-4" />, description: "Sequential — each quest unlocks after the previous is claimed" },
-  { value: "branching", label: "Branching", icon: <GitBranch className="h-4 w-4" />, description: "Multiple parallel branches with individual prerequisites" },
-  { value: "parallel", label: "Parallel", icon: <Layers className="h-4 w-4" />, description: "All quests unlock immediately, no prerequisites" },
-]
 
 function chainTypeBadgeVariant(type: ChainType) {
   switch (type) {
@@ -126,6 +121,7 @@ function UnlockQuestIdsPicker({
   questDefsMap: Record<string, QuestDefinition>
   excludeQuestId?: string
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
   const available = chainMembers
@@ -146,8 +142,8 @@ function UnlockQuestIdsPicker({
 
   return (
     <div className="space-y-2">
-      <Label>Unlock Quest IDs</Label>
-      <p className="text-xs text-muted-foreground">Select which quests will be unlocked when this quest is completed in this chain.</p>
+      <Label>{t('quest.chain.unlockQuestIds')}</Label>
+      <p className="text-xs text-muted-foreground">{t('quest.chain.unlockQuestIdsDesc')}</p>
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {value.map((id) => {
@@ -176,17 +172,17 @@ function UnlockQuestIdsPicker({
             aria-expanded={open}
             className="w-full justify-between h-9 text-sm font-normal"
           >
-            <span className="text-muted-foreground">Add quest to unlock…</span>
+            <span className="text-muted-foreground">{t('quest.chain.addQuestToUnlock')}</span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
           <Command>
-            <CommandInput placeholder="Search quests…" />
+            <CommandInput placeholder={t('quest.chain.searchQuests')} />
             <CommandList>
-              <CommandEmpty>No quests found.</CommandEmpty>
+              <CommandEmpty>{t('quest.chain.noQuestsFound')}</CommandEmpty>
               {unselected.filter((o) => o.inChain).length > 0 && (
-                <CommandGroup heading="In this chain">
+                <CommandGroup heading={t('quest.chain.inThisChain')}>
                   {unselected.filter((o) => o.inChain).map((o) => (
                     <CommandItem
                       key={o.id}
@@ -202,7 +198,7 @@ function UnlockQuestIdsPicker({
                 </CommandGroup>
               )}
               {unselected.filter((o) => !o.inChain).length > 0 && (
-                <CommandGroup heading="Other quests">
+                <CommandGroup heading={t('quest.chain.otherQuests')}>
                   {unselected.filter((o) => !o.inChain).map((o) => (
                     <CommandItem
                       key={o.id}
@@ -218,7 +214,7 @@ function UnlockQuestIdsPicker({
                 </CommandGroup>
               )}
               {unselected.length === 0 && (
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">No quests available</div>
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">{t('quest.chain.noQuestsAvailable')}</div>
               )}
             </CommandList>
           </Command>
@@ -236,6 +232,13 @@ export function ChainTab({ game }: { game: Game | null }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { t } = useTranslation()
+
+  const CHAIN_TYPE_OPTIONS = useMemo(() => [
+    { value: "linear" as ChainType, label: t('quest.chain.typeLinear'), icon: <ArrowRight className="h-4 w-4" />, description: t('quest.chain.typeLinearDesc') },
+    { value: "branching" as ChainType, label: t('quest.chain.typeBranching'), icon: <GitBranch className="h-4 w-4" />, description: t('quest.chain.typeBranchingDesc') },
+    { value: "parallel" as ChainType, label: t('quest.chain.typeParallel'), icon: <Layers className="h-4 w-4" />, description: t('quest.chain.typeParallelDesc') },
+  ], [t])
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -353,7 +356,7 @@ export function ChainTab({ game }: { game: Game | null }) {
       setExpandedMembers(members)
       setMemberCountMap((prev) => ({ ...prev, [chainId]: members.length }))
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load chain members" })
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.chain.failedUpdateChain') })
       setExpandedChainId(null)
     }
   }, [studioId, gameId, toast, chains])
@@ -414,11 +417,11 @@ export function ChainTab({ game }: { game: Game | null }) {
 
   const handleSaveChain = async () => {
     if (!chainForm.display_name.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Display Name is required" })
+      toast({ variant: "destructive", title: t('quest.chain.validationError'), description: t('quest.chain.displayNameRequired') })
       return
     }
     if (!chainForm.chain_key.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Chain Key is required" })
+      toast({ variant: "destructive", title: t('quest.chain.validationError'), description: t('quest.chain.chainKeyRequired') })
       return
     }
     setChainSaving(true)
@@ -430,16 +433,16 @@ export function ChainTab({ game }: { game: Game | null }) {
         if (chainForm.chain_type !== editChain.chain_type) patch.chain_type = chainForm.chain_type
         if (chainForm.is_active !== editChain.is_active) patch.is_active = chainForm.is_active
         await updateQuestChain(studioId, gameId, editChain.id, patch)
-        toast({ title: "Chain updated" })
+        toast({ title: t('quest.chain.chainUpdated') })
       } else {
         await createQuestChain(studioId, gameId, chainForm)
-        toast({ title: "Chain created" })
+        toast({ title: t('quest.chain.chainCreated') })
       }
       setCreateOpen(false)
       await loadChains()
       if (expandedChainId) await refreshExpanded(expandedChainId)
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to save chain" })
+      toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedSaveChain') })
     } finally {
       setChainSaving(false)
     }
@@ -452,7 +455,7 @@ export function ChainTab({ game }: { game: Game | null }) {
     setDeleteDeleting(true)
     try {
       await deleteQuestChain(studioId, gameId, deleteTarget.id)
-      toast({ title: "Chain deleted" })
+      toast({ title: t('quest.chain.chainDeleted') })
       setDeleteTarget(null)
       if (expandedChainId === deleteTarget.id) {
         setExpandedChainId(null)
@@ -461,7 +464,7 @@ export function ChainTab({ game }: { game: Game | null }) {
       }
       await loadChains()
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to delete chain" })
+      toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedDeleteChain') })
     } finally {
       setDeleteDeleting(false)
     }
@@ -474,9 +477,9 @@ export function ChainTab({ game }: { game: Game | null }) {
       await updateQuestChain(studioId, gameId, chain.id, { is_active: checked })
       setChains((prev) => prev.map((c) => c.id === chain.id ? { ...c, is_active: checked } : c))
       if (expandedChain?.id === chain.id) setExpandedChain((prev) => prev ? { ...prev, is_active: checked } : prev)
-      toast({ title: checked ? "Chain activated" : "Chain deactivated" })
+      toast({ title: checked ? t('quest.chain.chainActivated') : t('quest.chain.chainDeactivated') })
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update chain" })
+      toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedUpdateChain') })
     }
   }
 
@@ -502,20 +505,20 @@ export function ChainTab({ game }: { game: Game | null }) {
 
   const handleAddMember = async () => {
     if (!addMemberChainId || !addMemberForm.quest_definition_id) {
-      toast({ variant: "destructive", title: "Validation", description: "Please select a quest definition" })
+      toast({ variant: "destructive", title: t('quest.chain.validationError'), description: t('quest.chain.selectQuestDef') })
       return
     }
     setAddMemberSaving(true)
     try {
       await addChainMember(studioId, gameId, addMemberChainId, addMemberForm)
-      toast({ title: "Quest added to chain" })
+      toast({ title: t('quest.chain.questAddedToChain') })
       setAddMemberOpen(false)
       await Promise.all([refreshExpanded(addMemberChainId), loadQuestDefsMap()])
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        toast({ variant: "destructive", title: "Already in chain", description: "This quest is already a member of this chain." })
+        toast({ variant: "destructive", title: t('quest.chain.alreadyInChain'), description: t('quest.chain.alreadyInChainDesc') })
       } else {
-        toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to add quest to chain" })
+        toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedAddQuest') })
       }
     } finally {
       setAddMemberSaving(false)
@@ -538,14 +541,14 @@ export function ChainTab({ game }: { game: Game | null }) {
     setEditMemberSaving(true)
     try {
       await updateChainMember(studioId, gameId, expandedChainId, editMemberTarget.quest_definition_id, editMemberForm)
-      toast({ title: "Member updated" })
+      toast({ title: t('quest.chain.memberUpdated') })
       setEditMemberOpen(false)
       await refreshExpanded(expandedChainId)
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
-        toast({ variant: "destructive", title: "Not found", description: "This chain member no longer exists." })
+        toast({ variant: "destructive", title: t('quest.chain.notFound'), description: t('quest.chain.memberNotFound') })
       } else {
-        toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update member" })
+        toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedUpdateMember') })
       }
     } finally {
       setEditMemberSaving(false)
@@ -559,16 +562,16 @@ export function ChainTab({ game }: { game: Game | null }) {
     setRemoveMemberDeleting(true)
     try {
       await removeChainMember(studioId, gameId, removeMemberTarget.chainId, removeMemberTarget.questId)
-      toast({ title: "Quest removed from chain" })
+      toast({ title: t('quest.chain.questRemovedFromChain') })
       setRemoveMemberTarget(null)
       if (expandedChainId) await refreshExpanded(expandedChainId)
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
-        toast({ variant: "destructive", title: "Not found", description: "This chain member no longer exists." })
+        toast({ variant: "destructive", title: t('quest.chain.notFound'), description: t('quest.chain.memberNotFound') })
         setRemoveMemberTarget(null)
         if (expandedChainId) await refreshExpanded(expandedChainId)
       } else {
-        toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to remove quest from chain" })
+        toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.chain.failedRemoveQuest') })
       }
     } finally {
       setRemoveMemberDeleting(false)
@@ -597,11 +600,11 @@ export function ChainTab({ game }: { game: Game | null }) {
           <p className="text-sm text-muted-foreground">Manage sequential and branching quest chains. Add quests via the membership panel.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title="Refresh">
+          <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" /> New Chain
+            <Plus className="h-4 w-4 mr-1" /> {t('quest.chain.newChain')}
           </Button>
         </div>
       </div>
@@ -615,15 +618,15 @@ export function ChainTab({ game }: { game: Game | null }) {
       {/* Loading */}
       {loading ? (
         <div className="flex items-center gap-2 py-12 justify-center text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading quest chains…
+          <Loader2 className="h-5 w-5 animate-spin" /> {t('quest.chain.loadingChains')}
         </div>
       ) : chains.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
             <Link2 className="h-10 w-10 opacity-30" />
-            <p className="text-sm">No quest chains yet.</p>
+            <p className="text-sm">{t('quest.chain.noChains')}</p>
             <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" /> Create Chain
+              <Plus className="h-4 w-4 mr-1" /> {t('quest.chain.createChain')}
             </Button>
           </CardContent>
         </Card>
@@ -653,9 +656,9 @@ export function ChainTab({ game }: { game: Game | null }) {
                           {CHAIN_TYPE_OPTIONS.find((o) => o.value === chain.chain_type)?.label ?? chain.chain_type}
                         </Badge>
                         {chain.is_active ? (
-                          <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                          <Badge variant="default" className="text-xs bg-green-600">{t('quest.activeStatus')}</Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                          <Badge variant="secondary" className="text-xs">{t('quest.inactiveStatus')}</Badge>
                         )}
                         {chain.description && (
                           <span className="text-sm text-muted-foreground truncate max-w-sm" title={chain.description}>
@@ -669,7 +672,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                           <button
                             type="button"
                             className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Copy chain ID"
+                            title={t('quest.chain.copyChainId')}
                             onClick={(e) => {
                               e.stopPropagation()
                               const text = chain.id
@@ -713,7 +716,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                     {/* Actions */}
                     <div className="flex items-center gap-3 shrink-0">
                       {/* Status toggle */}
-                      <div className="flex items-center gap-1.5" title="Toggle active">
+                      <div className="flex items-center gap-1.5" title={t('quest.chain.toggleActive')}>
                         <Switch
                           checked={chain.is_active}
                           onCheckedChange={(checked) => handleToggleActive(chain, checked)}
@@ -723,18 +726,18 @@ export function ChainTab({ game }: { game: Game | null }) {
                       </div>
                       <Separator orientation="vertical" className="h-5" />
                       {/* Members count */}
-                      <div className="text-center" title="Members">
-                        <p className="text-xs text-muted-foreground leading-none">Members</p>
+                      <div className="text-center" title={t('quest.chain.members')}>
+                        <p className="text-xs text-muted-foreground leading-none">{t('quest.chain.members')}</p>
                         <p className="text-sm font-medium">{expandedChainId === chain.id ? expandedMembers.length : (memberCountMap[chain.id] ?? "—")}</p>
                       </div>
                       <Separator orientation="vertical" className="h-5" />
                       {/* Created */}
-                      <div className="text-center" title="Created">
-                        <p className="text-xs text-muted-foreground leading-none">Created</p>
+                      <div className="text-center" title={t('quest.chain.created')}>
+                        <p className="text-xs text-muted-foreground leading-none">{t('quest.chain.created')}</p>
                         <p className="text-sm font-medium">{new Date(chain.created_at).toLocaleDateString()}</p>
                       </div>
                       <Separator orientation="vertical" className="h-5" />
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title="Edit chain">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(chain)} title={t('quest.chain.editChain')}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
@@ -742,7 +745,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         onClick={() => setDeleteTarget(chain)}
-                        title="Delete chain"
+                        title={t('quest.chain.deleteChain')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -774,10 +777,10 @@ export function ChainTab({ game }: { game: Game | null }) {
                             <div className="flex items-center justify-between mb-3">
                               <TabsList className="h-8">
                                 <TabsTrigger value="grid" className="text-xs gap-1.5 px-3">
-                                  <LayoutGrid className="h-3.5 w-3.5" /> Graph
+                                  <LayoutGrid className="h-3.5 w-3.5" /> {t('quest.chain.viewGraph')}
                                 </TabsTrigger>
                                 <TabsTrigger value="list" className="text-xs gap-1.5 px-3">
-                                  <List className="h-3.5 w-3.5" /> List
+                                  <List className="h-3.5 w-3.5" /> {t('quest.chain.viewList')}
                                 </TabsTrigger>
                               </TabsList>
                               <h4 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
@@ -848,10 +851,10 @@ export function ChainTab({ game }: { game: Game | null }) {
                                           </TableCell>
                                           <TableCell>
                                             {questDef?.is_active ? (
-                                              <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                                              <Badge variant="default" className="text-xs bg-green-600">{t('quest.activeStatus')}</Badge>
                                             ) : (
                                               <Badge variant="secondary" className="text-xs">
-                                                {questDef ? "Inactive" : "Unknown"}
+                                                {questDef ? t('quest.inactiveStatus') : t('common.unknown')}
                                               </Badge>
                                             )}
                                           </TableCell>
@@ -911,7 +914,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                                       sort_order: nextSort,
                                       unlock_quest_ids: [],
                                     })
-                                    toast({ title: "Quest added to chain" })
+                                    toast({ title: t('quest.chain.questAddedToChain') })
                                     await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()])
                                   }}
                                   onRefresh={async () => { await Promise.all([refreshExpanded(chain.id), loadQuestDefsMap()]) }}
@@ -931,7 +934,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                                     await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
                                       unlock_quest_ids: newUnlockIds,
                                     })
-                                    toast({ title: "Connection added" })
+                                    toast({ title: t('quest.chain.connectionAdded') })
                                     await refreshExpanded(chain.id)
                                   }}
                                   onDisconnectQuests={async (sourceQuestId, targetQuestId) => {
@@ -941,7 +944,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                                     await updateChainMember(studioId, gameId, chain.id, sourceQuestId, {
                                       unlock_quest_ids: newUnlockIds,
                                     })
-                                    toast({ title: "Connection removed" })
+                                    toast({ title: t('quest.chain.connectionRemoved') })
                                     await refreshExpanded(chain.id)
                                   }}
                                 />
@@ -962,13 +965,13 @@ export function ChainTab({ game }: { game: Game | null }) {
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{editChain ? "Edit Chain" : "Create Quest Chain"}</SheetTitle>
+            <SheetTitle>{editChain ? t('quest.chain.editChain') : t('quest.chain.createChain')}</SheetTitle>
           </SheetHeader>
 
           <div className="space-y-4 py-4">
             {/* Display Name */}
             <div className="space-y-1">
-              <Label>Display Name <span className="text-destructive">*</span></Label>
+              <Label>{t('quest.chain.displayName')} <span className="text-destructive">*</span></Label>
               <Input
                 value={chainForm.display_name}
                 onChange={(e) => {
@@ -985,7 +988,7 @@ export function ChainTab({ game }: { game: Game | null }) {
 
             {/* Chain Key */}
             <div className="space-y-1">
-              <Label>Chain Key <span className="text-destructive">*</span></Label>
+              <Label>{t('quest.chain.chainKey')} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
                 <Input
                   value={chainForm.chain_key}
@@ -1010,7 +1013,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                         setChainForm((f) => ({ ...f, chain_key: slug }))
                       }
                     }}
-                    title={autoSlug ? "Auto-slug enabled — click to disable" : "Auto-slug disabled — click to enable"}
+                    title={autoSlug ? t('quest.chain.autoSlugEnabled') : t('quest.chain.autoSlugDisabled')}
                   >
                     <Wand2 className="h-4 w-4" />
                   </Button>
@@ -1018,16 +1021,16 @@ export function ChainTab({ game }: { game: Game | null }) {
               </div>
               <p className="text-xs text-muted-foreground">
                 {editChain
-                  ? "Chain key cannot be changed after creation."
+                  ? t('quest.chain.chainKeyReadonly')
                   : autoSlug
-                    ? "Auto-generated from display name. Edit manually to override."
-                    : "Unique per game. Use snake_case."}
+                    ? t('quest.chain.chainKeyAutoGen')
+                    : t('quest.chain.chainKeyUnique')}
               </p>
             </div>
 
             {/* Description */}
             <div className="space-y-1">
-              <Label>Description</Label>
+              <Label>{t('quest.description')}</Label>
               <Textarea
                 value={chainForm.description ?? ""}
                 onChange={(e) => setChainForm((f) => ({ ...f, description: e.target.value.slice(0, 200) }))}
@@ -1041,7 +1044,7 @@ export function ChainTab({ game }: { game: Game | null }) {
 
             {/* Chain Type */}
             <div className="space-y-1">
-              <Label>Chain Type <span className="text-destructive">*</span></Label>
+              <Label>{t('quest.chain.chainType')} <span className="text-destructive">*</span></Label>
               <Select
                 value={chainForm.chain_type}
                 onValueChange={(v) => setChainForm((f) => ({ ...f, chain_type: v as ChainType }))}
@@ -1068,8 +1071,8 @@ export function ChainTab({ game }: { game: Game | null }) {
             {/* Active */}
             <div className="flex items-center justify-between">
               <div>
-                <Label>Active</Label>
-                <p className="text-xs text-muted-foreground">Players can see and interact with this chain.</p>
+                <Label>{t('quest.active')}</Label>
+                <p className="text-xs text-muted-foreground">{t('quest.chain.activeHint')}</p>
               </div>
               <Switch
                 checked={chainForm.is_active}
@@ -1080,11 +1083,11 @@ export function ChainTab({ game }: { game: Game | null }) {
 
           <SheetFooter>
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('common.cancel')}</Button>
             </SheetClose>
             <Button onClick={handleSaveChain} disabled={chainSaving}>
               {chainSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editChain ? "Save Changes" : "Create Chain"}
+              {editChain ? t('quest.chain.saveChanges') : t('quest.chain.createChain')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -1100,7 +1103,7 @@ export function ChainTab({ game }: { game: Game | null }) {
           <div className="space-y-4 py-4">
             {/* Quest Selection — searchable combobox */}
             <div className="space-y-1">
-              <Label>Quest Definition <span className="text-destructive">*</span></Label>
+              <Label>{t('quest.chain.questDefinition')} <span className="text-destructive">*</span></Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -1119,9 +1122,9 @@ export function ChainTab({ game }: { game: Game | null }) {
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                   <Command>
-                    <CommandInput placeholder="Search quests…" />
+                    <CommandInput placeholder={t('quest.chain.searchQuests')} />
                     <CommandList>
-                      <CommandEmpty>No quests found.</CommandEmpty>
+                      <CommandEmpty>{t('quest.chain.noQuestsFound')}</CommandEmpty>
                       <CommandGroup>
                         {getAvailableQuests().map((q) => (
                           <CommandItem
@@ -1143,18 +1146,18 @@ export function ChainTab({ game }: { game: Game | null }) {
                   </Command>
                 </PopoverContent>
               </Popover>
-              <p className="text-xs text-muted-foreground">A quest can belong to multiple chains with different sort orders and unlock rules.</p>
+              <p className="text-xs text-muted-foreground">{t('quest.chain.questDefHint')}</p>
             </div>
 
             {/* Sort Order */}
             <div className="space-y-1">
-              <Label>Sort Order <span className="text-destructive">*</span></Label>
+              <Label>{t('quest.sortOrder')} <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 value={addMemberForm.sort_order}
                 onChange={(e) => setAddMemberForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}
               />
-              <p className="text-xs text-muted-foreground">Lower values display first in the chain.</p>
+              <p className="text-xs text-muted-foreground">{t('quest.chain.sortOrderHint')}</p>
             </div>
 
             {/* Unlock Quest IDs */}
@@ -1170,7 +1173,7 @@ export function ChainTab({ game }: { game: Game | null }) {
 
           <SheetFooter>
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('common.cancel')}</Button>
             </SheetClose>
             <Button onClick={handleAddMember} disabled={addMemberSaving || !addMemberForm.quest_definition_id}>
               {addMemberSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1192,13 +1195,13 @@ export function ChainTab({ game }: { game: Game | null }) {
           <div className="space-y-4 py-4">
             {/* Sort Order */}
             <div className="space-y-1">
-              <Label>Sort Order</Label>
+              <Label>{t('quest.sortOrder')}</Label>
               <Input
                 type="number"
                 value={editMemberForm.sort_order ?? 0}
                 onChange={(e) => setEditMemberForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}
               />
-              <p className="text-xs text-muted-foreground">Lower values display first in the chain.</p>
+              <p className="text-xs text-muted-foreground">{t('quest.chain.sortOrderHint')}</p>
             </div>
 
             {/* Unlock Quest IDs */}
@@ -1220,11 +1223,11 @@ export function ChainTab({ game }: { game: Game | null }) {
 
           <SheetFooter>
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('common.cancel')}</Button>
             </SheetClose>
             <Button onClick={handleEditMember} disabled={editMemberSaving}>
               {editMemberSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Changes
+              {t('quest.chain.saveChanges')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -1234,21 +1237,20 @@ export function ChainTab({ game }: { game: Game | null }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Chain</AlertDialogTitle>
+            <AlertDialogTitle>{t('quest.chain.deleteChainTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.display_name}</strong>?
-              This is a soft delete — the chain will be hidden but quest definitions will remain.
+              {t('quest.chain.deleteChainConfirm')} <strong>{deleteTarget?.display_name}</strong>{t('quest.chain.deleteChainSoftDelete')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteDeleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteChain}
               disabled={deleteDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1258,21 +1260,20 @@ export function ChainTab({ game }: { game: Game | null }) {
       <AlertDialog open={!!removeMemberTarget} onOpenChange={(open) => !open && setRemoveMemberTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Quest from Chain</AlertDialogTitle>
+            <AlertDialogTitle>{t('quest.chain.removeQuestTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <strong>{removeMemberTarget?.questName}</strong> from this chain?
-              The quest definition itself will not be deleted — only its membership in this chain.
+              {t('quest.chain.removeQuestConfirm')} <strong>{removeMemberTarget?.questName}</strong> {t('quest.chain.removeQuestDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeMemberDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={removeMemberDeleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRemoveMember}
               disabled={removeMemberDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {removeMemberDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Remove
+              {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next:*)",
+      "Bash(node -e \":*)"
+    ],
+    "additionalDirectories": [
+      "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"
+    ]
+  }
+}

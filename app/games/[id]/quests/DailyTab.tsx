@@ -64,6 +64,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { ApiError } from "@/lib/api-client"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import type { Game } from "@/types/game"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import {
@@ -188,6 +189,7 @@ function StrategyGridCard({
   quests: typeof DEMO_QUESTS
   extra?: React.ReactNode
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -213,7 +215,7 @@ function StrategyGridCard({
 
         {/* 30-day grid */}
         <div>
-          <p className="text-xs text-muted-foreground mb-2 font-medium">30-day simulation (2 slots/day)</p>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">{t('quest.daily.simulationTitle')}</p>
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {DAY_NAMES.map((d) => (
               <div key={d} className="text-[9px] text-muted-foreground text-center font-medium py-0.5">{d}</div>
@@ -231,6 +233,7 @@ function StrategyGridCard({
 }
 
 function DailyStrategyGrid() {
+  const { t } = useTranslation()
   const slots = 2
   const totalDays = 30
   const quests = DEMO_QUESTS
@@ -245,24 +248,23 @@ function DailyStrategyGrid() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold mb-1">Strategy Mechanics — Visual Guide</h3>
+        <h3 className="text-sm font-semibold mb-1">{t('quest.daily.strategyMechanicsTitle')}</h3>
         <p className="text-xs text-muted-foreground">
-          Illustration of how each assignment strategy fills player quest slots over a 30-day month.
-          Demo: 5 quests · <strong>2 slots/day</strong> · month starts on Monday.
+          {t('quest.daily.strategyMechanicsDesc')}
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* ── Weighted Random ────────────────────────────────────── */}
         <StrategyGridCard
-          title="Weighted Random"
+          title={t('quest.daily.weightedRandom')}
           icon={<Shuffle className="h-4 w-4 text-primary" />}
-          description="Each day, quests are picked randomly. Higher-weight quests appear more often. No duplicate in the same day's slots."
+          description={t('quest.daily.weightedRandomDesc')}
           days={weightedDays}
           quests={quests}
           extra={
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Probability per pick</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('quest.daily.probabilityPerPick')}</p>
               <div className="space-y-1">
                 {quests.map((q, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -281,7 +283,7 @@ function DailyStrategyGrid() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground italic">
-                Each day rolls independently — a quest can appear on consecutive days.
+                {t('quest.daily.weightedRandomNote')}
               </p>
             </div>
           }
@@ -289,14 +291,14 @@ function DailyStrategyGrid() {
 
         {/* ── Fixed Rotation ────────────────────────────────────── */}
         <StrategyGridCard
-          title="Fixed Rotation"
+          title={t('quest.daily.fixedRotation')}
           icon={<RotateCw className="h-4 w-4 text-secondary-foreground" />}
-          description="Quests advance in fixed order by sequence_order. After the last quest, the cycle repeats from the beginning."
+          description={t('quest.daily.fixedRotationDesc')}
           days={rotationDays}
           quests={quests}
           extra={
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Sequence order (repeating cycle)</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('quest.daily.sequenceOrder')}</p>
               <div className="flex items-center gap-1 flex-wrap">
                 {[...quests, ...quests.slice(0, 3)].map((q, i) => (
                   <div key={i} className="flex items-center gap-0.5">
@@ -309,7 +311,7 @@ function DailyStrategyGrid() {
                 <span className="text-xs text-muted-foreground">(repeats)</span>
               </div>
               <p className="text-xs text-muted-foreground italic">
-                Every player always sees the same quests on the same days — predictable and fair.
+                {t('quest.daily.fixedRotationNote')}
               </p>
             </div>
           }
@@ -317,14 +319,14 @@ function DailyStrategyGrid() {
 
         {/* ── Weekly Schedule ───────────────────────────────────── */}
         <StrategyGridCard
-          title="Weekly Schedule"
+          title={t('quest.daily.weeklySchedule')}
           icon={<Calendar className="h-4 w-4 text-blue-400" />}
-          description="Quest assigned per day-of-week. Monday always gets the same quest, Tuesday another, etc. Repeats every 7 days."
+          description={t('quest.daily.weeklyScheduleDesc')}
           days={weeklyDays}
           quests={quests}
           extra={
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Day-of-week → Quest mapping</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('quest.daily.dayOfWeekMapping')}</p>
               <div className="grid grid-cols-7 gap-1">
                 {DAY_NAMES.map((day, dow) => {
                   const dow1 = (dow + 1) % 7 // start from Mon
@@ -340,7 +342,7 @@ function DailyStrategyGrid() {
                 })}
               </div>
               <p className="text-xs text-muted-foreground italic">
-                Great for themed days (e.g., combat Monday, crafting Tuesday).
+                {t('quest.daily.weeklyScheduleNote')}
               </p>
             </div>
           }
@@ -348,14 +350,14 @@ function DailyStrategyGrid() {
 
         {/* ── Monthly Schedule ──────────────────────────────────── */}
         <StrategyGridCard
-          title="Monthly Schedule"
+          title={t('quest.daily.monthlySchedule')}
           icon={<Calendar className="h-4 w-4 text-amber-400" />}
-          description="Quest assigned per day-of-month (1–31). Day 1 always gets quest #1, Day 2 gets quest #2, etc. Wraps around if fewer quests than days."
+          description={t('quest.daily.monthlyScheduleDesc')}
           days={monthlyDays}
           quests={quests}
           extra={
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Day-of-month sample (first 10 days)</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('quest.daily.dayOfMonthMapping')}</p>
               <div className="flex gap-1 flex-wrap">
                 {Array.from({ length: 10 }, (_, d) => {
                   const qi = (d * slots) % quests.length
@@ -373,7 +375,7 @@ function DailyStrategyGrid() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground italic">
-                If a month has fewer days than the schedule, the extra day mappings are skipped.
+                {t('quest.daily.monthlyScheduleNote')}
               </p>
             </div>
           }
@@ -443,6 +445,7 @@ function strategyLabel(strategy: AssignmentStrategy) {
 // ─── Daily Tab (exported) ────────────────────────────────────────────────────
 
 export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpdate?: (g: Game) => void }) {
+  const { t } = useTranslation()
   const gameId = game?.id ?? ""
   const studioId = game?.studio_id ?? ""
   const router = useRouter()
@@ -579,7 +582,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
       setExpandedPool(detail)
       setExpandedQuests(questsData.quests ?? [])
     } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load pool details" })
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.daily.failedLoadPool') })
       setExpandedPoolId(null)
     } finally {
       setExpandedLoading(false)
@@ -643,17 +646,17 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
           reset_hour_utc: poolForm.reset_hour_utc,
           is_active: poolForm.is_active,
         })
-        toast({ title: "Pool updated" })
+        toast({ title: t('quest.daily.poolUpdated') })
       } else {
         await createDailyQuestPool(studioId, gameId, poolForm)
-        toast({ title: "Pool created" })
+        toast({ title: t('quest.daily.poolCreated') })
       }
       setCreateOpen(false)
       await loadPools()
       if (expandedPoolId) await refreshExpanded(expandedPoolId)
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Failed to save pool"
-      toast({ variant: "destructive", title: "Error", description: msg })
+      const msg = e instanceof ApiError ? e.message : t('quest.daily.failedSavePool')
+      toast({ variant: "destructive", title: t('common.error'), description: msg })
     } finally {
       setPoolSaving(false)
     }
@@ -664,12 +667,12 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
   const handleToggleActive = async (pool: DailyQuestPool) => {
     try {
       await updateDailyQuestPool(studioId, gameId, pool.id, { is_active: !pool.is_active })
-      toast({ title: pool.is_active ? "Pool deactivated" : "Pool activated" })
+      toast({ title: pool.is_active ? t('quest.daily.poolDeactivated') : t('quest.daily.poolActivated') })
       await loadPools()
       if (expandedPoolId === pool.id) await refreshExpanded(pool.id)
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Failed to toggle pool"
-      toast({ variant: "destructive", title: "Error", description: msg })
+      const msg = e instanceof ApiError ? e.message : t('quest.daily.failedTogglePool')
+      toast({ variant: "destructive", title: t('common.error'), description: msg })
     }
   }
 
@@ -680,12 +683,12 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
     setAddQuestSaving(true)
     try {
       await addQuestToPool(studioId, gameId, expandedPoolId, addQuestForm)
-      toast({ title: "Quest added to pool" })
+      toast({ title: t('quest.daily.questAddedToPool') })
       setAddQuestForm((prev) => ({ ...prev, quest_id: "" }))
       await refreshExpanded(expandedPoolId)
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Failed to add quest to pool"
-      toast({ variant: "destructive", title: "Error", description: msg })
+      const msg = e instanceof ApiError ? e.message : t('quest.daily.failedAddQuestToPool')
+      toast({ variant: "destructive", title: t('common.error'), description: msg })
     } finally {
       setAddQuestSaving(false)
     }
@@ -698,12 +701,12 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
     setRemoveQuestDeleting(true)
     try {
       await removeQuestFromPool(studioId, gameId, removeQuestTarget.poolId, removeQuestTarget.questId)
-      toast({ title: "Quest removed from pool" })
+      toast({ title: t('quest.daily.questRemovedFromPool') })
       setRemoveQuestTarget(null)
       if (expandedPoolId) await refreshExpanded(expandedPoolId)
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Failed to remove quest"
-      toast({ variant: "destructive", title: "Error", description: msg })
+      const msg = e instanceof ApiError ? e.message : t('quest.daily.failedRemoveQuest')
+      toast({ variant: "destructive", title: t('common.error'), description: msg })
     } finally {
       setRemoveQuestDeleting(false)
     }
@@ -749,13 +752,13 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
       <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-sm text-muted-foreground">
-            Manage daily quest pools. Each pool assigns quests to players daily based on its strategy.
+            {t('quest.daily.manageDesc')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {game && onGameUpdate && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5">
-              <span className="whitespace-nowrap">Max advance days</span>
+              <span className="whitespace-nowrap">{t('quest.daily.maxAdvanceDays')}</span>
               <DailyQuestMaxAdvanceDays game={game} onUpdate={onGameUpdate} compact />
             </div>
           )}
@@ -763,11 +766,11 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
             <>
               <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
+                {t('common.refresh')}
               </Button>
               <Button size="sm" onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-1" />
-                Create Pool
+                {t('quest.daily.createPool')}
               </Button>
             </>
           )}
@@ -784,7 +787,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          List
+          {t('quest.daily.list')}
         </button>
         <button
           onClick={() => setSubTab("grid")}
@@ -794,7 +797,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          Strategy Guide
+          {t('quest.daily.strategyGuide')}
         </button>
       </div>
 
@@ -826,7 +829,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                         <CardTitle className="text-base flex items-center gap-2">
                           {pool.display_name}
                           <Badge variant={pool.is_active ? "default" : "secondary"} className="text-xs">
-                            {pool.is_active ? "Active" : "Inactive"}
+                            {pool.is_active ? t('quest.activeStatus') : t('quest.inactiveStatus')}
                           </Badge>
                           <Badge variant={strategyBadgeVariant(pool.assignment_strategy)} className="text-xs">
                             {strategyLabel(pool.assignment_strategy)}
@@ -894,14 +897,14 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                                           setDragOverDay(null)
                                           if (!draggedQuestId || !expandedPoolId) return
                                           if (dayQuests.some((q) => q.quest_definition_id === draggedQuestId)) {
-                                            toast({ title: "Already assigned" }); return
+                                            toast({ title: t('quest.daily.alreadyAssigned') }); return
                                           }
                                           try {
                                             await addQuestToPool(studioId, gameId, expandedPoolId, { quest_id: draggedQuestId, weight: 1, sequence_order: dow })
-                                            toast({ title: "Quest assigned" })
+                                            toast({ title: t('quest.daily.questAssigned') })
                                             await refreshExpanded(expandedPoolId)
                                           } catch (err) {
-                                            toast({ variant: "destructive", title: "Error", description: err instanceof ApiError ? err.message : "Failed" })
+                                            toast({ variant: "destructive", title: t('common.error'), description: err instanceof ApiError ? err.message : t('common.error') })
                                           }
                                         }}
                                       >
@@ -963,7 +966,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                                                     setQuestDefsMap((prev) => ({ ...prev, [pq.quest_definition_id]: { ...prev[pq.quest_definition_id], is_active: checked } }))
                                                     toast({ title: checked ? "Quest activated" : "Quest deactivated" })
                                                   } catch (e) {
-                                                    toast({ variant: "destructive", title: "Error", description: e instanceof ApiError ? e.message : "Failed to update quest" })
+                                                    toast({ variant: "destructive", title: t('common.error'), description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest') })
                                                   }
                                                 }}
                                                 aria-label="Toggle quest active"
@@ -1012,7 +1015,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                           <div className="flex-1 overflow-y-auto p-2 space-y-0.5 max-h-96">
                             {dailyQuestDefsLoading ? (
                               <div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-1.5">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('common.loading')}
                               </div>
                             ) : (() => {
                               const isWeekly = pool.assignment_strategy === "weekly_schedule"
@@ -1293,11 +1296,11 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
             )}
             <div className="flex justify-end gap-2">
               <SheetClose asChild>
-                <Button variant="outline" disabled={poolSaving}>Cancel</Button>
+                <Button variant="outline" disabled={poolSaving}>{t('common.cancel')}</Button>
               </SheetClose>
               <Button onClick={handleSavePool} disabled={poolSaving || !poolForm.pool_key || !poolForm.display_name || (!editPool && STRATEGY_OPTIONS.find(s => s.value === poolForm.assignment_strategy)?.comingSoon === true)}>
                 {poolSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                {editPool ? "Save Changes" : "Create Pool"}
+                {editPool ? t('quest.daily.saveChanges') : t('quest.daily.createPool')}
               </Button>
             </div>
           </SheetFooter>
@@ -1308,21 +1311,20 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
       <AlertDialog open={!!removeQuestTarget} onOpenChange={(o) => { if (!o) setRemoveQuestTarget(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Quest from Pool</AlertDialogTitle>
+            <AlertDialogTitle>{t('quest.daily.removeQuestTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{removeQuestTarget?.questName}</strong> from this pool?
-              The quest definition will not be deleted. Players who already received this quest today will not be affected until the next reset.
+              <strong>{removeQuestTarget?.questName}</strong> {t('quest.daily.removeQuestDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removeQuestDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={removeQuestDeleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRemoveQuest}
               disabled={removeQuestDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {removeQuestDeleting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Remove
+              {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

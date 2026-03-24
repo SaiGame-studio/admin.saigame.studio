@@ -64,6 +64,10 @@ export const en = {
     roadmap: "Roadmap",
     discordSupport: "Discord Support",
     bugReport: "Bug Report",
+    saved: "Saved",
+    deleted: "Deleted",
+    added: "Added",
+    validation: "Validation",
   },
   shop: {
     title: "Game Shops",
@@ -1885,5 +1889,404 @@ export const en = {
       viewDetailsInactive: "View Details & Review",
       userSuffix: "User"
     }
-  }
+  },
+  entity: {
+    title: "Entity Definitions",
+    breadcrumb: "Entities",
+    entitiesCount: "entities",
+    entityCount: "entity",
+    entitiesDefined: "entities defined",
+    entityDefined: "entity defined",
+    noEntitiesYet: "No entities yet",
+    filterByName: "Filter by name…",
+    searchByKey: "Search by key…",
+    allTypes: "All types",
+    newEntity: "New Entity",
+    filtered: "filtered",
+    keySearchPrefix: "Key search: \"{key}\"",
+    limitReachedDesc: "Entity definitions limit reached ({used}/{max})",
+    upgradeTip: "Upgrade your plugins to increase the limit",
+    keySearchResult: "Key search result for",
+    noEntityForKey: "No entity found for this key.",
+    thKey: "Key",
+    thName: "Name",
+    thType: "Type",
+    thRarity: "Rarity",
+    thActive: "Active",
+    thActions: "Actions",
+    noEntitiesFound: "No entities found",
+    adjustFilters: "Try adjusting the filters.",
+    createFirstEntity: "Create your first entity definition to get started.",
+    loadingDetail: "Loading detail…",
+    failedLoadDetail: "Failed to load entity detail.",
+    fieldCreated: "Created",
+    fieldUpdated: "Updated",
+    fieldName: "Name",
+    fieldDescription: "Description",
+    fieldIconUrl: "Icon URL",
+    fieldRarity: "Rarity",
+    fieldType: "Type",
+    fieldMetadata: "Metadata",
+    fieldStats: "Stats",
+    fieldAbilities: "Abilities",
+    addField: "Add field",
+    addAbility: "Add ability",
+    createTitle: "New Entity Definition",
+    createDesc: "Fill in the required fields to create a new entity.",
+    entityKey: "Entity Key",
+    entityType: "Entity Type",
+    namePlaceholder: "e.g. Goblin Archer",
+    entityKeyPlaceholder: "e.g. goblin_archer",
+    entityKeyDesc: "Unique slug identifier. Cannot be changed after creation.",
+    autoSlugOn: "Auto-slug is ON — key generated from name",
+    autoSlugOff: "Auto-slug is OFF — click to re-enable",
+    selectRarity: "Select rarity",
+    optionalDesc: "Optional description",
+    iconUrlPlaceholder: "https://cdn.example.com/icons/...",
+    createEntity: "Create Entity",
+    deleteTitle: "Delete entity?",
+    deleteDescPre: "This will permanently delete",
+    deleteDescPost: "This action cannot be undone.",
+    nameRequired: "Name is required",
+    entityKeyRequired: "Entity key is required",
+    fixJsonErrors: "Fix JSON errors before saving",
+    invalidJson: "Invalid JSON",
+    entityCreated: "\"{name}\" created",
+    entityDeleted: "\"{name}\" deleted",
+    entityUpdated: "\"{name}\" updated",
+    statSaved: "Stat \"{key}\" saved",
+    statRemoved: "Stat \"{key}\" removed",
+    metaSaved: "Metadata \"{key}\" saved",
+    metaRemoved: "Metadata \"{key}\" removed",
+    abilityFieldSaved: "Field \"{key}\" saved",
+    abilityFieldRemoved: "Field \"{key}\" removed",
+    abilityRemoved: "Ability removed",
+    abilityAdded: "New ability added",
+    failedLoad: "Failed to load entities",
+    failedSave: "Failed to save entity",
+    failedDelete: "Failed to delete entity",
+    failedSaveField: "Failed to save",
+    failedDeleteField: "Failed to delete",
+  },
+  quest: {
+    // Tabs
+    tabDefinitions: "Definitions",
+    tabChains: "Chains",
+    tabDaily: "Daily",
+    tabBattlePass: "Battle Pass",
+    tabWorldQuest: "World Quest",
+
+    // Quest types
+    typeOneTime: "One-Time",
+    typeOneTimeDesc: "Completed once per account lifetime",
+    typeDaily: "Daily",
+    typeDailyDesc: "Resets at midnight UTC",
+    typeRepeatable: "Repeatable",
+    typeRepeatableDesc: "Can be completed multiple times",
+    typeBattlePassTask: "Battle Pass Task",
+    typeBattlePassTaskDesc: "Awards Battle Pass XP on completion",
+    typeChain: "Story",
+    typeChainDesc: "Part of a Quest Chain (DAG)",
+
+    // Condition types
+    condLogin: "Login",
+    condLoginDesc: "Satisfied when the player authenticates",
+    condCollectAndKeep: "Collect & Keep",
+    condCollectAndKeepDesc: "Player must hold items (not removed)",
+    condCollectAndSubmit: "Collect & Submit",
+    condCollectAndSubmitDesc: "Player must have items (deducted on completion)",
+    condNotHaveItem: "Not Have Item",
+    condNotHaveItemDesc: "Player must NOT possess specified items",
+    condGachaOpened: "Gacha Opened",
+    condGachaOpenedDesc: "Player must open a gacha pack N times",
+
+    // Form labels
+    name: "Name",
+    description: "Description",
+    questType: "Quest Type",
+    sortOrder: "Sort Order",
+    active: "Active",
+    conditions: "Conditions",
+    rewards: "Rewards",
+    operator: "Operator",
+    clause: "Clause",
+    clauseId: "Clause ID",
+    type: "Type",
+    requiredItems: "Required Items",
+    quantity: "Quantity",
+    minQty: "Min Qty",
+    maxQty: "Max Qty",
+    gachaPack: "Gacha Pack",
+    questId: "Quest ID",
+
+    // Placeholders
+    questNamePlaceholder: "Quest name",
+    questDescPlaceholder: "Quest description",
+    clauseIdPlaceholder: "e.g. login_3",
+    searchByNameDesc: "Search by name, description…",
+    searchItem: "Search item…",
+    searchPack: "Search pack…",
+    selectItem: "Select item",
+    selectGachaPack: "Select gacha pack",
+
+    // Buttons
+    newQuest: "New Quest",
+    createFirstQuest: "Create First Quest",
+    addReward: "Add Reward",
+    addItem: "Item",
+
+    // Filter / Sort
+    allTypes: "All Types",
+    allStatus: "All Status",
+    sortOrderAsc: "Sort Order ↑",
+    sortOrderDesc: "Sort Order ↓",
+    nameAZ: "Name A–Z",
+    nameZA: "Name Z–A",
+    newestFirst: "Newest First",
+    oldestFirst: "Oldest First",
+    recentlyUpdated: "Recently Updated",
+    leastRecentlyUpdated: "Least Recently Updated",
+    clearFilters: "Clear Filters",
+    clear: "Clear",
+
+    // Table headers
+    actions: "Actions",
+
+    // Status
+    activeStatus: "Active",
+    inactiveStatus: "Inactive",
+
+    // Empty states
+    noConditions: "No conditions — quest completes immediately when assigned.",
+    noItemsAdded: "No items added.",
+    noRewards: "No rewards configured.",
+    noExtraFields: "No extra fields — auto-checked on player login.",
+    storyChainHint: "Story quests require a Chain Group ID.",
+    noQuestsMatch: "No quests match the current filters.",
+    noQuestDefs: "No quest definitions yet.",
+    nestedGroup: "Nested group",
+    nestedGroupEdit: "Nested group (edit in JSON).",
+
+    // Toast messages
+    questCreated: "Quest created",
+    questUpdated: "Quest updated",
+    questDeleted: "Quest deleted",
+    failedCreateQuest: "Failed to create quest",
+    failedUpdateQuest: "Failed to update quest",
+    failedDeleteQuest: "Failed to delete quest",
+    failedToggleQuest: "Failed to toggle quest",
+    failedLoadGame: "Failed to load game",
+
+    // Dialogs
+    createQuestDef: "Create Quest Definition",
+    editQuestDef: "Edit Quest Definition",
+    deleteQuest: "Delete Quest",
+    deleteQuestConfirm: "Are you sure you want to delete",
+    deleteQuestUndone: "? This action cannot be undone.",
+
+    // Detail labels
+    target: "Target:",
+    created: "Created:",
+    updated: "Updated:",
+    copyQuestId: "Copy quest ID",
+    openItem: "Open item",
+    openItemDef: "Open item definition",
+    openGachaPack: "Open gacha pack",
+    managePlugins: "Manage plugins / raise limits",
+    coins: "coins",
+
+    // Quest count
+    questDefinitions: "quest definitions",
+    questDefinition: "quest definition",
+    ofQuests: "of",
+    quests: "Quests",
+
+    // Coming soon
+    comingSoon: "This feature is coming soon.",
+
+    // Clause count
+    clauseCount: "clause",
+    clausesCount: "clauses",
+
+    // Chain Tab
+    chain: {
+      // Chain types
+      typeLinear: "Linear",
+      typeLinearDesc: "Sequential — each quest unlocks after the previous is claimed",
+      typeBranching: "Branching",
+      typeBranchingDesc: "Multiple parallel branches with individual prerequisites",
+      typeParallel: "Parallel",
+      typeParallelDesc: "All quests unlock immediately, no prerequisites",
+
+      // Labels
+      displayName: "Display Name",
+      chainKey: "Chain Key",
+      chainType: "Chain Type",
+      unlockQuestIds: "Unlock Quest IDs",
+      unlockQuestIdsDesc: "Select which quests will be unlocked when this quest is completed in this chain.",
+      questDefinition: "Quest Definition",
+      questDefHint: "A quest can belong to multiple chains with different sort orders and unlock rules.",
+      members: "Members",
+      created: "Created",
+      sortOrderHint: "Lower values display first in the chain.",
+      activeHint: "Players can see and interact with this chain.",
+      chainKeyReadonly: "Chain key cannot be changed after creation.",
+      chainKeyAutoGen: "Auto-generated from display name. Edit manually to override.",
+      chainKeyUnique: "Unique per game. Use snake_case.",
+      autoSlugEnabled: "Auto-slug enabled — click to disable",
+      autoSlugDisabled: "Auto-slug disabled — click to enable",
+
+      // Buttons
+      newChain: "New Chain",
+      createChain: "Create Chain",
+      saveChanges: "Save Changes",
+      addQuestToUnlock: "Add quest to unlock…",
+      searchQuests: "Search quests…",
+
+      // Groups in popover
+      inThisChain: "In this chain",
+      otherQuests: "Other quests",
+      noQuestsFound: "No quests found.",
+      noQuestsAvailable: "No quests available",
+
+      // Tooltips
+      refresh: "Refresh",
+      toggleActive: "Toggle active",
+      editChain: "Edit chain",
+      deleteChain: "Delete chain",
+      copyChainId: "Copy chain ID",
+
+      // Toast messages
+      validationError: "Validation",
+      displayNameRequired: "Display Name is required",
+      chainKeyRequired: "Chain Key is required",
+      chainCreated: "Chain created",
+      chainUpdated: "Chain updated",
+      chainDeleted: "Chain deleted",
+      chainActivated: "Chain activated",
+      chainDeactivated: "Chain deactivated",
+      failedSaveChain: "Failed to save chain",
+      failedDeleteChain: "Failed to delete chain",
+      failedUpdateChain: "Failed to update chain",
+      selectQuestDef: "Please select a quest definition",
+      questAddedToChain: "Quest added to chain",
+      alreadyInChain: "Already in chain",
+      alreadyInChainDesc: "This quest is already a member of this chain.",
+      failedAddQuest: "Failed to add quest to chain",
+      memberUpdated: "Member updated",
+      notFound: "Not found",
+      memberNotFound: "This chain member no longer exists.",
+      failedUpdateMember: "Failed to update member",
+      questRemovedFromChain: "Quest removed from chain",
+      failedRemoveQuest: "Failed to remove quest from chain",
+      connectionAdded: "Connection added",
+      connectionRemoved: "Connection removed",
+
+      // Dialogs
+      deleteChainTitle: "Delete Chain",
+      deleteChainConfirm: "Are you sure you want to delete",
+      deleteChainSoftDelete: "? This is a soft delete — the chain will be hidden but quest definitions will remain.",
+      removeQuestTitle: "Remove Quest from Chain",
+      removeQuestConfirm: "Are you sure you want to remove",
+      removeQuestDesc: "from this chain? The quest definition itself will not be deleted — only its membership in this chain.",
+
+      // Empty states
+      noChains: "No quest chains yet.",
+      loadingChains: "Loading quest chains…",
+
+      // View modes
+      viewList: "List",
+      viewGraph: "Graph",
+    },
+
+    // Daily Tab
+    daily: {
+      // Header
+      manageDesc: "Manage daily quest pools. Each pool assigns quests to players daily based on its strategy.",
+      maxAdvanceDays: "Max advance days",
+      createPool: "Create Pool",
+
+      // Strategy names
+      weightedRandom: "Weighted Random",
+      fixedRotation: "Fixed Rotation",
+      weeklySchedule: "Weekly Schedule",
+      monthlySchedule: "Monthly Schedule",
+
+      // Strategy guide
+      strategyGuide: "Strategy Guide",
+      simulationTitle: "30-day simulation (2 slots/day)",
+      strategyMechanicsTitle: "Strategy Mechanics — Visual Guide",
+      strategyMechanicsDesc: "Illustration of how each assignment strategy fills player quest slots over a 30-day month. Demo: 5 quests · 2 slots/day · month starts on Monday.",
+
+      // Weighted Random
+      weightedRandomDesc: "Each day, quests are picked randomly. Higher-weight quests appear more often. No duplicate in the same day's slots.",
+      probabilityPerPick: "Probability per pick",
+      weightedRandomNote: "Each day rolls independently — a quest can appear on consecutive days.",
+
+      // Fixed Rotation
+      fixedRotationDesc: "Quests advance in fixed order by sequence_order. After the last quest, the cycle repeats from the beginning.",
+      sequenceOrder: "Sequence order (repeating cycle)",
+      fixedRotationNote: "Every player always sees the same quests on the same days — predictable and fair.",
+
+      // Weekly Schedule
+      weeklyScheduleDesc: "Quest assigned per day-of-week. Monday always gets the same quest, Tuesday another, etc. Repeats every 7 days.",
+      dayOfWeekMapping: "Day-of-week → Quest mapping",
+      weeklyScheduleNote: "Great for themed days (e.g., combat Monday, crafting Tuesday).",
+
+      // Monthly Schedule
+      monthlyScheduleDesc: "Quests are assigned by day-of-month (1–28/30/31). Each calendar date maps to a specific quest. Repeats every month.",
+      dayOfMonthMapping: "Day-of-month → Quest mapping",
+      monthlyScheduleNote: "Ideal for monthly events or calendars. Days beyond the month length are skipped.",
+
+      // List / Table
+      list: "List",
+      poolName: "Pool Name",
+      poolNamePlaceholder: "e.g. Main Pool",
+
+      // Toast messages
+      failedLoadPool: "Failed to load pool details",
+      poolUpdated: "Pool updated",
+      poolCreated: "Pool created",
+      failedSavePool: "Failed to save pool",
+      poolDeactivated: "Pool deactivated",
+      poolActivated: "Pool activated",
+      failedTogglePool: "Failed to toggle pool",
+      questAddedToPool: "Quest added to pool",
+      failedAddQuestToPool: "Failed to add quest to pool",
+      questRemovedFromPool: "Quest removed from pool",
+      failedRemoveQuest: "Failed to remove quest",
+      alreadyAssigned: "Already assigned",
+      questAssigned: "Quest assigned",
+
+      // Dialogs
+      removeQuestTitle: "Remove Quest from Pool",
+      removeQuestDesc: "from this pool? The quest definition will not be deleted. Players who already received this quest today will not be affected until the next reset.",
+
+      // Form
+      saveChanges: "Save Changes",
+
+      // Empty states
+      loadingChains: "Loading quest chains…",
+    },
+
+    // Chain Flow View
+    flow: {
+      openQuestDef: "Open quest definition in new tab",
+      editMembership: "Edit membership",
+      removeFromChain: "Remove from chain",
+      refreshGraph: "Refresh graph data",
+      hideQuestList: "Hide quest list",
+      showQuestList: "Show quest list",
+      unlockNodes: "Unlock nodes",
+      lockNodes: "Lock nodes",
+      autoAlign: "Auto-align (dagre)",
+      addToChain: "Add to chain",
+      searchQuests: "Search quests…",
+      noQuestsInChain: "No quests in this chain yet. Drag quests from the panel or press\u00a0+.",
+      availableQuests: "Available Quests",
+      allQuestsInChain: "All quests are already in this chain",
+      noMatchingQuests: "No matching quests",
+      saving: "Saving…",
+    },
+  },
 };
