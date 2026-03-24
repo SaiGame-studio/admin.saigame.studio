@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sai-admin dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "yarn", "dev"],
+      "port": 81
+    }
+  ]
+}

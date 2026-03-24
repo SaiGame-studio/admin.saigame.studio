@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(Get-Command yarn:*)",
+      "Bash(Select-Object -ExpandProperty Source)",
+      "Bash(Get-Command npm:*)",
+      "Bash(yarn dev:*)",
+      "Bash(yarn install:*)"
+    ]
+  }
+}
