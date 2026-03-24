@@ -2646,7 +2646,7 @@ function TagsTab({
           color: form.color,
           metadata: parsedMeta,
         })
-        setTags(tags.map((t) => (t.id === updated.id ? updated : t)))
+        setTags(tags.map((tag) => (tag.id === updated.id ? updated : tag)))
         toast({ title: t('items.tagUpdated') })
       } else {
         const created = await createItemTag({ gameId }, {
@@ -2672,7 +2672,7 @@ function TagsTab({
     setDeleteLoading(true)
     try {
       await deleteItemTag({ gameId }, deletingTag.id)
-      setTags(tags.filter((t) => t.id !== deletingTag.id))
+      setTags(tags.filter((tag) => tag.id !== deletingTag.id))
       toast({ title: t('items.tagDeleted') })
       setDeletingTag(null)
     } catch (err: unknown) {
@@ -2685,9 +2685,9 @@ function TagsTab({
 
   const filtered = search
     ? tags.filter(
-        (t) =>
-          t.tag_key.toLowerCase().includes(search.toLowerCase()) ||
-          t.label.toLowerCase().includes(search.toLowerCase()),
+        (tag) =>
+          tag.tag_key.toLowerCase().includes(search.toLowerCase()) ||
+          tag.label.toLowerCase().includes(search.toLowerCase()),
       )
     : tags
 
@@ -3393,7 +3393,6 @@ export default function GameItemsPage() {
   }, [loadGameInfo])
 
   const fetchItems = useCallback(async () => {
-    if (!studioId) return
     setLoading(true)
     setError(null)
     try {
@@ -3404,7 +3403,7 @@ export default function GameItemsPage() {
       if (selectedTagKeys.length > 0) params.tags = selectedTagKeys
       if (filterAllowClientUpdateQty !== "all") params.allow_client_update_qty = filterAllowClientUpdateQty === "true"
 
-      const result = await listItemDefinitions({ studioId, gameId }, params)
+      const result = await listItemDefinitions({ gameId }, params)
       setItems(result.items ?? [])
       setTotal(result.total)
     } catch (err: any) {
@@ -3418,7 +3417,7 @@ export default function GameItemsPage() {
     } finally {
       setLoading(false)
     }
-  }, [studioId, gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty, offset])
+  }, [gameId, filterCategory, filterRarity, debouncedName, selectedTagKeys, filterAllowClientUpdateQty, offset])
 
   useEffect(() => {
     fetchItems()
