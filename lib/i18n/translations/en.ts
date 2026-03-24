@@ -1308,6 +1308,8 @@ export const en = {
     // Placeholders
     searchByName: "Search by name…",
     searchByNameOrCode: "Search by name or code…",
+    searchByNameOrId: "Search by name or ID…",
+    searchByNameTypeOrId: "Search by name, type or ID…",
     searchTagsIn: "Search tags…",
     allCategories: "All categories",
     allRarities: "All rarities",
@@ -1367,12 +1369,15 @@ export const en = {
     // Empty states
     noItems: "No items",
     noItemsYet: "No items yet",
+    itemsDefined: "items defined",
+    itemsUnit: "items",
     noItemFound: "No item found.",
     noCategoryFound: "No category found.",
     loadingDots: "Loading…",
     noContainerDefs: "No container definitions",
     noMatchingContainers: "No matching containers",
     // Empty state descriptions
+    noItemsFound: "No items found",
     noItemsDesc: "Try clearing your filters.",
     noItemsNewDesc: "Click \"New Item\" to add the first item definition.",
     // Breadcrumb

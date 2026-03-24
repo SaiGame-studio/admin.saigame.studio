@@ -1300,6 +1300,8 @@ export const vi = {
     // Placeholders
     searchByName: "Tìm theo tên…",
     searchByNameOrCode: "Tìm theo tên hoặc mã…",
+    searchByNameOrId: "Tìm theo tên hoặc ID…",
+    searchByNameTypeOrId: "Tìm theo tên, loại hoặc ID…",
     searchTagsIn: "Tìm thẻ…",
     allCategories: "Tất cả danh mục",
     allRarities: "Tất cả độ hiếm",
@@ -1359,12 +1361,15 @@ export const vi = {
     // Empty states
     noItems: "Không có vật phẩm",
     noItemsYet: "Chưa có vật phẩm",
+    itemsDefined: "vật phẩm đã định nghĩa",
+    itemsUnit: "vật phẩm",
     noItemFound: "Không tìm thấy vật phẩm.",
     noCategoryFound: "Không tìm thấy danh mục.",
     loadingDots: "Đang tải…",
     noContainerDefs: "Không có định nghĩa kho chứa",
     noMatchingContainers: "Không có kho chứa phù hợp",
     // Empty state descriptions
+    noItemsFound: "Không tìm thấy vật phẩm",
     noItemsDesc: "Thử xóa bộ lọc.",
     noItemsNewDesc: "Nhấn \"Vật phẩm mới\" để thêm định nghĩa vật phẩm đầu tiên.",
     // Breadcrumb

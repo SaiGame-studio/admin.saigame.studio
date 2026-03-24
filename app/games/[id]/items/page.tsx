@@ -630,7 +630,7 @@ function EditContainerDefinitionDialog({
                         )}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">No linked item</span>
+                      <span className="text-muted-foreground">{t('items.noLinkedItem')}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -638,12 +638,12 @@ function EditContainerDefinitionDialog({
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Search by name or code…"
+                      placeholder={t('items.searchByNameOrCode')}
                       value={linkedItemSearch}
                       onValueChange={setLinkedItemSearch}
                     />
                     <CommandList>
-                      <CommandEmpty>No item found.</CommandEmpty>
+                      <CommandEmpty>{t('items.noItemFound')}</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           value="__none__"
@@ -1721,7 +1721,7 @@ function EquipmentSlotSheet({
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter={false}>
                   <CommandInput
-                    placeholder="Search by name or code…"
+                    placeholder={t('items.searchByNameOrCode')}
                     value={itemDefSearch}
                     onValueChange={handleItemDefSearch}
                   />
@@ -2699,7 +2699,7 @@ function TagsTab({
           <h2 className="text-lg font-semibold">{t('items.itemTagsTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             {tags.length > 0
-              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 tags defined</span></>
+              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 {t('items.tagsLabel')}</span></>
               : t('items.noTagsYet')}
           </p>
         </div>
@@ -3745,7 +3745,7 @@ export default function GameItemsPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span>Items - Containers</span>
+              <span>{t('items.itemsContainers')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -3767,7 +3767,7 @@ export default function GameItemsPage() {
                     const used = itemUsage ?? total
                     return <>
                     <span className={used >= maxItems ? "text-destructive font-medium" : ""}>
-                      {used.toLocaleString()} / {maxItems.toLocaleString()} items
+                      {used.toLocaleString()} / {maxItems.toLocaleString()} {t('items.itemsUnit')}
                     </span>
                     <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                       <span
@@ -3786,7 +3786,7 @@ export default function GameItemsPage() {
                     </Link>
                   </>
                   })()
-                : total > 0 ? `${total} item${total !== 1 ? "s" : ""} defined` : "No items yet"
+                : total > 0 ? `${total} ${t('items.itemsDefined')}` : t('items.noItemsYet')
               }
             </p>
           </div>
@@ -3819,7 +3819,7 @@ export default function GameItemsPage() {
             <div>
               <h2 className="text-lg font-semibold">{t('items.itemDefinitions')}</h2>
               <p className="text-sm text-muted-foreground">
-                {total > 0 ? `${total.toLocaleString()} item${total !== 1 ? "s" : ""} defined` : t('items.noItemsYet')}
+                {total > 0 ? `${total.toLocaleString()} ${t('items.itemsDefined')}` : t('items.noItemsYet')}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -3828,7 +3828,7 @@ export default function GameItemsPage() {
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by name…"
+                  placeholder={t('items.searchByName')}
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
@@ -3848,7 +3848,7 @@ export default function GameItemsPage() {
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
               >
-                <option value="all">All categories</option>
+                <option value="all">{t('items.allCategories')}</option>
                 {categories.map((c) => (
                   <option key={c} value={c} className="capitalize">{c}</option>
                 ))}
@@ -3859,7 +3859,7 @@ export default function GameItemsPage() {
                 value={filterRarity}
                 onChange={(e) => setFilterRarity(e.target.value)}
               >
-                <option value="all">All rarities</option>
+                <option value="all">{t('items.allRarities')}</option>
                 {rarities.map((r) => (
                   <option key={r} value={r} className="capitalize">{r}</option>
                 ))}
@@ -3870,9 +3870,9 @@ export default function GameItemsPage() {
                 value={filterAllowClientUpdateQty}
                 onChange={(e) => setFilterAllowClientUpdateQty(e.target.value)}
               >
-                <option value="all">All qty permissions</option>
-                <option value="true">Can update qty</option>
-                <option value="false">Cannot update qty</option>
+                <option value="all">{t('items.allQtyPermissions')}</option>
+                <option value="true">{t('items.canUpdateQty')}</option>
+                <option value="false">{t('items.cannotUpdateQty')}</option>
               </select>
               {/* Tags filter */}
               {itemTags.length > 0 && (
@@ -3880,7 +3880,7 @@ export default function GameItemsPage() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 gap-1.5">
                       <Tag className="h-3.5 w-3.5" />
-                      Tags
+                      {t('items.tabTags')}
                       {selectedTagKeys.length > 0 && (
                         <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-semibold">
                           {selectedTagKeys.length}
@@ -3890,9 +3890,9 @@ export default function GameItemsPage() {
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search tags…" />
+                      <CommandInput placeholder={t('items.searchTagsIn')} />
                       <CommandList>
-                        <CommandEmpty>No tags found.</CommandEmpty>
+                        <CommandEmpty>{t('items.noTagsFound')}</CommandEmpty>
                         <CommandGroup>
                           {itemTags.map((tag) => {
                             const active = selectedTagKeys.includes(tag.tag_key)
@@ -3954,11 +3954,11 @@ export default function GameItemsPage() {
               ) : items.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No items found</p>
+                  <p className="text-lg font-medium">{t('items.noItemsFound')}</p>
                   <p className="text-sm mt-1">
                     {(filterCategory !== "all" || filterRarity !== "all" || debouncedName || selectedTagKeys.length > 0)
-                      ? "Try clearing your filters."
-                      : "Click \"New Item\" to add the first item definition."}
+                      ? t('items.noItemsDesc')
+                      : t('items.noItemsNewDesc')}
                   </p>
                 </div>
               ) : (
@@ -4145,14 +4145,14 @@ export default function GameItemsPage() {
               <p className="text-sm text-muted-foreground">
                 {containerTotal > 0
                   ? `${containerSearchDebounced ? `${filteredContainerDefs.length} of ` : ""}${containerTotal} definition${containerTotal !== 1 ? "s" : ""}`
-                  : "No container definitions yet"}
+                  : t('items.noContainerDefs')}
               </p>
             </div>
             <div className="flex gap-2 items-center flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Search by name or ID…"
+                  placeholder={t('items.searchByNameOrId')}
                   value={containerSearch}
                   onChange={(e) => setContainerSearch(e.target.value)}
                   className="pl-8 h-8 w-56 text-sm"
@@ -4650,7 +4650,7 @@ export default function GameItemsPage() {
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Search by name, type or ID…"
+                  placeholder={t('items.searchByNameTypeOrId')}
                   value={presetSearch}
                   onChange={(e) => setPresetSearch(e.target.value)}
                   className="pl-8 h-8 w-64 text-sm"

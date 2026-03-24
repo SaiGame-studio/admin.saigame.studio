@@ -1289,6 +1289,8 @@ export const ja = {
     // Placeholders
     searchByName: "名前で検索…",
     searchByNameOrCode: "名前またはコードで検索…",
+    searchByNameOrId: "名前またはIDで検索…",
+    searchByNameTypeOrId: "名前、タイプまたはIDで検索…",
     searchTagsIn: "タグを検索…",
     allCategories: "すべてのカテゴリー",
     allRarities: "すべてのレアリティ",
@@ -1348,12 +1350,15 @@ export const ja = {
     // Empty states
     noItems: "アイテムなし",
     noItemsYet: "まだアイテムがありません",
+    itemsDefined: "アイテムが定義済み",
+    itemsUnit: "アイテム",
     noItemFound: "アイテムが見つかりません。",
     noCategoryFound: "カテゴリーが見つかりません。",
     loadingDots: "読み込み中…",
     noContainerDefs: "コンテナ定義がありません",
     noMatchingContainers: "一致するコンテナがありません",
     // Empty state descriptions
+    noItemsFound: "アイテムが見つかりません",
     noItemsDesc: "フィルターをクリアしてみてください。",
     noItemsNewDesc: "「新しいアイテム」をクリックして最初のアイテム定義を追加してください。",
     // Breadcrumb
