@@ -2079,6 +2079,7 @@ export const vi = {
     questDefinition: "định nghĩa nhiệm vụ",
     ofQuests: "trong",
     quests: "Nhiệm vụ",
+    questsCount: "nhiệm vụ",
 
     // Coming soon
     comingSoon: "Tính năng này sắp ra mắt.",

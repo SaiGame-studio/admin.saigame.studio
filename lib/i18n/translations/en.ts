@@ -2100,6 +2100,7 @@ export const en = {
     questDefinition: "quest definition",
     ofQuests: "of",
     quests: "Quests",
+    questsCount: "quests",
 
     // Coming soon
     comingSoon: "This feature is coming soon.",

@@ -1583,7 +1583,7 @@ function QuestsPageInner() {
                   return (
                     <>
                       <span className={used >= max ? "text-destructive font-medium" : ""}>
-                        {used.toLocaleString()} / {max.toLocaleString()} quests
+                        {used.toLocaleString()} / {max.toLocaleString()} {t('quest.questsCount')}
                       </span>
                       <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                         <span

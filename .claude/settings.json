@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npx next:*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(grep -rn \"Quest\\\\|quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/ --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(grep -n \">.*Quest\\\\|>Quest\\\\|=.*\"\".*Quest\\\\|=.*''''.*Quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/ChainTab.tsx)",
+      "Bash(grep -n \"toast.*Quest\\\\|>Quest\\\\|\"\"Quest\\\\|''''Quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/page.tsx)",
+      "Bash(grep -n \"No quests\\\\|No daily\\\\|No quest chains\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)",
+      "Bash(grep -n \"t\\(''''quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"

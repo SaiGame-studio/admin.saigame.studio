@@ -2068,6 +2068,7 @@ export const ja = {
     questDefinition: "クエスト定義",
     ofQuests: "/",
     quests: "クエスト",
+    questsCount: "クエスト",
 
     // Coming soon
     comingSoon: "この機能は近日公開予定です。",
