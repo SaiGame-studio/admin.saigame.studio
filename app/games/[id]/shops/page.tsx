@@ -166,6 +166,7 @@ export default function GameShopsPage() {
   const [error, setError] = useState<string | null>(null)
   const [game, setGame] = useState<any>(null)
   const hasFetched = useRef(false)
+  const activeOnlyInitialized = useRef(false)
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false)
@@ -218,11 +219,13 @@ export default function GameShopsPage() {
   useEffect(() => {
     if (hasFetched.current) return
     hasFetched.current = true
-    loadData(false)
+    loadData(false).then(() => {
+      activeOnlyInitialized.current = true
+    })
   }, [params.id])
 
   useEffect(() => {
-    if (!hasFetched.current) return
+    if (!activeOnlyInitialized.current) return
     loadData(activeOnly)
   }, [activeOnly])
 
@@ -231,7 +234,7 @@ export default function GameShopsPage() {
       setLoading(true)
       const gameData = await getGame(params.id)
       setGame(gameData)
-      const resp = await listShops(gameData.studio_id, params.id, { activeOnly: filterActiveOnly })
+      const resp = await listShops(params.id, { activeOnly: filterActiveOnly })
       setShops(resp.shops ?? [])
       setTotal(resp.total ?? 0)
     } catch (err: any) {

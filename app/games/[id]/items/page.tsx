@@ -55,6 +55,7 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
 import {
@@ -284,6 +285,7 @@ function CreateContainerDefinitionDialog({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState<ContainerType>("chest")
@@ -308,11 +310,11 @@ function CreateContainerDefinitionDialog({
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
+    if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     const cols = Number(gridCols)
     const rows = Number(gridRows)
-    if (!cols || cols < 1 || cols > 54) e.gridCols = "Cols must be 1–54"
-    if (!rows || rows < 1 || rows > 54) e.gridRows = "Rows must be 1–54"
+    if (!cols || cols < 1 || cols > 54) e.gridCols = t('items.colsMustBe')
+    if (!rows || rows < 1 || rows > 54) e.gridRows = t('items.rowsMustBe')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -333,15 +335,15 @@ function CreateContainerDefinitionDialog({
         metadata,
       }
       await createContainerDefinition({ gameId }, body)
-      toast({ title: "Container definition created", description: `"${name.trim()}" added.` })
+      toast({ title: t('items.containerCreated'), description: `"${name.trim()}" added.` })
       resetForm()
       onCreated()
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
-        toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to create container definitions." })
+        toast({ variant: "destructive", title: t('items.permissionDenied'), description: "You do not have permission to create container definitions." })
       } else {
-        toast({ variant: "destructive", title: "Failed to create", description: err?.message ?? "Unknown error" })
+        toast({ variant: "destructive", title: t('items.failedToCreate'), description: err?.message ?? "Unknown error" })
       }
     } finally {
       setLoading(false)
@@ -352,17 +354,17 @@ function CreateContainerDefinitionDialog({
     <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>New Container Definition</SheetTitle>
+          <SheetTitle>{t('items.newContainerDefinition')}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
-            <Label htmlFor="cd-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="cd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input id="cd-name" placeholder="e.g. Standard Chest" value={name} onChange={(e) => setName(e.target.value)} />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Container Type <span className="text-destructive">*</span></Label>
+              <Label>{t('items.containerType')} <span className="text-destructive">*</span></Label>
               <Select value={containerType} onValueChange={(v) => setContainerType(v as ContainerType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -374,23 +376,23 @@ function CreateContainerDefinitionDialog({
             </div>
             <div className="flex items-center gap-2 pt-6">
               <Switch id="cd-portable" checked={isPortable} onCheckedChange={setIsPortable} />
-              <Label htmlFor="cd-portable">Portable</Label>
+              <Label htmlFor="cd-portable">{t('items.portable')}</Label>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="cd-cols">Grid Columns <span className="text-destructive">*</span></Label>
+              <Label htmlFor="cd-cols">{t('items.gridColumns')} <span className="text-destructive">*</span></Label>
               <Input id="cd-cols" type="number" min={1} max={54} value={gridCols} onChange={(e) => setGridCols(e.target.value)} />
               {errors.gridCols && <p className="text-xs text-destructive">{errors.gridCols}</p>}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="cd-rows">Grid Rows <span className="text-destructive">*</span></Label>
+              <Label htmlFor="cd-rows">{t('items.gridRows')} <span className="text-destructive">*</span></Label>
               <Input id="cd-rows" type="number" min={1} max={54} value={gridRows} onChange={(e) => setGridRows(e.target.value)} />
               {errors.gridRows && <p className="text-xs text-destructive">{errors.gridRows}</p>}
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Linked Item Definition</Label>
+            <Label>{t('items.linkedItemDefinition')}</Label>
             <div className="flex items-center gap-1">
               <Popover open={linkedItemOpen} onOpenChange={setLinkedItemOpen} modal={true}>
                 <PopoverTrigger asChild>
@@ -410,7 +412,7 @@ function CreateContainerDefinitionDialog({
                         )}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">No linked item</span>
+                      <span className="text-muted-foreground">{t('items.noLinkedItem')}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -418,12 +420,12 @@ function CreateContainerDefinitionDialog({
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Search by name or code…"
+                      placeholder={t('items.searchByNameOrCode')}
                       value={linkedItemSearch}
                       onValueChange={setLinkedItemSearch}
                     />
                     <CommandList>
-                      <CommandEmpty>No item found.</CommandEmpty>
+                      <CommandEmpty>{t('items.noItemFound')}</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           value="__none__"
@@ -434,7 +436,7 @@ function CreateContainerDefinitionDialog({
                           }}
                         >
                           <Check className={`mr-2 h-4 w-4 shrink-0 ${!linkedItemId ? "opacity-100" : "opacity-0"}`} />
-                          <span className="text-muted-foreground">— No linked item —</span>
+                          <span className="text-muted-foreground">{t('items.noLinkedItemOption')}</span>
                         </CommandItem>
                         {allItems
                           .filter(
@@ -485,9 +487,9 @@ function CreateContainerDefinitionDialog({
           <KVEditor entries={meta} onChange={setMeta} label="Metadata (e.g. icon = chest_wood)" />
         </div>
         <SheetFooter className="pt-4">
-          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>Cancel</Button>
+          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating…" : "Create"}
+            {loading ? t('items.creating') : t('common.save')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -511,6 +513,7 @@ function EditContainerDefinitionDialog({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(definition.name)
   const [gridCols, setGridCols] = useState(String(definition.grid_cols))
@@ -535,11 +538,11 @@ function EditContainerDefinitionDialog({
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
+    if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     const cols = Number(gridCols)
     const rows = Number(gridRows)
-    if (!cols || cols < 1 || cols > 54) e.gridCols = "Cols must be 1–54"
-    if (!rows || rows < 1 || rows > 54) e.gridRows = "Rows must be 1–54"
+    if (!cols || cols < 1 || cols > 54) e.gridCols = t('items.colsMustBe')
+    if (!rows || rows < 1 || rows > 54) e.gridRows = t('items.rowsMustBe')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -563,14 +566,14 @@ function EditContainerDefinitionDialog({
         body.linked_item_definition_id = linkedItemId
       }
       await updateContainerDefinition({ gameId }, definition.id, body)
-      toast({ title: "Container definition updated" })
+      toast({ title: t('items.containerUpdated') })
       onUpdated()
       onClose()
     } catch (err: any) {
       if (err?.status === 409) {
-        toast({ variant: "destructive", title: "Cannot shrink grid", description: "Items would go out of bounds. Remove items first." })
+        toast({ variant: "destructive", title: t('items.cannotShrinkGrid'), description: "Items would go out of bounds. Remove items first." })
       } else {
-        toast({ variant: "destructive", title: "Failed to update", description: err?.message ?? "Unknown error" })
+        toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" })
       }
     } finally {
       setLoading(false)
@@ -581,33 +584,33 @@ function EditContainerDefinitionDialog({
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>Edit Container Definition</SheetTitle>
+          <SheetTitle>{t('items.editContainerDefinition')}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
             <ContainerTypeBadge type={definition.container_type} />
-            <span>{definition.is_portable ? 'Portable' : 'Fixed'}</span>
+            <span>{definition.is_portable ? t('items.portable') : t('items.fixed')}</span>
             <span className="text-xs">(immutable)</span>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="ed-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="ed-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input id="ed-name" value={name} onChange={(e) => setName(e.target.value)} />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="ed-cols">Grid Columns</Label>
+              <Label htmlFor="ed-cols">{t('items.gridColumns')}</Label>
               <Input id="ed-cols" type="number" min={1} max={54} value={gridCols} onChange={(e) => setGridCols(e.target.value)} />
               {errors.gridCols && <p className="text-xs text-destructive">{errors.gridCols}</p>}
             </div>
             <div className="space-y-1">
-              <Label htmlFor="ed-rows">Grid Rows</Label>
+              <Label htmlFor="ed-rows">{t('items.gridRows')}</Label>
               <Input id="ed-rows" type="number" min={1} max={54} value={gridRows} onChange={(e) => setGridRows(e.target.value)} />
               {errors.gridRows && <p className="text-xs text-destructive">{errors.gridRows}</p>}
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Linked Item Definition</Label>
+            <Label>{t('items.linkedItemDefinition')}</Label>
             <div className="flex items-center gap-1">
               <Popover open={linkedItemOpen} onOpenChange={setLinkedItemOpen} modal={true}>
                 <PopoverTrigger asChild>
@@ -702,9 +705,9 @@ function EditContainerDefinitionDialog({
           <KVEditor entries={meta} onChange={setMeta} label="Metadata" />
         </div>
         <SheetFooter className="pt-4">
-          <Button variant="outline" disabled={loading} onClick={onClose}>Cancel</Button>
+          <Button variant="outline" disabled={loading} onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Saving…" : "Save Changes"}
+            {loading ? t('items.saving') : t('items.saveChanges')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -732,6 +735,7 @@ function CreateItemDialog({
   initialCategory?: ItemCategory
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState("")
@@ -801,21 +805,21 @@ function CreateItemDialog({
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 3) {
-      e.name = "Name must be at least 3 characters"
+      e.name = t('items.nameMustBe3Chars')
     }
     if (isStackable && maxStack !== "" && Number(maxStack) < 1) {
-      e.maxStack = "Enter a valid max stack (≥ 1)"
+      e.maxStack = t('items.maxStackInvalid')
     }
     if (category === "generator") {
       const validPoolEntries = genOutputPool.filter(p => p.item_definition_id.trim())
       if (validPoolEntries.length === 0) {
-        e.genOutputPool = "At least one output pool entry is required"
+        e.genOutputPool = t('items.outputPoolRequired')
       }
       if (!genInterval || Number(genInterval) < 1) {
-        e.genInterval = "Interval must be ≥ 1"
+        e.genInterval = t('items.intervalMustBe')
       }
       if (!genTickCapacity || Number(genTickCapacity) < 1) {
-        e.genTickCapacity = "Tick Capacity must be ≥ 1"
+        e.genTickCapacity = t('items.tickCapMustBe')
       }
     }
     setErrors(e)
@@ -871,7 +875,7 @@ function CreateItemDialog({
       }
 
       await createItemDefinition({ studioId, gameId }, body)
-      toast({ title: "Item created", description: `"${name}" added to catalogue.` })
+      toast({ title: t('items.itemCreated'), description: `"${name}" added to catalogue.` })
       resetForm()
       onCreated()
       onClose()
@@ -879,13 +883,13 @@ function CreateItemDialog({
       if (err?.status === 403) {
         toast({
           variant: "destructive",
-          title: "Permission denied",
+          title: t('items.permissionDenied'),
           description: "You do not have permission to create items for this game.",
         })
       } else {
         toast({
           variant: "destructive",
-          title: "Failed to create item",
+          title: t('items.failedToCreateItem'),
           description: err?.message ?? "Unknown error",
         })
       }
@@ -903,13 +907,13 @@ function CreateItemDialog({
     >
       <SheetContent side="right" className="sm:max-w-[560px] flex flex-col p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-          <SheetTitle>New Item Definition</SheetTitle>
+          <SheetTitle>{t('items.newItemDefinition')}</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Name */}
           <div className="space-y-1">
-            <Label htmlFor="item-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="item-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input
               id="item-name"
               placeholder="e.g. Iron Sword"
@@ -932,7 +936,7 @@ function CreateItemDialog({
 
           {/* Item Code */}
           <div className="space-y-1">
-            <Label htmlFor="item-code">Item Code <span className="text-muted-foreground text-xs">(optional, e.g. iron_sword)</span></Label>
+            <Label htmlFor="item-code">{t('items.itemCode')} <span className="text-muted-foreground text-xs">({t('items.itemCodeHint')})</span></Label>
             <div className="flex gap-2">
               <Input
                 id="item-code"
@@ -949,7 +953,7 @@ function CreateItemDialog({
                 variant={autoSlug ? "default" : "outline"}
                 size="icon"
                 className="shrink-0"
-                title={autoSlug ? "Auto-slug is ON — item code generated from name" : "Auto-slug is OFF — click to re-enable"}
+                title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
                 onClick={() => {
                   setAutoSlug(true)
                   setItemCode(
@@ -968,7 +972,7 @@ function CreateItemDialog({
           {/* Category + Rarity */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Category <span className="text-destructive">*</span></Label>
+              <Label>{t('items.category')} <span className="text-destructive">*</span></Label>
               <Select value={category} onValueChange={(v) => setCategory(v as ItemCategory)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -981,7 +985,7 @@ function CreateItemDialog({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Rarity <span className="text-destructive">*</span></Label>
+              <Label>{t('items.rarity')} <span className="text-destructive">*</span></Label>
               <Select value={rarity} onValueChange={(v) => setRarity(v as ItemRarity)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -999,7 +1003,7 @@ function CreateItemDialog({
           <div className="space-y-1.5">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="grid-w">Grid Width</Label>
+                <Label htmlFor="grid-w">{t('items.gridWidth')}</Label>
                 <Input
                   id="grid-w"
                   type="number"
@@ -1009,7 +1013,7 @@ function CreateItemDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="grid-h">Grid Height</Label>
+                <Label htmlFor="grid-h">{t('items.gridHeight')}</Label>
                 <Input
                   id="grid-h"
                   type="number"
@@ -1021,9 +1025,9 @@ function CreateItemDialog({
             </div>
             <p className="text-[11px] text-muted-foreground pl-1">
               {(Number(gridW) || 0) === 0 || (Number(gridH) || 0) === 0
-                ? "0×0 — item has no grid size, it won't occupy any inventory space (virtual item)."
+                ? t('items.gridHintVirtual')
                 : (Number(gridW) || 1) === 1 && (Number(gridH) || 1) === 1
-                  ? "1×1 — item occupies a single inventory cell."
+                  ? t('items.gridHintSingle')
                   : `${Number(gridW) || 1}×${Number(gridH) || 1} — item occupies ${(Number(gridW) || 1) * (Number(gridH) || 1)} cells in the inventory grid.`}
             </p>
           </div>
@@ -1036,7 +1040,7 @@ function CreateItemDialog({
                 checked={isStackable}
                 onCheckedChange={setIsStackable}
               />
-              <Label htmlFor="stackable">Stackable</Label>
+              <Label htmlFor="stackable">{t('items.stackable')}</Label>
               {isStackable && (
                 <div className="relative">
                   <Input
@@ -1062,11 +1066,11 @@ function CreateItemDialog({
             </div>
             <p className="text-[11px] text-muted-foreground pl-1">
               {!isStackable
-                ? "Not stackable — each item occupies its own inventory slot."
+                ? t('items.stackableHintNo')
                 : maxStack === "" || maxStack === "0"
-                  ? "Stackable with no limit — items stack infinitely in one slot."
+                  ? t('items.stackableHintInfinite')
                   : Number(maxStack) === 1
-                    ? "Stackable but max 1 — effectively behaves like non-stackable."
+                    ? t('items.stackableHintOne')
                     : `Stackable up to ${Number(maxStack).toLocaleString()} per slot.`}
             </p>
             {errors.maxStack && (
@@ -1082,7 +1086,7 @@ function CreateItemDialog({
                 checked={clientWritable}
                 onCheckedChange={setClientWritable}
               />
-              <Label htmlFor="client-writable">Allow client to write player properties</Label>
+              <Label htmlFor="client-writable">{t('items.allowClientWriteProps')}</Label>
             </div>
             {clientWritable && (
               <p className="text-xs text-muted-foreground pl-1">
@@ -1099,7 +1103,7 @@ function CreateItemDialog({
                 checked={allowClientUpdateQty}
                 onCheckedChange={setAllowClientUpdateQty}
               />
-              <Label htmlFor="allow-client-update-qty">Allow client to update quantity</Label>
+              <Label htmlFor="allow-client-update-qty">{t('items.allowClientUpdateQty')}</Label>
             </div>
             {allowClientUpdateQty && (
               <p className="text-xs text-muted-foreground pl-1">
@@ -1111,11 +1115,11 @@ function CreateItemDialog({
           {/* Generator Config */}
           {category === "generator" && (
             <div className="space-y-4 rounded-lg border p-5">
-              <Label className="text-sm font-semibold">Generator Config</Label>
+              <Label className="text-sm font-semibold">{t('items.generatorConfig')}</Label>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="gen-interval">Interval (s) <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="gen-interval"
                     type="number"
@@ -1126,7 +1130,7 @@ function CreateItemDialog({
                   {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="gen-tick-capacity">Tick Capacity <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="gen-tick-capacity">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="gen-tick-capacity"
                     type="number"
@@ -1163,7 +1167,7 @@ function CreateItemDialog({
               {/* Output Pool */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm">Output Pool <span className="text-destructive">*</span></Label>
+                  <Label className="text-sm">{t('items.outputPool')} <span className="text-destructive">*</span></Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -1171,7 +1175,7 @@ function CreateItemDialog({
                     className="h-8 text-xs gap-1.5"
                     onClick={() => setGenOutputPool([...genOutputPool, { item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])}
                   >
-                    <Plus className="h-3.5 w-3.5" /> Add Entry
+                    <Plus className="h-3.5 w-3.5" /> {t('items.addEntry')}
                   </Button>
                 </div>
 
@@ -1197,7 +1201,7 @@ function CreateItemDialog({
 
                       {/* Item Definition - searchable combobox */}
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Item Definition <span className="text-destructive">*</span></Label>
+                        <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
                         <Popover
                           open={genPoolOpen[idx] ?? false}
                           onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))}
@@ -1226,12 +1230,12 @@ function CreateItemDialog({
                           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                             <Command shouldFilter={false}>
                               <CommandInput
-                                placeholder="Search by name or code…"
+                                placeholder={t('items.searchByNameOrCode')}
                                 value={genPoolSearch[idx] ?? ""}
                                 onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))}
                               />
                               <CommandList>
-                                <CommandEmpty>{genItemsLoading ? "Loading…" : "No item found."}</CommandEmpty>
+                                <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
                                 <CommandGroup>
                                   {genAllItems
                                     .filter((d) => {
@@ -1270,7 +1274,7 @@ function CreateItemDialog({
                       {/* Numeric fields in a grid */}
                       <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Drop Rate</Label>
+                          <Label className="text-xs font-medium">{t('items.dropRate')}</Label>
                           <Input
                             className="h-10 text-sm"
                             type="number"
@@ -1286,7 +1290,7 @@ function CreateItemDialog({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Qty Min</Label>
+                          <Label className="text-xs font-medium">{t('items.qtyMin')}</Label>
                           <Input
                             className="h-10 text-sm"
                             type="number"
@@ -1300,7 +1304,7 @@ function CreateItemDialog({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Qty Max</Label>
+                          <Label className="text-xs font-medium">{t('items.qtyMax')}</Label>
                           <Input
                             className="h-10 text-sm"
                             type="number"
@@ -1316,7 +1320,7 @@ function CreateItemDialog({
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Collect Cap</Label>
+                          <Label className="text-xs font-medium">{t('items.collectCap')}</Label>
                           <Input
                             className="h-10 text-sm"
                             type="number"
@@ -1330,7 +1334,7 @@ function CreateItemDialog({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Initial Output</Label>
+                          <Label className="text-xs font-medium">{t('items.initialOutput')}</Label>
                           <Input
                             className="h-10 text-sm"
                             type="number"
@@ -1357,22 +1361,22 @@ function CreateItemDialog({
           <KVEditor
             entries={stats}
             onChange={setStats}
-            label="Base Stats (e.g. attack = 10)"
+            label={t('items.baseStatsLabel')}
           />
 
           {/* Metadata */}
           <KVEditor
             entries={meta}
             onChange={setMeta}
-            label="Metadata (e.g. icon = sword_iron)"
+            label={t('items.metadataLabel')}
           />
 
         </div>
 
         <div className="shrink-0 border-t px-6 py-4 flex justify-end gap-2">
-          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>Cancel</Button>
+          <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating…" : "Create Item"}
+            {loading ? t('items.creating') : t('items.createItem')}
           </Button>
         </div>
       </SheetContent>
@@ -1416,6 +1420,7 @@ function EquipmentSlotSheet({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptySlotForm())
   const [autoSlug, setAutoSlug] = useState(true)
@@ -1489,8 +1494,8 @@ function EquipmentSlotSheet({
   }
 
   async function handleSave() {
-    if (!form.name.trim()) { toast({ variant: "destructive", title: "Name is required" }); return }
-    if (!editing && !form.slot_key.trim()) { toast({ variant: "destructive", title: "Slot key is required" }); return }
+    if (!form.name.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
+    if (!editing && !form.slot_key.trim()) { toast({ variant: "destructive", title: t('items.slotKeyRequired') }); return }
     const metadata: Record<string, unknown> = {}
     form.meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
     setSaving(true)
@@ -1505,7 +1510,7 @@ function EquipmentSlotSheet({
           is_active: form.is_active,
           metadata,
         })
-        toast({ title: "Equipment slot updated" })
+        toast({ title: t('items.equipmentSlotUpdated') })
       } else {
         result = await createEquipmentSlot({ gameId }, {
           slot_key: form.slot_key.trim(),
@@ -1515,12 +1520,12 @@ function EquipmentSlotSheet({
           allowed_item_definition_ids: form.allowed_item_definition_ids.length > 0 ? form.allowed_item_definition_ids : undefined,
           metadata,
         })
-        toast({ title: "Equipment slot created" })
+        toast({ title: t('items.equipmentSlotCreated') })
       }
       onSaved(result)
       onClose()
     } catch (err: any) {
-      toast({ variant: "destructive", title: editing ? "Failed to update" : "Failed to create", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: editing ? t('items.failedToUpdate') : t('items.failedToCreate'), description: err?.message ?? "Unknown error" })
     } finally {
       setSaving(false)
     }
@@ -1530,13 +1535,13 @@ function EquipmentSlotSheet({
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>{editing ? `Edit: ${editing.name}` : "New Equipment Slot"}</SheetTitle>
+          <SheetTitle>{editing ? `Edit: ${editing.name}` : t('items.newEquipmentSlot')}</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* Name */}
           <div className="space-y-1">
-            <Label htmlFor="eq-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="eq-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input
               id="eq-name"
               placeholder="e.g. Helmet"
@@ -1548,7 +1553,7 @@ function EquipmentSlotSheet({
 
           {/* Slot Key — immutable on edit, auto-slug on create */}
           <div className="space-y-1">
-            <Label htmlFor="eq-slot-key">Slot Key {!editing && <span className="text-destructive">*</span>}</Label>
+            <Label htmlFor="eq-slot-key">{t('items.slotKey')} {!editing && <span className="text-destructive">*</span>}</Label>
             <div className="flex gap-1">
               <Input
                 id="eq-slot-key"
@@ -1564,7 +1569,7 @@ function EquipmentSlotSheet({
                   variant={autoSlug ? "default" : "outline"}
                   size="icon"
                   className="h-10 w-10 shrink-0"
-                  title={autoSlug ? "Auto-slug enabled — click to disable" : "Auto-slug disabled — click to enable"}
+                  title={autoSlug ? t('items.autoSlugEnabledClick') : t('items.autoSlugDisabledClick')}
                   onClick={() => setAutoSlug((v) => !v)}
                   disabled={saving}
                 >
@@ -1573,14 +1578,14 @@ function EquipmentSlotSheet({
               )}
             </div>
             {editing
-              ? <p className="text-xs text-muted-foreground">Slot key cannot be changed after creation.</p>
+              ? <p className="text-xs text-muted-foreground">{t('items.slotKeyImmutable')}</p>
               : <p className="text-xs text-muted-foreground">{autoSlug ? "Auto-generated from name." : "Manual input."}</p>
             }
           </div>
 
           {/* Description */}
           <div className="space-y-1">
-            <Label htmlFor="eq-desc">Description</Label>
+            <Label htmlFor="eq-desc">{t('items.description')}</Label>
             <Input
               id="eq-desc"
               placeholder="e.g. Head armour slot."
@@ -1592,7 +1597,7 @@ function EquipmentSlotSheet({
 
           {/* Allowed Categories */}
           <div className="space-y-1">
-            <Label>Allowed Categories</Label>
+            <Label>{t('items.allowedCategories')}</Label>
             <Popover open={catOpen} onOpenChange={setCatOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -1638,7 +1643,7 @@ function EquipmentSlotSheet({
                     onValueChange={setCatSearch}
                   />
                   <CommandList>
-                    <CommandEmpty>No category found.</CommandEmpty>
+                    <CommandEmpty>{t('items.noCategoryFound')}</CommandEmpty>
                     <CommandGroup>
                       {allCategories
                         .filter((c) => !catSearch || c.toLowerCase().includes(catSearch.toLowerCase()))
@@ -1671,7 +1676,7 @@ function EquipmentSlotSheet({
 
           {/* Allowed Item Definitions */}
           <div className="space-y-1">
-            <Label>Allowed Item Definitions</Label>
+            <Label>{t('items.allowedItems')}</Label>
             <Popover open={itemDefOpen} onOpenChange={setItemDefOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -1721,7 +1726,7 @@ function EquipmentSlotSheet({
                     onValueChange={handleItemDefSearch}
                   />
                   <CommandList>
-                    <CommandEmpty>{itemDefLoading ? "Loading…" : "No items found."}</CommandEmpty>
+                    <CommandEmpty>{itemDefLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
                     <CommandGroup>
                       {itemDefResults.map((def) => {
                         const selected = form.allowed_item_definition_ids.includes(def.id)
@@ -1762,18 +1767,18 @@ function EquipmentSlotSheet({
                 onCheckedChange={(v) => patch("is_active", v)}
                 disabled={saving}
               />
-              <Label htmlFor="eq-active">Active</Label>
+              <Label htmlFor="eq-active">{t('common.active')}</Label>
             </div>
           )}
 
           {/* Metadata */}
-          <KVEditor entries={form.meta} onChange={(v) => patch("meta", v)} label="Metadata (e.g. icon = slot_helmet)" />
+          <KVEditor entries={form.meta} onChange={(v) => patch("meta", v)} label={t('items.metadataLabel')} />
         </div>
 
         <SheetFooter className="pt-4">
-          <Button variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
+          <Button variant="outline" disabled={saving} onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{editing ? "Saving…" : "Creating…"}</> : editing ? "Save Changes" : "Create Slot"}
+            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{editing ? t('items.saving') : t('items.creating')}</> : editing ? t('items.saveChanges') : t('items.createSlot')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -1801,6 +1806,7 @@ function EquipmentsTab({
   setError: (v: string | null) => void
   activeTab: string
 }) {
+  const { t } = useTranslation()
   const [expandedSlotKey, setExpandedSlotKey] = useState<string | null>(null)
   const [detailCache, setDetailCache] = useState<Record<string, EquipmentSlot>>({})
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
@@ -1941,7 +1947,7 @@ function EquipmentsTab({
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading equipment slots…</span>
+        <span className="ml-2 text-sm text-muted-foreground">{t('items.loadingEquipmentSlots')}</span>
       </div>
     )
   }
@@ -1953,7 +1959,7 @@ function EquipmentsTab({
       </Button>
       <Button size="sm" className="h-8" onClick={openCreate}>
         <Plus className="h-4 w-4 mr-1" />
-        New Slot
+        {t('items.newEquipmentSlot')}
       </Button>
     </div>
   )
@@ -1973,7 +1979,7 @@ function EquipmentsTab({
       <div className="space-y-4">
         <div className="flex justify-end">{headerActions}</div>
         <div className="text-center py-12 text-sm text-muted-foreground">
-          No active equipment slots found.
+          {t('items.noActiveSlots')}
         </div>
         <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
       </div>
@@ -1984,7 +1990,7 @@ function EquipmentsTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Equipment Slots</h2>
+          <h2 className="text-lg font-semibold">{t('items.equipmentSlotsTitle')}</h2>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <span className={slots.length >= 5000 ? "text-destructive font-medium" : ""}>
               {slots.length} / 5000
@@ -2130,12 +2136,12 @@ function EquipmentsTab({
                 {/* toolbar */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(-0.1)} disabled={gridZoom <= 0.4} title="Zoom out">
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(-0.1)} disabled={gridZoom <= 0.4} title={t('items.zoomOut')}>
                       <ZoomOut className="h-3.5 w-3.5" />
                     </Button>
                     <button
                       className="text-xs tabular-nums w-11 text-center text-muted-foreground hover:text-foreground transition-colors"
-                      title="Reset zoom"
+                      title={t('items.resetZoom')}
                       onClick={() => {
                         setGridZoom(1)
                         try { localStorage.setItem(`eq-slots-zoom-${gameId}`, "1") } catch {}
@@ -2143,7 +2149,7 @@ function EquipmentsTab({
                     >
                       {Math.round(gridZoom * 100)}%
                     </button>
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(0.1)} disabled={gridZoom >= 2} title="Zoom in">
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => changeZoom(0.1)} disabled={gridZoom >= 2} title={t('items.zoomIn')}>
                       <ZoomIn className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -2170,7 +2176,7 @@ function EquipmentsTab({
                       try { localStorage.setItem(`eq-slots-pos-${gameId}`, JSON.stringify(reset)) } catch {}
                     }}
                   >
-                    Reset Positions
+                    {t('items.resetPositions')}
                   </Button>
                 </div>
 
@@ -2298,12 +2304,12 @@ function EquipmentsTab({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-6" />
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slot Key</TableHead>
-                    <TableHead>Allowed Categories</TableHead>
-                    <TableHead>Allowed Items</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('items.name')}</TableHead>
+                    <TableHead>{t('items.slotKeyHeader')}</TableHead>
+                    <TableHead>{t('items.allowedCategoriesHeader')}</TableHead>
+                    <TableHead>{t('items.allowedItemsHeader')}</TableHead>
+                    <TableHead>{t('items.status')}</TableHead>
+                    <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2351,9 +2357,9 @@ function EquipmentsTab({
                           </TableCell>
                           <TableCell>
                             {slot.is_active ? (
-                              <span className="text-green-500 text-sm font-medium">Active</span>
+                              <span className="text-green-500 text-sm font-medium">{t('common.active')}</span>
                             ) : (
-                              <span className="text-muted-foreground text-sm">Inactive</span>
+                              <span className="text-muted-foreground text-sm">{t('common.inactive')}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -2415,9 +2421,9 @@ function EquipmentsTab({
                                     {/* Core info grid */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
                                       <div>
-                                        <span className="text-muted-foreground">Status: </span>
+                                        <span className="text-muted-foreground">{t('items.status')}: </span>
                                         <span className={detail.is_active ? "text-green-500 font-medium" : "font-medium"}>
-                                          {detail.is_active ? "Active" : "Inactive"}
+                                          {detail.is_active ? t('common.active') : t('common.inactive')}
                                         </span>
                                       </div>
                                       <div className="col-span-2">
@@ -2428,7 +2434,7 @@ function EquipmentsTab({
 
                                     {/* Allowed Categories */}
                                     <div className="space-y-1">
-                                      <p className="text-xs font-semibold text-foreground">Allowed Categories</p>
+                                      <p className="text-xs font-semibold text-foreground">{t('items.allowedCategories')}</p>
                                       {detail.allowed_categories && detail.allowed_categories.length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5">
                                           {detail.allowed_categories.map((cat) => (
@@ -2442,7 +2448,7 @@ function EquipmentsTab({
 
                                     {/* Allowed Item Definition IDs */}
                                     <div className="space-y-1">
-                                      <p className="text-xs font-semibold text-foreground">Allowed Item Definitions</p>
+                                      <p className="text-xs font-semibold text-foreground">{t('items.allowedItems')}</p>
                                       {detail.allowed_item_definition_ids && detail.allowed_item_definition_ids.length > 0 ? (
                                         <div className="flex flex-col gap-1">
                                           {detail.allowed_item_definition_ids.map((id) => {
@@ -2475,7 +2481,7 @@ function EquipmentsTab({
                                     {/* Metadata */}
                                     {detail.metadata && Object.keys(detail.metadata).length > 0 && (
                                       <div className="space-y-1">
-                                        <p className="text-xs font-semibold text-foreground">Metadata</p>
+                                        <p className="text-xs font-semibold text-foreground">{t('items.metadata')}</p>
                                         <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[200px] whitespace-pre-wrap">
                                           {JSON.stringify(detail.metadata, null, 2)}
                                         </pre>
@@ -2514,20 +2520,20 @@ function EquipmentsTab({
       <AlertDialog open={!!pendingDeleteSlot} onOpenChange={(o) => { if (!o && !deleteSlotLoading) setPendingDeleteSlot(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete slot "{pendingDeleteSlot}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t('items.deleteSlot')} "{pendingDeleteSlot}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the equipment slot configuration. This action cannot be undone.
+              {t('items.deleteSlotDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteSlotLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteSlotLoading}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={confirmDeleteSlot}
               disabled={deleteSlotLoading}
             >
               {deleteSlotLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2557,6 +2563,7 @@ function TagsTab({
   activeTab: string
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingTag, setEditingTag] = useState<ItemTag | null>(null)
   const [deletingTag, setDeletingTag] = useState<ItemTag | null>(null)
@@ -2615,13 +2622,13 @@ function TagsTab({
 
     if (!editingTag) {
       const key = form.tag_key
-      if (form.label.trim().length > 20) { setFormErr("Label must be at most 20 characters."); return }
-      if (key.length < 2) { setFormErr("Tag key must be at least 2 characters."); return }
-      if (key.length > 20) { setFormErr("Tag key must be at most 20 characters."); return }
+      if (form.label.trim().length > 20) { setFormErr(t('items.tagLabelTooLong')); return }
+      if (key.length < 2) { setFormErr(t('items.tagKeyTooShort')); return }
+      if (key.length > 20) { setFormErr(t('items.tagKeyTooLong')); return }
       if (!/^[a-z0-9][a-z0-9\-]*[a-z0-9]$/.test(key)) {
-        setFormErr("Tag key must start and end with a letter or number, and contain only lowercase letters, numbers, or hyphens (-)."); return
+        setFormErr(t('items.tagKeyInvalid')); return
       }
-      if (tags.length >= 50) { setFormErr("Maximum 50 tags per game reached."); return }
+      if (tags.length >= 50) { setFormErr(t('items.tagMaxReached')); return }
     }
 
     let parsedMeta: Record<string, unknown> = {}
@@ -2640,7 +2647,7 @@ function TagsTab({
           metadata: parsedMeta,
         })
         setTags(tags.map((t) => (t.id === updated.id ? updated : t)))
-        toast({ title: "Tag updated" })
+        toast({ title: t('items.tagUpdated') })
       } else {
         const created = await createItemTag({ gameId }, {
           tag_key: form.tag_key,
@@ -2649,7 +2656,7 @@ function TagsTab({
           metadata: parsedMeta,
         })
         setTags([...tags, created])
-        toast({ title: "Tag created" })
+        toast({ title: t('items.tagCreated') })
       }
       setSheetOpen(false)
     } catch (err: unknown) {
@@ -2666,11 +2673,11 @@ function TagsTab({
     try {
       await deleteItemTag({ gameId }, deletingTag.id)
       setTags(tags.filter((t) => t.id !== deletingTag.id))
-      toast({ title: "Tag deleted" })
+      toast({ title: t('items.tagDeleted') })
       setDeletingTag(null)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete tag"
-      toast({ title: "Error", description: msg, variant: "destructive" })
+      const msg = err instanceof Error ? err.message : t('items.failedToDelete')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
     } finally {
       setDeleteLoading(false)
     }
@@ -2689,11 +2696,11 @@ function TagsTab({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold">Item Tags</h2>
+          <h2 className="text-lg font-semibold">{t('items.itemTagsTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             {tags.length > 0
               ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 tags defined</span></>
-              : "No tags yet — max 50 per game"}
+              : t('items.noTagsYet')}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -2701,7 +2708,7 @@ function TagsTab({
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <input
               type="text"
-              placeholder="Search tags…"
+              placeholder={t('items.searchTagsPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 w-44 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
@@ -2719,7 +2726,7 @@ function TagsTab({
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate} disabled={tags.length >= 50}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> New Tag
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
           </Button>
         </div>
       </div>
@@ -2745,11 +2752,11 @@ function TagsTab({
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
           <Tag className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
-            {search ? "No tags match your search." : "No tags yet. Create your first tag."}
+            {search ? t('items.noTagsMatchSearch') : t('items.noTagsCreate')}
           </p>
           {!search && (
             <Button size="sm" onClick={openCreate}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> New Tag
+              <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
             </Button>
           )}
         </div>
@@ -2813,21 +2820,21 @@ function TagsTab({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{editingTag ? "Edit Tag" : "Create Tag"}</SheetTitle>
+            <SheetTitle>{editingTag ? t('items.editTag') : t('items.createTag')}</SheetTitle>
             <SheetDescription>
-              {editingTag ? `Editing "${editingTag.label}"` : "Define a new item tag for this game."}
+              {editingTag ? `Editing "${editingTag.label}"` : t('items.createTagDesc')}
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSave} className="space-y-4 mt-4">
             {/* Tag Key Rules info */}
             <div className="rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
-              <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3" /> Tag Key Rules</p>
+              <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3" /> {t('items.tagKeyRules')}</p>
               <ul className="space-y-0.5 pl-1">
                 <li>• Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
                 <li>• Lowercase letters, numbers and hyphens only — no spaces</li>
                 <li>• Must start and end with a letter or number</li>
                 <li>• Length: 2–20 characters</li>
-                <li>• <span className="text-amber-500 font-medium">Immutable</span> after creation — rename via the <em>Label</em> field</li>
+                <li>• <span className="text-amber-500 font-medium">{t('items.tagImmutableNote')}</span></li>
                 <li>• Max <span className="font-medium">50 tags</span> per game · max <span className="font-medium">20 tags</span> per item</li>
               </ul>
             </div>
@@ -2930,10 +2937,10 @@ function TagsTab({
             <SheetFooter className="gap-2 flex-wrap">
               <Button type="submit" disabled={saving}>
                 {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                {editingTag ? "Save changes" : "Create tag"}
+                {editingTag ? t('items.saveChanges') : t('items.createTag')}
               </Button>
               <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </SheetFooter>
           </form>
@@ -2944,21 +2951,20 @@ function TagsTab({
       <AlertDialog open={!!deletingTag} onOpenChange={(open) => { if (!open) setDeletingTag(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete tag "{deletingTag?.label}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t('items.deleteTag')} "{deletingTag?.label}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the tag. Items currently using this tag will lose it.
-              This action cannot be undone.
+              {t('items.deleteTagDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteLoading}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteLoading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteLoading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2991,6 +2997,7 @@ function GeneratorTab({
   activeTab: string
   onAddGenerator: () => void
 }) {
+  const { t } = useTranslation()
   const [poolNames, setPoolNames] = useState<Record<string, string>>({})
 
   // Fetch generators
@@ -3033,7 +3040,7 @@ function GeneratorTab({
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading generators…</span>
+        <span className="ml-2 text-sm text-muted-foreground">{t('items.loadingGenerators')}</span>
       </div>
     )
   }
@@ -3047,7 +3054,7 @@ function GeneratorTab({
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
             <Plus className="h-4 w-4 mr-1" />
-            Add Generator
+            {t('items.addGenerator')}
           </Button>
         </div>
         <div className="text-center py-12 text-sm text-destructive">{generatorError}</div>
@@ -3064,11 +3071,11 @@ function GeneratorTab({
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
             <Plus className="h-4 w-4 mr-1" />
-            Add Generator
+            {t('items.addGenerator')}
           </Button>
         </div>
         <div className="text-center py-12 text-sm text-muted-foreground">
-          No generator items found. Click "Add Generator" to create one.
+          {t('items.noGeneratorItems')}
         </div>
       </div>
     )
@@ -3078,7 +3085,7 @@ function GeneratorTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Generators</h2>
+          <h2 className="text-lg font-semibold">{t('items.generatorsTitle')}</h2>
           <p className="text-sm text-muted-foreground">{generatorItems.length} generator{generatorItems.length !== 1 ? "s" : ""} defined</p>
         </div>
         <div className="flex items-center gap-2">
@@ -3087,7 +3094,7 @@ function GeneratorTab({
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
             <Plus className="h-4 w-4 mr-1" />
-            Add Generator
+            {t('items.addGenerator')}
           </Button>
         </div>
       </div>
@@ -3195,6 +3202,7 @@ export default function GameItemsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const gameId = params.id
 
   const [gameName, setGameName] = useState("")
@@ -3432,9 +3440,9 @@ export default function GameItemsPage() {
           item.id === itemId ? { ...item, ...updated.item } : item
         )
       )
-      toast({ title: "Item updated" })
+      toast({ title: t('items.itemUpdated') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to update item", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: t('items.failedToUpdateItem'), description: err?.message ?? "Unknown error" })
     } finally {
       setUpdatingItemId(null)
     }
@@ -3472,17 +3480,17 @@ export default function GameItemsPage() {
     setDeleteContainerLoading(true)
     try {
       await deleteContainerDefinition({ gameId }, deletingContainer.id)
-      toast({ title: "Container definition deleted" })
+      toast({ title: t('items.containerDeleted') })
       setDeletingContainer(null)
       fetchContainerDefs()
       loadGameInfo()
     } catch (err: any) {
       if (err?.status === 403) {
-        toast({ variant: "destructive", title: "Cannot delete", description: "System inventory containers cannot be deleted." })
+        toast({ variant: "destructive", title: t('items.cannotDelete'), description: t('items.systemContainerCannotDelete') })
       } else if (err?.status === 409) {
-        toast({ variant: "destructive", title: "Cannot delete", description: "Active containers still reference this definition." })
+        toast({ variant: "destructive", title: t('items.cannotDelete'), description: t('items.containerHasActiveRefs') })
       } else {
-        toast({ variant: "destructive", title: "Failed to delete", description: err?.message ?? "Unknown error" })
+        toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message ?? "Unknown error" })
       }
     } finally {
       setDeleteContainerLoading(false)
@@ -3604,7 +3612,7 @@ export default function GameItemsPage() {
   }
 
   async function handleGachaSave() {
-    if (!gachaForm.name.trim()) { toast({ variant: "destructive", title: "Name is required" }); return }
+    if (!gachaForm.name.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
     const item_pool: GachaPoolEntry[] = gachaForm.pool
       .filter((r) => r.item_definition_id.trim())
       .map((r) => ({
@@ -3630,7 +3638,7 @@ export default function GameItemsPage() {
           key_requirements,
         })
         setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
-        toast({ title: "Pack updated" })
+        toast({ title: t('items.packUpdated') })
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),
@@ -3639,12 +3647,12 @@ export default function GameItemsPage() {
           key_requirements,
         })
         setGachaPacks((prev) => [res.pack, ...prev])
-        toast({ title: "Pack created" })
+        toast({ title: t('items.packCreated') })
         loadGameInfo()
       }
       gachaCloseSheet()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Save failed", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? "Unknown error" })
     } finally {
       setFormSaving(false)
     }
@@ -3656,7 +3664,7 @@ export default function GameItemsPage() {
       const res = await setGachaPackEnabled({ gameId }, pack.id, !pack.is_enabled)
       setGachaPacks((prev) => prev.map((p) => p.id === pack.id ? { ...p, is_enabled: res.is_enabled } : p))
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to toggle pack", description: err?.message })
+      toast({ variant: "destructive", title: t('items.failedToTogglePack'), description: err?.message })
     } finally {
       setTogglingId(null)
     }
@@ -3668,11 +3676,11 @@ export default function GameItemsPage() {
     try {
       await deleteGachaPack({ gameId }, deletingPack.id)
       setGachaPacks((prev) => prev.filter((p) => p.id !== deletingPack.id))
-      toast({ title: "Pack deleted" })
+      toast({ title: t('items.packDeleted') })
       setDeletingPack(null)
       loadGameInfo()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Delete failed", description: err?.message })
+      toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message })
     } finally {
       setDeletePackLoading(false)
     }
@@ -3753,7 +3761,7 @@ export default function GameItemsPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Item Catalogue
+              {t('items.itemCatalogue')}
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               {maxItems != null
@@ -3793,14 +3801,14 @@ export default function GameItemsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="catalogue">Items</TabsTrigger>
-            <TabsTrigger value="tags">Tags</TabsTrigger>
-            <TabsTrigger value="containers">Containers</TabsTrigger>
-            <TabsTrigger value="gacha">Gacha</TabsTrigger>
-            <TabsTrigger value="generators">Generators</TabsTrigger>
-            <TabsTrigger value="equipments">Equipments</TabsTrigger>
-            <TabsTrigger value="preset">Preset</TabsTrigger>
-            <TabsTrigger value="crafting">Crafting</TabsTrigger>
+            <TabsTrigger value="catalogue">{t('items.tabItems')}</TabsTrigger>
+            <TabsTrigger value="tags">{t('items.tabTags')}</TabsTrigger>
+            <TabsTrigger value="containers">{t('items.tabContainers')}</TabsTrigger>
+            <TabsTrigger value="gacha">{t('items.tabGacha')}</TabsTrigger>
+            <TabsTrigger value="generators">{t('items.tabGenerators')}</TabsTrigger>
+            <TabsTrigger value="equipments">{t('items.tabEquipmentSlots')}</TabsTrigger>
+            <TabsTrigger value="preset">{t('items.tabPreset')}</TabsTrigger>
+            <TabsTrigger value="crafting">{t('items.tabCrafting')}</TabsTrigger>
           </TabsList>
 
         <TabsContent value="crafting" className="space-y-4">
@@ -3811,9 +3819,9 @@ export default function GameItemsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold">Item Definitions</h2>
+              <h2 className="text-lg font-semibold">{t('items.itemDefinitions')}</h2>
               <p className="text-sm text-muted-foreground">
-                {total > 0 ? `${total.toLocaleString()} item${total !== 1 ? "s" : ""} defined` : "No items yet"}
+                {total > 0 ? `${total.toLocaleString()} item${total !== 1 ? "s" : ""} defined` : t('items.noItemsYet')}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -3929,7 +3937,7 @@ export default function GameItemsPage() {
               </Button>
               <Button size="sm" className="h-8" onClick={() => setShowCreate(true)} disabled={!studioId}>
                 <Plus className="h-4 w-4 mr-1" />
-                New Item
+                {t('items.newItem')}
               </Button>
             </div>
           </div>
@@ -3959,13 +3967,13 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Item Code</TableHead>
-                      <TableHead className="text-center">Category</TableHead>
-                      <TableHead className="text-center">Rarity</TableHead>
+                      <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.itemCode')}</TableHead>
+                      <TableHead className="text-center">{t('items.category')}</TableHead>
+                      <TableHead className="text-center">{t('items.rarity')}</TableHead>
                       <TableHead className="text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <span>Write Props</span>
+                          <span>{t('items.writePropsHeader')}</span>
                           <button
                             type="button"
                             className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -3983,7 +3991,7 @@ export default function GameItemsPage() {
                       </TableHead>
                       <TableHead className="text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <span>Update Qty</span>
+                          <span>{t('items.updateQtyHeader')}</span>
                           <button
                             type="button"
                             className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -3999,9 +4007,9 @@ export default function GameItemsPage() {
                           </button>
                         </div>
                       </TableHead>
-                      <TableHead className="text-center">Stackable</TableHead>
-                      <TableHead className="text-center">Grid</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-center">{t('items.stackable')}</TableHead>
+                      <TableHead className="text-center">{t('items.gridHeader')}</TableHead>
+                      <TableHead className="text-center">{t('items.actionsHeader')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -4116,7 +4124,7 @@ export default function GameItemsPage() {
                   disabled={offset === 0}
                   onClick={() => setOffset(Math.max(0, offset - LIMIT))}
                 >
-                  Previous
+                  {t('common.previous')}
                 </Button>
                 <Button
                   variant="outline"
@@ -4124,7 +4132,7 @@ export default function GameItemsPage() {
                   disabled={offset + LIMIT >= total}
                   onClick={() => setOffset(offset + LIMIT)}
                 >
-                  Next
+                  {t('common.next')}
                 </Button>
               </div>
             </div>
@@ -4135,7 +4143,7 @@ export default function GameItemsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold">Container Definitions</h2>
+              <h2 className="text-lg font-semibold">{t('items.containerDefinitions')}</h2>
               <p className="text-sm text-muted-foreground">
                 {containerTotal > 0
                   ? `${containerSearchDebounced ? `${filteredContainerDefs.length} of ` : ""}${containerTotal} definition${containerTotal !== 1 ? "s" : ""}`
@@ -4166,7 +4174,7 @@ export default function GameItemsPage() {
               </Button>
               <Button onClick={() => setShowCreateContainer(true)} disabled={!studioId}>
                 <Plus className="h-4 w-4 mr-2" />
-                New Container
+                {t('items.newContainer')}
               </Button>
             </div>
           </div>
@@ -4186,7 +4194,7 @@ export default function GameItemsPage() {
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">
-                    {containerSearchDebounced ? "No matching containers" : "No container definitions"}
+                    {containerSearchDebounced ? t('items.noMatchingContainers') : t('items.noContainerDefs')}
                   </p>
                   <p className="text-sm mt-1">
                     {containerSearchDebounced
@@ -4198,13 +4206,13 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Grid</TableHead>
-                      <TableHead>Portable</TableHead>
-                      <TableHead>Linked Item</TableHead>
-                      <TableHead>Metadata</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.type')}</TableHead>
+                      <TableHead>{t('items.grid')}</TableHead>
+                      <TableHead>{t('items.portable')}</TableHead>
+                      <TableHead>{t('items.linkedItemDefinition')}</TableHead>
+                      <TableHead>{t('items.metadata')}</TableHead>
+                      <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -4228,9 +4236,9 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell>
                           {def.is_portable ? (
-                            <span className="text-green-500 text-sm font-medium">✓ Portable</span>
+                            <span className="text-green-500 text-sm font-medium">✓ {t('items.portable')}</span>
                           ) : (
-                            <span className="text-muted-foreground text-sm">✗ Fixed</span>
+                            <span className="text-muted-foreground text-sm">✗ {t('items.fixed')}</span>
                           )}
                         </TableCell>
                         <TableCell className="text-sm max-w-[180px]">
@@ -4296,7 +4304,7 @@ export default function GameItemsPage() {
                   disabled={containerOffset === 0}
                   onClick={() => setContainerOffset(Math.max(0, containerOffset - CONTAINER_LIMIT))}
                 >
-                  Previous
+                  {t('common.previous')}
                 </Button>
                 <Button
                   variant="outline"
@@ -4304,7 +4312,7 @@ export default function GameItemsPage() {
                   disabled={containerOffset + CONTAINER_LIMIT >= containerTotal}
                   onClick={() => setContainerOffset(containerOffset + CONTAINER_LIMIT)}
                 >
-                  Next
+                  {t('common.next')}
                 </Button>
               </div>
             </div>
@@ -4315,7 +4323,7 @@ export default function GameItemsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold">Gacha Packs</h2>
+              <h2 className="text-lg font-semibold">{t('items.gachaPacksTitle')}</h2>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 {gameLimits?.max_gacha_packs != null
                   ? <>
@@ -4352,7 +4360,7 @@ export default function GameItemsPage() {
                 disabled={!!(gameLimits?.max_gacha_packs != null && gachaPacks.length >= gameLimits.max_gacha_packs)}
               >
                 <Plus className="h-4 w-4 mr-1.5" />
-                New Pack
+                {t('items.newGachaPack')}
               </Button>
             </div>
           </div>
@@ -4370,8 +4378,8 @@ export default function GameItemsPage() {
             <Card className="border-dashed">
               <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
                 <Dices className="h-10 w-10 text-muted-foreground/40" />
-                <p className="text-muted-foreground">No gacha packs yet</p>
-                <Button onClick={gachaOpenCreate}><Plus className="h-4 w-4 mr-2" />Create first pack</Button>
+                <p className="text-muted-foreground">{t('items.noGachaPacks')}</p>
+                <Button onClick={gachaOpenCreate}><Plus className="h-4 w-4 mr-2" />{t('items.createFirstPack')}</Button>
               </CardContent>
             </Card>
           ) : (
@@ -4398,7 +4406,7 @@ export default function GameItemsPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <CardTitle className="text-base truncate">{pack.name}</CardTitle>
                               <Badge variant={pack.is_enabled ? "default" : "secondary"} className="text-xs shrink-0">
-                                {pack.is_enabled ? "Enabled" : "Disabled"}
+                                {pack.is_enabled ? t('items.enabled') : t('items.disabled')}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
@@ -4614,7 +4622,7 @@ export default function GameItemsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold">Preset Definitions</h2>
+              <h2 className="text-lg font-semibold">{t('items.presetsTitle')}</h2>
               {(() => {
                 const used = presetDefs.length
                 const max = 500
@@ -4664,7 +4672,7 @@ export default function GameItemsPage() {
               </Button>
               <Button onClick={() => setShowCreatePreset(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                New Preset
+                {t('items.newPresetDefinition')}
               </Button>
             </div>
           </div>
@@ -4684,7 +4692,7 @@ export default function GameItemsPage() {
                 <div className="p-12 text-center text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-30" />
                   <p className="text-lg font-medium">
-                    {presetSearchDebounced ? "No matching presets" : "No preset definitions"}
+                    {presetSearchDebounced ? t('items.noMatchingPresets') : t('items.noPresetDefs')}
                   </p>
                   <p className="text-sm mt-1">
                     {presetSearchDebounced
@@ -4696,11 +4704,11 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Preset Type</TableHead>
-                      <TableHead>Max Slots</TableHead>
-                      <TableHead>Metadata</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.presetType')}</TableHead>
+                      <TableHead>{t('items.maxSlots')}</TableHead>
+                      <TableHead>{t('items.metadata')}</TableHead>
+                      <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -4800,26 +4808,26 @@ export default function GameItemsPage() {
         <Dialog open={!!deletingContainer} onOpenChange={(v) => { if (!v) setDeletingContainer(null) }}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Delete Container Definition</DialogTitle>
+              <DialogTitle>{t('items.deleteContainerTitle')}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete{" "}
+              {t('items.deleteContainerConfirm')}{" "}
               <span className="font-semibold text-foreground">"{deletingContainer.name}"</span>?
-              This action cannot be undone.
+              {t('items.cannotUndone')}
             </p>
             {deletingContainer.container_type === 'inventory' && (
-              <p className="text-xs text-destructive mt-1">System inventory types cannot be deleted.</p>
+              <p className="text-xs text-destructive mt-1">{t('items.systemContainerCannotDelete')}</p>
             )}
             <DialogFooter>
               <DialogClose asChild>
-                <Button variant="outline" disabled={deleteContainerLoading}>Cancel</Button>
+                <Button variant="outline" disabled={deleteContainerLoading}>{t('common.cancel')}</Button>
               </DialogClose>
               <Button
                 variant="destructive"
                 onClick={handleDeleteContainer}
                 disabled={deleteContainerLoading || deletingContainer.container_type === 'inventory'}
               >
-                {deleteContainerLoading ? "Deleting…" : "Delete"}
+                {deleteContainerLoading ? t('items.deleting') : t('common.delete')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -4830,7 +4838,7 @@ export default function GameItemsPage() {
       <Sheet open={gachaSheetOpen} onOpenChange={(open) => { if (!open) gachaCloseSheet() }}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader className="mb-4">
-            <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : "New Gacha Pack"}</SheetTitle>
+            <SheetTitle>{editingPack ? `Edit: ${editingPack.name}` : t('items.newGachaPack')}</SheetTitle>
             <SheetDescription className="text-xs">
               Configure pack name, key requirements (items consumed on open), and item drop pool weights.
             </SheetDescription>
@@ -4883,7 +4891,7 @@ export default function GameItemsPage() {
           <div className="space-y-5">
             {/* Name */}
             <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="Standard Pack"
                 value={gachaForm.name}
@@ -4977,7 +4985,7 @@ export default function GameItemsPage() {
                 onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))}
                 disabled={formSaving}
               />
-              <Label htmlFor="gacha-enabled" className="cursor-pointer">Enabled</Label>
+              <Label htmlFor="gacha-enabled" className="cursor-pointer">{t('items.enabled')}</Label>
               <span className="text-xs text-muted-foreground">Players can open this pack when enabled.</span>
             </div>
 
@@ -5096,11 +5104,11 @@ export default function GameItemsPage() {
 
           <div className="flex items-center justify-end gap-2 pt-6 mt-4 border-t">
             <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleGachaSave} disabled={formSaving}>
               {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {editingPack ? "Save changes" : "Create pack"}
+              {editingPack ? t('items.saveChanges') : t('items.createPack')}
             </Button>
           </div>
         </SheetContent>
@@ -5110,21 +5118,20 @@ export default function GameItemsPage() {
       <AlertDialog open={!!deletingPack} onOpenChange={(o) => { if (!o) setDeletingPack(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete pack "{deletingPack?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t('items.deletePack')} "{deletingPack?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the gacha pack configuration. Historical transaction records
-              are not affected. This action cannot be undone.
+              {t('items.deletePackDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePackLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletePackLoading}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={handleGachaDelete}
               disabled={deletePackLoading}
             >
               {deletePackLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -5153,13 +5160,13 @@ export default function GameItemsPage() {
       <AlertDialog open={!!deletingPreset} onOpenChange={(o) => { if (!o) setDeletingPreset(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete preset "{deletingPreset?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t('items.deletePreset')} "{deletingPreset?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the preset definition. This action cannot be undone.
+              {t('items.deletePresetDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePresetLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletePresetLoading}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={async () => {
@@ -5167,14 +5174,14 @@ export default function GameItemsPage() {
                 setDeletePresetLoading(true)
                 try {
                   await deletePresetDefinition({ gameId }, deletingPreset.id)
-                  toast({ title: "Preset definition deleted" })
+                  toast({ title: t('items.presetDeleted') })
                   setDeletingPreset(null)
                   fetchPresetDefs()
                 } catch (err: any) {
                   if (err?.status === 403) {
-                    toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to delete preset definitions." })
+                    toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionDeletePreset') })
                   } else {
-                    toast({ variant: "destructive", title: "Failed to delete", description: err?.message ?? "Unknown error" })
+                    toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message ?? "Unknown error" })
                   }
                 } finally {
                   setDeletePresetLoading(false)
@@ -5183,7 +5190,7 @@ export default function GameItemsPage() {
               disabled={deletePresetLoading}
             >
               {deletePresetLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -5273,7 +5280,7 @@ export default function GameItemsPage() {
           </div>
 
           <SheetFooter className="pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>{t('common.close')}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -5294,6 +5301,7 @@ function CreatePresetDefinitionSheet({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState("")
@@ -5311,10 +5319,10 @@ function CreatePresetDefinitionSheet({
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
-    if (!containerType.trim()) e.containerType = "Container type is required"
+    if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
+    if (!containerType.trim()) e.containerType = t('items.containerTypeRequired')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = "Max slots must be a positive number"
+    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -5332,15 +5340,15 @@ function CreatePresetDefinitionSheet({
         metadata,
       }
       await createPresetDefinition({ gameId }, body)
-      toast({ title: "Preset definition created", description: `"${name.trim()}" added.` })
+      toast({ title: t('items.presetCreated'), description: `"${name.trim()}" added.` })
       resetForm()
       onCreated()
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
-        toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to create preset definitions." })
+        toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionCreatePreset') })
       } else {
-        toast({ variant: "destructive", title: "Failed to create", description: err?.message ?? "Unknown error" })
+        toast({ variant: "destructive", title: t('items.failedToCreate'), description: err?.message ?? "Unknown error" })
       }
     } finally {
       setLoading(false)
@@ -5351,33 +5359,33 @@ function CreatePresetDefinitionSheet({
     <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>New Preset Definition</SheetTitle>
+          <SheetTitle>{t('items.newPresetDefinition')}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
-            <Label htmlFor="pd-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="pd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input id="pd-name" placeholder="e.g. Standard Deck" value={name} onChange={(e) => setName(e.target.value)} />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
           <div className="space-y-1">
-            <Label htmlFor="pd-type">Preset Type <span className="text-destructive">*</span></Label>
+            <Label htmlFor="pd-type">{t('items.presetType')} <span className="text-destructive">*</span></Label>
             <Input id="pd-type" placeholder="e.g. deck, party" value={containerType} onChange={(e) => setContainerType(e.target.value)} />
             {errors.containerType && <p className="text-xs text-destructive">{errors.containerType}</p>}
           </div>
           <div className="space-y-1">
-            <Label htmlFor="pd-slots">Max Slots <span className="text-destructive">*</span></Label>
+            <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
             <Input id="pd-slots" type="number" min={1} placeholder="e.g. 20" value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label="Metadata (optional)" />
+            <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataOptional')} />
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={() => { resetForm(); onClose() }} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => { resetForm(); onClose() }} disabled={loading}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Create
+            {t('common.submit')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -5400,6 +5408,7 @@ function EditPresetDefinitionSheet({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(definition.name)
   const [maxSlots, setMaxSlots] = useState(String(definition.max_slots))
@@ -5410,9 +5419,9 @@ function EditPresetDefinitionSheet({
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters"
+    if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = "Max slots must be a positive number"
+    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -5429,14 +5438,14 @@ function EditPresetDefinitionSheet({
         metadata,
       }
       await updatePresetDefinition({ gameId }, definition.id, body)
-      toast({ title: "Preset definition updated", description: `"${name.trim()}" saved.` })
+      toast({ title: t('items.presetUpdated'), description: `"${name.trim()}" saved.` })
       onUpdated()
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
-        toast({ variant: "destructive", title: "Permission denied", description: "You do not have permission to update preset definitions." })
+        toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionUpdatePreset') })
       } else {
-        toast({ variant: "destructive", title: "Failed to update", description: err?.message ?? "Unknown error" })
+        toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" })
       }
     } finally {
       setLoading(false)
@@ -5447,34 +5456,34 @@ function EditPresetDefinitionSheet({
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>Edit Preset Definition</SheetTitle>
+          <SheetTitle>{t('items.editPresetDefinition')}</SheetTitle>
           <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
         </SheetHeader>
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
-            <Label htmlFor="epd-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="epd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)} />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
           <div className="space-y-1">
-            <Label>Preset Type</Label>
+            <Label>{t('items.presetType')}</Label>
             <Input value={definition.preset_type} disabled className="opacity-60" />
-            <p className="text-xs text-muted-foreground">Preset type cannot be changed after creation.</p>
+            <p className="text-xs text-muted-foreground">{t('items.presetTypeImmutable')}</p>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="epd-slots">Max Slots <span className="text-destructive">*</span></Label>
+            <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
             <Input id="epd-slots" type="number" min={1} value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label="Metadata (optional)" />
+            <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataOptional')} />
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save changes
+            {t('items.saveChanges')}
           </Button>
         </SheetFooter>
       </SheetContent>

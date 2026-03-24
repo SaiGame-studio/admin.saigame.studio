@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -o \"t\\(''''items\\\\.[^'''']*''''\\)\" app/games/[id]/items/page.tsx)",
+      "Bash(while read:*)",
+      "Bash(do if:*)",
+      "Bash(then echo:*)"
+    ]
+  }
+}
