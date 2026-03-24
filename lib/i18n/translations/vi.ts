@@ -288,6 +288,11 @@ export const vi = {
     tradingDisabled: "Đã tắt giao dịch và hộp thư",
     failedUpdateSettings: "Không thể cập nhật cài đặt",
     entityDefs: "Định nghĩa thực thể",
+    allowTracingPlayerEvent: "Cho phép theo dõi sự kiện người chơi",
+    leaderboardTracing: "Theo dõi bảng xếp hạng",
+    tracingDescPre: "Tự động bật khi plugin ",
+    tracingDescPost: " trở lên được kích hoạt, hoặc được cấp bởi Admin. Không thể thay đổi thủ công.",
+    upgradeThisGame: "Nâng cấp game này",
   },
   userProfiles: {
     title: "Hồ sơ người chơi",

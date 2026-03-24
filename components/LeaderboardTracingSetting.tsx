@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getGame } from "@/lib/game-api"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import type { Game } from "@/types/game"
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  * Automatically enabled when a Rare+ plugin or admin grant is active.
  */
 export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hideDescription }: Props) {
+  const { t } = useTranslation()
   const [game, setGame] = useState<Game | null>(gameProp ?? null)
   const [loading, setLoading] = useState(!gameProp)
 
@@ -50,7 +52,7 @@ export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hid
     }
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Leaderboard tracing</span>
+        <span className="text-xs text-muted-foreground">{t('game.leaderboardTracing')}</span>
         <Switch
           id={`leaderboard-tracing-${gameId}`}
           checked={game?.settings?.leaderboard_tracing ?? false}
@@ -77,7 +79,7 @@ export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hid
     <div className="w-full flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <Label htmlFor={`leaderboard-tracing-${gameId}`} className="text-sm font-medium">
-          Leaderboard tracing
+          {t('game.leaderboardTracing')}
         </Label>
         <Switch
           id={`leaderboard-tracing-${gameId}`}
@@ -87,9 +89,9 @@ export function LeaderboardTracingSetting({ gameId, game: gameProp, compact, hid
       </div>
       {!hideDescription && (
         <p className="text-xs text-muted-foreground">
-          Automatically enabled when a{" "}
-          <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>{" "}
-          plugin or above is activated, or granted by an Admin. Cannot be changed manually.
+          {t('game.tracingDescPre')}
+          <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">Rare</Link>
+          {t('game.tracingDescPost')}
         </p>
       )}
     </div>

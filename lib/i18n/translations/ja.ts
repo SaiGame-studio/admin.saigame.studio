@@ -288,6 +288,11 @@ export const ja = {
     tradingDisabled: "プレイヤー間取引とメールボックスを無効にしました",
     failedUpdateSettings: "設定の更新に失敗しました",
     entityDefs: "エンティティ定義",
+    allowTracingPlayerEvent: "プレイヤーイベントのトレースを許可",
+    leaderboardTracing: "リーダーボードトレース",
+    tracingDescPre: "",
+    tracingDescPost: "以上のプラグインが有効化されると自動的に有効になります。または管理者により付与されます。手動では変更できません。",
+    upgradeThisGame: "このゲームをアップグレード",
   },
   userProfiles: {
     title: "ユーザープロフィール",

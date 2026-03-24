@@ -288,6 +288,11 @@ export const en = {
     tradingDisabled: "Player trading and mailbox disabled",
     failedUpdateSettings: "Failed to update settings",
     entityDefs: "Entity Defs",
+    allowTracingPlayerEvent: "Allow tracing player event",
+    leaderboardTracing: "Leaderboard tracing",
+    tracingDescPre: "Automatically enabled when a ",
+    tracingDescPost: " plugin or above is activated, or granted by an Admin. Cannot be changed manually.",
+    upgradeThisGame: "Upgrade This Game",
   },
   userProfiles: {
     title: "User Profiles",

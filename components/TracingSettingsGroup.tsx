@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
 import { LeaderboardTracingSetting } from "@/components/LeaderboardTracingSetting"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import type { Game } from "@/types/game"
 
 interface Props {
@@ -15,14 +16,15 @@ interface Props {
  * with a single shared description at the top.
  */
 export function TracingSettingsGroup({ gameId, game }: Props) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
-        Automatically enabled when a{" "}
+        {t('game.tracingDescPre')}
         <Link href={`/games/${gameId}/plugins`} className="font-medium text-blue-400 hover:underline">
           Rare
-        </Link>{" "}
-        plugin or above is activated, or granted by an Admin. Cannot be changed manually.
+        </Link>
+        {t('game.tracingDescPost')}
       </p>
       <AllowTracingPlayerEventSetting gameId={gameId} game={game} hideDescription />
       <LeaderboardTracingSetting gameId={gameId} game={game} hideDescription />

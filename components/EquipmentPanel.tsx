@@ -90,7 +90,7 @@ export function EquipmentPanel({ gameId, catalog, gamePlugins }: EquipmentPanelP
       >
         <Link href={`/games/${gameId}/plugins`}>
           <Hammer className="h-4 w-4" />
-          Upgrade This Game
+          {t("game.upgradeThisGame")}
         </Link>
       </Button>
     </div>
