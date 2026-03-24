@@ -781,7 +781,7 @@ export const ja = {
     tryAgain: "再試行",
     noTransactions: "まだ取引がありません。",
     subTabBuyCoin: "Coin購入",
-    subTabUseCoin: "Coin Transactions",
+    subTabUseCoin: "Coin取引",
     typeAdminTopup: "管理者チャージ",
     typeGiftCode: "ギフトコード",
     typePurchase: "購入",
@@ -802,6 +802,22 @@ export const ja = {
     noPackageSelected: "パッケージが選択されていません",
     discountTip: "よりお得な割引を希望ですか？Saiにお問い合わせください。",
     noMethodSelected: "支払い方法が選択されていません",
+
+    // Transaction detail (expanded)
+    detailTransactionId: "取引ID",
+    detailPackage: "パッケージ",
+    detailProvider: "プロバイダー",
+    detailAmount: "金額",
+    detailsCoin: "sCoin",
+    detailStatus: "ステータス",
+    detailCreated: "作成日",
+    detailUpdated: "更新日",
+    detailProviderData: "プロバイダーデータ",
+    detailLoading: "読み込み中…",
+
+    // Misc
+    back: "戻る",
+    save: "お得",
   },
   directTransfer: {
     title: "銀行振込み",

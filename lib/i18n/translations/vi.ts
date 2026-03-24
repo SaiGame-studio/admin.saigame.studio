@@ -792,7 +792,7 @@ export const vi = {
     tryAgain: "Thử lại",
     noTransactions: "Chưa có giao dịch nào.",
     subTabBuyCoin: "Mua Coin",
-    subTabUseCoin: "Coin Transactions",
+    subTabUseCoin: "Giao dịch Coin",
     typeAdminTopup: "Nạp bởi Admin",
     typeGiftCode: "Mã quà tặng",
     typePurchase: "Mua hàng",
@@ -813,6 +813,22 @@ export const vi = {
     noPackageSelected: "Chưa chọn gói",
     discountTip: "Muốn ưu đãi tốt hơn? Liên hệ Sai để được giảm giá riêng.",
     noMethodSelected: "Chưa chọn phương thức thanh toán",
+
+    // Transaction detail (expanded)
+    detailTransactionId: "Mã giao dịch",
+    detailPackage: "Gói",
+    detailProvider: "Nhà cung cấp",
+    detailAmount: "Số tiền",
+    detailsCoin: "sCoin",
+    detailStatus: "Trạng thái",
+    detailCreated: "Ngày tạo",
+    detailUpdated: "Cập nhật",
+    detailProviderData: "Dữ liệu nhà cung cấp",
+    detailLoading: "Đang tải…",
+
+    // Misc
+    back: "Quay lại",
+    save: "TIẾT KIỆM",
   },
   directTransfer: {
     title: "Chuyển khoản trực tiếp",

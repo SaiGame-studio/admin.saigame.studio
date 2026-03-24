@@ -811,6 +811,22 @@ export const en = {
     noPackageSelected: "No package selected",
     discountTip: "Want a better deal? Talk to Sai for exclusive discounts.",
     noMethodSelected: "No payment method selected",
+
+    // Transaction detail (expanded)
+    detailTransactionId: "Transaction ID",
+    detailPackage: "Package",
+    detailProvider: "Provider",
+    detailAmount: "Amount",
+    detailsCoin: "sCoin",
+    detailStatus: "Status",
+    detailCreated: "Created",
+    detailUpdated: "Updated",
+    detailProviderData: "Provider Data",
+    detailLoading: "Loading…",
+
+    // Misc
+    back: "Back",
+    save: "SAVE",
   },
   directTransfer: {
     title: "Direct Transfer",

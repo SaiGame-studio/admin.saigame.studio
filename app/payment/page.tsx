@@ -141,13 +141,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   failed: "destructive",
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  admin_topup: "Admin Top-up",
-  gift_code: "Gift Code",
-  purchase: "Purchase",
-  refund: "Refund",
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     timeZone: getUserTimezone(),
@@ -164,7 +157,7 @@ function formatDate(iso: string) {
 // ---------------------------------------------------------------------------
 export default function PaymentPage() {
   const { toast } = useToast()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeTab = (searchParams.get("txid")
@@ -333,27 +326,27 @@ export default function PaymentPage() {
     setPackagesLoading(true)
     setPackagesError(false)
     try {
-      const data = await api.get("/api/v1/payments/packages")
+      const data = await api.get(`/api/v1/payments/packages?lang=${locale}`)
       setPackages(data.packages ?? [])
     } catch {
       setPackagesError(true)
     } finally {
       setPackagesLoading(false)
     }
-  }, [])
+  }, [locale])
 
   const fetchMethods = useCallback(async () => {
     setMethodsLoading(true)
     setMethodsError(false)
     try {
-      const data = await api.get("/api/v1/payments/methods")
+      const data = await api.get(`/api/v1/payments/methods?lang=${locale}`)
       setMethods((data.methods ?? []).filter((m: PaymentMethod) => m.is_active))
     } catch {
       setMethodsError(true)
     } finally {
       setMethodsLoading(false)
     }
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     fetchPackages()
@@ -387,7 +380,7 @@ export default function PaymentPage() {
       const data = await api.post("/api/v1/coins/redeem", { code: code.trim() })
 
       toast({
-        title: "Gift code redeemed!",
+        title: t('payment.redeemSuccess'),
         description:
           typeof data?.message === "string"
             ? data.message
@@ -415,7 +408,7 @@ export default function PaymentPage() {
         <Button variant="outline" size="icon" asChild>
           <Link href="/">
             <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
+            <span className="sr-only">{t('payment.back')}</span>
           </Link>
         </Button>
         <div>
@@ -532,7 +525,7 @@ export default function PaymentPage() {
                               {pkg.bonus_scoin > 0 && (
                                 <div className={`flex items-center justify-center w-14 h-14 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 ${isSelected ? "stamp-animate" : ""}`}>
                                   <span className="text-[11px] font-bold text-primary leading-tight text-center rotate-0">
-                                    SAVE<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
+                                    {t('payment.save')}<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
                                   </span>
                                 </div>
                               )}
@@ -842,7 +835,7 @@ export default function PaymentPage() {
                             >
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Transaction ID</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailTransactionId')}</p>
                                   <p className="font-mono text-xs break-all select-all flex items-center gap-1">{tx.id}<CopyButton text={tx.id} /></p>
                                 </div>
                                 {tx.scoin_package_id && (() => {
@@ -851,10 +844,10 @@ export default function PaymentPage() {
                                   const name = fromList?.name ?? (cachedName === null ? null : cachedName)
                                   return (
                                     <div>
-                                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Package</p>
+                                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailPackage')}</p>
                                       {name === null ? (
                                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                          <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                                          <Loader2 className="h-3 w-3 animate-spin" /> {t('payment.detailLoading')}
                                         </span>
                                       ) : (
                                         <div>
@@ -866,34 +859,34 @@ export default function PaymentPage() {
                                   )
                                 })()}
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Provider</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailProvider')}</p>
                                   <p>{tx.provider_key}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Amount</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailAmount')}</p>
                                   <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">sCoin</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailsCoin')}</p>
                                   <p className="font-semibold text-primary">+{tx.scoin_amount.toLocaleString()} sCoin</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Status</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailStatus')}</p>
                                   <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="capitalize text-xs">
                                     {tx.status.replace(/_/g, " ")}
                                   </Badge>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Created</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailCreated')}</p>
                                   <p>{formatDate(tx.created_at)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Updated</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailUpdated')}</p>
                                   <p>{formatDate(tx.updated_at)}</p>
                                 </div>
                                 {tx.provider_data && Object.keys(tx.provider_data).length > 0 && (
                                   <div className="sm:col-span-2">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Provider Data</p>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailProviderData')}</p>
                                     <pre className="text-xs bg-muted rounded p-2 overflow-x-auto">{JSON.stringify(tx.provider_data, null, 2)}</pre>
                                   </div>
                                 )}
@@ -951,7 +944,7 @@ export default function PaymentPage() {
 
                             <div className="flex-1 min-w-0">
                               <p className="truncate text-sm font-medium">
-                                {tx.description ?? TYPE_LABELS[tx.type] ?? tx.type}
+                                {tx.description ?? getTypeLabel(tx.type)}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatDate(tx.created_at)}
