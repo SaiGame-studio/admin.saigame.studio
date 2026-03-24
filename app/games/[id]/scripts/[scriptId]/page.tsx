@@ -20,6 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/useTranslation"
 import { getGame } from "@/lib/game-api"
 import { getScript, updateScript, listSampleScripts } from "@/lib/script-api"
 import type { Game } from "@/types/game"
@@ -111,6 +113,8 @@ export default function ScriptEditPage() {
   const params = useParams() as { id: string; scriptId: string }
   const router = useRouter()
   const { toast } = useToast()
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
 
   const gameId = params.id
   const scriptId = params.scriptId
@@ -142,10 +146,10 @@ export default function ScriptEditPage() {
     try {
       const updated = await updateScript(gameId, scriptId, { name: nameInput.trim() })
       setScript(updated)
-      toast({ title: "Name updated" })
+      toast({ title: t('scripts.toastNameUpdated') })
       setEditingName(false)
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Failed to rename", description: err instanceof Error ? err.message : undefined })
+      toast({ variant: "destructive", title: t('scripts.toastFailedRename'), description: err instanceof Error ? err.message : undefined })
     } finally {
       setSavingName(false)
     }
@@ -158,10 +162,10 @@ export default function ScriptEditPage() {
     try {
       const updated = await updateScript(gameId, scriptId, { is_active: value })
       setScript(updated)
-      toast({ title: value ? "Script activated" : "Script deactivated" })
+      toast({ title: value ? t('scripts.toastScriptActivated') : t('scripts.toastScriptDeactivated') })
     } catch (err: unknown) {
       setIsActive(!value)
-      toast({ variant: "destructive", title: "Failed to update", description: err instanceof Error ? err.message : undefined })
+      toast({ variant: "destructive", title: t('scripts.toastFailedUpdate'), description: err instanceof Error ? err.message : undefined })
     } finally {
       setTogglingActive(false)
     }
@@ -186,7 +190,7 @@ export default function ScriptEditPage() {
       setIsActive(s.is_active)
       setScriptBody(s.script_body)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load script")
+      setError(err instanceof Error ? err.message : t('scripts.toastFailedLoadScript'))
     } finally {
       setLoading(false)
     }
@@ -210,9 +214,9 @@ export default function ScriptEditPage() {
         is_active: isActive,
       })
       setScript(updated)
-      toast({ title: "Info saved" })
+      toast({ title: t('scripts.toastInfoSaved') })
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Failed to save info", description: err instanceof Error ? err.message : undefined })
+      toast({ variant: "destructive", title: t('scripts.toastFailedSaveInfo'), description: err instanceof Error ? err.message : undefined })
     } finally {
       setSavingInfo(false)
     }
@@ -230,7 +234,7 @@ export default function ScriptEditPage() {
       setSavedBody(true)
       savedBodyTimer.current = setTimeout(() => setSavedBody(false), 2000)
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Failed to save script", description: err instanceof Error ? err.message : undefined })
+      toast({ variant: "destructive", title: t('scripts.toastFailedSaveScript'), description: err instanceof Error ? err.message : undefined })
     } finally {
       setSavingBody(false)
     }
@@ -261,7 +265,7 @@ export default function ScriptEditPage() {
         <Breadcrumb className="mb-2">
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/games">Games</BreadcrumbLink>
+              <BreadcrumbLink href="/games">{t('scripts.breadcrumbGames')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -269,7 +273,7 @@ export default function ScriptEditPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/games/${gameId}/scripts`}>Scripts</BreadcrumbLink>
+              <BreadcrumbLink href={`/games/${gameId}/scripts`}>{t('scripts.breadcrumbScripts')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -288,7 +292,7 @@ export default function ScriptEditPage() {
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 <Code2 className="h-6 w-6 text-muted-foreground" />
                 {loading ? (
-                  <span className="text-muted-foreground">Loading…</span>
+                  <span className="text-muted-foreground">{t('scripts.loading')}</span>
                 ) : editingName ? (
                   <span className="flex items-center gap-1.5">
                     <Input
@@ -349,12 +353,12 @@ export default function ScriptEditPage() {
       {/* ── Info bar ─────────────────────────────────────────────────────── */}
       <div className="px-6 py-3 shrink-0 bg-muted/20 border-b flex items-end gap-4 flex-wrap">
         <div className="flex-1 min-w-[200px] space-y-1">
-          <Label htmlFor="edit-desc" className="text-xs text-muted-foreground">Description</Label>
+          <Label htmlFor="edit-desc" className="text-xs text-muted-foreground">{t('scripts.labelDescription')}</Label>
           <Input
             id="edit-desc"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Describe what this script does…"
+            placeholder={t('scripts.placeholderDescription')}
             className="h-8 text-sm"
             disabled={loading}
           />
@@ -365,9 +369,9 @@ export default function ScriptEditPage() {
               {savingInfo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Save info</TooltipContent>
+          <TooltipContent side="bottom">{t('scripts.tooltipSaveInfo')}</TooltipContent>
         </Tooltip>
-        <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" title="Refresh" onClick={loadData} disabled={loading}>
+        <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" title={t('scripts.tooltipRefresh')} onClick={loadData} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
@@ -383,7 +387,7 @@ export default function ScriptEditPage() {
       {loading ? (
         <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading script…</span>
+          <span className="text-sm">{t('scripts.loadingScript')}</span>
         </div>
       ) : !script ? null : (
         <div className="flex flex-1 min-h-0 gap-4 px-6 py-4">
@@ -391,7 +395,7 @@ export default function ScriptEditPage() {
           <div className="flex flex-1 min-w-0 flex-col gap-2">
             <div className="flex items-center justify-between shrink-0">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Script Body
+                {t('scripts.scriptBody')}
                 <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
               </p>
               <div className="flex items-center gap-1">
@@ -401,7 +405,7 @@ export default function ScriptEditPage() {
                       <Undo2 className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                  <TooltipContent side="bottom">{t('scripts.tooltipUndo')}</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -409,7 +413,7 @@ export default function ScriptEditPage() {
                       <Redo2 className="h-3.5 w-3.5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+                  <TooltipContent side="bottom">{t('scripts.tooltipRedo')}</TooltipContent>
                 </Tooltip>
                 <Separator orientation="vertical" className="h-4 mx-0.5" />
                 <Tooltip>
@@ -418,7 +422,7 @@ export default function ScriptEditPage() {
                       <Minus className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Decrease font size</TooltipContent>
+                  <TooltipContent side="bottom">{t('scripts.tooltipDecreaseFontSize')}</TooltipContent>
                 </Tooltip>
                 <span className="text-[11px] text-muted-foreground tabular-nums w-6 text-center select-none">{fontSize}</span>
                 <Tooltip>
@@ -427,7 +431,7 @@ export default function ScriptEditPage() {
                       <Plus className="h-3 w-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Increase font size</TooltipContent>
+                  <TooltipContent side="bottom">{t('scripts.tooltipIncreaseFontSize')}</TooltipContent>
                 </Tooltip>
                 <Separator orientation="vertical" className="h-4 mx-0.5" />
                 <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
@@ -437,7 +441,7 @@ export default function ScriptEditPage() {
                       {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Save script (Ctrl+S)</TooltipContent>
+                  <TooltipContent side="bottom">{t('scripts.tooltipSaveScript')}</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -450,7 +454,7 @@ export default function ScriptEditPage() {
           <div className="w-80 shrink-0 flex flex-col gap-2">
             <div className="flex items-center justify-between shrink-0">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Sample Scripts
+                {t('scripts.sampleScripts')}
               </p>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -459,13 +463,13 @@ export default function ScriptEditPage() {
                       className={`text-[10px] cursor-pointer select-none ${appendMode ? "text-primary" : "text-muted-foreground/60"}`}
                       onClick={() => setAppendMode(v => !v)}
                     >
-                      {appendMode ? "Append" : "Replace"}
+                      {appendMode ? t('scripts.sampleAppend') : t('scripts.sampleReplace')}
                     </span>
                     <Switch checked={appendMode} onCheckedChange={setAppendMode} className="h-4 w-7 [&>span]:h-3 [&>span]:w-3" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="left" className="max-w-[180px] text-center">
-                  {appendMode ? "Click adds to bottom of script" : "Click replaces entire script"}
+                  {appendMode ? t('scripts.sampleAppendTooltip') : t('scripts.sampleReplaceTooltip')}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -476,7 +480,7 @@ export default function ScriptEditPage() {
             ) : samples.length === 0 ? (
               <div className="flex-1 rounded-lg border border-dashed bg-muted/20 flex flex-col items-center justify-center gap-2 text-center p-4">
                 <Code2 className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground/60">No samples available</p>
+                <p className="text-xs text-muted-foreground/60">{t('scripts.noSamplesAvailable')}</p>
               </div>
             ) : (() => {
               const gameTypes = ["all", ...Array.from(new Set(samples.map(s => s.game_type).filter(Boolean)))]
@@ -490,7 +494,7 @@ export default function ScriptEditPage() {
                     <SelectContent>
                       {gameTypes.map(gt => (
                         <SelectItem key={gt} value={gt} className="text-xs capitalize">
-                          {gt === "all" ? `All (${samples.length})` : `${gt} (${samples.filter(s => s.game_type === gt).length})`}
+                          {gt === "all" ? `${t('scripts.sampleFilterAll')} (${samples.length})` : `${gt} (${samples.filter(s => s.game_type === gt).length})`}
                         </SelectItem>
                       ))}
                     </SelectContent>
