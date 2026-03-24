@@ -341,7 +341,7 @@ function CreateContainerDefinitionDialog({
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
-        toast({ variant: "destructive", title: t('items.permissionDenied'), description: "You do not have permission to create container definitions." })
+        toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionCreateContainer') })
       } else {
         toast({ variant: "destructive", title: t('items.failedToCreate'), description: err?.message ?? "Unknown error" })
       }
@@ -471,7 +471,7 @@ function CreateContainerDefinitionDialog({
                 </PopoverContent>
               </Popover>
               {linkedItemId && (
-                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title="Go to item definition">
+                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title={t('items.goToItemDef')}>
                   <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" type="button">
                     <ExternalLink className="h-4 w-4" />
                   </Button>
@@ -479,12 +479,10 @@ function CreateContainerDefinitionDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Link a container to an item so that when a player owns this item, the server can automatically provision
-              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
-              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
+              {t('items.containerLinkDescPre')}<code className="bg-muted px-1 rounded">ensure-container</code>{t('items.containerLinkDescPost')}
             </p>
           </div>
-          <KVEditor entries={meta} onChange={setMeta} label="Metadata (e.g. icon = chest_wood)" />
+          <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataWithExample')} />
         </div>
         <SheetFooter className="pt-4">
           <Button variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>{t('common.cancel')}</Button>
@@ -571,7 +569,7 @@ function EditContainerDefinitionDialog({
       onClose()
     } catch (err: any) {
       if (err?.status === 409) {
-        toast({ variant: "destructive", title: t('items.cannotShrinkGrid'), description: "Items would go out of bounds. Remove items first." })
+        toast({ variant: "destructive", title: t('items.cannotShrinkGrid'), description: t('items.itemsOutOfBounds') })
       } else {
         toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" })
       }
@@ -590,7 +588,7 @@ function EditContainerDefinitionDialog({
           <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
             <ContainerTypeBadge type={definition.container_type} />
             <span>{definition.is_portable ? t('items.portable') : t('items.fixed')}</span>
-            <span className="text-xs">(immutable)</span>
+            <span className="text-xs">{t('items.immutable')}</span>
           </div>
           <div className="space-y-1">
             <Label htmlFor="ed-name">{t('items.name')} <span className="text-destructive">*</span></Label>
@@ -654,7 +652,7 @@ function EditContainerDefinitionDialog({
                           }}
                         >
                           <Check className={`mr-2 h-4 w-4 shrink-0 ${!linkedItemId ? "opacity-100" : "opacity-0"}`} />
-                          <span className="text-muted-foreground">— No linked item —</span>
+                          <span className="text-muted-foreground">{t('items.noLinkedItemOption')}</span>
                         </CommandItem>
                         {allItems
                           .filter(
@@ -689,7 +687,7 @@ function EditContainerDefinitionDialog({
                 </PopoverContent>
               </Popover>
               {linkedItemId && (
-                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title="Go to item definition">
+                <Link href={`/games/${gameId}/items/${linkedItemId}`} target="_blank" title={t('items.goToItemDef')}>
                   <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9" type="button">
                     <ExternalLink className="h-4 w-4" />
                   </Button>
@@ -697,12 +695,10 @@ function EditContainerDefinitionDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Link a container to an item so that when a player owns this item, the server can automatically provision
-              (via <code className="bg-muted px-1 rounded">ensure-container</code>) a personal container instance for them.
-              This is how chests, backpacks, and storage items work — the item acts as the &quot;key&quot; to open the container.
+              {t('items.containerLinkDescPre')}<code className="bg-muted px-1 rounded">ensure-container</code>{t('items.containerLinkDescPost')}
             </p>
           </div>
-          <KVEditor entries={meta} onChange={setMeta} label="Metadata" />
+          <KVEditor entries={meta} onChange={setMeta} label={t('items.metadata')} />
         </div>
         <SheetFooter className="pt-4">
           <Button variant="outline" disabled={loading} onClick={onClose}>{t('common.cancel')}</Button>
@@ -1535,7 +1531,7 @@ function EquipmentSlotSheet({
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
         <SheetHeader>
-          <SheetTitle>{editing ? `Edit: ${editing.name}` : t('items.newEquipmentSlot')}</SheetTitle>
+          <SheetTitle>{editing ? `${t('items.editSlotPrefix')}: ${editing.name}` : t('items.newEquipmentSlot')}</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
@@ -1579,7 +1575,7 @@ function EquipmentSlotSheet({
             </div>
             {editing
               ? <p className="text-xs text-muted-foreground">{t('items.slotKeyImmutable')}</p>
-              : <p className="text-xs text-muted-foreground">{autoSlug ? "Auto-generated from name." : "Manual input."}</p>
+              : <p className="text-xs text-muted-foreground">{autoSlug ? t('items.autoGeneratedFromName') : t('items.manualInput')}</p>
             }
           </div>
 
@@ -1629,7 +1625,7 @@ function EquipmentSlotSheet({
                         </span>
                       ))
                     ) : (
-                      <span className="text-muted-foreground">Any category (leave empty to allow all)</span>
+                      <span className="text-muted-foreground">{t('items.anyCategoryAllowed')}</span>
                     )}
                   </div>
                   <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
@@ -1638,7 +1634,7 @@ function EquipmentSlotSheet({
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                 <Command shouldFilter={false}>
                   <CommandInput
-                    placeholder="Search categories…"
+                    placeholder={t('items.searchByName')}
                     value={catSearch}
                     onValueChange={setCatSearch}
                   />
@@ -1712,7 +1708,7 @@ function EquipmentSlotSheet({
                         )
                       })
                     ) : (
-                      <span className="text-muted-foreground">Any item (leave empty to allow all)</span>
+                      <span className="text-muted-foreground">{t('items.anyItemDefAllowed')}</span>
                     )}
                   </div>
                   <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
@@ -1861,7 +1857,7 @@ function EquipmentsTab({
     setError(null)
     listEquipmentSlots({ gameId }, { limit: 100, offset: 0, is_active: true })
       .then((res) => setSlots(res.slots ?? []))
-      .catch((e) => setError(e?.message ?? "Failed to load equipment slots"))
+      .catch((e) => setError(e?.message ?? t('items.failedLoadEquipSlots')))
       .finally(() => setLoading(false))
   }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1886,7 +1882,7 @@ function EquipmentsTab({
         setDetailCache((prev) => ({ ...prev, [key]: data }))
         fetchItemNames(data.allowed_item_definition_ids)
       })
-      .catch((e) => setDetailError((prev) => ({ ...prev, [key]: e?.message ?? "Failed to load slot detail" })))
+      .catch((e) => setDetailError((prev) => ({ ...prev, [key]: e?.message ?? t('items.failedLoadSlotDetail') })))
       .finally(() => setDetailLoading(null))
   }
 
@@ -1927,7 +1923,7 @@ function EquipmentsTab({
         })
         setPendingDeleteSlot(null)
       })
-      .catch((err: unknown) => alert((err as Error)?.message ?? "Failed to delete slot"))
+      .catch((err: unknown) => alert((err as Error)?.message ?? t('items.failedDeleteSlot')))
       .finally(() => setDeleteSlotLoading(false))
   }
 
@@ -1954,7 +1950,7 @@ function EquipmentsTab({
 
   const headerActions = (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSlots} disabled={loading} title="Refresh">
+      <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSlots} disabled={loading} title={t('common.refresh')}>
         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
       </Button>
       <Button size="sm" className="h-8" onClick={openCreate}>
@@ -1995,10 +1991,10 @@ function EquipmentsTab({
             <span className={slots.length >= 5000 ? "text-destructive font-medium" : ""}>
               {slots.length} / 5000
             </span>
-            {" "}slot{slots.length !== 1 ? "s" : ""} defined
+            {" "}{t('items.slotsDefined')}
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/50">
               <Lock className="h-3 w-3" />
-              System maximum, cannot be raised
+              {t('items.systemMaximum')}
             </span>
           </p>
         </div>
@@ -2007,8 +2003,8 @@ function EquipmentsTab({
 
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as "grid" | "list")}>
         <TabsList className="mb-2">
-          <TabsTrigger value="grid">Grid</TabsTrigger>
-          <TabsTrigger value="list">List</TabsTrigger>
+          <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
+          <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
         </TabsList>
 
         {/* ── Grid (drag-and-drop canvas) ── */}
@@ -2225,7 +2221,7 @@ function EquipmentsTab({
                                 key={dir}
                                 style={edgeStyle}
                                 className="w-2.5 h-2.5 rounded-full bg-blue-400 hover:bg-red-400 cursor-pointer transition-colors border border-background"
-                                title={`Detach from ${neighbor}`}
+                                title={`${t('items.detachFrom')} ${neighbor}`}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={(e) => { e.stopPropagation(); detachBond(slot.slot_key, neighbor) }}
                               />
@@ -2251,15 +2247,15 @@ function EquipmentsTab({
                                     {slot.allowed_categories && slot.allowed_categories.length > 0
                                       ? slot.allowed_categories.length === 1
                                         ? <Badge variant="outline" className="text-[8px] capitalize px-0.5 py-0 leading-tight">{slot.allowed_categories[0]}</Badge>
-                                        : <span className="text-[8px] text-muted-foreground">{slot.allowed_categories.length}× types</span>
-                                      : <span className="text-[8px] text-muted-foreground italic">Any type</span>}
+                                        : <span className="text-[8px] text-muted-foreground">{slot.allowed_categories.length}× {t('items.typesCount')}</span>
+                                      : <span className="text-[8px] text-muted-foreground italic">{t('items.anyType')}</span>}
                                   </div>
                                   {/* items */}
                                   <div className="flex text-[8px] text-muted-foreground">
                                     <span>
                                       {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0
-                                        ? `${slot.allowed_item_definition_ids.length}× item${slot.allowed_item_definition_ids.length > 1 ? "s" : ""}`
-                                        : "Any items"}
+                                        ? `${slot.allowed_item_definition_ids.length}× ${t('items.itemsUnit')}`
+                                        : t('items.anyItems')}
                                     </span>
                                   </div>
                                 </div>
@@ -2345,14 +2341,14 @@ function EquipmentsTab({
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground italic">Any type</span>
+                              <span className="text-xs text-muted-foreground italic">{t('items.anyType')}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0 ? (
-                              <span>{slot.allowed_item_definition_ids.length} item{slot.allowed_item_definition_ids.length !== 1 ? "s" : ""}</span>
+                              <span>{slot.allowed_item_definition_ids.length} {t('items.itemsUnit')}</span>
                             ) : (
-                              <span className="italic">Any items</span>
+                              <span className="italic">{t('items.anyItems')}</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -2365,14 +2361,14 @@ function EquipmentsTab({
                           <TableCell className="text-right">
                             <Button
                               variant="ghost" size="icon" className="h-8 w-8"
-                              title="Edit"
+                              title={t('common.edit')}
                               onClick={(e) => openEdit(detail ?? slot, e)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Delete"
+                              title={t('common.delete')}
                               onClick={(e) => handleDelete(slot.slot_key, e)}
                               disabled={deleteSlotLoading && pendingDeleteSlot === slot.slot_key}
                             >
@@ -2390,7 +2386,7 @@ function EquipmentsTab({
                                 {isLoadingDetail ? (
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                    Loading slot detail…
+                                    {t('items.loadingSlotDetail')}
                                   </div>
                                 ) : detailErr ? (
                                   <p className="text-sm text-destructive">{detailErr}</p>
@@ -2399,12 +2395,12 @@ function EquipmentsTab({
                                     {/* IDs */}
                                     <div className="flex flex-wrap gap-x-6 gap-y-2">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold text-foreground">Slot ID:</span>
+                                        <span className="text-xs font-semibold text-foreground">{t('items.slotIdLabel')}:</span>
                                         <span className="text-xs font-mono text-muted-foreground">{detail.id}</span>
                                         <CopyButton text={detail.id} />
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold text-foreground">Slot Key:</span>
+                                        <span className="text-xs font-semibold text-foreground">{t('items.slotKey')}:</span>
                                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{detail.slot_key}</code>
                                         <CopyButton text={detail.slot_key} />
                                       </div>
@@ -2413,7 +2409,7 @@ function EquipmentsTab({
                                     {/* Description */}
                                     {detail.description && (
                                       <div className="space-y-0.5">
-                                        <p className="text-xs font-semibold text-foreground">Description</p>
+                                        <p className="text-xs font-semibold text-foreground">{t('items.description')}</p>
                                         <p className="text-sm text-muted-foreground">{detail.description}</p>
                                       </div>
                                     )}
@@ -2427,7 +2423,7 @@ function EquipmentsTab({
                                         </span>
                                       </div>
                                       <div className="col-span-2">
-                                        <span className="text-muted-foreground">Created by: </span>
+                                        <span className="text-muted-foreground">{t('items.createdByLabel')}: </span>
                                         <span className="font-mono">{detail.created_by}</span>
                                       </div>
                                     </div>
@@ -2442,7 +2438,7 @@ function EquipmentsTab({
                                           ))}
                                         </div>
                                       ) : (
-                                        <span className="text-xs text-muted-foreground italic">Any category allowed</span>
+                                        <span className="text-xs text-muted-foreground italic">{t('items.anyCategoryAllowed')}</span>
                                       )}
                                     </div>
 
@@ -2474,7 +2470,7 @@ function EquipmentsTab({
                                           })}
                                         </div>
                                       ) : (
-                                        <span className="text-xs text-muted-foreground italic">Any item definition allowed</span>
+                                        <span className="text-xs text-muted-foreground italic">{t('items.anyItemDefAllowed')}</span>
                                       )}
                                     </div>
 
@@ -2490,8 +2486,8 @@ function EquipmentsTab({
 
                                     {/* Timestamps */}
                                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                                      <span>Created: {new Date(detail.created_at).toLocaleString()}</span>
-                                      <span>Updated: {new Date(detail.updated_at).toLocaleString()}</span>
+                                      <span>{t('items.createdAtLabel')}: {new Date(detail.created_at).toLocaleString()}</span>
+                                      <span>{t('items.updatedAtLabel')}: {new Date(detail.updated_at).toLocaleString()}</span>
                                     </div>
                                   </>
                                 ) : null}
@@ -3025,7 +3021,7 @@ function GeneratorTab({
             .catch(() => {})
         })
       })
-      .catch((e) => setGeneratorError(e?.message ?? "Failed to load generators"))
+      .catch((e) => setGeneratorError(e?.message ?? t('items.failedLoadGenerators')))
       .finally(() => setGeneratorLoading(false))
   }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3049,7 +3045,7 @@ function GeneratorTab({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title={t('common.refresh')}>
             <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
@@ -3066,7 +3062,7 @@ function GeneratorTab({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title={t('common.refresh')}>
             <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
@@ -3086,10 +3082,10 @@ function GeneratorTab({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">{t('items.generatorsTitle')}</h2>
-          <p className="text-sm text-muted-foreground">{generatorItems.length} generator{generatorItems.length !== 1 ? "s" : ""} defined</p>
+          <p className="text-sm text-muted-foreground">{generatorItems.length} {t('items.generatorsDefined')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title="Refresh">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchGenerators} disabled={generatorLoading} title={t('common.refresh')}>
             <RefreshCw className={`h-4 w-4 ${generatorLoading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" className="h-8" onClick={onAddGenerator}>
@@ -3101,8 +3097,8 @@ function GeneratorTab({
 
       {/* Concept explanation */}
       <div className="rounded-lg border bg-muted/30 px-4 py-3 text-xs text-muted-foreground space-y-1">
-        <p><span className="font-semibold text-foreground">Interval</span> — the time (in seconds) between each production tick. Every <code className="bg-muted px-1 rounded">interval</code> seconds, the generator produces one batch of output.</p>
-        <p><span className="font-semibold text-foreground">Tick Capacity</span> — the maximum number of ticks that can accumulate while the player is offline. After <code className="bg-muted px-1 rounded">interval × tick_cap</code> seconds offline, no further output accrues.</p>
+        <p><span className="font-semibold text-foreground">{t('items.generatorIntervalShort')}</span> {t('items.generatorIntervalDescPre')} <code className="bg-muted px-1 rounded">interval</code> {t('items.generatorIntervalDescPost')}</p>
+        <p><span className="font-semibold text-foreground">{t('items.tickCapacity')}</span> {t('items.generatorTickCapDescPre')} <code className="bg-muted px-1 rounded">interval × tick_cap</code> {t('items.generatorTickCapDescPost')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -3133,11 +3129,11 @@ function GeneratorTab({
                 {/* Timing */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-md border px-3 py-2 text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Interval</p>
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
                     <p className="font-semibold text-sm">{interval}s</p>
                   </div>
                   <div className="rounded-md border px-3 py-2 text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Tick Cap</p>
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorTickCap')}</p>
                     <p className="font-semibold text-sm">{ticks}</p>
                   </div>
                 </div>
@@ -3145,7 +3141,7 @@ function GeneratorTab({
                 {/* Offline hint */}
                 {interval > 0 && ticks > 0 && (
                   <div className="rounded-md bg-muted/50 border border-dashed px-3 py-1.5 text-[11px] text-muted-foreground">
-                    ⏱ Max offline: <span className="font-semibold text-foreground">{timeStr}</span>
+                    ⏱ {t('items.maxOffline')}: <span className="font-semibold text-foreground">{timeStr}</span>
                     <span className="mx-1">·</span>
                     <span className="font-mono">{interval}s × {ticks}</span> = {maxSeconds.toLocaleString()}s
                   </div>
@@ -3154,7 +3150,7 @@ function GeneratorTab({
                 {/* Output Pool */}
                 {outputPool.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[11px] text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+                    <p className="text-[11px] text-muted-foreground font-medium">{t('items.outputPoolCount')} ({outputPool.length})</p>
                     <div className="space-y-1">
                       {outputPool.map((entry, idx) => {
                         const defId = String(entry.item_definition_id ?? "")
@@ -3183,7 +3179,7 @@ function GeneratorTab({
                 )}
               </CardContent>
               <div className="px-6 pb-4 flex justify-end">
-                <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Edit">
+                <Button variant="ghost" size="icon" className="h-7 w-7" asChild title={t('common.edit')}>
                   <Link href={`/games/${gameId}/items/${item.id}`}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Link>
@@ -4144,7 +4140,7 @@ export default function GameItemsPage() {
               <h2 className="text-lg font-semibold">{t('items.containerDefinitions')}</h2>
               <p className="text-sm text-muted-foreground">
                 {containerTotal > 0
-                  ? `${containerSearchDebounced ? `${filteredContainerDefs.length} of ` : ""}${containerTotal} definition${containerTotal !== 1 ? "s" : ""}`
+                  ? `${containerSearchDebounced ? `${filteredContainerDefs.length} ${t('items.of')} ` : ""}${containerTotal} ${containerTotal !== 1 ? t('items.definitions') : t('items.definition')}`
                   : t('items.noContainerDefs')}
               </p>
             </div>
@@ -4161,13 +4157,13 @@ export default function GameItemsPage() {
                   <button
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     onClick={() => setContainerSearch("")}
-                    title="Clear search"
+                    title={t('items.clearSearch')}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
-              <Button variant="outline" size="icon" onClick={fetchContainerDefs} title="Refresh">
+              <Button variant="outline" size="icon" onClick={fetchContainerDefs} title={t('common.refresh')}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button onClick={() => setShowCreateContainer(true)}>
@@ -4196,8 +4192,8 @@ export default function GameItemsPage() {
                   </p>
                   <p className="text-sm mt-1">
                     {containerSearchDebounced
-                      ? `No containers match "${containerSearchDebounced}". Try a different keyword.`
-                      : `Click "New Container" to create the first container definition.`}
+                      ? t('items.noContainersMatchSearch').replace('{query}', containerSearchDebounced)
+                      : t('items.clickNewContainerToCreate')}
                   </p>
                 </div>
               ) : (
@@ -4230,7 +4226,7 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {def.grid_cols} × {def.grid_rows}
-                          <span className="text-xs ml-1">({def.grid_cols * def.grid_rows} slots)</span>
+                          <span className="text-xs ml-1">({def.grid_cols * def.grid_rows} {t('items.slots')})</span>
                         </TableCell>
                         <TableCell>
                           {def.is_portable ? (
@@ -4245,7 +4241,7 @@ export default function GameItemsPage() {
                               <span className="text-primary font-medium truncate" title={def.linked_item_definition_id}>
                                 {containerItemName(def.linked_item_definition_id)}
                               </span>
-                              <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title="Go to item definition">
+                              <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title={t('items.goToItemDef')}>
                                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
                               </Link>
                             </span>
@@ -4263,7 +4259,7 @@ export default function GameItemsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Edit"
+                              title={t('common.edit')}
                               onClick={() => setEditingContainer(def)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -4272,7 +4268,7 @@ export default function GameItemsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Delete"
+                                title={t('common.delete')}
                                 className="text-destructive hover:text-destructive"
                                 onClick={() => setDeletingContainer(def)}
                               >
@@ -4293,7 +4289,7 @@ export default function GameItemsPage() {
           {containerTotalPages > 1 && (
             <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
               <span>
-                Page {containerCurrentPage} of {containerTotalPages} — {containerTotal} definitions
+                {t('crafting.pageLabel')} {containerCurrentPage} {t('crafting.pageOf')} {containerTotalPages} — {containerTotal} {t('items.definitions')}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -4638,9 +4634,9 @@ export default function GameItemsPage() {
                         style={{ width: `${pct}%` }}
                       />
                     </span>
-                    <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+                    <span className="text-xs text-muted-foreground">{t('items.fixedLimitNoUpgrade')}</span>
                     {presetSearchDebounced && (
-                      <span className="text-xs text-muted-foreground">({filteredPresetDefs.length} matching)</span>
+                      <span className="text-xs text-muted-foreground">({filteredPresetDefs.length} {t('items.matching')})</span>
                     )}
                   </p>
                 )
@@ -4659,13 +4655,13 @@ export default function GameItemsPage() {
                   <button
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     onClick={() => setPresetSearch("")}
-                    title="Clear search"
+                    title={t('items.clearSearch')}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
-              <Button variant="outline" size="icon" onClick={fetchPresetDefs} title="Refresh">
+              <Button variant="outline" size="icon" onClick={fetchPresetDefs} title={t('common.refresh')}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button onClick={() => setShowCreatePreset(true)}>
@@ -4694,8 +4690,8 @@ export default function GameItemsPage() {
                   </p>
                   <p className="text-sm mt-1">
                     {presetSearchDebounced
-                      ? `No presets match "${presetSearchDebounced}". Try a different keyword.`
-                      : `Click "New Preset" to create the first preset definition.`}
+                      ? t('items.noPresetsMatchSearch').replace('{query}', presetSearchDebounced)
+                      : t('items.clickNewPresetToCreate')}
                   </p>
                 </div>
               ) : (
@@ -4740,7 +4736,7 @@ export default function GameItemsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Edit"
+                              title={t('common.edit')}
                               onClick={() => setEditingPreset(def)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -4748,7 +4744,7 @@ export default function GameItemsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Delete"
+                              title={t('common.delete')}
                               className="text-destructive hover:text-destructive"
                               onClick={() => setDeletingPreset(def)}
                             >
