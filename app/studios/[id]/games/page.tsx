@@ -12,12 +12,13 @@ import {Gamepad2, Plus, ArrowRight} from "lucide-react"
 import Link from "next/link"
 import {formatDistanceToNow} from "date-fns"
 
-export default function StudioGamesPage({params}: { params: { id: string } }) {
+export default function StudioGamesPage({params}: { params: Promise<{ id: string }> }) {
+    const { id } = React.use(params)
     const router = useRouter()
     const [games, setGames] = useState<Game[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const studioId = params.id
+    const studioId = id
 
     useEffect(() => {
         async function loadGames() {

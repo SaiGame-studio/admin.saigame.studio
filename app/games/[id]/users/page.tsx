@@ -17,8 +17,9 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
-export default function GameUserProfilesPage({ params }: { params: { id: string } }) {
-  const gameId = params.id;
+export default function GameUserProfilesPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
+  const gameId = id;
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
   const [progressList, setProgressList] = useState<GameProgress[]>([]);
