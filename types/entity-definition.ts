@@ -74,3 +74,27 @@ export const ENTITY_RARITY_COLORS: Record<EntityRarity, { text: string; border: 
   epic:      { text: 'text-purple-700', border: 'border-purple-500', bg: 'bg-purple-50'  },
   legendary: { text: 'text-orange-700', border: 'border-orange-500', bg: 'bg-orange-50'  },
 }
+
+export interface EntityPool {
+  id: string
+  game_id: string
+  pool_key: string
+  name: string
+  description?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateEntityPoolRequest {
+  pool_key: string
+  name: string
+  description?: string
+}
+
+export interface UpdateEntityPoolRequest {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import React, { useEffect, useState, useCallback, useRef, Fragment } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -14,8 +14,10 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
+
   SelectContent,
   SelectItem,
   SelectTrigger,
@@ -71,6 +73,10 @@ import {
   getEntityDefinition,
   getEntityDefinitionByKey,
   getEntityDefinitionTypes,
+  listEntityPools,
+  createEntityPool,
+  updateEntityPool,
+  deleteEntityPool,
 } from "@/lib/entity-definition-api"
 import { fetchItemRarities } from "@/lib/inventory-api"
 import type {
@@ -79,6 +85,9 @@ import type {
   EntityRarity,
   CreateEntityDefinitionRequest,
   UpdateEntityDefinitionRequest,
+  EntityPool,
+  CreateEntityPoolRequest,
+  UpdateEntityPoolRequest,
 } from "@/types/entity-definition"
 import {
   ENTITY_TYPE_LABELS,
@@ -86,7 +95,10 @@ import {
 } from "@/types/entity-definition"
 import type { Game } from "@/types/game"
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+import { EntityPoolTab } from "./EntityPoolTab"
+
+
+
 
 const DEFAULT_ENTITY_TYPES: EntityType[] = ["enemy", "boss", "room", "relic", "defense_unit", "npc"]
 const ENTITY_RARITIES: EntityRarity[] = ["common", "uncommon", "rare", "epic", "legendary"]
@@ -863,6 +875,23 @@ export default function EntitiesPage() {
   const { toast } = useToast()
   const { t } = useTranslation()
 
+  const [activeTab, setActiveTab] = useState("entities")
+
+  // initialize tab from URL params
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "entities" || tab === "pools") {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("tab", value)
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
+  }
+
   const [game, setGame] = useState<Game | null>(null)
   const [entities, setEntities] = useState<EntityDefinition[]>([])
   const [loading, setLoading] = useState(true)
@@ -1157,290 +1186,257 @@ export default function EntitiesPage() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <TooltipProvider>
-        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-          <div>
-          <h2 className="text-lg font-semibold">{t('entity.breadcrumb')}</h2>
-          <p className="text-sm text-muted-foreground">
-            {keyInput.trim()
-              ? t('entity.keySearchPrefix').replace('{key}', keyInput.trim())
-              : nameFilter || typeFilter !== "all"
-              ? `${(nameFilter ? entities.filter(e => e.name.toLowerCase().includes(nameFilter.toLowerCase())) : entities).length} ${t('entity.filtered')}`
-              : `${entities.length} ${entities.length === 1 ? t('entity.entityCount') : t('entity.entitiesCount')}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Name — local filter */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder={t('entity.filterByName')}
-              value={nameFilter}
-              onChange={(e) => setNameFilter(e.target.value)}
-              className="h-8 w-40 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
-            {nameFilter && (
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => setNameFilter("")}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {/* Key — API search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder={t('entity.searchByKey')}
-              value={keyInput}
-              onChange={(e) => handleKeyInput(e.target.value)}
-              className="h-8 w-40 rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
-            {keyInput && (
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={clearKeySearch}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {/* Type */}
-          <select
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as EntityType | "all")}
-          >
-            <option value="all">{t('entity.allTypes')}</option>
-            {availableTypes.map((t) => (
-              <option key={t} value={t}>{ENTITY_TYPE_LABELS[t] ?? t}</option>
-            ))}
-          </select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
-            {t('common.refresh')}
-          </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                size="sm" 
-                className="h-8" 
-                onClick={openCreate}
-                disabled={game?.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                {t('entity.newEntity')}
-              </Button>
-            </TooltipTrigger>
-            {game?.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs && (
-              <TooltipContent side="bottom" className="max-w-xs">
-                <p>{t('entity.limitReachedDesc').replace('{used}', String(game.usage?.entity_definitions ?? 0)).replace('{max}', String(game.limits.max_entity_defs))}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t('entity.upgradeTip')}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </div>
-      </div>
-      </TooltipProvider>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="entities">{t('entity.entitiesTab')}</TabsTrigger>
+          <TabsTrigger value="pools">{t('entity.poolTab')}</TabsTrigger>
+        </TabsList>
 
-      {/* Key search result */}
-      {keyInput.trim() && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t('entity.keySearchResult')} &ldquo;<span className="text-foreground font-mono">{keyInput.trim()}</span>&rdquo;
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {keyLoading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : keyResult === "not_found" ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">{t('entity.noEntityForKey')}</p>
-            ) : keyResult ? (
+        <TabsContent value="entities" className="space-y-4">
+          <TooltipProvider>
+            {/* Entities Tab Toolbar */}
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t('entity.filterByName')}
+                    className="pl-8"
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                  />
+                  {nameFilter && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1 h-8 w-8"
+                      onClick={() => setNameFilter("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="relative flex-1">
+                  <Skull className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t('entity.searchByKey')}
+                    className="pl-8"
+                    value={keyInput}
+                    onChange={(e) => handleKeyInput(e.target.value)}
+                  />
+                  {keyInput && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1 h-8 w-8"
+                      onClick={clearKeySearch}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <Select value={typeFilter || "all"} onValueChange={(v) => setTypeFilter(v === "all" ? "all" : v as EntityType)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={t('entity.allTypes')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('entity.allTypes')}</SelectItem>
+                    {availableTypes.map((t) => (
+                      <SelectItem key={t} value={t} className="capitalize">{ENTITY_TYPE_LABELS[t] ?? t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="icon" onClick={() => loadData()} disabled={refreshing}>
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+              <Button onClick={openCreate} disabled={game?.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs}>
+                <Plus className="mr-2 h-4 w-4" /> {t('entity.newEntity')}
+              </Button>
+            </div>
+
+            {/* Entity Key Search Result */}
+            {keySearch.trim() && (
+              <Card className="mb-6 border-primary/20 bg-primary/5">
+                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    {t('entity.keySearchResult')} "{keySearch}"
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs underline" onClick={clearKeySearch}>{t('common.clear')}</Button>
+                </CardHeader>
+                <CardContent className="py-0 px-4 pb-4">
+                  {keyLoading ? (
+                    <div className="flex items-center gap-2 py-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span className="text-sm">{t('entity.loadingDetail')}</span></div>
+                  ) : keyResult === "not_found" ? (
+                    <p className="text-sm text-muted-foreground py-2">{t('entity.noEntityForKey')}</p>
+                  ) : keyResult ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="w-[200px]">{t('entity.thKey')}</TableHead>
+                          <TableHead>{t('entity.thName')}</TableHead>
+                          <TableHead>{t('entity.thType')}</TableHead>
+                          <TableHead>{t('entity.thRarity')}</TableHead>
+                          <TableHead className="text-right">{t('entity.thActions')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-mono text-xs">{keyResult.entity_key}</TableCell>
+                          <TableCell className="font-medium">{keyResult.name}</TableCell>
+                          <TableCell><EntityTypeBadge type={keyResult.entity_type} /></TableCell>
+                          <TableCell><RarityBadge rarity={keyResult.rarity} /></TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(keyResult)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={5} className="p-0 border-b-0">
+                            <div className="p-4 bg-background/50 rounded-b-md border-x border-b">
+                              <EntityInlineEditForm
+                                entity={keyResult}
+                                gameId={gameId}
+                                rarities={rarities}
+                                availableTypes={availableTypes}
+                                onSaved={(upd) => {
+                                  setKeyResult(upd)
+                                  setEntities((prev) => prev.map((e) => e.id === upd.id ? upd : e))
+                                  setDetailCache((prev) => ({ ...prev, [upd.id]: upd }))
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  ) : null}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Entities Main Table */}
+            <div className="rounded-md border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t('entity.thKey')}</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead className="w-[100px]">{t('entity.thActive')}</TableHead>
+                    <TableHead className="w-[200px]">{t('entity.thKey')}</TableHead>
                     <TableHead>{t('entity.thName')}</TableHead>
                     <TableHead>{t('entity.thType')}</TableHead>
                     <TableHead>{t('entity.thRarity')}</TableHead>
-                    <TableHead>{t('entity.thActive')}</TableHead>
                     <TableHead className="text-right">{t('entity.thActions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="font-mono text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span>{keyResult.entity_key}</span>
-                        <CopyButton text={keyResult.entity_key} />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{keyResult.name}</div>
-                      {keyResult.description && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[240px]">{keyResult.description}</div>
-                      )}
-                    </TableCell>
-                    <TableCell><EntityTypeBadge type={keyResult.entity_type} /></TableCell>
-                    <TableCell><RarityBadge rarity={keyResult.rarity} /></TableCell>
-                    <TableCell>
-                      <Badge variant={keyResult.is_active ? "default" : "secondary"}>
-                        {keyResult.is_active ? t('common.active') : t('common.inactive')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(keyResult as EntityDefinition)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            ) : null}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Entity list table */}
-      {!keyInput.trim() && (
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-6 space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : (() => {
-              const displayed = nameFilter
-                ? entities.filter((e) =>
-                    e.name.toLowerCase().includes(nameFilter.toLowerCase()),
-                  )
-                : entities
-              return displayed.length === 0 ? (
-                <div className="py-16 text-center text-muted-foreground">
-                  <Skull className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">{t('entity.noEntitiesFound')}</p>
-                  <p className="text-sm mt-1">
-                    {nameFilter || typeFilter !== "all"
-                      ? t('entity.adjustFilters')
-                      : t('entity.createFirstEntity')}
-                  </p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : entities.length === 0 ? (
                     <TableRow>
-                      <TableHead>{t('entity.thKey')}</TableHead>
-                      <TableHead>{t('entity.thName')}</TableHead>
-                      <TableHead>{t('entity.thType')}</TableHead>
-                      <TableHead>{t('entity.thRarity')}</TableHead>
-                      <TableHead>{t('entity.thActive')}</TableHead>
-                      <TableHead className="text-right">{t('entity.thActions')}</TableHead>
+                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Skull className="h-8 w-8 opacity-20" />
+                          <p>{nameFilter ? t('entity.noEntitiesFound') : t('entity.createFirstEntity')}</p>
+                          {nameFilter && <Button variant="link" onClick={() => setNameFilter("")}>{t('entity.adjustFilters')}</Button>}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {displayed.map((entity) => {
-                      const isExpanded = expandedId === entity.id
-                      const detail = detailCache[entity.id]
-                      return (
-                        <>
-                          <TableRow
-                            key={entity.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => toggleExpand(entity)}
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                {isExpanded
-                                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                  : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                                <div className="font-medium">{entity.name}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              <div className="flex items-center gap-1.5">
-                                <span>{entity.entity_key}</span>
-                                <span onClick={(e) => e.stopPropagation()}>
-                                  <CopyButton text={entity.entity_key} />
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <EntityTypeBadge type={entity.entity_type} />
-                            </TableCell>
-                            <TableCell>
-                              <RarityBadge rarity={entity.rarity} />
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={entity.is_active ? "default" : "secondary"}>
-                                {entity.is_active ? t('common.active') : t('common.inactive')}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div
-                                className="flex items-center justify-end gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                  ) : (
+                    entities
+                      .filter(e => {
+                        const matchName = e.name.toLowerCase().includes(nameFilter.toLowerCase()) || e.entity_key.toLowerCase().includes(nameFilter.toLowerCase())
+                        const matchType = typeFilter === "all" || e.entity_type === typeFilter
+                        return matchName && matchType
+                      })
+                      .map((entity) => {
+                        const isExpanded = expandedId === entity.id
+                        const detail = detailCache[entity.id]
+
+                        return (
+                          <Fragment key={entity.id}>
+                            <TableRow
+                              className={`group cursor-pointer hover:bg-muted/50 ${isExpanded ? "bg-muted/30" : ""}`}
+                              onClick={() => toggleExpand(entity)}
+                            >
+                              <TableCell>
+                                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {entity.icon_url && <img src={entity.icon_url} alt="" className="h-6 w-6 rounded border bg-muted shrink-0" />}
+                                  <Switch checked={entity.is_active} onCheckedChange={() => {}} disabled />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">{entity.entity_key}</TableCell>
+                              <TableCell className="font-medium">{entity.name}</TableCell>
+                              <TableCell><EntityTypeBadge type={entity.entity_type} /></TableCell>
+                              <TableCell><RarityBadge rarity={entity.rarity} /></TableCell>
+                              <TableCell className="text-right">
                                 <Button
                                   variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() => setDeleteTarget(entity)}
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(entity) }}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && (
-                            <TableRow key={`${entity.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
-                              <TableCell colSpan={6} className="px-6 py-4">
-                                {detail === "loading" ? (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    {t('entity.loadingDetail')}
-                                  </div>
-                                ) : detail === "error" ? (
-                                  <p className="text-sm text-destructive">{t('entity.failedLoadDetail')}</p>
-                                ) : detail ? (
-                                  <EntityInlineEditForm
-                                    entity={detail}
-                                    gameId={gameId}
-                                    rarities={rarities}
-                                    availableTypes={availableTypes}
-                                    onSaved={(updated) => {
-                                      setEntities((prev) => prev.map((e) => e.id === updated.id ? updated : e))
-                                      setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
-                                    }}
-                                  />
-                                ) : null}
                               </TableCell>
                             </TableRow>
-                          )}
-                        </>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              )
-            })()}
-          </CardContent>
-        </Card>
-      )}
+                            {isExpanded && (
+                              <TableRow className="hover:bg-transparent border-b">
+                                <TableCell colSpan={7} className="p-0">
+                                  <div className="p-4 bg-muted/10">
+                                    {detail && detail !== "loading" && detail !== "error" ? (
+                                      <EntityInlineEditForm
+                                        entity={detail as EntityDefinition}
+                                        gameId={gameId}
+                                        rarities={rarities}
+                                        availableTypes={availableTypes}
+                                        onSaved={(upd) => {
+                                          setEntities((prev) => prev.map((e) => e.id === upd.id ? upd : e))
+                                          setDetailCache((prev) => ({ ...prev, [upd.id]: upd }))
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                                        {detail === "loading" ? (
+                                          <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <span>{t('entity.loadingDetail')}</span>
+                                          </>
+                                        ) : detail === "error" ? (
+                                          <span>{t('entity.failedLoadDetail')}</span>
+                                        ) : (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        )
+                      })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TooltipProvider>
+        </TabsContent>
+
+        <TabsContent value="pools">
+          <EntityPoolTab gameId={gameId} />
+        </TabsContent>
+      </Tabs>
+
 
 
 
