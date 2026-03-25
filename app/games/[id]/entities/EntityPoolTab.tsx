@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react"
 import Link from "next/link"
-import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink } from "lucide-react"
+import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink, ChevronsUpDown, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,11 +10,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
-import { listEntityPools, getEntityPool, updateEntityPool } from "@/lib/entity-definition-api"
+import { listEntityPools, getEntityPool, updateEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
 import { ApiError } from "@/lib/api-client"
-import type { EntityPool, EntityPoolEntry, EntityRarity } from "@/types/entity-definition"
+import type { EntityPool, EntityPoolEntry, EntityRarity, EntityDefinition } from "@/types/entity-definition"
 import { ENTITY_RARITY_COLORS, ENTITY_TYPE_LABELS } from "@/types/entity-definition"
 import { CopyButton } from "@/components/CopyButton"
 
@@ -294,6 +296,134 @@ function PoolExpandedContent({
     </>
   )
 
+  // ── add entry ──────────────────────────────────────────────────
+  const [showAddEntry, setShowAddEntry] = useState(false)
+  const [addDefId, setAddDefId] = useState("")
+  const [addDefLabel, setAddDefLabel] = useState("")
+  const [addWeight, setAddWeight] = useState("1")
+  const [addingEntry, setAddingEntry] = useState(false)
+  const [defPopoverOpen, setDefPopoverOpen] = useState(false)
+  const [defSearchInput, setDefSearchInput] = useState("")
+  const [defSearchResults, setDefSearchResults] = useState<EntityDefinition[]>([])
+  const [defSearchLoading, setDefSearchLoading] = useState(false)
+  const defSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Load initial results when popover opens
+  useEffect(() => {
+    if (!defPopoverOpen) return
+    let cancelled = false
+    setDefSearchLoading(true)
+    listEntityDefinitions(gameId, {})
+      .then((results) => { if (!cancelled) setDefSearchResults(results.slice(0, 10)) })
+      .catch(() => { if (!cancelled) setDefSearchResults([]) })
+      .finally(() => { if (!cancelled) setDefSearchLoading(false) })
+    return () => { cancelled = true }
+  }, [defPopoverOpen, gameId])
+
+  function handleDefSearch(value: string) {
+    setDefSearchInput(value)
+    if (defSearchRef.current) clearTimeout(defSearchRef.current)
+    defSearchRef.current = setTimeout(async () => {
+      setDefSearchLoading(true)
+      try {
+        const results = await listEntityDefinitions(gameId, { search: value.trim() || undefined })
+        setDefSearchResults(value.trim() ? results : results.slice(0, 10))
+      } catch {
+        setDefSearchResults([])
+      } finally {
+        setDefSearchLoading(false)
+      }
+    }, 300)
+  }
+
+  function selectDef(def: EntityDefinition) {
+    setAddDefId(def.id)
+    setAddDefLabel(`${def.name} (${def.entity_key})`)
+    setDefPopoverOpen(false)
+    setDefSearchInput("")
+  }
+
+  async function handleAddEntry() {
+    if (!addDefId.trim()) {
+      toast({ title: t('common.validation'), description: "Entity Definition is required", variant: "destructive" })
+      return
+    }
+    const weight = parseInt(addWeight, 10)
+    if (isNaN(weight) || weight < 1) {
+      toast({ title: t('common.validation'), description: "Weight must be a positive number", variant: "destructive" })
+      return
+    }
+    setAddingEntry(true)
+    try {
+      await createEntityPoolEntry(gameId, pool.id, { entity_definition_id: addDefId.trim(), weight })
+      const updated = await getEntityPool(gameId, pool.id)
+      setDetail(updated)
+      toast({ title: t('common.saved') })
+      setAddDefId("")
+      setAddDefLabel("")
+      setAddWeight("1")
+      setShowAddEntry(false)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to add entry"
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setAddingEntry(false)
+    }
+  }
+
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
+
+  async function handleDeleteEntry(entryId: string) {
+    setDeletingEntryId(entryId)
+    try {
+      await deleteEntityPoolEntry(gameId, pool.id, entryId)
+      const updated = await getEntityPool(gameId, pool.id)
+      setDetail(updated)
+      toast({ title: t('common.deleted') })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to delete entry"
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setDeletingEntryId(null)
+    }
+  }
+
+  // ── edit weight ────────────────────────────────────────────────
+  const [editingWeightId, setEditingWeightId] = useState<string | null>(null)
+  const [editWeightValue, setEditWeightValue] = useState("")
+  const [savingWeight, setSavingWeight] = useState(false)
+
+  function startEditWeight(entry: EntityPoolEntry) {
+    setEditingWeightId(entry.id)
+    setEditWeightValue(String(entry.weight))
+  }
+
+  function cancelEditWeight() {
+    setEditingWeightId(null)
+    setEditWeightValue("")
+  }
+
+  async function saveWeight(entryId: string) {
+    const weight = parseInt(editWeightValue, 10)
+    if (isNaN(weight) || weight < 0) {
+      toast({ title: t('common.validation'), description: "Weight must be a non-negative number", variant: "destructive" })
+      return
+    }
+    setSavingWeight(true)
+    try {
+      await updateEntityPoolEntry(gameId, pool.id, entryId, { weight })
+      const updated = await getEntityPool(gameId, pool.id)
+      setDetail(updated)
+      toast({ title: t('common.saved') })
+      setEditingWeightId(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to update weight"
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSavingWeight(false)
+    }
+  }
+
   const entries = detail?.entries ?? []
   const totalWeight = useMemo(() => entries.reduce((sum, e) => sum + e.weight, 0), [entries])
 
@@ -363,9 +493,112 @@ function PoolExpandedContent({
 
       {/* Entries */}
       <div>
-        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1 border-l-2 border-primary/50">
-          Entries {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
-        </h4>
+        <div className="flex items-center gap-2 mb-2">
+          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 border-l-2 border-primary/50">
+            Entries {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
+          </h4>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={() => setShowAddEntry(!showAddEntry)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {showAddEntry && (
+          <div className="flex items-end gap-2 mb-3 p-3 rounded-lg border border-muted/30 bg-background/40">
+            <div className="w-1/2 min-w-[200px] space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Entity Definition</label>
+              <Popover open={defPopoverOpen} onOpenChange={setDefPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={defPopoverOpen}
+                    className="w-full h-8 justify-between text-sm font-normal"
+                    disabled={addingEntry}
+                  >
+                    {addDefLabel ? (
+                      <span className="truncate">{addDefLabel}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Search entity...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search by name, key, or ID..."
+                      value={defSearchInput}
+                      onValueChange={handleDefSearch}
+                    />
+                    <CommandList>
+                      {defSearchLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No entities found</CommandEmpty>
+                          <CommandGroup>
+                            {(() => {
+                              const existingDefIds = new Set(entries.map(e => e.entity_definition_id))
+                              const sorted = [...defSearchResults.slice(0, 30)].sort((a, b) => {
+                                const aInPool = existingDefIds.has(a.id) ? 1 : 0
+                                const bInPool = existingDefIds.has(b.id) ? 1 : 0
+                                return aInPool - bInPool
+                              })
+                              return sorted.map((def) => {
+                                const inPool = existingDefIds.has(def.id)
+                                return (
+                                  <CommandItem
+                                    key={def.id}
+                                    value={def.id}
+                                    onSelect={() => selectDef(def)}
+                                    className={inPool ? "opacity-50" : ""}
+                                  >
+                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${addDefId === def.id ? "opacity-100" : "opacity-0"}`} />
+                                    <span className="flex-1 truncate">{def.name}</span>
+                                    {inPool && (
+                                      <Badge className="ml-2 text-[10px] px-1.5 py-0 h-auto bg-amber-500/15 text-amber-600 border-amber-500/30">
+                                        In pool
+                                      </Badge>
+                                    )}
+                                    <span className="ml-2 text-xs text-muted-foreground font-mono">{def.entity_key}</span>
+                                  </CommandItem>
+                                )
+                              })
+                            })()}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-24 space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Weight</label>
+              <Input
+                type="number"
+                min={1}
+                value={addWeight}
+                onChange={(e) => setAddWeight(e.target.value)}
+                className="h-8 text-sm font-mono"
+                disabled={addingEntry}
+              />
+            </div>
+            <Button size="sm" className="h-8 gap-1.5" onClick={handleAddEntry} disabled={addingEntry}>
+              {addingEntry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Add
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setShowAddEntry(false)} disabled={addingEntry}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
         {loadingDetail ? (
           <div className="space-y-2">
             {[1, 2].map(i => <Skeleton key={i} className="h-8 w-full rounded" />)}
@@ -384,6 +617,7 @@ function PoolExpandedContent({
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">Weight</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">%</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8">Stats</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8 w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -402,9 +636,12 @@ function PoolExpandedContent({
                       </Link>
                     </TableCell>
                     <TableCell className="py-1.5">
-                      <Badge variant="outline" className="bg-muted/50 border-none px-2 py-0.5 font-mono text-[11px] h-auto">
-                        {entry.entity_key}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="bg-muted/50 border-none px-2 py-0.5 font-mono text-[11px] h-auto">
+                          {entry.entity_key}
+                        </Badge>
+                        <CopyButton text={entry.entity_key} />
+                      </div>
                     </TableCell>
                     <TableCell className="py-1.5">
                       <Badge variant="secondary" className="capitalize text-xs">
@@ -415,7 +652,31 @@ function PoolExpandedContent({
                       <RarityBadge rarity={entry.rarity} />
                     </TableCell>
                     <TableCell className="py-1.5 text-right">
-                      <span className="text-sm font-mono font-medium">{entry.weight}</span>
+                      {editingWeightId === entry.id ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={editWeightValue}
+                            onChange={(e) => setEditWeightValue(e.target.value)}
+                            className="h-6 w-20 text-sm font-mono text-right"
+                            disabled={savingWeight}
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === "Enter") saveWeight(entry.id); if (e.key === "Escape") cancelEditWeight() }}
+                          />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => saveWeight(entry.id)} disabled={savingWeight}>
+                            {savingWeight ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEditWeight} disabled={savingWeight}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 cursor-pointer group/weight" onClick={(e) => { e.stopPropagation(); startEditWeight(entry) }}>
+                          <span className="text-sm font-mono font-medium">{entry.weight}</span>
+                          <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/expand:opacity-100 transition-opacity" />
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="py-1.5 text-right">
                       <span className="text-sm font-mono text-muted-foreground">{pct.toFixed(1)}%</span>
@@ -432,6 +693,17 @@ function PoolExpandedContent({
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:bg-destructive/10 opacity-0 group-hover/expand:opacity-100 transition-opacity"
+                        disabled={deletingEntryId === entry.id}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id) }}
+                      >
+                        {deletingEntryId === entry.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
                     </TableCell>
                   </TableRow>
                   )

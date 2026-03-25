@@ -113,3 +113,8 @@ export interface UpdateEntityPoolRequest {
   is_active?: boolean
 }
 
+export interface CreateEntityPoolEntryRequest {
+  entity_definition_id: string
+  weight: number
+}
+
