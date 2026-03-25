@@ -10,6 +10,7 @@ import { Footer } from "@/components/footer"
 import { SITE_NAME } from "@/lib/utils/site-config"
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { Toaster } from "@/components/ui/toaster"
+import { GoogleAuthProvider } from "@/components/google-auth-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -39,13 +40,15 @@ export default function RootLayout({
           storageKey="sais-admin-theme"
           themes={['light', 'light-soft', 'light-warm', 'dark', 'dark-blue', 'dark-purple', 'dark-green', 'midnight', 'system']}
         >
-          <AuthProvider>
-            <LanguageProvider>
-              <ProtectedLayout>{children}</ProtectedLayout>
-              <Footer />
-              <Toaster />
-            </LanguageProvider>
-          </AuthProvider>
+          <GoogleAuthProvider>
+            <AuthProvider>
+              <LanguageProvider>
+                <ProtectedLayout>{children}</ProtectedLayout>
+                <Footer />
+                <Toaster />
+              </LanguageProvider>
+            </AuthProvider>
+          </GoogleAuthProvider>
         </ThemeProvider>
       </body>
     </html>

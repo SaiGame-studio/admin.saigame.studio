@@ -43,6 +43,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@react-oauth/google": "^0.13.4",
     "@types/dagre": "^0.7.54",
     "@types/luaparse": "^0.2.13",
     "@uiw/codemirror-theme-vscode": "^4.25.8",
