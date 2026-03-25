@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
+  ChevronRight, ChevronLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { getGame } from "@/lib/game-api"
-import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts } from "@/lib/script-api"
+import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts, listEntitiesPoolSamples } from "@/lib/script-api"
 import type { Game } from "@/types/game"
 import type { GameScript, SampleScript } from "@/types/script"
 import CodeMirror from "@uiw/react-codemirror"
@@ -139,6 +140,16 @@ export default function ScriptEditPage() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
   const [savingName, setSavingName] = useState(false)
+  const [samplesCollapsed, setSamplesCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("scripts_samples_collapsed") === "true"
+    }
+    return false
+  })
+
+  useEffect(() => {
+    localStorage.setItem("scripts_samples_collapsed", samplesCollapsed.toString())
+  }, [samplesCollapsed])
 
   async function handleSaveName() {
     if (!nameInput.trim() || nameInput === script?.name) { setEditingName(false); return }
@@ -172,6 +183,7 @@ export default function ScriptEditPage() {
   }
 
   const [samples, setSamples] = useState<SampleScript[]>([])
+  const [entitiesPoolSamples, setEntitiesPoolSamples] = useState<SampleScript[]>([])
   const [turnBaseSamples, setTurnBaseSamples] = useState<SampleScript[]>([])
   const [samplesLoading, setSamplesLoading] = useState(true)
   const [sampleTab, setSampleTab] = useState<string>("core")
@@ -203,10 +215,12 @@ export default function ScriptEditPage() {
     setSamplesLoading(true)
     Promise.all([
       listSampleScripts().catch(() => [] as SampleScript[]),
+      listEntitiesPoolSamples().catch(() => ({ samples: [] as SampleScript[] })),
       listTurnBaseSampleScripts().catch(() => [] as SampleScript[]),
     ])
-      .then(([core, turnBase]) => {
+      .then(([core, entities, turnBase]) => {
         setSamples(core)
+        setEntitiesPoolSamples(entities.samples.map((s, idx) => ({ ...s, no: s.no ?? (idx + 1) })))
         setTurnBaseSamples(turnBase)
       })
       .finally(() => setSamplesLoading(false))
@@ -396,7 +410,7 @@ export default function ScriptEditPage() {
           <span className="text-sm">{t('scripts.loadingScript')}</span>
         </div>
       ) : !script ? null : (
-        <div className="flex flex-1 min-h-0 gap-4 px-6 py-4">
+        <div className="flex flex-1 min-h-0 px-6 py-4 overflow-hidden">
           {/* Script body editor */}
           <div className="flex flex-1 min-w-0 flex-col gap-2">
             <div className="flex items-center justify-between shrink-0">
@@ -456,8 +470,25 @@ export default function ScriptEditPage() {
             </div>
           </div>
 
+          {/* Vertical Divider with Toggle */}
+          <div className="relative flex items-center shrink-0 h-full px-2">
+            <Separator orientation="vertical" className="h-full" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute left-1/2 -translate-x-1/2 h-7 w-7 rounded-full border bg-background shadow-sm z-10 hover:bg-muted"
+              onClick={() => setSamplesCollapsed(!samplesCollapsed)}
+            >
+              {samplesCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          </div>
+
           {/* Sample scripts panel */}
-          <div className="w-80 shrink-0 flex flex-col gap-2">
+          <div 
+            className={`transition-all duration-300 ease-in-out flex flex-col gap-2 shrink-0 ${
+              samplesCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80 ml-2"
+            }`}
+          >
             <div className="flex items-center justify-between shrink-0">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 {t('scripts.sampleScripts')}
@@ -484,16 +515,21 @@ export default function ScriptEditPage() {
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             ) : (() => {
-              const activeSamples = sampleTab === "core" ? samples : turnBaseSamples
+              const activeSamples = sampleTab === "core" ? samples : 
+                                   sampleTab === "pool" ? entitiesPoolSamples :
+                                   turnBaseSamples
               return (
                 <>
                   <Tabs value={sampleTab} onValueChange={setSampleTab} className="shrink-0">
-                    <TabsList className="h-7 w-full">
-                      <TabsTrigger value="core" className="text-xs flex-1 h-5">
+                    <TabsList className="h-7 w-full px-0.5">
+                      <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
                         Core ({samples.length})
                       </TabsTrigger>
-                      <TabsTrigger value="turn-base" className="text-xs flex-1 h-5">
-                        Turn base ({turnBaseSamples.length})
+                      <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
+                        Pool ({entitiesPoolSamples.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="turn-base" className="text-[10px] flex-1 h-5 px-1">
+                        Turn ({turnBaseSamples.length})
                       </TabsTrigger>
                     </TabsList>
                   </Tabs>
