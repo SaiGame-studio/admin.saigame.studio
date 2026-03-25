@@ -1,17 +1,21 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, useRef, Fragment } from "react"
-import { Plus, RefreshCw, Trash2, Pencil, Search, X, Loader2, ChevronRight, ChevronDown, Skull } from "lucide-react"
+import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react"
+import Link from "next/link"
+import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
-import { listEntityPools } from "@/lib/entity-definition-api"
-import type { EntityPool } from "@/types/entity-definition"
+import { listEntityPools, getEntityPool, updateEntityPool } from "@/lib/entity-definition-api"
+import { ApiError } from "@/lib/api-client"
+import type { EntityPool, EntityPoolEntry, EntityRarity } from "@/types/entity-definition"
+import { ENTITY_RARITY_COLORS, ENTITY_TYPE_LABELS } from "@/types/entity-definition"
 import { CopyButton } from "@/components/CopyButton"
 
 export function EntityPoolTab({ gameId }: { gameId: string }) {
@@ -46,14 +50,18 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
     loadPools()
   }, [loadPools])
 
-  const filteredPools = pools.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredPools = pools.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.pool_key.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     setExpandedId(expandedId === id ? null : id)
+  }
+
+  const handlePoolUpdated = (updated: EntityPool) => {
+    setPools(prev => prev.map(p => p.id === updated.id ? updated : p))
   }
 
   return (
@@ -128,7 +136,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                     const isExpanded = expandedId === pool.id
                     return (
                       <Fragment key={pool.id}>
-                        <TableRow 
+                        <TableRow
                           className={`group cursor-pointer transition-colors border-muted/30 ${isExpanded ? "bg-muted/40" : "hover:bg-muted/20"}`}
                           onClick={(e) => toggleExpand(pool.id, e)}
                         >
@@ -158,9 +166,6 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex justify-end items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={(e) => { e.stopPropagation(); toast({ title: t('entity.featureComingSoon') }) }}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); toast({ title: t('entity.featureComingSoon') }) }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -170,35 +175,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                         {isExpanded && (
                           <TableRow className="bg-muted/10 hover:bg-muted/10 border-none">
                             <TableCell colSpan={6} className="p-0">
-                              <div className="px-12 py-8 grid grid-cols-1 md:grid-cols-2 gap-12 animate-in slide-in-from-top-2 duration-300">
-                                <div className="space-y-6">
-                                    <div>
-                                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1 border-l-2 border-primary/50">{t('entity.poolDescription')}</h4>
-                                        <div className="bg-background/40 p-3 rounded-lg border border-muted/30">
-                                          <p className="text-sm text-foreground/80 leading-relaxed">{pool.description || <span className="text-muted-foreground italic">{t('entity.noDescription')}</span>}</p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1 border-l-2 border-primary/50">{t('entity.internalIdentity')}</h4>
-                                        <div className="flex items-center gap-2 bg-muted/30 w-fit px-3 py-1.5 rounded-md border">
-                                            <code className="text-xs font-mono text-primary/80">{pool.id}</code>
-                                            <CopyButton text={pool.id} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-6">
-                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-background/40 p-4 rounded-lg border border-muted/30">
-                                          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">{t('entity.fieldCreated')}</h4>
-                                          <p className="text-sm font-medium">{new Date(pool.created_at).toLocaleString()}</p>
-                                        </div>
-                                        <div className="bg-background/40 p-4 rounded-lg border border-muted/30">
-                                          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">{t('entity.fieldUpdated')}</h4>
-                                          <p className="text-sm font-medium">{new Date(pool.updated_at).toLocaleString()}</p>
-                                        </div>
-                                     </div>
-                                </div>
-                              </div>
+                              <PoolExpandedContent pool={pool} gameId={gameId} onSaved={handlePoolUpdated} />
                             </TableCell>
                           </TableRow>
                         )}
@@ -215,3 +192,255 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   )
 }
 
+// ─── Inline edit expanded content ──────────────────────────────────────────────
+
+function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
+  if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
+  const c = ENTITY_RARITY_COLORS[rarity]
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}>
+      {rarity}
+    </span>
+  )
+}
+
+function PoolExpandedContent({
+  pool,
+  gameId,
+  onSaved,
+}: {
+  pool: EntityPool
+  gameId: string
+  onSaved: (updated: EntityPool) => void
+}) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [editingField, setEditingField] = useState<"name" | "description" | null>(null)
+  const [editName, setEditName] = useState(pool.name)
+  const [editDescription, setEditDescription] = useState(pool.description ?? "")
+  const [saving, setSaving] = useState(false)
+  const [detail, setDetail] = useState<EntityPool | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(true)
+
+  useEffect(() => {
+    setEditName(pool.name)
+    setEditDescription(pool.description ?? "")
+    setEditingField(null)
+  }, [pool])
+
+  // Fetch pool detail with entries on mount
+  useEffect(() => {
+    let cancelled = false
+    setLoadingDetail(true)
+    getEntityPool(gameId, pool.id)
+      .then((data) => {
+        if (!cancelled) setDetail(data)
+      })
+      .catch(() => {
+        // silently fail, we still have the basic pool data
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDetail(false)
+      })
+    return () => { cancelled = true }
+  }, [gameId, pool.id])
+
+  function startEdit(field: "name" | "description") {
+    setEditName(pool.name)
+    setEditDescription(pool.description ?? "")
+    setEditingField(field)
+  }
+
+  function cancelEdit() {
+    setEditName(pool.name)
+    setEditDescription(pool.description ?? "")
+    setEditingField(null)
+  }
+
+  async function saveField() {
+    if (editingField === "name" && !editName.trim()) {
+      toast({ title: t('common.validation'), description: t('entity.nameRequired'), variant: "destructive" })
+      return
+    }
+    setSaving(true)
+    try {
+      const body: { name?: string; description?: string } = {}
+      if (editingField === "name") {
+        body.name = editName.trim()
+      } else {
+        body.description = editDescription.trim()
+      }
+      const updated = await updateEntityPool(gameId, pool.id, body)
+      toast({ title: t('common.saved') })
+      onSaved(updated)
+      setDetail(prev => prev ? { ...prev, ...updated } : prev)
+      setEditingField(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSaveField')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveCancel = (
+    <>
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={saveField} disabled={saving}>
+        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+      </Button>
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEdit} disabled={saving}>
+        <X className="w-3.5 h-3.5" />
+      </Button>
+    </>
+  )
+
+  const entries = detail?.entries ?? []
+  const totalWeight = useMemo(() => entries.reduce((sum, e) => sum + e.weight, 0), [entries])
+
+  return (
+    <div className="group/expand px-12 py-4 animate-in slide-in-from-top-2 duration-300 space-y-4">
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+        {/* Name */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldName')}</dt>
+          <dd className="flex items-center gap-1.5">
+            {editingField === "name" ? (
+              <>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-sm flex-1" disabled={saving} />
+                {saveCancel}
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-medium">{pool.name || <span className="text-muted-foreground">—</span>}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity" onClick={() => startEdit("name")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* Description */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldDescription')}</dt>
+          <dd className="flex items-start gap-1.5">
+            {editingField === "description" ? (
+              <>
+                <div className="flex-1 space-y-1">
+                  <Textarea rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value.slice(0, 500))} className="text-sm resize-none" disabled={saving} />
+                  <p className={`text-xs text-right ${editDescription.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{editDescription.length}/500</p>
+                </div>
+                <div className="flex flex-col gap-1">{saveCancel}</div>
+              </>
+            ) : (
+              <>
+                <span className="text-sm">{pool.description || <span className="text-muted-foreground text-xs">—</span>}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover/expand:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
+              </>
+            )}
+          </dd>
+        </div>
+
+        {/* Internal ID */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.internalIdentity')}</dt>
+          <dd className="flex items-center gap-2">
+            <code className="text-xs font-mono text-primary/80 bg-muted/30 px-2 py-0.5 rounded border">{pool.id}</code>
+            <CopyButton text={pool.id} />
+          </dd>
+        </div>
+
+        {/* Timestamps */}
+        <div className="flex gap-6">
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldCreated')}</dt>
+            <dd className="text-sm">{new Date(pool.created_at).toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldUpdated')}</dt>
+            <dd className="text-sm">{new Date(detail?.updated_at ?? pool.updated_at).toLocaleString()}</dd>
+          </div>
+        </div>
+      </dl>
+
+      {/* Entries */}
+      <div>
+        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1 border-l-2 border-primary/50">
+          Entries {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
+        </h4>
+        {loadingDetail ? (
+          <div className="space-y-2">
+            {[1, 2].map(i => <Skeleton key={i} className="h-8 w-full rounded" />)}
+          </div>
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">{t('entity.noEntries') || 'No entries in this pool'}</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-muted/30">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-muted/30">
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldName')}</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldEntityKey')}</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldEntityType')}</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldRarity')}</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">Weight</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">%</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">Stats</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map(entry => {
+                  const pct = totalWeight > 0 ? (entry.weight / totalWeight * 100) : 0
+                  return (
+                  <TableRow key={entry.id} className="border-muted/20 hover:bg-muted/20">
+                    <TableCell className="py-1.5">
+                      <Link
+                        href={`/games/${gameId}/entities?tab=entities&search=${entry.entity_definition_id}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {entry.entity_name}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </Link>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <Badge variant="outline" className="bg-muted/50 border-none px-2 py-0.5 font-mono text-[11px] h-auto">
+                        {entry.entity_key}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <Badge variant="secondary" className="capitalize text-xs">
+                        {ENTITY_TYPE_LABELS[entry.entity_type as keyof typeof ENTITY_TYPE_LABELS] ?? entry.entity_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <RarityBadge rarity={entry.rarity} />
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right">
+                      <span className="text-sm font-mono font-medium">{entry.weight}</span>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right">
+                      <span className="text-sm font-mono text-muted-foreground">{pct.toFixed(1)}%</span>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {entry.stats && Object.keys(entry.stats).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(entry.stats).map(([k, v]) => (
+                            <Badge key={k} variant="outline" className="text-[10px] font-mono h-auto py-0 px-1.5 bg-muted/30 border-muted/50">
+                              {k}: {String(v)}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

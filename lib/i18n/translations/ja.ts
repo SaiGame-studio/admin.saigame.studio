@@ -2207,6 +2207,7 @@ export const ja = {
     noEntitiesYet: "エンティティがありません",
     filterByName: "名前でフィルター…",
     searchByKey: "キーで検索…",
+    searchPlaceholder: "名前、キー、IDで検索…",
     allTypes: "すべての種別",
     newEntity: "新規エンティティ",
     filtered: "件フィルター中",

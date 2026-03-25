@@ -2239,6 +2239,7 @@ export const en = {
     noEntitiesYet: "No entities yet",
     filterByName: "Filter by name…",
     searchByKey: "Search by key…",
+    searchPlaceholder: "Search by name, key, or ID…",
     allTypes: "All types",
     newEntity: "New Entity",
     filtered: "filtered",

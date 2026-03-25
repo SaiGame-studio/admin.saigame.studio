@@ -17,6 +17,7 @@ import type {
 export interface ListEntityDefinitionsParams {
   type?: EntityType
   name?: string
+  search?: string
 }
 
 /** POST /api/v1/games/:gameId/entity-definitions */
@@ -35,6 +36,7 @@ export async function listEntityDefinitions(
   const query = new URLSearchParams()
   if (params.type) query.set('type', params.type)
   if (params.name) query.set('name', params.name)
+  if (params.search) query.set('search', params.search)
   const qs = query.toString()
   return api.get(`/api/v1/games/${gameId}/entity-definitions${qs ? `?${qs}` : ''}`)
 }

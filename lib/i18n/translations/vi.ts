@@ -2218,6 +2218,7 @@ export const vi = {
     noEntitiesYet: "Chưa có thực thể nào",
     filterByName: "Lọc theo tên…",
     searchByKey: "Tìm theo key…",
+    searchPlaceholder: "Tìm theo tên, key hoặc ID…",
     allTypes: "Tất cả loại",
     newEntity: "Tạo thực thể",
     filtered: "đã lọc",
