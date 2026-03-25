@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
   ChevronRight, ChevronLeft,
@@ -113,6 +113,7 @@ const LuaEditor = forwardRef<LuaEditorHandle, LuaEditorProps>(function LuaEditor
 export default function ScriptEditPage() {
   const params = useParams() as { id: string; scriptId: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
@@ -186,7 +187,10 @@ export default function ScriptEditPage() {
   const [entitiesPoolSamples, setEntitiesPoolSamples] = useState<SampleScript[]>([])
   const [turnBaseSamples, setTurnBaseSamples] = useState<SampleScript[]>([])
   const [samplesLoading, setSamplesLoading] = useState(true)
-  const [sampleTab, setSampleTab] = useState<string>("core")
+  const [sampleTab, setSampleTab] = useState<string>(() => {
+    const tab = searchParams.get("sampleTab")
+    return tab === "pool" || tab === "turn-base" ? tab : "core"
+  })
   const [appendMode, setAppendMode] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -520,7 +524,12 @@ export default function ScriptEditPage() {
                                    turnBaseSamples
               return (
                 <>
-                  <Tabs value={sampleTab} onValueChange={setSampleTab} className="shrink-0">
+                  <Tabs value={sampleTab} onValueChange={(v) => {
+                    setSampleTab(v)
+                    const sp = new URLSearchParams(searchParams.toString())
+                    if (v === "core") sp.delete("sampleTab"); else sp.set("sampleTab", v)
+                    router.replace(`?${sp.toString()}`, { scroll: false })
+                  }} className="shrink-0">
                     <TabsList className="h-7 w-full px-0.5">
                       <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
                         Core ({samples.length})
