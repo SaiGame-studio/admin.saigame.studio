@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Chrome } from "lucide-react"
+import { GoogleLogin } from "@react-oauth/google"
 import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
 export function LoginForm() {
   const { login } = useAuth()
   const { toast } = useToast()
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [usernameOrEmail, setUsernameOrEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -31,6 +33,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loginWasRemembered, setLoginWasRemembered] = useState(false)
   const router = useRouter()
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
   // Check for remembered email/username on component mount
   useEffect(() => {
@@ -95,6 +98,51 @@ export function LoginForm() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setIsGoogleLoading(true)
+    setError(null)
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      if (!apiUrl) {
+        throw new Error("API URL is not configured")
+      }
+
+      const response = await fetch(`${apiUrl}/api/v1/auth/google/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Google login failed")
+      }
+
+      if (data.access_token) {
+        login(data.access_token, data.refresh_token)
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${data.user?.username || data.user?.email || 'User'}!`,
+        })
+      } else {
+        throw new Error("No access token received from server")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred during Google login")
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleGoogleError = () => {
+    setError("Google login failed. Please try again.")
   }
 
   return (
@@ -188,16 +236,47 @@ export function LoginForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing in...
               </>
+            ) : isGoogleLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying Google account...
+              </>
             ) : (
               "Sign in"
             )}
           </Button>
+          {googleClientId && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap
+                  theme="outline"
+                  size="large"
+                  width="350px"
+                  text="signin_with"
+                  shape="rectangular"
+                />
+              </div>
+            </>
+          )}
+
           <div className="text-center text-sm">
             Don't have an account?{" "}
             <Button variant="link" className="p-0 font-normal" onClick={() => router.push("/register")}>

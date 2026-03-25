@@ -74,14 +74,15 @@ import {
 import { CopyButton } from "@/components/CopyButton"
 import { JourneyDagView } from "@/components/JourneyDagView"
 import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
 type TabValue = "journey" | "event-types"
 
-const TABS: { value: TabValue; label: string }[] = [
-  { value: "journey", label: "Journey" },
-  { value: "event-types", label: "Event Types" },
+const TABS: { value: TabValue; labelKey: string }[] = [
+  { value: "journey", labelKey: "analytic.tabJourney" },
+  { value: "event-types", labelKey: "analytic.tabEventTypes" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -104,6 +105,7 @@ const JOURNEY_LIMIT = 1000
 
 function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId }: JourneyTabProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   // Create sheet
   const [createForm, setCreateForm] = useState<CreateJourneyRequest>({
@@ -156,7 +158,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
 
   const handleCreate = async () => {
     if (!createForm.name.trim() || !createForm.journey_key.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Name and Journey Key are required." })
+      toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: t('analytic.toastNameKeyRequired' as any) })
       return
     }
     setCreateSaving(true)
@@ -166,11 +168,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await createJourney(gameId, { ...createForm, metadata: meta })
-      toast({ title: "Journey created" })
+      toast({ title: t('analytic.toastJourneyCreated' as any) })
       setCreateOpen(false)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to create journey" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateJourney' as any) })
     } finally {
       setCreateSaving(false)
     }
@@ -199,11 +201,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await updateJourney(gameId, editJourney.id, { ...editForm, metadata: meta })
-      toast({ title: "Journey updated" })
+      toast({ title: t('analytic.toastJourneyUpdated' as any) })
       setEditJourney(null)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) })
     } finally {
       setEditSaving(false)
     }
@@ -216,11 +218,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
     setDeleteSaving(true)
     try {
       await deleteJourney(gameId, deleteJourneyItem.id)
-      toast({ title: "Journey deleted" })
+      toast({ title: t('analytic.toastJourneyDeleted' as any) })
       setDeleteJourneyItem(null)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete journey" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteJourney' as any) })
     } finally {
       setDeleteSaving(false)
     }
@@ -233,7 +235,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       await updateJourney(gameId, j.id, { is_active: !j.is_active })
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update journey" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) })
     }
   }
 
@@ -259,15 +261,15 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-          <span>Key / Value</span>
+          <span>{t('analytic.metaKeyValue' as any)}</span>
           <span className={atLimit ? "text-destructive font-medium" : ""}>
-            {used} / {META_KEY_LIMIT} keys
+            {used} / {META_KEY_LIMIT} {t('analytic.metaKeysCount' as any)}
           </span>
         </div>
         {rows.map((row, i) => (
           <div key={i} className="flex gap-2 items-center">
             <Input
-              placeholder="key"
+              placeholder={t('analytic.metaPlaceholderKey' as any)}
               value={row.k}
               onChange={e => {
                 const next = [...rows]
@@ -278,7 +280,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
             />
             <span className="text-muted-foreground">:</span>
             <Input
-              placeholder="value"
+              placeholder={t('analytic.metaPlaceholderValue' as any)}
               value={row.v}
               onChange={e => {
                 const next = [...rows]
@@ -302,12 +304,12 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
           size="sm"
           type="button"
           disabled={atLimit}
-          title={atLimit ? `Maximum ${META_KEY_LIMIT} keys reached` : undefined}
+          title={atLimit ? t('analytic.metaLimitReached' as any) : undefined}
           onClick={() => onChange([...rows, { k: "", v: "" }])}
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
-          Add field
-          {atLimit && <span className="ml-1 text-xs text-destructive">(limit reached)</span>}
+          {t('analytic.metaAddField' as any)}
+          {atLimit && <span className="ml-1 text-xs text-destructive">{t('analytic.metaLimitReached' as any)}</span>}
         </Button>
       </div>
     )
@@ -327,18 +329,18 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       ) : journeys.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
           <Route className="h-10 w-10 opacity-30" />
-          <p>No journeys yet. Create your first journey.</p>
+          <p>{t('analytic.emptyJourneys' as any)}</p>
         </div>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('analytic.tableHeaderName' as any)}</TableHead>
+                <TableHead>{t('analytic.tableHeaderKey' as any)}</TableHead>
+                <TableHead>{t('analytic.tableHeaderActive' as any)}</TableHead>
+                <TableHead>{t('analytic.tableHeaderCreated' as any)}</TableHead>
+                <TableHead className="text-right">{t('analytic.tableHeaderActions' as any)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -409,11 +411,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>New Journey</SheetTitle>
+            <SheetTitle>{t('analytic.createJourneyTitle' as any)}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>{t('analytic.labelName' as any)} <span className="text-destructive">*</span></Label>
               <Input
                 value={createForm.name}
                 onChange={e => {
@@ -424,11 +426,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                     journey_key: autoSlug ? slugify(newName) : f.journey_key,
                   }))
                 }}
-                placeholder="Tutorial Journey"
+                placeholder={t('analytic.placeholderJourneyName' as any)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Journey Key <span className="text-destructive">*</span></Label>
+              <Label>{t('analytic.labelJourneyKey' as any)} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
                 <Input
                   value={createForm.journey_key}
@@ -436,7 +438,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                     setCreateForm(f => ({ ...f, journey_key: e.target.value }))
                     setAutoSlug(false) // Disable auto-slug when manually editing
                   }}
-                  placeholder="tutorial_journey"
+                  placeholder={t('analytic.placeholderJourneyKey' as any)}
                   className="flex-1"
                 />
                 <Button
@@ -451,19 +453,19 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                       setCreateForm(f => ({ ...f, journey_key: slugify(f.name) }))
                     }
                   }}
-                  title={autoSlug ? "Auto-slug enabled" : "Auto-slug disabled"}
+                  title={autoSlug ? t('analytic.autoSlugEnabled' as any) : t('analytic.autoSlugDisabled' as any)}
                   className="shrink-0"
                 >
                   <Wand2 className="h-4 w-4" />
                 </Button>
               </div>
               {autoSlug && (
-                <p className="text-xs text-muted-foreground">Journey key will auto-generate from name</p>
+                <p className="text-xs text-muted-foreground">{t('analytic.autoSlugHint' as any)}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>Description</Label>
+                <Label>{t('analytic.labelDescription' as any)}</Label>
                 <span className="text-xs text-muted-foreground">
                   {(createForm.description ?? "").length} / 500
                 </span>
@@ -471,23 +473,23 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
               <Textarea
                 value={createForm.description ?? ""}
                 onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Journey description..."
+                placeholder={t('analytic.placeholderJourneyDescription' as any)}
                 rows={3}
                 maxLength={500}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Metadata</Label>
+              <Label>{t('analytic.labelMetadata' as any)}</Label>
               <MetaEditor rows={createMetaRows} onChange={setCreateMetaRows} />
             </div>
           </div>
           <SheetFooter className="mt-6 flex gap-2">
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('analytic.btnCancel' as any)}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={createSaving}>
               {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Create
+              {t('analytic.btnCreate' as any)}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -497,7 +499,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       <Sheet open={!!editJourney} onOpenChange={open => { if (!open) setEditJourney(null) }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Edit Journey</SheetTitle>
+            <SheetTitle>{t('analytic.editJourneyTitle' as any)}</SheetTitle>
           </SheetHeader>
           {editJourney && (
             <div className="space-y-4 mt-6">
@@ -505,16 +507,16 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                 <code className="text-xs">{editJourney.journey_key}</code>
               </div>
               <div className="space-y-1.5">
-                <Label>Name</Label>
+                <Label>{t('analytic.labelName' as any)}</Label>
                 <Input
                   value={editForm.name ?? ""}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Journey name"
+                  placeholder={t('analytic.placeholderEditJourneyName' as any)}
                 />
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label>Description</Label>
+                  <Label>{t('analytic.labelDescription' as any)}</Label>
                   <span className="text-xs text-muted-foreground">
                     {(editForm.description ?? "").length} / 500
                   </span>
@@ -527,7 +529,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="edit-active">Active</Label>
+                <Label htmlFor="edit-active">{t('analytic.labelActive' as any)}</Label>
                 <Switch
                   id="edit-active"
                   checked={editForm.is_active ?? false}
@@ -535,16 +537,16 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Metadata</Label>
+                <Label>{t('analytic.labelMetadata' as any)}</Label>
                 <MetaEditor rows={editMetaRows} onChange={setEditMetaRows} />
               </div>
             </div>
           )}
           <SheetFooter className="mt-6 flex gap-2">
-            <Button variant="outline" onClick={() => setEditJourney(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditJourney(null)}>{t('analytic.btnCancel' as any)}</Button>
             <Button onClick={handleEdit} disabled={editSaving}>
               {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Save
+              {t('analytic.btnSave' as any)}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -554,22 +556,22 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       <AlertDialog open={!!deleteJourneyItem} onOpenChange={open => { if (!open) setDeleteJourneyItem(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Journey</AlertDialogTitle>
+            <AlertDialogTitle>{t('analytic.deleteJourneyTitle' as any)}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteJourneyItem?.name}</span>?
-              This action cannot be undone.
+              {t('analytic.deleteJourneyDesc' as any)}{" "}
+              <span className="font-semibold">{deleteJourneyItem?.name}</span>
+              {t('analytic.deleteJourneyDescSuffix' as any)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('analytic.btnCancel' as any)}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteSaving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Delete
+              {t('analytic.btnDelete' as any)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -593,6 +595,7 @@ interface EventTypeTabProps {
 
 function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, createOpen, setCreateOpen, onMutate }: EventTypeTabProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -628,9 +631,9 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
   const EVENT_TYPE_REGEX = /^[a-z][a-z0-9_]*$/
 
   function validateEventType(value: string): string | null {
-    if (!value.trim()) return "Event Type is required."
+    if (!value.trim()) return t('analytic.eventTypeValidationRequired' as any)
     if (!EVENT_TYPE_REGEX.test(value))
-      return "Must start with a letter and contain only lowercase letters, digits, and underscores."
+      return t('analytic.eventTypeValidationRegex' as any)
     return null
   }
 
@@ -643,17 +646,17 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
   const handleCreate = async () => {
     const err = validateEventType(createForm.event_type)
     if (err) {
-      toast({ variant: "destructive", title: "Validation", description: err })
+      toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: err })
       return
     }
     setCreateSaving(true)
     try {
       await createEventType(gameId, createForm)
-      toast({ title: "Event type created" })
+      toast({ title: t('analytic.toastEventTypeCreated' as any) })
       setCreateOpen(false)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to create event type" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateEventType' as any) })
     } finally {
       setCreateSaving(false)
     }
@@ -671,11 +674,11 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
     setEditSaving(true)
     try {
       await updateEventType(gameId, editItem.id, { description: editDescription })
-      toast({ title: "Event type updated" })
+      toast({ title: t('analytic.toastEventTypeUpdated' as any) })
       setEditItem(null)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update event type" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateEventType' as any) })
     } finally {
       setEditSaving(false)
     }
@@ -688,11 +691,11 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
     setDeleteSaving(true)
     try {
       await deleteEventType(gameId, deleteItem.id)
-      toast({ title: "Event type deleted" })
+      toast({ title: t('analytic.toastEventTypeDeleted' as any) })
       setDeleteItem(null)
       onMutate()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete event type" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteEventType' as any) })
     } finally {
       setDeleteSaving(false)
     }
@@ -712,17 +715,17 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       ) : eventTypes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
           <BarChart2 className="h-10 w-10 opacity-30" />
-          <p>No event types yet. Create your first event type.</p>
+          <p>{t('analytic.emptyEventTypes' as any)}</p>
         </div>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Event Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('analytic.tableHeaderEventType' as any)}</TableHead>
+                <TableHead>{t('analytic.tableHeaderDescription' as any)}</TableHead>
+                <TableHead>{t('analytic.tableHeaderCreated' as any)}</TableHead>
+                <TableHead className="text-right">{t('analytic.tableHeaderActions' as any)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -789,26 +792,26 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>New Event Type</SheetTitle>
+            <SheetTitle>{t('analytic.createEventTypeTitle' as any)}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
-              <Label>Event Type <span className="text-destructive">*</span></Label>
+              <Label>{t('analytic.labelEventType' as any)} <span className="text-destructive">*</span></Label>
               <Input
                 value={createForm.event_type}
                 onChange={e => setCreateForm(f => ({ ...f, event_type: e.target.value }))}
-                placeholder="join_game"
+                placeholder={t('analytic.placeholderEventType' as any)}
                 className={createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? "border-destructive focus-visible:ring-destructive" : ""}
               />
               {createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? (
-                <p className="text-xs text-destructive">Must start with a letter and contain only lowercase letters, digits, and underscores.</p>
+                <p className="text-xs text-destructive">{t('analytic.eventTypeValidationRegex' as any)}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">Unique identifier for this event (e.g. join_game, ending1)</p>
+                <p className="text-xs text-muted-foreground">{t('analytic.eventTypeHint' as any)}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>Description</Label>
+                <Label>{t('analytic.labelDescription' as any)}</Label>
                 <span className="text-xs text-muted-foreground">
                   {(createForm.description ?? "").length} / 500
                 </span>
@@ -816,7 +819,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
               <Textarea
                 value={createForm.description ?? ""}
                 onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Describe what this event represents..."
+                placeholder={t('analytic.placeholderEventDescription' as any)}
                 rows={3}
                 maxLength={500}
               />
@@ -824,11 +827,11 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
           </div>
           <SheetFooter className="mt-6 flex gap-2">
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t('analytic.btnCancel' as any)}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={createSaving}>
               {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Create
+              {t('analytic.btnCreate' as any)}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -838,7 +841,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       <Sheet open={!!editItem} onOpenChange={open => { if (!open) setEditItem(null) }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Edit Event Type</SheetTitle>
+            <SheetTitle>{t('analytic.editEventTypeTitle' as any)}</SheetTitle>
           </SheetHeader>
           {editItem && (
             <div className="space-y-4 mt-6">
@@ -847,7 +850,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label>Description</Label>
+                  <Label>{t('analytic.labelDescription' as any)}</Label>
                   <span className="text-xs text-muted-foreground">
                     {editDescription.length} / 500
                   </span>
@@ -855,7 +858,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
                 <Textarea
                   value={editDescription}
                   onChange={e => setEditDescription(e.target.value)}
-                  placeholder="Describe what this event represents..."
+                  placeholder={t('analytic.placeholderEventDescription' as any)}
                   rows={3}
                   maxLength={500}
                 />
@@ -863,10 +866,10 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
             </div>
           )}
           <SheetFooter className="mt-6 flex gap-2">
-            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditItem(null)}>{t('analytic.btnCancel' as any)}</Button>
             <Button onClick={handleEdit} disabled={editSaving}>
               {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Save
+              {t('analytic.btnSave' as any)}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -876,22 +879,22 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       <AlertDialog open={!!deleteItem} onOpenChange={open => { if (!open) setDeleteItem(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event Type</AlertDialogTitle>
+            <AlertDialogTitle>{t('analytic.deleteEventTypeTitle' as any)}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteItem?.event_type}</span>?
-              This action cannot be undone.
+              {t('analytic.deleteEventTypeDesc' as any)}{" "}
+              <span className="font-semibold">{deleteItem?.event_type}</span>
+              {t('analytic.deleteEventTypeDescSuffix' as any)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('analytic.btnCancel' as any)}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteSaving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Delete
+              {t('analytic.btnDelete' as any)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -908,6 +911,7 @@ export default function AnalyticPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const rawTab = searchParams.get("tab") ?? "journey"
   const activeTab: TabValue = VALID_TABS.has(rawTab) ? (rawTab as TabValue) : "journey"
@@ -929,7 +933,7 @@ export default function AnalyticPage() {
       const data = await listJourneys(gameId)
       setJourneys(data)
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load journeys" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadJourneys' as any) })
     } finally {
       setJourneysLoading(false)
       setJourneysRefreshing(false)
@@ -967,7 +971,7 @@ export default function AnalyticPage() {
       const data = await listEventTypes(gameId)
       setEventTypes(data)
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load event types" })
+      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadEventTypes' as any) })
     } finally {
       setEventTypesLoading(false)
       setEventTypesRefreshing(false)
@@ -989,7 +993,7 @@ export default function AnalyticPage() {
           }
         }
       })
-      .catch(() => toast({ variant: "destructive", title: "Error", description: "Failed to load game" }))
+      .catch(() => toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadGame' as any) }))
       .finally(() => setGameLoading(false))
   }, [gameId, toast])
 
@@ -1011,14 +1015,14 @@ export default function AnalyticPage() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+              <BreadcrumbLink href="/studios">{t('analytic.breadcrumbStudios' as any)}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             {game?.studio_id && (
               <>
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/studios/${game.studio_id}`}>
-                    {studio?.name || game.studio?.name || "Studio"}
+                    {studio?.name || game.studio?.name || t('analytic.breadcrumbStudio' as any)}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -1031,7 +1035,7 @@ export default function AnalyticPage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span>Analytic</span>
+              <span>{t('analytic.pageTitle' as any)}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -1046,7 +1050,7 @@ export default function AnalyticPage() {
           <div>
             <div className="flex items-center gap-2">
               <BarChart2 className="h-5 w-5" />
-              <h1 className="text-2xl font-bold">Analytic</h1>
+              <h1 className="text-2xl font-bold">{t('analytic.pageTitle' as any)}</h1>
             </div>
           </div>
         </div>
@@ -1062,9 +1066,9 @@ export default function AnalyticPage() {
           {/* Col 1: tab triggers + journey toolbar */}
           <div className="flex-1 min-w-0 space-y-4">
             <TabsList>
-              {TABS.map((t) => (
-                <TabsTrigger key={t.value} value={t.value}>
-                  {t.label}
+              {TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {t(tab.labelKey as any)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -1088,7 +1092,7 @@ export default function AnalyticPage() {
                             style={{ width: `${pct}%` }}
                           />
                         </span>
-                        <span className="text-xs text-muted-foreground">fixed limit · cannot be upgraded</span>
+                        <span className="text-xs text-muted-foreground">{t('analytic.fixedLimitNote' as any)}</span>
                       </p>
                     )
                   })()}
@@ -1099,7 +1103,7 @@ export default function AnalyticPage() {
                   </Button>
                   <Button size="sm" onClick={() => setJourneyCreateOpen(true)} disabled={journeys.length >= JOURNEY_LIMIT}>
                     <Plus className="h-4 w-4 mr-1" />
-                    New Journey
+                    {t('analytic.newJourney' as any)}
                   </Button>
                 </div>
               </div>
@@ -1128,7 +1132,7 @@ export default function AnalyticPage() {
                             <Link
                               href={`/games/${gameId}/plugins`}
                               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                              title="Manage plugins / raise limits"
+                              title={t('analytic.managePluginsTitle' as any)}
                             >
                               <Hammer className="h-3.5 w-3.5" />
                             </Link>
@@ -1144,7 +1148,7 @@ export default function AnalyticPage() {
                   </Button>
                   <Button size="sm" onClick={() => setEventTypeCreateOpen(true)} disabled={game?.limits?.max_event_types != null && eventTypes.length >= game.limits.max_event_types}>
                     <Plus className="h-4 w-4 mr-1" />
-                    New Event Type
+                    {t('analytic.newEventType' as any)}
                   </Button>
                 </div>
               </div>

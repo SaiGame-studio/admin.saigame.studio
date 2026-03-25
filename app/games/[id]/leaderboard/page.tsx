@@ -107,24 +107,24 @@ import { getPlayerIdentityMapByUserIds, type PlayerIdentity } from "@/lib/game-u
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const SCORE_MODE_OPTIONS: { value: ScoreMode; label: string }[] = [
-  { value: "sum", label: "Sum" },
-  { value: "max", label: "Max" },
-  { value: "min", label: "Min" },
-  { value: "latest", label: "Latest" },
+const SCORE_MODE_OPTIONS: { value: ScoreMode; labelKey: string }[] = [
+  { value: "sum", labelKey: "leaderboard.scoreMode_sum" },
+  { value: "max", labelKey: "leaderboard.scoreMode_max" },
+  { value: "min", labelKey: "leaderboard.scoreMode_min" },
+  { value: "latest", labelKey: "leaderboard.scoreMode_latest" },
 ]
 
-const SORT_DIRECTION_OPTIONS: { value: SortDirection; label: string }[] = [
-  { value: "DESC", label: "Descending (highest first)" },
-  { value: "ASC", label: "Ascending (lowest first)" },
+const SORT_DIRECTION_OPTIONS: { value: SortDirection; labelKey: string }[] = [
+  { value: "DESC", labelKey: "leaderboard.sortDirection_DESC" },
+  { value: "ASC", labelKey: "leaderboard.sortDirection_ASC" },
 ]
 
-const RESET_SCHEDULE_OPTIONS: { value: ResetSchedule; label: string }[] = [
-  { value: "never", label: "Never" },
-  { value: "season", label: "Season" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
+const RESET_SCHEDULE_OPTIONS: { value: ResetSchedule; labelKey: string }[] = [
+  { value: "never", labelKey: "leaderboard.resetSchedule_never" },
+  { value: "season", labelKey: "leaderboard.resetSchedule_season" },
+  { value: "daily", labelKey: "leaderboard.resetSchedule_daily" },
+  { value: "weekly", labelKey: "leaderboard.resetSchedule_weekly" },
+  { value: "monthly", labelKey: "leaderboard.resetSchedule_monthly" },
 ]
 
 function resetScheduleBadge(schedule: ResetSchedule) {
@@ -184,7 +184,9 @@ interface DateTimePickerProps {
   placeholder?: string
 }
 
-function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: DateTimePickerProps) {
+function DateTimePicker({ value, onChange, placeholder }: DateTimePickerProps) {
+  const { t } = useTranslation()
+  const finalPlaceholder = placeholder ?? t('leaderboard.pickDateTime')
   const [open, setOpen] = useState(false)
   // draft state inside popover
   const [draftDate, setDraftDate] = useState<Date | undefined>(undefined)
@@ -235,7 +237,7 @@ function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: D
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           {display
             ? <span className="flex-1">{display}</span>
-            : <span className="flex-1 text-muted-foreground">{placeholder}</span>}
+            : <span className="flex-1 text-muted-foreground">{finalPlaceholder}</span>}
           {value && (
             <span
               role="button"
@@ -257,7 +259,7 @@ function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: D
         />
         <div className="border-t px-3 pb-3 pt-2 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground w-10">Time</span>
+            <span className="text-xs text-muted-foreground w-10">{t('leaderboard.timeLabel')}</span>
             <Input
               className="h-8 w-16 text-center font-mono text-sm"
               maxLength={2}
@@ -287,7 +289,7 @@ function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: D
                 setDraftHour(String(now.getHours()).padStart(2, "0"))
                 setDraftMinute(String(now.getMinutes()).padStart(2, "0"))
               }}
-            >Now</Button>
+            >{t('leaderboard.nowBtn')}</Button>
             <Button
               type="button" variant="outline" size="sm" className="h-7 text-xs flex-1"
               onClick={() => {
@@ -296,11 +298,11 @@ function DateTimePicker({ value, onChange, placeholder = "Pick date & time" }: D
                 setDraftHour("00")
                 setDraftMinute("00")
               }}
-            >Tmr 00:00</Button>
+            >{t('leaderboard.tmrBtn')}</Button>
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="button" size="sm" className="h-8" onClick={handleConfirm} disabled={!draftDate}>Confirm</Button>
+            <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)}>{t('leaderboard.cancelBtn')}</Button>
+            <Button type="button" size="sm" className="h-8" onClick={handleConfirm} disabled={!draftDate}>{t('leaderboard.confirmBtn')}</Button>
           </div>
         </div>
       </PopoverContent>
@@ -326,7 +328,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const [scheduleFlash, setScheduleFlash] = useState(false)
   const scheduleFlashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [scheduleOptions, setScheduleOptions] = useState<ResetScheduleOption[]>(
-    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.label, description: "" }))
+    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.labelKey, description: "" }))
   )
   const [sourceTypeOptions, setSourceTypeOptions] = useState<ScoreSourceTypeOption[]>([])
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
@@ -385,24 +387,24 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Name is required." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.nameRequired') })
       return
     }
     if (!form.board_key.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Board Key is required." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyRequired') })
       return
     }
     if (!/^[a-z0-9_]+$/.test(form.board_key)) {
-      toast({ variant: "destructive", title: "Validation", description: "Board Key may only contain lowercase letters, digits, and underscores." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyInvalid') })
       return
     }
     if (!form.score_source_type) {
-      toast({ variant: "destructive", title: "Validation", description: "Score Source Type is required." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.scoreSourceTypeRequired') })
       return
     }
     if (!form.score_source_ref_id.trim()) {
       const refLabel = sourceTypeOptions.find(o => o.value === form.score_source_type)?.ref_id_label ?? "score_source_ref_id"
-      toast({ variant: "destructive", title: "Validation", description: `${refLabel} is required.` })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: `${refLabel} ${t('leaderboard.scoreSourceRefRequired')}` })
       return
     }
     setSaving(true)
@@ -415,12 +417,12 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
         first_season_start_at: form.first_season_start_at ?? null,
       }
       const board = await createBoard(studioId, gameId, payload)
-      toast({ title: "Board created", description: `"${board.name}" created successfully.` })
+      toast({ title: t('leaderboard.boardCreated'), description: `"${board.name}" ${t('leaderboard.boardCreatedDesc')}` })
       onCreated(board)
       onClose()
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to create board." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedCreateBoard') })
       }
     } finally {
       setSaving(false)
@@ -431,14 +433,14 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Create Leaderboard Board</SheetTitle>
+          <SheetTitle>{t('leaderboard.createBoardTitle')}</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-1.5">
-            <Label htmlFor="c-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="c-name">{t('leaderboard.nameLabel')} <span className="text-destructive">*</span></Label>
             <Input
               id="c-name"
-              placeholder="e.g. Global XP Leaderboard"
+              placeholder={t('leaderboard.namePlaceholder')}
               value={form.name}
               onChange={(e) => {
                 const name = e.target.value
@@ -451,11 +453,11 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="c-board_key">Board Key <span className="text-destructive">*</span></Label>
+            <Label htmlFor="c-board_key">{t('leaderboard.boardKeyLabel')} <span className="text-destructive">*</span></Label>
             <div className="flex gap-1.5">
               <Input
                 id="c-board_key"
-                placeholder="e.g. global_xp"
+                placeholder={t('leaderboard.boardKeyPlaceholder')}
                 value={form.board_key}
                 onChange={(e) => {
                   setAutoSlug(false)
@@ -465,7 +467,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               />
               <button
                 type="button"
-                title={autoSlug ? "Auto-slug is ON — click to disable" : "Auto-slug is OFF — click to re-enable"}
+                title={autoSlug ? t('leaderboard.autoSlugOnTitle') : t('leaderboard.autoSlugOffTitle')}
                 onClick={() => {
                   const next = !autoSlug
                   setAutoSlug(next)
@@ -481,15 +483,15 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Lowercase letters, digits, underscores only. Cannot be changed later.
-              {autoSlug && <span className="text-primary ml-1">(auto-generated from name)</span>}
+              {t('leaderboard.boardKeyHint')}
+              {autoSlug && <span className="text-primary ml-1">{t('leaderboard.autoGenFromName')}</span>}
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="c-description">Description</Label>
+            <Label htmlFor="c-description">{t('leaderboard.descriptionLabel')}</Label>
             <Textarea
               id="c-description"
-              placeholder="Ranks players by total XP earned."
+              placeholder={t('leaderboard.descPlaceholder')}
               value={form.description ?? ""}
               onChange={(e) => set("description", e.target.value)}
               rows={2}
@@ -497,23 +499,23 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Score Mode</Label>
+              <Label>{t('leaderboard.scoreModeLabel')}</Label>
               <Select value={form.score_mode} onValueChange={(v) => set("score_mode", v as ScoreMode)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SCORE_MODE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>{t(o.labelKey as any)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Sort Direction</Label>
+              <Label>{t('leaderboard.sortDirectionLabel')}</Label>
               <Select value={form.sort_direction} onValueChange={(v) => set("sort_direction", v as SortDirection)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SORT_DIRECTION_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem key={o.value} value={o.value}>{t(o.labelKey as any)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -523,14 +525,14 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
             const selectedSourceType = sourceTypeOptions.find(o => o.value === form.score_source_type)
             return (
               <div className="space-y-3 rounded-md border p-3 bg-muted/20">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Score Source</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('leaderboard.scoreSourceSection')}</p>
                 <div className="space-y-1.5">
-                  <Label>Score Source Type <span className="text-destructive">*</span></Label>
+                  <Label>{t('leaderboard.scoreSourceTypeLabel')} <span className="text-destructive">*</span></Label>
                   <Select
                     value={form.score_source_type}
                     onValueChange={(v) => set("score_source_type", v)}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select source type..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t('leaderboard.selectSourceType')} /></SelectTrigger>
                     <SelectContent>
                       {sourceTypeOptions.map((o) => (
                         <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -557,7 +559,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                           <span className="truncate">
                             {form.score_source_ref_id
                               ? (gachaPacks.find(p => p.id === form.score_source_ref_id)?.name ?? form.score_source_ref_id)
-                              : "Select gacha pack..."}
+                              : t('leaderboard.selectGachaPack')}
                           </span>
                           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                         </Button>
@@ -565,12 +567,12 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                       <PopoverContent className="w-[340px] p-0" align="start">
                         <Command>
                           <CommandInput
-                            placeholder="Search gacha packs..."
+                            placeholder={t('leaderboard.searchGachaPacks')}
                             value={gachaSearch}
                             onValueChange={setGachaSearch}
                           />
                           <CommandList>
-                            <CommandEmpty>No gacha packs found.</CommandEmpty>
+                            <CommandEmpty>{t('leaderboard.noGachaPacks')}</CommandEmpty>
                             <CommandGroup>
                               {gachaPacks
                                 .filter(p =>
@@ -611,7 +613,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                           <span className="truncate">
                             {form.score_source_ref_id
                               ? (itemDefs.find(d => d.id === form.score_source_ref_id)?.name ?? form.score_source_ref_id)
-                              : "Select item definition..."}
+                              : t('leaderboard.selectItemDef')}
                           </span>
                           <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                         </Button>
@@ -619,12 +621,12 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                       <PopoverContent className="w-[340px] p-0" align="start">
                         <Command>
                           <CommandInput
-                            placeholder="Search item definitions..."
+                            placeholder={t('leaderboard.searchItemDefs')}
                             value={itemSearch}
                             onValueChange={setItemSearch}
                           />
                           <CommandList>
-                            <CommandEmpty>No item definitions found.</CommandEmpty>
+                            <CommandEmpty>{t('leaderboard.noItemDefs')}</CommandEmpty>
                             <CommandGroup>
                               {itemDefs
                                 .filter(d =>
@@ -657,7 +659,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                   ) : (
                     <Input
                       id="c-score_source_ref_id"
-                      placeholder={`Enter ${selectedSourceType?.ref_id_label ?? "ref ID"}...`}
+                      placeholder={`${t('leaderboard.enterRefId')} ${selectedSourceType?.ref_id_label ?? "ref ID"}...`}
                       value={form.score_source_ref_id}
                       onChange={(e) => set("score_source_ref_id", e.target.value.trim())}
                       className="font-mono"
@@ -668,7 +670,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
             )
           })()}
           <div className="space-y-1.5">
-            <Label>Reset Schedule</Label>
+            <Label>{t('leaderboard.resetScheduleLabel')}</Label>
             <Select
               value={form.reset_schedule}
               onValueChange={(v) => {
@@ -697,32 +699,32 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="c-max_score_delta">Max Score Delta</Label>
+            <Label htmlFor="c-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
             <Input
               id="c-max_score_delta"
               type="number"
-              placeholder="e.g. 10000 (leave empty for no limit)"
+              placeholder={t('leaderboard.maxScoreDeltaPlaceholder')}
               value={form.max_score_delta ?? ""}
               onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
             />
-            <p className="text-xs text-muted-foreground">Maximum single-submission score change. Leave empty for unlimited.</p>
+            <p className="text-xs text-muted-foreground">{t('leaderboard.maxScoreDeltaHint')}</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="c-first_season_start_at">First Season Start At</Label>
+            <Label htmlFor="c-first_season_start_at">{t('leaderboard.firstSeasonStartLabel')}</Label>
             <DateTimePicker
               value={form.first_season_start_at ?? null}
               onChange={(v) => set("first_season_start_at", v)}
-              placeholder="Pick date & time (optional)"
+              placeholder={t('leaderboard.firstSeasonStartPlaceholder')}
             />
-            <p className="text-xs text-muted-foreground">Leave empty to skip auto-creating the first season.</p>
+            <p className="text-xs text-muted-foreground">{t('leaderboard.firstSeasonStartHint')}</p>
           </div>
           <SheetFooter className="gap-2 pt-2">
             <SheetClose asChild>
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={onClose}>{t('leaderboard.cancelBtn')}</Button>
             </SheetClose>
             <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Board
+              {t('leaderboard.createBoardBtn')}
             </Button>
           </SheetFooter>
         </form>
@@ -743,6 +745,7 @@ interface EditSheetProps {
 
 function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<UpdateBoardPayload>({
     name: "",
@@ -770,7 +773,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name?.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Name is required." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.nameRequired') })
       return
     }
     setSaving(true)
@@ -780,12 +783,12 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
         max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
       }
       const updated = await updateBoard(studioId, gameId, board.id, payload)
-      toast({ title: "Board updated", description: `"${updated.name}" updated.` })
+      toast({ title: t('leaderboard.boardUpdated'), description: `"${updated.name}" ${t('leaderboard.boardUpdatedDesc')}` })
       onUpdated(updated)
       onClose()
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to update board." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedUpdateBoard') })
       }
     } finally {
       setSaving(false)
@@ -796,12 +799,12 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
     <Sheet open={!!board} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Edit Board</SheetTitle>
+          <SheetTitle>{t('leaderboard.editBoardTitle')}</SheetTitle>
           <p className="text-sm text-muted-foreground font-mono">{board.board_key}</p>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-1.5">
-            <Label htmlFor="e-name">Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="e-name">{t('leaderboard.nameLabel')} <span className="text-destructive">*</span></Label>
             <Input
               id="e-name"
               value={form.name ?? ""}
@@ -809,7 +812,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="e-description">Description</Label>
+            <Label htmlFor="e-description">{t('leaderboard.descriptionLabel')}</Label>
             <Textarea
               id="e-description"
               value={form.description ?? ""}
@@ -818,19 +821,19 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="e-max_score_delta">Max Score Delta</Label>
+            <Label htmlFor="e-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
             <Input
               id="e-max_score_delta"
               type="number"
-              placeholder="Leave empty for no limit"
+              placeholder={t('leaderboard.leaveEmptyNoLimit')}
               value={form.max_score_delta ?? ""}
               onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <p className="text-sm font-medium">Active</p>
-              <p className="text-xs text-muted-foreground">Whether this board accepts score submissions.</p>
+              <p className="text-sm font-medium">{t('leaderboard.activeLabel')}</p>
+              <p className="text-xs text-muted-foreground">{t('leaderboard.activeHint')}</p>
             </div>
             <Switch
               checked={form.is_active ?? true}
@@ -839,11 +842,11 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
           </div>
           <SheetFooter className="gap-2 pt-2">
             <SheetClose asChild>
-              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={onClose}>{t('leaderboard.cancelBtn')}</Button>
             </SheetClose>
             <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Changes
+              {t('leaderboard.saveChangesBtn')}
             </Button>
           </SheetFooter>
         </form>
@@ -864,6 +867,7 @@ interface StartSeasonDialogProps {
 
 function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: StartSeasonDialogProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [seasonName, setSeasonName] = useState("")
   const [saving, setSaving] = useState(false)
 
@@ -875,19 +879,19 @@ function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: Star
 
   const handleStart = async () => {
     if (!seasonName.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Season name is required." })
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.seasonNameRequired') })
       return
     }
     setSaving(true)
     try {
       await startSeason(studioId, gameId, board.id, seasonName.trim())
-      toast({ title: "Season started", description: `Season "${seasonName}" started for board "${board.name}".` })
+      toast({ title: t('leaderboard.seasonStarted'), description: `"${seasonName}" ${t('leaderboard.seasonStartedDesc')} "${board.name}".` })
       // Refresh board to get new season_id
       onStarted({ ...board })
       onClose()
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to start season." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedStartSeason') })
       }
     } finally {
       setSaving(false)
@@ -898,27 +902,27 @@ function StartSeasonDialog({ board, onClose, onStarted, studioId, gameId }: Star
     <AlertDialog open={!!board} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Start New Season</AlertDialogTitle>
+          <AlertDialogTitle>{t('leaderboard.startNewSeasonTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Start a new season for <span className="font-semibold">{board.name}</span>.
-            {board.season_id && " The current season will remain active until you end it."}
+            {t('leaderboard.startSeasonDesc')} <span className="font-semibold">{board.name}</span>.
+            {board.season_id && ` ${t('leaderboard.currentSeasonRemains')}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="py-2 space-y-1.5">
-          <Label htmlFor="season-name">Season Name</Label>
+          <Label htmlFor="season-name">{t('leaderboard.seasonNameLabel')}</Label>
           <Input
             id="season-name"
             value={seasonName}
             onChange={(e) => setSeasonName(e.target.value)}
-            placeholder="e.g. Season 1"
+            placeholder={t('leaderboard.seasonNamePlaceholder')}
             autoFocus
           />
         </div>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={onClose}>{t('leaderboard.cancelBtn')}</AlertDialogCancel>
           <AlertDialogAction onClick={handleStart} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Start Season
+            {t('leaderboard.startSeasonBtn')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -938,6 +942,7 @@ interface EndSeasonDialogProps {
 
 function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeasonDialogProps) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
 
   if (!board) return null
@@ -947,14 +952,14 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
     try {
       const result = await endSeason(studioId, gameId, board.id)
       toast({
-        title: "Season ended",
-        description: `Season ended. Top players: ${result.TopN?.length ?? 0}. A new season has been created.`,
+        title: t('leaderboard.seasonEnded'),
+        description: `${t('leaderboard.seasonEndedDesc')} ${result.TopN?.length ?? 0}. ${t('leaderboard.seasonEndedNewSeason')}`,
       })
       onEnded({ ...board, season_id: result.NewSeasonID })
       onClose()
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to end season." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedEndSeason') })
       }
     } finally {
       setSaving(false)
@@ -965,21 +970,21 @@ function EndSeasonDialog({ board, onClose, onEnded, studioId, gameId }: EndSeaso
     <AlertDialog open={!!board} onOpenChange={(v) => !v && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>End Current Season</AlertDialogTitle>
+          <AlertDialogTitle>{t('leaderboard.endCurrentSeasonTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            End the current season for <span className="font-semibold">{board.name}</span>?
-            This will finalize the leaderboard rankings and automatically start a new season.
+            {t('leaderboard.endSeasonDesc')} <span className="font-semibold">{board.name}</span>?
+            {t('leaderboard.endSeasonConfirmDesc')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={onClose}>{t('leaderboard.cancelBtn')}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleEnd}
             disabled={saving}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            End Season
+            {t('leaderboard.endSeasonBtn')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -997,6 +1002,7 @@ interface LeaderboardEntriesSheetProps {
 }
 
 function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
+  const { t } = useTranslation()
   const [data, setData] = useState<CurrentSeasonRaw | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -1040,7 +1046,7 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <BarChart2 className="h-5 w-5" />
-            {board?.name} — Current Season
+            {board?.name} — {t('leaderboard.currentSeasonLabel')}
           </SheetTitle>
         </SheetHeader>
 
@@ -1052,62 +1058,62 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
           ) : loadError ? (
             <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
               <Info className="h-8 w-8 opacity-40" />
-              <p className="text-sm">No active season found, or failed to load entries.</p>
+              <p className="text-sm">{t('leaderboard.noActiveSeasonOrFailed')}</p>
             </div>
           ) : data && (
             <>
               {/* Season & board details */}
               <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
                   <div>
-                    <p className="text-muted-foreground">Name</p>
+                    <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
                     <p className="font-medium">{data.season.name}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Season #</p>
+                    <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
                     <p className="font-medium">{data.season.season_number}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Started At</p>
+                    <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
                     <p className="font-mono">{formatDate(data.season.started_at)}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
                     <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
                   </div>
                   {data.season.planned_end_at && (
                     <div>
-                      <p className="text-muted-foreground">Planned End</p>
+                      <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
                       <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-muted-foreground">Total Entries</p>
+                    <p className="text-muted-foreground">{t('leaderboard.totalEntriesLabel')}</p>
                     <p className="font-medium">{data.total}</p>
                   </div>
                 </div>
                 <div className="pt-1 border-t space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Board</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
                     <div>
-                      <p className="text-muted-foreground">Board Key</p>
+                      <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
                       <p className="font-mono">{board?.board_key}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Score Mode</p>
+                      <p className="text-muted-foreground">{t('leaderboard.scoreModeInfoLabel')}</p>
                       <Badge variant="outline" className="text-xs capitalize">{board?.score_mode}</Badge>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Sort</p>
+                      <p className="text-muted-foreground">{t('leaderboard.sortLabel')}</p>
                       <Badge variant="outline" className="text-xs">{board?.sort_direction}</Badge>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Reset Schedule</p>
+                      <p className="text-muted-foreground">{t('leaderboard.resetScheduleInfoLabel')}</p>
                       <Badge variant="outline" className={`text-xs capitalize border ${board ? resetScheduleBadge(board.reset_schedule) : ""}`}>{board?.reset_schedule}</Badge>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-muted-foreground mb-0.5">Score Source</p>
+                      <p className="text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceInfoLabel')}</p>
                       {board?.score_source_ref_id ? (
                         board.score_source_type?.includes("gacha") ? (
                           <Link
@@ -1145,17 +1151,17 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="h-8 text-xs w-14 text-center">Rank</TableHead>
-                      <TableHead className="h-8 text-xs">Player</TableHead>
-                      <TableHead className="h-8 text-xs text-right pr-4">Score</TableHead>
-                      <TableHead className="h-8 text-xs">Updated</TableHead>
+                      <TableHead className="h-8 text-xs w-14 text-center">{t('leaderboard.rankLabel')}</TableHead>
+                      <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                      <TableHead className="h-8 text-xs text-right pr-4">{t('leaderboard.scoreLabel')}</TableHead>
+                      <TableHead className="h-8 text-xs">{t('leaderboard.updatedLabel')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.entries.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
-                          No entries yet.
+                          {t('leaderboard.noEntriesYet')}
                         </TableCell>
                       </TableRow>
                     ) : data.entries.map((entry) => {
@@ -1187,7 +1193,7 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
               </div>
               {data.total > data.entries.length && (
                 <p className="text-xs text-muted-foreground text-right">
-                  Showing {data.entries.length} of {data.total} entries (limit {data.limit})
+                  {t('leaderboard.showingEntries')} {data.entries.length} {t('leaderboard.ofEntries')} {data.total} {t('leaderboard.entriesLimit')} {data.limit})
                 </p>
               )}
             </>
@@ -1210,6 +1216,7 @@ interface ArchiveSheetProps {
 const ARCHIVE_PAGE_SIZE = 100
 
 function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) {
+  const { t } = useTranslation()
   const [data, setData] = useState<SeasonArchiveRaw | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -1250,7 +1257,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Archive className="h-5 w-5" />
-            {target?.board.name} — {target?.season.name} Archive
+            {target?.board.name} — {target?.season.name} {t('leaderboard.archiveLabel')}
           </SheetTitle>
         </SheetHeader>
 
@@ -1262,32 +1269,32 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
           ) : loadError ? (
             <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
               <Info className="h-8 w-8 opacity-40" />
-              <p className="text-sm">Failed to load archived scores.</p>
+              <p className="text-sm">{t('leaderboard.failedLoadArchive')}</p>
             </div>
           ) : data && (
             <>
               {/* Season info */}
               <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Season Info</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
                   <div>
-                    <p className="text-muted-foreground">Name</p>
+                    <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
                     <p className="font-medium">{data.season.name}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Season #</p>
+                    <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
                     <p className="font-medium">{data.season.season_number}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Started At</p>
+                    <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
                     <p className="font-mono">{formatDate(data.season.started_at)}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Ended At</p>
+                    <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
                     <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Total Archived</p>
+                    <p className="text-muted-foreground">{t('leaderboard.totalArchivedLabel')}</p>
                     <p className="font-medium">{data.total}</p>
                   </div>
                 </div>
@@ -1297,17 +1304,17 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
               {data.entries.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
                   <Archive className="h-8 w-8 opacity-30" />
-                  <p className="text-sm">No archived entries found.</p>
+                  <p className="text-sm">{t('leaderboard.noArchivedEntries')}</p>
                 </div>
               ) : (
                 <div className="rounded-md border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/40">
-                        <TableHead className="h-8 text-xs w-[50px]">Rank</TableHead>
-                        <TableHead className="h-8 text-xs">Player</TableHead>
-                        <TableHead className="h-8 text-xs text-right">Final Score</TableHead>
-                        <TableHead className="h-8 text-xs">Archived At</TableHead>
+                        <TableHead className="h-8 text-xs w-[50px]">{t('leaderboard.rankLabel')}</TableHead>
+                        <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                        <TableHead className="h-8 text-xs text-right">{t('leaderboard.finalScoreLabel')}</TableHead>
+                        <TableHead className="h-8 text-xs">{t('leaderboard.archivedAtLabel')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1346,7 +1353,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
               {/* Pagination */}
               {data.total > ARCHIVE_PAGE_SIZE && (
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>Page {currentPage} of {totalPages} · {data.total} total</span>
+                  <span>{t('leaderboard.pageOf')} {currentPage} {t('leaderboard.ofPages')} {totalPages} · {data.total} {t('leaderboard.totalLabel')}</span>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -1355,7 +1362,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
                       disabled={offset === 0 || loading}
                       onClick={() => setOffset(Math.max(0, offset - ARCHIVE_PAGE_SIZE))}
                     >
-                      Prev
+                      {t('leaderboard.prevBtn')}
                     </Button>
                     <Button
                       size="sm"
@@ -1364,7 +1371,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
                       disabled={offset + ARCHIVE_PAGE_SIZE >= data.total || loading}
                       onClick={() => setOffset(offset + ARCHIVE_PAGE_SIZE)}
                     >
-                      Next
+                      {t('leaderboard.nextBtn')}
                     </Button>
                   </div>
                 </div>
@@ -1478,7 +1485,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
         </TableCell>
         <TableCell>
           {hasSeason
-            ? <Badge variant="default" className="text-xs bg-green-600">Season Active</Badge>
+            ? <Badge variant="default" className="text-xs bg-green-600">{t('leaderboard.seasonActive')}</Badge>
             : <span className="text-xs text-muted-foreground">—</span>}
         </TableCell>
         <TableCell>
@@ -1499,7 +1506,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
-                  {hasActiveSeasonNow ? "View current season entries" : "No active season — entries are only available when a season is currently running"}
+                  {hasActiveSeasonNow ? t('leaderboard.viewCurrentSeasonEntries') : t('leaderboard.noActiveSeasonTooltip')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -1507,7 +1514,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              title="Edit board"
+              title={t('leaderboard.editBoardTooltip')}
               onClick={onEdit}
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -1516,7 +1523,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-              title="Delete board"
+              title={t('leaderboard.deleteBoardTooltip')}
               onClick={onDelete}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -1530,34 +1537,34 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
             <div className="px-6 py-4 space-y-4 border-t border-dashed">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Board ID</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.boardIdLabel')}</p>
                   <div className="flex items-center gap-1">
                     <p className="font-mono text-xs break-all">{board.id}</p>
                     <CopyButton text={board.id} size="h-3 w-3" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Board Key</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.boardKeyInfoLabel')}</p>
                   <p className="font-mono text-xs">{board.board_key}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Score Mode</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.scoreModeInfoLabel')}</p>
                   <Badge variant="outline" className="text-xs capitalize">{board.score_mode}</Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Sort Direction</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.sortDirectionInfoLabel')}</p>
                   <Badge variant="outline" className="text-xs">{board.sort_direction}</Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Reset Schedule</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.resetScheduleInfoLabel')}</p>
                   <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Max Score Delta</p>
-                  <p className="text-sm">{board.max_score_delta != null ? board.max_score_delta.toLocaleString() : "Unlimited"}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.maxScoreDeltaInfoLabel')}</p>
+                  <p className="text-sm">{board.max_score_delta != null ? board.max_score_delta.toLocaleString() : t('leaderboard.unlimitedLabel')}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Score Source</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceLabel')}</p>
                   {board.score_source_ref_id ? (
                     board.score_source_type?.includes("gacha") ? (
                       <Link
@@ -1589,17 +1596,17 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                   )}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Created</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.createdLabel')}</p>
                   <p className="text-xs">{formatDate(board.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Updated</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.updatedInfoLabel')}</p>
                   <p className="text-xs">{formatDate(board.updated_at)}</p>
                 </div>
               </div>
               {board.description && (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.descriptionLabel')}</p>
                   <p className="text-sm">{board.description}</p>
                 </div>
               )}
@@ -1608,7 +1615,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                 <div className="flex items-center gap-3 mb-2">
                   <div className="flex items-center gap-1.5">
                     <History className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-medium">Season History</p>
+                    <p className="text-sm font-medium">{t('leaderboard.seasonHistoryLabel')}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {(board.reset_schedule === "season" || (board.reset_schedule === "never" && !seasons?.some(s => !s.ended_at))) && !showCreateRow && (
@@ -1624,7 +1631,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         <Play className="h-3 w-3" />
-                        Create Season
+                        {t('leaderboard.createSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "daily" && !showCreateRow && (
@@ -1640,7 +1647,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         <Play className="h-3 w-3" />
-                        Create Season
+                        {t('leaderboard.createSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "daily" && (
@@ -1677,7 +1684,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-                        Create Next Season
+                        {t('leaderboard.createNextSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "weekly" && !showCreateRow && (
@@ -1693,7 +1700,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         <Play className="h-3 w-3" />
-                        Create Season
+                        {t('leaderboard.createSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "weekly" && (
@@ -1730,7 +1737,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-                        Create Next Season
+                        {t('leaderboard.createNextSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "monthly" && !showCreateRow && (
@@ -1746,7 +1753,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         <Play className="h-3 w-3" />
-                        Create Season
+                        {t('leaderboard.createSeasonBtn')}
                       </Button>
                     )}
                     {board.reset_schedule === "monthly" && (
@@ -1792,40 +1799,40 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                         }}
                       >
                         {savingNextSeason ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-                        Create Next Season
+                        {t('leaderboard.createNextSeasonBtn')}
                       </Button>
                     )}
                     {showCreateRow && (
-                      <span className="text-xs text-muted-foreground italic">Fill in the new season below</span>
+                      <span className="text-xs text-muted-foreground italic">{t('leaderboard.fillNewSeasonBelow')}</span>
                     )}
                   </div>
                 </div>
                 {seasonsLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Loading seasons...
+                    {t('leaderboard.loadingSeasons')}
                   </div>
                 ) : (showCreateRow || (seasons && seasons.length > 0)) ? (
                   <div className="rounded-md border overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="h-8 text-xs">Season ID</TableHead>
-                          <TableHead className="h-8 text-xs">Name</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.seasonIdLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.nameLabel')}</TableHead>
                           <TableHead className="h-8 text-xs">
                             <button
                               className="flex items-center gap-1 hover:text-foreground transition-colors"
-                              title={showTimeAgo ? "Switch to full datetime" : "Switch to relative time"}
+                              title={showTimeAgo ? t('leaderboard.switchToFullDatetime') : t('leaderboard.switchToRelativeTime')}
                               onClick={toggleTimeAgo}
                             >
-                              Started At
-                              <span className="text-[10px] font-normal opacity-60">{showTimeAgo ? "(ago)" : "(abs)"}</span>
+                              {t('leaderboard.startedAtLabel')}
+                              <span className="text-[10px] font-normal opacity-60">{showTimeAgo ? t('leaderboard.agoSuffix') : t('leaderboard.absSuffix')}</span>
                             </button>
                           </TableHead>
-                          <TableHead className="h-8 text-xs">Ended At</TableHead>
-                          <TableHead className="h-8 text-xs">Reward Dispatched</TableHead>
-                          <TableHead className="h-8 text-xs">Status</TableHead>
-                          <TableHead className="h-8 text-xs w-[150px]">Actions</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.endedAtLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.rewardDispatchedLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.statusLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs w-[150px]">{t('leaderboard.actionsLabel')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1836,7 +1843,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                               <Input
                                 value={newSeasonName}
                                 onChange={(e) => setNewSeasonName(e.target.value)}
-                                placeholder="Season name"
+                                placeholder={t('leaderboard.seasonNameInputPlaceholder')}
                                 className="h-6 text-xs px-2"
                                 autoFocus
                                 onClick={(e) => e.stopPropagation()}
@@ -1847,7 +1854,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                 <DateTimePicker
                                   value={newSeasonStartAt || null}
                                   onChange={(iso) => setNewSeasonStartAt(iso ?? "")}
-                                  placeholder="Now (optional)"
+                                  placeholder={t('leaderboard.nowOptional')}
                                 />
                               </div>
                             </TableCell>
@@ -1876,7 +1883,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                   }}
                                 >
                                   {savingCreate ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                                  Save
+                                  {t('leaderboard.saveBtn')}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1907,10 +1914,10 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                 const now = new Date()
                                 const isUpcoming = new Date(s.started_at) > now
                                 const isEnded = !!s.ended_at
-                                if (isEnded) return <Badge variant="secondary" className="text-xs">Ended</Badge>
+                                if (isEnded) return <Badge variant="secondary" className="text-xs">{t('leaderboard.seasonStatusEnded')}</Badge>
                                 if (isUpcoming) return (
                                   <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/40 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400">
-                                    Upcoming
+                                    {t('leaderboard.seasonStatusUpcoming')}
                                   </Badge>
                                 )
                                 return (
@@ -1919,7 +1926,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
                                     </span>
-                                    Active
+                                    {t('leaderboard.seasonStatusActive')}
                                   </Badge>
                                 )
                               })()}
@@ -1934,11 +1941,11 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                 const isNeverSchedule = board.reset_schedule === "never"
                                 const endDisabled = !isActive || isNeverSchedule
                                 const endTooltip = isNeverSchedule && isActive
-                                  ? "Cannot end a season for a board with reset schedule \"Never\". To stop tracking, disable the leaderboard and create a new one."
+                                  ? t('leaderboard.cannotEndNeverSchedule')
                                   : isUpcoming
-                                  ? "Cannot end a season that hasn't started yet"
+                                  ? t('leaderboard.cannotEndUpcoming')
                                   : isEnded
-                                  ? "This season has already ended"
+                                  ? t('leaderboard.alreadyEnded')
                                   : undefined
                                 return (
                                   <div className="flex items-center gap-1">
@@ -1954,7 +1961,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                               onClick={(e) => { e.stopPropagation(); onEndSeason() }}
                                             >
                                               <StopCircle className="h-3 w-3" />
-                                              End
+                                              {t('leaderboard.endBtn')}
                                             </Button>
                                           </span>
                                         </TooltipTrigger>
@@ -1982,7 +1989,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                         </TooltipTrigger>
                                         {isStarted && (
                                           <TooltipContent side="top" className="text-xs max-w-[220px] text-center">
-                                            Season has already started and cannot be deleted. Only upcoming seasons can be deleted.
+                                            {t('leaderboard.seasonStartedCannotDelete')}
                                           </TooltipContent>
                                         )}
                                       </Tooltip>
@@ -2003,7 +2010,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
-                                          {isEnded ? "View archived scores" : "Archive is only available after the season ends"}
+                                          {isEnded ? t('leaderboard.viewArchivedScores') : t('leaderboard.archiveAfterEnds')}
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -2017,7 +2024,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                     </Table>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground py-1">No seasons yet.</p>
+                  <p className="text-xs text-muted-foreground py-1">{t('leaderboard.noSeasonsYet')}</p>
                 )}
               </div>
             </div>
@@ -2029,18 +2036,18 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
         <AlertDialog open={!!deleteSeasonConfirm} onOpenChange={(o) => { if (!o) setDeleteSeasonConfirm(null) }}>
           <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Season</AlertDialogTitle>
+              <AlertDialogTitle>{t('leaderboard.deleteSeasonTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete season <strong>{deleteSeasonConfirm.name}</strong>? This action cannot be undone.
+                {t('leaderboard.deleteSeasonConfirm')} <strong>{deleteSeasonConfirm.name}</strong>{t('leaderboard.deleteSeasonUndone')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t('leaderboard.cancelBtn')}</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={() => { onDeleteSeason(deleteSeasonConfirm.id); setDeleteSeasonConfirm(null) }}
               >
-                Delete
+                {t('leaderboard.deleteBtn')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -2056,9 +2063,9 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
 
 type LBTabValue = "boards" | "coming-soon"
 
-const LB_TABS: { value: LBTabValue; label: string }[] = [
-  { value: "boards", label: "Boards" },
-  { value: "coming-soon", label: "Coming Soon" },
+const LB_TABS: { value: LBTabValue; labelKey: string }[] = [
+  { value: "boards", labelKey: "leaderboard.boardsTab" },
+  { value: "coming-soon", labelKey: "leaderboard.comingSoonTab" },
 ]
 
 const VALID_LB_TABS = new Set<string>(LB_TABS.map((t) => t.value))
@@ -2070,6 +2077,7 @@ function LeaderboardPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const gameId = params.id as string
 
   const [game, setGame] = useState<Game | null>(null)
@@ -2119,7 +2127,7 @@ function LeaderboardPageInner() {
           }
         }
       })
-      .catch(() => toast({ variant: "destructive", title: "Error", description: "Failed to load game" }))
+      .catch(() => toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedLoadGame') }))
       .finally(() => setGameLoading(false))
   }, [gameId, toast])
 
@@ -2133,7 +2141,7 @@ function LeaderboardPageInner() {
       setBoards(data)
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to load leaderboards." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedLoadLeaderboards') })
       }
     } finally {
       setLoading(false)
@@ -2172,12 +2180,12 @@ function LeaderboardPageInner() {
       await deleteBoard(studioId, gameId, deleteBoardItem.id)
       setBoards((prev) => prev.filter((b) => b.id !== deleteBoardItem.id))
       if (expandedBoardId === deleteBoardItem.id) setExpandedBoardId(null)
-      toast({ title: "Board deleted", description: `"${deleteBoardItem.name}" has been deleted.` })
+      toast({ title: t('leaderboard.boardDeleted'), description: `"${deleteBoardItem.name}" ${t('leaderboard.boardDeletedDesc')}` })
       setDeleteBoardItem(null)
       getGame(gameId).then(setGame).catch(() => {})
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to delete board." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedDeleteBoard') })
       }
     } finally {
       setDeleting(false)
@@ -2202,10 +2210,10 @@ function LeaderboardPageInner() {
       await deleteSeason(studioId, gameId, boardId, seasonId)
       setSeasonsMap((m) => ({ ...m, [boardId]: (m[boardId] ?? []).filter((s) => s.id !== seasonId) }))
       loadBoards(true)
-      toast({ title: "Season deleted", description: "The season has been deleted." })
+      toast({ title: t('leaderboard.seasonDeleted'), description: t('leaderboard.seasonDeletedDesc') })
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to delete season." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedDeleteSeason') })
       }
     }
   }
@@ -2214,11 +2222,11 @@ function LeaderboardPageInner() {
     if (!studioId) return
     try {
       await startSeason(studioId, gameId, board.id, name, startAt)
-      toast({ title: "Season created", description: `Season "${name}" has been created.` })
+      toast({ title: t('leaderboard.seasonCreated'), description: `"${name}" ${t('leaderboard.seasonCreatedDesc')}` })
       handleSeasonChange(board)
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to create season." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedCreateSeason') })
       }
       throw e
     }
@@ -2238,11 +2246,11 @@ function LeaderboardPageInner() {
         score_source_ref_id: board.score_source_ref_id,
       }
       await updateBoard(studioId, gameId, board.id, payload)
-      toast({ title: "Status updated", description: `Leaderboard is now ${is_active ? "active" : "inactive"}.` })
+      toast({ title: t('leaderboard.statusUpdated'), description: is_active ? t('leaderboard.statusUpdatedActive') : t('leaderboard.statusUpdatedInactive') })
       loadBoards(true)
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to update leaderboard status." })
+        toast({ variant: "destructive", title: t('leaderboard.errorTitle'), description: t('leaderboard.failedUpdateStatus') })
       }
     }
   }
@@ -2278,7 +2286,7 @@ function LeaderboardPageInner() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/games">Games</BreadcrumbLink>
+              <BreadcrumbLink href="/games">{t('leaderboard.gamesLink')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
@@ -2288,7 +2296,7 @@ function LeaderboardPageInner() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span>Leaderboard</span>
+              <span>{t('leaderboard.leaderboardTitle')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -2303,7 +2311,7 @@ function LeaderboardPageInner() {
           <div>
             <div className="flex items-center gap-2">
               <Trophy className="h-5 w-5" />
-              <h1 className="text-2xl font-bold">Leaderboard</h1>
+              <h1 className="text-2xl font-bold">{t('leaderboard.leaderboardTitle')}</h1>
             </div>
           </div>
         </div>
@@ -2319,9 +2327,9 @@ function LeaderboardPageInner() {
           {/* Col 1: tab triggers + boards toolbar */}
           <div className="flex-1 min-w-0 space-y-4">
             <TabsList>
-              {LB_TABS.map((t) => (
-                <TabsTrigger key={t.value} value={t.value}>
-                  {t.label}
+              {LB_TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {t(tab.labelKey as any)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -2351,7 +2359,7 @@ function LeaderboardPageInner() {
                         <Link
                           href={`/games/${gameId}/plugins`}
                           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                          title="Manage plugins / raise limits"
+                          title={t('leaderboard.managePluginsTitle')}
                         >
                           <Hammer className="h-3.5 w-3.5" />
                         </Link>
@@ -2365,7 +2373,7 @@ function LeaderboardPageInner() {
                     size="icon"
                     onClick={() => loadBoards(true)}
                     disabled={refreshing || loading}
-                    title="Refresh"
+                    title={t('leaderboard.refreshTitle')}
                   >
                     <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                   </Button>
@@ -2378,13 +2386,13 @@ function LeaderboardPageInner() {
                             <span>
                               <Button size="sm" disabled>
                                 <Plus className="h-4 w-4 mr-1" />
-                                Create Board
+                                {t('leaderboard.createBoardBtn')}
                               </Button>
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            Leaderboard limit reached ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
-                            <Link href={`/games/${gameId}/plugins`} className="underline">Upgrade plugin</Link> to add more.
+                            {t('leaderboard.limitReachedPrefix')} ({boards.length}/{game!.limits!.max_leaderboards}).{" "}
+                            <Link href={`/games/${gameId}/plugins`} className="underline">{t('leaderboard.upgradePlugin')}</Link> {t('leaderboard.toAddMore')}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -2395,7 +2403,7 @@ function LeaderboardPageInner() {
                         disabled={!studioId}
                       >
                         <Plus className="h-4 w-4 mr-1" />
-                        Create Board
+                        {t('leaderboard.createBoardBtn')}
                       </Button>
                     )
                   })()}
@@ -2421,8 +2429,8 @@ function LeaderboardPageInner() {
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
               <Trophy className="h-10 w-10 text-muted-foreground/40" />
               <div>
-                <p className="font-medium">No leaderboard boards yet</p>
-                <p className="text-sm text-muted-foreground">Create a board to start ranking players.</p>
+                <p className="font-medium">{t('leaderboard.noBoardsYet')}</p>
+                <p className="text-sm text-muted-foreground">{t('leaderboard.createBoardHint')}</p>
               </div>
               {(() => {
                 const limitReached = game?.limits?.max_leaderboards != null && boards.length >= game.limits.max_leaderboards
@@ -2434,7 +2442,7 @@ function LeaderboardPageInner() {
                           <span>
                             <Button size="sm" disabled>
                               <Plus className="h-4 w-4 mr-1" />
-                              Create Board
+                              {t('leaderboard.createBoardBtn')}
                             </Button>
                           </span>
                         </TooltipTrigger>
@@ -2445,15 +2453,15 @@ function LeaderboardPageInner() {
                       </Tooltip>
                     </TooltipProvider>
                     <p className="text-xs text-destructive">
-                      Limit reached —{" "}
-                      <Link href={`/games/${gameId}/plugins`} className="underline hover:text-destructive/80">upgrade plugin</Link>{" "}
-                      to create more leaderboards.
+                      {t('leaderboard.limitReachedDash')}{" "}
+                      <Link href={`/games/${gameId}/plugins`} className="underline hover:text-destructive/80">{t('leaderboard.upgradePluginLink')}</Link>{" "}
+                      {t('leaderboard.toCreateMore')}
                     </p>
                   </>
                 ) : (
                   <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!studioId}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Create Board
+                    {t('leaderboard.createBoardBtn')}
                   </Button>
                 )
               })()}
@@ -2462,14 +2470,14 @@ function LeaderboardPageInner() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Score Mode</TableHead>
-                  <TableHead>Sort</TableHead>
-                  <TableHead>Reset</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Season</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderName')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderKey')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderScoreMode')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderSort')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderReset')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderStatus')}</TableHead>
+                  <TableHead>{t('leaderboard.tableHeaderSeason')}</TableHead>
+                  <TableHead className="w-[80px]">{t('leaderboard.tableHeaderActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2501,8 +2509,8 @@ function LeaderboardPageInner() {
         {activeTab === "coming-soon" && (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-center text-muted-foreground">
             <Trophy className="h-10 w-10 opacity-30" />
-            <p className="font-medium">Coming Soon</p>
-            <p className="text-sm">More leaderboard features are on the way.</p>
+            <p className="font-medium">{t('leaderboard.comingSoonTitle')}</p>
+            <p className="text-sm">{t('leaderboard.comingSoonDesc')}</p>
           </div>
         )}
       </Tabs>
@@ -2544,20 +2552,20 @@ function LeaderboardPageInner() {
       <AlertDialog open={!!deleteBoardItem} onOpenChange={(o) => { if (!o) setDeleteBoardItem(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Board</AlertDialogTitle>
+            <AlertDialogTitle>{t('leaderboard.deleteBoardTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteBoardItem?.name}</strong>? This action cannot be undone.
+              {t('leaderboard.deleteBoardConfirm')} <strong>{deleteBoardItem?.name}</strong>{t('leaderboard.deleteBoardUndone')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('leaderboard.cancelBtn')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteBoard}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Delete
+              {t('leaderboard.deleteBtn')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

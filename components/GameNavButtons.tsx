@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useTranslation } from "@/lib/i18n/useTranslation"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 const LS_KEY = "game-nav-expanded"
 
@@ -44,17 +44,17 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
   }
 
   const items: NavItem[] = [
-    { section: "detail",      href: `/games/${gameId}`,             icon: <Gamepad2 className="h-4 w-4" />,   label: "Game"          },
-    { section: "players",     href: `/games/${gameId}/players`,     icon: <Users className="h-4 w-4" />,      label: t("game.users") },
-    { section: "shops",       href: `/games/${gameId}/shops`,       icon: <ShoppingCart className="h-4 w-4" />,      label: t("game.shops") },
-    { section: "items",       href: `/games/${gameId}/items`,       icon: <Package className="h-4 w-4" />,     label: "Items"         },
-    { section: "entities",    href: `/games/${gameId}/entities`,    icon: <Skull className="h-4 w-4" />,       label: "Entities"      },
-    { section: "quests",      href: `/games/${gameId}/quests`,      icon: <ScrollText className="h-4 w-4" />, label: "Quests"        },
-    { section: "leaderboard", href: `/games/${gameId}/leaderboard`, icon: <Trophy className="h-4 w-4" />,     label: "Leaderboard"   },
-    { section: "analytic",    href: `/games/${gameId}/analytic`,    icon: <BarChart2 className="h-4 w-4" />,  label: "Analytic"      },
-    { section: "plugins",     href: `/games/${gameId}/plugins`,     icon: <Hammer className="h-4 w-4" />,     label: "Upgrade"       },
-    { section: "mailbox",     href: `/games/${gameId}/mailbox`,     icon: <Mail className="h-4 w-4" />,       label: "Mailbox"       },
-    { section: "scripts",     href: `/games/${gameId}/scripts`,     icon: <Code2 className="h-4 w-4" />,      label: "Scripts"       },
+    { section: "detail",      href: `/games/${gameId}`,             icon: <Gamepad2 className="h-4 w-4" />,      label: t("game.navGame")       },
+    { section: "players",     href: `/games/${gameId}/players`,     icon: <Users className="h-4 w-4" />,         label: t("game.users")         },
+    { section: "shops",       href: `/games/${gameId}/shops`,       icon: <ShoppingCart className="h-4 w-4" />,  label: t("game.shops")         },
+    { section: "items",       href: `/games/${gameId}/items`,       icon: <Package className="h-4 w-4" />,       label: t("game.items")         },
+    { section: "entities",    href: `/games/${gameId}/entities`,    icon: <Skull className="h-4 w-4" />,         label: t("game.navEntities")   },
+    { section: "quests",      href: `/games/${gameId}/quests`,      icon: <ScrollText className="h-4 w-4" />,    label: t("game.quests")        },
+    { section: "leaderboard", href: `/games/${gameId}/leaderboard`, icon: <Trophy className="h-4 w-4" />,        label: t("game.navLeaderboard")},
+    { section: "analytic",    href: `/games/${gameId}/analytic`,    icon: <BarChart2 className="h-4 w-4" />,     label: t("game.navAnalytic")   },
+    { section: "plugins",     href: `/games/${gameId}/plugins`,     icon: <Hammer className="h-4 w-4" />,        label: t("game.navUpgrade")    },
+    { section: "mailbox",     href: `/games/${gameId}/mailbox`,     icon: <Mail className="h-4 w-4" />,          label: t("game.navMailbox")    },
+    { section: "scripts",     href: `/games/${gameId}/scripts`,     icon: <Code2 className="h-4 w-4" />,         label: t("game.navScripts")    },
   ]
 
   const toggleBtn = (
@@ -72,7 +72,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {expanded ? "Compact nav" : "Expand nav"}
+        {expanded ? t("game.compactNav") : t("game.expandNav")}
       </TooltipContent>
     </Tooltip>
   )

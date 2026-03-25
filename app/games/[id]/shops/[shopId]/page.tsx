@@ -337,14 +337,14 @@ export default function ShopDetailPage() {
       setLoading(true)
       const gameData = await getGame(params.id)
       setGameName(gameData.name)
-      const data = await getShop(gameData.studio_id, params.id, params.shopId)
+      const data = await getShop(params.id, params.shopId)
       setShop(data)
       if (data.currency_item_def_id) {
         getItemDefinition({ gameId: params.id }, data.currency_item_def_id)
           .then((res) => setCurrencyItem(res.item))
           .catch(() => {})
       }
-      loadItems(data.studio_id, itemActiveOnly)
+      loadItems(itemActiveOnly)
     } catch (err: any) {
       setError(err?.message ?? "Failed to load shop")
     } finally {
@@ -352,13 +352,12 @@ export default function ShopDetailPage() {
     }
   }
 
-  async function loadItems(studioId?: string, activeOnly?: boolean) {
-    const sid = studioId ?? shop?.studio_id ?? ""
+  async function loadItems(activeOnly?: boolean) {
     const ao = activeOnly !== undefined ? activeOnly : itemActiveOnly
     try {
       setItemsLoading(true)
       setItemsError(null)
-      const resp = await listShopItems(sid, params.id, params.shopId, { activeOnly: ao })
+      const resp = await listShopItems(params.id, params.shopId, { activeOnly: ao })
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch (err: any) {
@@ -429,7 +428,7 @@ export default function ShopDetailPage() {
         )
       )
       // refresh to get server state
-      const resp = await listShopItems(shop!.studio_id, params.id, params.shopId, { activeOnly: itemActiveOnly })
+      const resp = await listShopItems(params.id, params.shopId, { activeOnly: itemActiveOnly })
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch {
@@ -1202,7 +1201,7 @@ export default function ShopDetailPage() {
                   onCheckedChange={(v) => {
                     const next = !!v
                     setItemActiveOnly(next)
-                    loadItems(undefined, next)
+                    loadItems(next)
                   }}
                 />
                 <label htmlFor="item_active_only" className="text-sm cursor-pointer select-none">

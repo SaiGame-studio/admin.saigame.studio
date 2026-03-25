@@ -38,41 +38,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/useTranslation"
 
 import { cn } from "@/lib/utils"
 
-const statusConfig: Record<FeatureRequestStatus, { label: string; colorClass: string; bgClass: string; dotClass: string }> = {
+const getStatusConfig = (t: (key: string) => string): Record<FeatureRequestStatus, { label: string; colorClass: string; bgClass: string; dotClass: string }> => ({
   voting: { 
-    label: "Voting", 
+    label: t('roadmap.featureRequests.statusVoting'), 
     colorClass: "text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-900", 
     bgClass: "bg-blue-50 dark:bg-blue-950/30",
     dotClass: "bg-blue-500"
   },
   approved: { 
-    label: "Approved", 
+    label: t('roadmap.featureRequests.statusApproved'), 
     colorClass: "text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-900", 
     bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
     dotClass: "bg-emerald-500"
   },
   in_progress: { 
-    label: "In Progress", 
+    label: t('roadmap.featureRequests.statusInProgress'), 
     colorClass: "text-indigo-600 border-indigo-200 dark:text-indigo-400 dark:border-indigo-900", 
     bgClass: "bg-indigo-50 dark:bg-indigo-950/30",
     dotClass: "bg-indigo-500"
   },
   done: { 
-    label: "Done", 
+    label: t('roadmap.featureRequests.statusDone'), 
     colorClass: "text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-900 font-black", 
     bgClass: "bg-amber-50 dark:bg-amber-950/30",
     dotClass: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
   },
   rejected: { 
-    label: "Rejected", 
+    label: t('roadmap.featureRequests.statusRejected'), 
     colorClass: "text-rose-600 border-rose-200 dark:text-rose-400 dark:border-rose-900", 
     bgClass: "bg-rose-50 dark:bg-rose-950/30",
     dotClass: "bg-rose-500"
   },
-}
+})
 
 interface FeatureRequestCardProps {
   request: FeatureRequest
@@ -97,6 +99,8 @@ function FeatureRequestCard({
   isOwner,
   onUpdate
 }: FeatureRequestCardProps) {
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
   const [reviews, setReviews] = useState<Review[]>([])
   const [isLoadingReviews, setIsLoadingReviews] = useState(false)
   const [reviewContent, setReviewContent] = useState("")
@@ -109,6 +113,8 @@ function FeatureRequestCard({
   const [editTitle, setEditTitle] = useState(request.title)
   const [editDescription, setEditDescription] = useState(request.description)
   const [isUpdating, setIsUpdating] = useState(false)
+
+  const statusConfig = getStatusConfig(t)
 
   const fetchReviewsAndMyReview = async () => {
     setIsLoadingReviews(true)
@@ -195,7 +201,7 @@ function FeatureRequestCard({
               <h3 className="font-bold text-base leading-tight truncate">{request.title}</h3>
               {isOwner && (
                 <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20 shrink-0">
-                  My Request
+                  {t('roadmap.featureRequests.myRequestBadge')}
                 </Badge>
               )}
               {(isSuperAdmin || (isOwner && request.status === 'voting')) && (
@@ -217,17 +223,17 @@ function FeatureRequestCard({
                   <DialogContent onClick={(e) => e.stopPropagation()}>
                     <form onSubmit={handleEditSubmit}>
                       <DialogHeader>
-                        <DialogTitle>Edit Feature Request</DialogTitle>
+                        <DialogTitle>{t('roadmap.featureRequests.editTitle')}</DialogTitle>
                         <DialogDescription>
                           {isSuperAdmin && !isOwner 
-                            ? "As an administrator, you can edit this request at any time."
-                            : "You can edit your request while it is still in the voting phase."
+                            ? t('roadmap.featureRequests.editDescAdmin')
+                            : t('roadmap.featureRequests.editDescUser')
                           }
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <label htmlFor="edit-title" className="text-sm font-medium">Title</label>
+                          <label htmlFor="edit-title" className="text-sm font-medium">{t('roadmap.featureRequests.formTitle')}</label>
                           <Input 
                             id="edit-title" 
                             value={editTitle}
@@ -237,7 +243,7 @@ function FeatureRequestCard({
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <label htmlFor="edit-description" className="text-sm font-medium">Description</label>
+                            <label htmlFor="edit-description" className="text-sm font-medium">{t('roadmap.featureRequests.formDesc')}</label>
                             <span className={cn(
                               "text-[10px] font-mono",
                               editDescription.length >= 700 ? "text-destructive font-bold" : "text-muted-foreground"
@@ -251,15 +257,15 @@ function FeatureRequestCard({
                             onChange={(e) => setEditDescription(e.target.value.slice(0, 700))}
                             required
                             rows={4}
-                            placeholder="Describe how this feature would work..."
+                            placeholder={t('roadmap.featureRequests.formDescPlaceholder')}
                           />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>{t('roadmap.featureRequests.btnCancel')}</Button>
                         <Button type="submit" disabled={isUpdating}>
                           {isUpdating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                          Save Changes
+                          {t('roadmap.featureRequests.btnSaveChanges')}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -280,7 +286,7 @@ function FeatureRequestCard({
                     currentStatus.bgClass
                   )}>
                     {isUpdatingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t('roadmap.featureRequests.statusPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(statusConfig).map(([val, { label, colorClass, dotClass }]) => (
@@ -314,10 +320,10 @@ function FeatureRequestCard({
                 {/* Review Form */}
                 <div className="space-y-3">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {hasExistingReview ? "Update Your Review" : "Submit a Review / Comment"}
+                    {hasExistingReview ? t('roadmap.featureRequests.reviewSectionTitleUpdate') : t('roadmap.featureRequests.reviewSectionTitleNew')}
                   </label>
                   <Textarea 
-                    placeholder="Your feedback, suggestions, or review of this feature..."
+                    placeholder={t('roadmap.featureRequests.reviewPlaceholder')}
                     value={reviewContent}
                     onChange={(e) => setReviewContent(e.target.value)}
                     className="min-h-[80px] resize-none text-sm bg-muted/30"
@@ -330,7 +336,7 @@ function FeatureRequestCard({
                       className="gap-2"
                     >
                       {isSubmittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-                      {hasExistingReview ? "Update Review" : "Post Review"}
+                      {hasExistingReview ? t('roadmap.featureRequests.btnUpdateReview') : t('roadmap.featureRequests.btnPostReview')}
                     </Button>
                   </div>
                 </div>
@@ -338,12 +344,12 @@ function FeatureRequestCard({
                 {/* Reviews List */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    Reviews ({reviews.length})
+                    {t('roadmap.featureRequests.reviewsCount')} ({reviews.length})
                     {isLoadingReviews && <Loader2 className="h-3 w-3 animate-spin" />}
                   </h4>
                   
                   {reviews.length === 0 && !isLoadingReviews ? (
-                    <p className="text-xs text-muted-foreground italic py-2">No reviews yet. Be the first to share your thoughts!</p>
+                    <p className="text-xs text-muted-foreground italic py-2">{t('roadmap.featureRequests.noReviewsMsg')}</p>
                   ) : (
                     <div className="space-y-3">
                       {reviews.map((review) => (
@@ -353,7 +359,7 @@ function FeatureRequestCard({
                               <User className="h-3 w-3 text-primary" />
                             </div>
                             <span className="text-[10px] font-bold text-foreground/80 truncate max-w-[100px]">
-                              User {review.reviewer_id.slice(0, 6)}
+                              {t('roadmap.featureRequests.userSuffix')} {review.reviewer_id.slice(0, 6)}
                             </span>
                             <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
                             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -374,9 +380,9 @@ function FeatureRequestCard({
           )}
 
           <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-medium mt-1">
-            <span>Requested on {new Date(request.created_at).toLocaleDateString()}</span>
+            <span>{t('roadmap.featureRequests.requestedOn')} {new Date(request.created_at).toLocaleDateString()}</span>
             <span className="flex items-center gap-1 hover:text-primary transition-colors">
-              {isExpanded ? 'Collapse Details' : 'View Details & Review'}
+              {isExpanded ? t('roadmap.featureRequests.viewDetailsActive') : t('roadmap.featureRequests.viewDetailsInactive')}
             </span>
           </div>
         </div>
@@ -393,6 +399,8 @@ import {
 } from "@/components/ui/tabs"
 
 export function FeatureRequestList() {
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
   const { featureRequests, isLoading, upvote, submit, postReview, updateStatus, update, refresh } = useFeatureRequests()
   const { is_super_admin } = useCapabilities()
   const { user } = useAuth()
@@ -498,8 +506,8 @@ export function FeatureRequestList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Feature Requests</h2>
-          <p className="text-sm text-muted-foreground">Vote for the features you want to see next.</p>
+          <h2 className="text-2xl font-bold tracking-tight">{t('roadmap.featureRequests.title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('roadmap.featureRequests.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button 
@@ -515,23 +523,25 @@ export function FeatureRequestList() {
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2 h-9">
                 <Plus className="h-4 w-4" />
-                Request Feature
+                {t('roadmap.featureRequests.requestFeature')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
-                  <DialogTitle>Submit Feature Request</DialogTitle>
+                  <DialogTitle>{t('roadmap.featureRequests.submitTitle')}</DialogTitle>
                 <DialogDescription>
-                  Suggest a new feature for the platform. Submitting a request costs <span className="font-bold text-foreground text-yellow-500 underline decoration-yellow-500/30 underline-offset-4">🪙 7 sCoins</span>.
+                  {t('roadmap.featureRequests.submitDescPart1')}
+                  <span className="font-bold text-foreground mx-1 text-yellow-500 underline decoration-yellow-500/30 underline-offset-4">🪙 {t('roadmap.featureRequests.submitDescPart2')}</span>
+                  {t('roadmap.featureRequests.submitDescPart3')}
                 </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <label htmlFor="title" className="text-sm font-medium">Title</label>
+                    <label htmlFor="title" className="text-sm font-medium">{t('roadmap.featureRequests.formTitle')}</label>
                     <Input 
                       id="title" 
-                      placeholder="e.g. Add dark mode support" 
+                      placeholder={t('roadmap.featureRequests.formTitlePlaceholder')}
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       required
@@ -539,7 +549,7 @@ export function FeatureRequestList() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label htmlFor="description" className="text-sm font-medium">Description</label>
+                      <label htmlFor="description" className="text-sm font-medium">{t('roadmap.featureRequests.formDesc')}</label>
                       <span className={cn(
                         "text-[10px] font-mono",
                         newDescription.length >= 700 ? "text-destructive font-bold" : "text-muted-foreground"
@@ -549,7 +559,7 @@ export function FeatureRequestList() {
                     </div>
                     <Textarea 
                       id="description" 
-                      placeholder="Describe how this feature would work..." 
+                      placeholder={t('roadmap.featureRequests.formDescPlaceholder')}
                       value={newDescription}
                       onChange={(e) => setNewDescription(e.target.value.slice(0, 700))}
                       required
@@ -558,10 +568,10 @@ export function FeatureRequestList() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>{t('roadmap.featureRequests.btnCancel')}</Button>
                   <Button type="submit">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Submit Request
+                    {t('roadmap.featureRequests.btnSubmit')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -573,16 +583,17 @@ export function FeatureRequestList() {
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Upvote</AlertDialogTitle>
+            <AlertDialogTitle>{t('roadmap.featureRequests.confirmUpvoteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Upvoting this feature request will cost <span className="font-bold text-foreground mx-1 text-yellow-500">🪙 1 sCoin</span>. 
-              Are you sure you want to proceed?
+              {t('roadmap.featureRequests.confirmUpvoteDescPart1')}
+              <span className="font-bold text-foreground mx-1 text-yellow-500">🪙 {t('roadmap.featureRequests.confirmUpvoteDescPart2')}</span>
+              {t('roadmap.featureRequests.confirmUpvoteDescPart3')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingUpvoteId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingUpvoteId(null)}>{t('roadmap.featureRequests.btnCancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmUpvote}>
-              Confirm & Pay 1 sCoin
+              {t('roadmap.featureRequests.btnConfirmPay')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -591,7 +602,7 @@ export function FeatureRequestList() {
       <Tabs defaultValue="voting" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mb-6">
           <TabsTrigger value="voting" className="relative">
-            Voting
+            {t('roadmap.featureRequests.tabVoting')}
             {!isLoading && votingRequests.length > 0 && (
               <Badge variant="secondary" className="ml-2 px-1 py-0 min-w-[1.2rem] h-4 flex items-center justify-center text-[10px] bg-primary/10 text-primary border-none">
                 {votingRequests.length}
@@ -599,7 +610,7 @@ export function FeatureRequestList() {
             )}
           </TabsTrigger>
           <TabsTrigger value="voted">
-            Voted
+            {t('roadmap.featureRequests.tabVoted')}
             {!isLoading && pastRequests.length > 0 && (
               <Badge variant="secondary" className="ml-2 px-1 py-0 min-w-[1.2rem] h-4 flex items-center justify-center text-[10px]">
                 {pastRequests.length}
@@ -608,10 +619,10 @@ export function FeatureRequestList() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="voting" className="m-0 focus-visible:ring-0">
-          {renderList(votingRequests, "No active features in voting yet.")}
+          {renderList(votingRequests, t('roadmap.featureRequests.noActiveFeatures'))}
         </TabsContent>
         <TabsContent value="voted" className="m-0 focus-visible:ring-0">
-          {renderList(pastRequests, "No completed or historical features yet.")}
+          {renderList(pastRequests, t('roadmap.featureRequests.noHistoricalFeatures'))}
         </TabsContent>
       </Tabs>
     </div>

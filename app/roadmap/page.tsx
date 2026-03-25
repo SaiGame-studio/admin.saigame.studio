@@ -16,6 +16,8 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { FeatureRequestList } from "@/components/roadmap/feature-request-list"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/useTranslation"
 
 type PhaseStatus = "complete" | "in-progress" | "planned" | "planning"
 
@@ -37,86 +39,6 @@ interface Phase {
   capabilities?: FeatureItem[]
   footnote?: string
 }
-
-const phases: Phase[] = [
-  {
-    number: 1,
-    title: "The Idle Game",
-    theme: "Core platform infrastructure — authentication, multi-tenancy, player profiles",
-    status: "complete",
-    statusLabel: "Complete",
-    completed: [
-      { name: "Studio & Game Management", description: "Create and manage multiple studios and games from a single account", completed: "Feb 2026" },
-      { name: "Player Profile & Progress", description: "Per-game player profiles with level, progress, and custom game data", completed: "Feb 2026" },
-      { name: "User Profiles", description: "Display name, avatar, bio, and social links for each player", completed: "Feb 2026" },
-      { name: "Team & Access Control", description: "Role-based team membership with controlled access per game", completed: "Feb 2026" },
-      { name: "Studio & Game Quotas", description: "Per-studio and per-game usage limits based on subscription tier", completed: "Feb 2026" },
-      { name: "Coin System", description: "In-game wallet for earning, spending, and tracking virtual currency", completed: "Feb 22, 2026" },
-      { name: "Plugin Subscriptions", description: "Per-game plugin subscriptions that unlock higher player and content limits", completed: "Feb 23, 2026" },
-    ],
-  },
-  {
-    number: 2,
-    title: "The Card Game",
-    theme: "Full game economy — inventory, gacha, shop, quests, battles, leaderboard",
-    status: "in-progress",
-    statusLabel: "In Progress",
-    completed: [
-      { name: "Item & Inventory System", description: "Players can own, manage, and track in-game items across sessions", completed: "Feb 24, 2026" },
-      { name: "Gacha / Loot Box", description: "Random loot packs with configurable weighted drop rates", completed: "Feb 25, 2026" },
-      { name: "Player Mailbox", description: "Send gifts, items, and messages directly to players' in-game inboxes", completed: "Feb 26–27, 2026" },
-      { name: "Passive Resource Generation", description: "Items and resources accumulate over time while the player is offline", completed: "Feb 27, 2026" },
-      { name: "Shop System", description: "In-game shop with purchase limits, restock schedules, and per-item currency support", completed: "Mar 2, 2026" },
-      { name: "Quest System", description: "Full quest lifecycle — definitions, conditions, rewards, chains, and quest-type filtering", completed: "Mar 3, 2026" },
-      { name: "Quest Chain System", description: "Sequential and branching quest chains with unlock conditions and graph visualisation", completed: "Mar 4, 2026" },
-      { name: "Daily Quest System", description: "Daily quest pools with weighted-random, fixed-rotation, weekly, and monthly assignment strategies", completed: "Mar 5, 2026" },
-      { name: "Player Containers", description: "Grid-based inventory containers with item placement, grid visualisation, and per-player container management", completed: "Mar 6, 2026" },
-      { name: "Equipment Slot System", description: "Equippable item slots for player characters with active/inactive state management", completed: "Mar 10, 2026" },
-      { name: "Game Tags / Item Tags", description: "Categorization system for games and items with tag-based filtering and organization", completed: "Mar 10, 2026" },
-      { name: "Player Journey / Analytics", description: "Track player progression metrics, behavior analysis, and engagement analytics", completed: "Mar 13, 2026" },
-      { name: "Leaderboard System", description: "Ranked player leaderboards with scoring, seasonal resets, and real-time rankings", completed: "Mar 16, 2026" },
-      { name: "Achievement System", description: "Badge and achievement unlock system with milestone tracking and reward distribution", completed: "Mar 17, 2026" },
-      { name: "Entity Definitions", description: "Unified system for defining game entities, properties, and metadata", completed: "Mar 19, 2026" },
-      { name: "Crafting System", description: "Recipe-based item crafting — enables Merge-3 and RPG game types", completed: "Mar 21, 2026" },
-    ],
-    planned: [
-      { name: "Battle Pass", group: "Progression" },
-      { name: "World Quest", group: "Progression" },
-      { name: "World Zone", group: "World" },
-      { name: "IAP (Apple + Google Play)", group: "Monetization" },
-      { name: "Clone Game Data", group: "Platform" },
-      { name: "Game Dev Level Up", group: "Platform" },
-    ],
-  },
-  {
-    number: 3,
-    title: "The Action RPG",
-    theme: "Scale globally, co-op multiplayer",
-    status: "planning",
-    statusLabel: "Planning",
-    footnote: "Primary goal: Support 100,000+ concurrent users globally with sub-100ms response times.",
-    capabilities: [
-      { name: "Unity Netcode Integration", description: "Seamless integration with Unity Netcode for Games to enable real-time co-op gameplay and open-world experiences (Genshin-like)" },
-      { name: "Co-op Open World", description: "Large-scale open worlds supporting 4-8 player co-op gameplay with persistent world state" },
-      { name: "Co-op Dungeons", description: "Instanced dungeon experiences with real-time team coordination" },
-      { name: "Co-op Campaigns", description: "Story-driven cooperative campaigns with multiple players" },
-      { name: "In game trading", description: "Player-to-player item and resource trading system with secure transaction handling and fraud prevention" },
-    ],
-  },
-  {
-    number: 4,
-    title: "Realtime Multiplayer",
-    theme: "Live bidirectional gameplay — matchmaking, real-time PvP",
-    status: "planning",
-    statusLabel: "Planning",
-    footnote: "Primary goal: Enable real-time PvP and support MMO, Battle Royale, and Hero Shooter game types.",
-    capabilities: [
-      { name: "MMO", description: "Large-scale persistent multiplayer worlds with hundreds of concurrent players" },
-      { name: "Battle Royale", description: "Last-player-standing competitive mode with real-time player elimination" },
-      { name: "Hero Shooter", description: "Team-based tactical shooter with diverse character abilities and roles" },
-    ],
-  },
-]
 
 const statusConfig: Record<
   PhaseStatus,
@@ -159,6 +81,8 @@ const groupBadgeClass = "bg-muted text-muted-foreground border border-border"
 
 export default function RoadmapPage() {
   const [collapsedPhases, setCollapsedPhases] = useState<number[]>([1])
+  const { locale } = useLanguage()
+  const { t } = useTranslation(locale)
 
   const togglePhase = (phaseNumber: number) => {
     setCollapsedPhases(prev => 
@@ -168,6 +92,86 @@ export default function RoadmapPage() {
     )
   }
 
+  const phases: Phase[] = [
+    {
+      number: 1,
+      title: t('roadmap.page.phases.1.title'),
+      theme: t('roadmap.page.phases.1.theme'),
+      status: "complete",
+      statusLabel: t('roadmap.page.statusComplete'),
+      completed: [
+        { name: t('roadmap.page.phases.1.items.studioGame'), description: t('roadmap.page.phases.1.items.studioGameDesc'), completed: "Feb 2026" },
+        { name: t('roadmap.page.phases.1.items.playerProfile'), description: t('roadmap.page.phases.1.items.playerProfileDesc'), completed: "Feb 2026" },
+        { name: t('roadmap.page.phases.1.items.userProfiles'), description: t('roadmap.page.phases.1.items.userProfilesDesc'), completed: "Feb 2026" },
+        { name: t('roadmap.page.phases.1.items.teamAccess'), description: t('roadmap.page.phases.1.items.teamAccessDesc'), completed: "Feb 2026" },
+        { name: t('roadmap.page.phases.1.items.quotas'), description: t('roadmap.page.phases.1.items.quotasDesc'), completed: "Feb 2026" },
+        { name: t('roadmap.page.phases.1.items.coinSystem'), description: t('roadmap.page.phases.1.items.coinSystemDesc'), completed: "Feb 22, 2026" },
+        { name: t('roadmap.page.phases.1.items.pluginSubs'), description: t('roadmap.page.phases.1.items.pluginSubsDesc'), completed: "Feb 23, 2026" },
+      ],
+    },
+    {
+      number: 2,
+      title: t('roadmap.page.phases.2.title'),
+      theme: t('roadmap.page.phases.2.theme'),
+      status: "in-progress",
+      statusLabel: t('roadmap.page.statusInProgress'),
+      completed: [
+        { name: t('roadmap.page.phases.2.items.itemInventory'), description: t('roadmap.page.phases.2.items.itemInventoryDesc'), completed: "Feb 24, 2026" },
+        { name: t('roadmap.page.phases.2.items.gacha'), description: t('roadmap.page.phases.2.items.gachaDesc'), completed: "Feb 25, 2026" },
+        { name: t('roadmap.page.phases.2.items.mailbox'), description: t('roadmap.page.phases.2.items.mailboxDesc'), completed: "Feb 26–27, 2026" },
+        { name: t('roadmap.page.phases.2.items.passiveResource'), description: t('roadmap.page.phases.2.items.passiveResourceDesc'), completed: "Feb 27, 2026" },
+        { name: t('roadmap.page.phases.2.items.shop'), description: t('roadmap.page.phases.2.items.shopDesc'), completed: "Mar 2, 2026" },
+        { name: t('roadmap.page.phases.2.items.quest'), description: t('roadmap.page.phases.2.items.questDesc'), completed: "Mar 3, 2026" },
+        { name: t('roadmap.page.phases.2.items.questChain'), description: t('roadmap.page.phases.2.items.questChainDesc'), completed: "Mar 4, 2026" },
+        { name: t('roadmap.page.phases.2.items.dailyQuest'), description: t('roadmap.page.phases.2.items.dailyQuestDesc'), completed: "Mar 5, 2026" },
+        { name: t('roadmap.page.phases.2.items.containers'), description: t('roadmap.page.phases.2.items.containersDesc'), completed: "Mar 6, 2026" },
+        { name: t('roadmap.page.phases.2.items.equipment'), description: t('roadmap.page.phases.2.items.equipmentDesc'), completed: "Mar 10, 2026" },
+        { name: t('roadmap.page.phases.2.items.tags'), description: t('roadmap.page.phases.2.items.tagsDesc'), completed: "Mar 10, 2026" },
+        { name: t('roadmap.page.phases.2.items.analytics'), description: t('roadmap.page.phases.2.items.analyticsDesc'), completed: "Mar 13, 2026" },
+        { name: t('roadmap.page.phases.2.items.leaderboard'), description: t('roadmap.page.phases.2.items.leaderboardDesc'), completed: "Mar 16, 2026" },
+        { name: t('roadmap.page.phases.2.items.achievement'), description: t('roadmap.page.phases.2.items.achievementDesc'), completed: "Mar 17, 2026" },
+        { name: t('roadmap.page.phases.2.items.definitions'), description: t('roadmap.page.phases.2.items.definitionsDesc'), completed: "Mar 19, 2026" },
+        { name: t('roadmap.page.phases.2.items.crafting'), description: t('roadmap.page.phases.2.items.craftingDesc'), completed: "Mar 21, 2026" },
+      ],
+      planned: [
+        { name: t('roadmap.page.phases.2.items.battlePass'), group: "Progression" },
+        { name: t('roadmap.page.phases.2.items.worldQuest'), group: "Progression" },
+        { name: t('roadmap.page.phases.2.items.worldZone'), group: "World" },
+        { name: t('roadmap.page.phases.2.items.iap'), group: "Monetization" },
+        { name: t('roadmap.page.phases.2.items.cloneGame'), group: "Platform" },
+        { name: t('roadmap.page.phases.2.items.gameDev'), group: "Platform" },
+      ],
+    },
+    {
+      number: 3,
+      title: t('roadmap.page.phases.3.title'),
+      theme: t('roadmap.page.phases.3.theme'),
+      status: "planning",
+      statusLabel: t('roadmap.page.statusPlanning'),
+      footnote: t('roadmap.page.phases.3.footnote'),
+      capabilities: [
+        { name: t('roadmap.page.phases.3.items.netcode'), description: t('roadmap.page.phases.3.items.netcodeDesc') },
+        { name: t('roadmap.page.phases.3.items.openWorld'), description: t('roadmap.page.phases.3.items.openWorldDesc') },
+        { name: t('roadmap.page.phases.3.items.dungeons'), description: t('roadmap.page.phases.3.items.dungeonsDesc') },
+        { name: t('roadmap.page.phases.3.items.campaigns'), description: t('roadmap.page.phases.3.items.campaignsDesc') },
+        { name: t('roadmap.page.phases.3.items.trading'), description: t('roadmap.page.phases.3.items.tradingDesc') },
+      ],
+    },
+    {
+      number: 4,
+      title: t('roadmap.page.phases.4.title'),
+      theme: t('roadmap.page.phases.4.theme'),
+      status: "planning",
+      statusLabel: t('roadmap.page.statusPlanning'),
+      footnote: t('roadmap.page.phases.4.footnote'),
+      capabilities: [
+        { name: t('roadmap.page.phases.4.items.mmo'), description: t('roadmap.page.phases.4.items.mmoDesc') },
+        { name: t('roadmap.page.phases.4.items.battleRoyale'), description: t('roadmap.page.phases.4.items.battleRoyaleDesc') },
+        { name: t('roadmap.page.phases.4.items.heroShooter'), description: t('roadmap.page.phases.4.items.heroShooterDesc') },
+      ],
+    },
+  ]
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -176,12 +180,12 @@ export default function RoadmapPage() {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
             <Map className="h-5 w-5 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Platform Roadmap & Feedback</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('roadmap.page.title')}</h1>
         </div>
         <p className="text-muted-foreground ml-[52px]">
-          The development roadmap and community feature requests.
+          {t('roadmap.page.subtitle')}
         </p>
-        <p className="text-xs text-muted-foreground mt-1 ml-[52px]">Last updated: Mar 6, 2026</p>
+        <p className="text-xs text-muted-foreground mt-1 ml-[52px]">{t('roadmap.page.lastUpdated')}</p>
       </div>
 
       {/* Summary strip */}
@@ -196,7 +200,7 @@ export default function RoadmapPage() {
             >
               <div className="flex items-center gap-2 mb-1.5">
                 {cfg.icon}
-                <span className="text-xs font-semibold text-muted-foreground">Phase {phase.number}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t(`roadmap.page.phase${phase.number}`)}</span>
               </div>
               <p className="text-xs font-medium leading-tight text-foreground">{phase.title}</p>
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium mt-2 ${cfg.badgeClass}`}>
@@ -211,8 +215,8 @@ export default function RoadmapPage() {
         {/* Left Column: Platform Roadmap */}
         <div className="space-y-8">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight mb-2">Development Plan</h2>
-            <p className="text-sm text-muted-foreground mb-6">Our high-level strategy for evolving the platform foundation.</p>
+            <h2 className="text-2xl font-bold tracking-tight mb-2">{t('roadmap.page.devPlanTitle')}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t('roadmap.page.devPlanSubtitle')}</p>
           </div>
           
           <div className="space-y-6">
@@ -233,7 +237,7 @@ export default function RoadmapPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Phase {phase.number}
+                            {t(`roadmap.page.phase${phase.number}`)}
                           </span>
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${cfg.badgeClass}`}>
                             {phase.statusLabel}
@@ -258,7 +262,7 @@ export default function RoadmapPage() {
                         <div>
                           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                             <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                            Completed
+                            {t('roadmap.page.completedSection')}
                           </h4>
                           <div className="space-y-2">
                             {phase.completed.map((item) => (
@@ -287,7 +291,7 @@ export default function RoadmapPage() {
                         <div>
                           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                             <Circle className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            Planned
+                            {t('roadmap.page.plannedSection')}
                           </h4>
                           <div className="grid grid-cols-1 gap-2">
                             {phase.planned.map((item) => (
@@ -313,7 +317,7 @@ export default function RoadmapPage() {
                         <div>
                           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                             <Zap className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            Capabilities
+                            {t('roadmap.page.capabilitiesSection')}
                           </h4>
                           <div className="grid grid-cols-1 gap-2">
                             {phase.capabilities.map((item) => (
@@ -350,9 +354,9 @@ export default function RoadmapPage() {
           <MessageCircle className="h-6 w-6 text-primary" />
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-foreground">Shape the Roadmap</p>
+          <p className="font-semibold text-foreground">{t('roadmap.page.discordTitle')}</p>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Have a feature request or idea? Join our Discord and share your feedback — every suggestion influences what we build next.
+            {t('roadmap.page.discordDesc')}
           </p>
         </div>
         <a
@@ -362,7 +366,7 @@ export default function RoadmapPage() {
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex-shrink-0"
         >
           <MessageCircle className="h-4 w-4" />
-          Join Discord
+          {t('roadmap.page.joinDiscord')}
         </a>
       </div>
     </div>

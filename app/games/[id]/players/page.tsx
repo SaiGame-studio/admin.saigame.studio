@@ -13,14 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Search, RefreshCw, User, Trophy, Coins, Star, ArrowLeft, Hammer, Eye, Mail } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useTranslation } from '@/lib/i18n/use-translation'
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { CopyButton } from "@/components/CopyButton"
 export default function GameUserProfilesPage({ params }: { params: { id: string } }) {
   const gameId = params.id;
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
+  const { t } = useTranslation();
   const [progressList, setProgressList] = useState<GameProgress[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [game, setGame] = useState<any>(null);
@@ -114,7 +112,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                     return (
                       <>
                         <span className={used >= max ? "text-destructive font-medium" : ""}>
-                          {used.toLocaleString()} / {max.toLocaleString()} players
+                          {used.toLocaleString()} / {max.toLocaleString()} {t('gameUsers.playersLower')}
                         </span>
                         <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                           <span
@@ -134,7 +132,7 @@ export default function GameUserProfilesPage({ params }: { params: { id: string 
                       </>
                     )
                   })()
-                : <span>{totalCount.toLocaleString()} players registered</span>
+                : <span>{totalCount.toLocaleString()} {t('gameUsers.playersRegistered')}</span>
               }
             </p>
           </div>

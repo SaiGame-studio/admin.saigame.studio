@@ -74,3 +74,47 @@ export const ENTITY_RARITY_COLORS: Record<EntityRarity, { text: string; border: 
   epic:      { text: 'text-purple-700', border: 'border-purple-500', bg: 'bg-purple-50'  },
   legendary: { text: 'text-orange-700', border: 'border-orange-500', bg: 'bg-orange-50'  },
 }
+
+export interface EntityPoolEntry {
+  id: string
+  pool_id: string
+  entity_definition_id: string
+  weight: number
+  created_at: string
+  updated_at: string
+  entity_key: string
+  entity_type: string
+  entity_name: string
+  rarity?: EntityRarity
+  stats?: Record<string, unknown>
+}
+
+export interface EntityPool {
+  id: string
+  game_id: string
+  pool_key: string
+  name: string
+  description?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  entries?: EntityPoolEntry[]
+}
+
+export interface CreateEntityPoolRequest {
+  pool_key: string
+  name: string
+  description?: string
+}
+
+export interface UpdateEntityPoolRequest {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+
+export interface CreateEntityPoolEntryRequest {
+  entity_definition_id: string
+  weight: number
+}
+

@@ -9,11 +9,17 @@ import type {
   EntityType,
   CreateEntityDefinitionRequest,
   UpdateEntityDefinitionRequest,
+  EntityPool,
+  EntityPoolEntry,
+  CreateEntityPoolRequest,
+  UpdateEntityPoolRequest,
+  CreateEntityPoolEntryRequest,
 } from '@/types/entity-definition'
 
 export interface ListEntityDefinitionsParams {
   type?: EntityType
   name?: string
+  search?: string
 }
 
 /** POST /api/v1/games/:gameId/entity-definitions */
@@ -32,6 +38,7 @@ export async function listEntityDefinitions(
   const query = new URLSearchParams()
   if (params.type) query.set('type', params.type)
   if (params.name) query.set('name', params.name)
+  if (params.search) query.set('search', params.search)
   const qs = query.toString()
   return api.get(`/api/v1/games/${gameId}/entity-definitions${qs ? `?${qs}` : ''}`)
 }
@@ -82,3 +89,68 @@ export async function bulkGetEntityDefinitions(
 ): Promise<EntityDefinition[]> {
   return api.post(`/api/v1/games/${gameId}/entity-definitions/bulk`, { keys })
 }
+
+// ─── Entity Pool ─────────────────────────────────────────────────────────────
+
+/** GET /api/v1/games/:gameId/entity-pools */
+export async function listEntityPools(gameId: string): Promise<EntityPool[]> {
+  return api.get(`/api/v1/games/${gameId}/entity-pools`)
+}
+
+/** POST /api/v1/games/:gameId/entity-pools */
+export async function createEntityPool(
+  gameId: string,
+  body: CreateEntityPoolRequest
+): Promise<EntityPool> {
+  return api.post(`/api/v1/games/${gameId}/entity-pools`, body)
+}
+
+/** GET /api/v1/games/:gameId/entity-pools/:id */
+export async function getEntityPool(gameId: string, id: string): Promise<EntityPool> {
+  return api.get(`/api/v1/games/${gameId}/entity-pools/${id}`)
+}
+
+/** PATCH /api/v1/games/:gameId/entity-pools/:id */
+export async function updateEntityPool(
+  gameId: string,
+  id: string,
+  body: UpdateEntityPoolRequest
+): Promise<EntityPool> {
+  return api.patch(`/api/v1/games/${gameId}/entity-pools/${id}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/entity-pools/:id */
+export async function deleteEntityPool(gameId: string, id: string): Promise<void> {
+  return api.delete(`/api/v1/games/${gameId}/entity-pools/${id}`)
+}
+
+// ─── Entity Pool Entries ──────────────────────────────────────────────────────
+
+/** POST /api/v1/games/:gameId/entity-pools/:poolId/entries */
+export async function createEntityPoolEntry(
+  gameId: string,
+  poolId: string,
+  body: CreateEntityPoolEntryRequest,
+): Promise<EntityPoolEntry> {
+  return api.post(`/api/v1/games/${gameId}/entity-pools/${poolId}/entries`, body)
+}
+
+/** PATCH /api/v1/games/:gameId/entity-pools/:poolId/entries/:entryId */
+export async function updateEntityPoolEntry(
+  gameId: string,
+  poolId: string,
+  entryId: string,
+  body: { weight: number },
+): Promise<EntityPoolEntry> {
+  return api.patch(`/api/v1/games/${gameId}/entity-pools/${poolId}/entries/${entryId}`, body)
+}
+
+/** DELETE /api/v1/games/:gameId/entity-pools/:poolId/entries/:entryId */
+export async function deleteEntityPoolEntry(
+  gameId: string,
+  poolId: string,
+  entryId: string,
+): Promise<void> {
+  return api.delete(`/api/v1/games/${gameId}/entity-pools/${poolId}/entries/${entryId}`)
+}
+

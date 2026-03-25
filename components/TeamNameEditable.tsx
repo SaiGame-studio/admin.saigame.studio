@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Pencil, Save, X } from "lucide-react"
 import { updateTeam } from "@/lib/team-api"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface TeamNameEditableProps {
   team: { id: string; name: string }
@@ -11,6 +12,7 @@ interface TeamNameEditableProps {
 }
 
 export default function TeamNameEditable({ team, teamId, onNameUpdate }: TeamNameEditableProps) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(team.name)
   const [loading, setLoading] = useState(false)
@@ -28,7 +30,7 @@ export default function TeamNameEditable({ team, teamId, onNameUpdate }: TeamNam
       onNameUpdate(name)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || "Failed to update team name")
+      setError(e.message || t('team.updateNameError'))
     } finally {
       setLoading(false)
     }
@@ -84,6 +86,7 @@ interface TeamDescriptionEditableProps {
 }
 
 export function TeamDescriptionEditable({ team, teamId, onDescriptionUpdate }: TeamDescriptionEditableProps) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState(team.description || "")
   const [loading, setLoading] = useState(false)
@@ -101,7 +104,7 @@ export function TeamDescriptionEditable({ team, teamId, onDescriptionUpdate }: T
       onDescriptionUpdate(description)
       setEditing(false)
     } catch (e: any) {
-      setError(e.message || "Failed to update team description")
+      setError(e.message || t('team.updateDescError'))
     } finally {
       setLoading(false)
     }
@@ -114,7 +117,7 @@ export function TeamDescriptionEditable({ team, teamId, onDescriptionUpdate }: T
           <Input
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Add team description..."
+            placeholder={t('team.addDescPlaceholder')}
             className="w-96 h-8 px-2 text-sm"
             disabled={loading}
           />
@@ -136,7 +139,7 @@ export function TeamDescriptionEditable({ team, teamId, onDescriptionUpdate }: T
       ) : (
         <>
           <span className="text-sm text-muted-foreground">
-            {description || "Add team description..."}
+            {description || t('team.addDescPlaceholder')}
           </span>
           <Button
             size="icon"

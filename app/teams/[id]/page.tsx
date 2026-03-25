@@ -25,9 +25,11 @@ import { RemoveGameFromTeamDialog } from "@/components/RemoveGameFromTeamDialog"
 import TeamNameEditable, { TeamDescriptionEditable } from "@/components/TeamNameEditable"
 import { CopyButton } from "@/components/CopyButton"
 import { DeleteTeamDialog } from "@/components/DeleteTeamDialog"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 export default function TeamDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const { t } = useTranslation()
   const [team, setTeam] = useState<Team | null>(null)
   const [studio, setStudio] = useState<Studio | null>(null)
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -62,7 +64,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         
         setError(null)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load team details")
+        setError(err instanceof Error ? err.message : t('team.loadError'))
       } finally {
         setLoading(false)
       }
@@ -75,7 +77,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         setMembers(data)
         setMembersError(null)
       } catch (err) {
-        setMembersError(err instanceof Error ? err.message : "Failed to load team members")
+        setMembersError(err instanceof Error ? err.message : t('team.loadMembersError'))
       } finally {
         setMembersLoading(false)
       }
@@ -88,7 +90,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         setGames(data)
         setGamesError(null)
       } catch (err) {
-        setGamesError(err instanceof Error ? err.message : "Failed to load team games")
+        setGamesError(err instanceof Error ? err.message : t('team.loadGamesError'))
       } finally {
         setGamesLoading(false)
       }
@@ -125,7 +127,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+              <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             {studio && (
@@ -137,7 +139,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
               </>
             )}
             <BreadcrumbItem>
-              <span>{team?.name || "Team Details"}</span>
+              <span>{team?.name || t('team.details')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -146,7 +148,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -154,7 +156,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       {membersError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{membersError}</AlertDescription>
         </Alert>
       )}
@@ -162,7 +164,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       {gamesError && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('common.error')}</AlertTitle>
           <AlertDescription>{gamesError}</AlertDescription>
         </Alert>
       )}
@@ -205,7 +207,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Team Details</CardTitle>
+                <CardTitle>{t('team.details')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -214,12 +216,12 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 </div>
                 {team.slug && (
                   <div>
-                    <p className="text-sm font-medium">Slug</p>
+                    <p className="text-sm font-medium">{t('team.slug')}</p>
                     <Badge variant="outline" className="font-mono">{team.slug}</Badge>
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-medium">Studio</p>
+                  <p className="text-sm font-medium">{t('team.studio')}</p>
                   <Link href={`/studios/${team.studio_id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                     {studio?.name || team.studio_id}
                     <ExternalLink className="w-4 h-4" />
@@ -230,16 +232,16 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
 
             <Card>
               <CardHeader>
-                <CardTitle>Timestamps</CardTitle>
-                <CardDescription>Creation and update information</CardDescription>
+                <CardTitle>{t('team.timestamps')}</CardTitle>
+                <CardDescription>{t('team.timestampsDesc')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm font-medium">Created At</p>
+                  <p className="text-sm font-medium">{t('team.createdAt')}</p>
                   <p className="text-sm text-muted-foreground">{formatTimestamp(team.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Updated At</p>
+                  <p className="text-sm font-medium">{t('team.updatedAt')}</p>
                   <p className="text-sm text-muted-foreground">{formatTimestamp(team.updated_at)}</p>
                 </div>
               </CardContent>
@@ -250,8 +252,8 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
           <Card className="mt-6">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
-                <CardTitle>Games</CardTitle>
-                <CardDescription>Games assigned to this team</CardDescription>
+                <CardTitle>{t('team.games')}</CardTitle>
+                <CardDescription>{t('team.gamesDesc')}</CardDescription>
               </div>
               {team.studio_id && (
                 <AddGameToTeamDialog 
@@ -293,7 +295,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No games assigned to this team.</p>
+                <p className="text-sm text-muted-foreground">{t('team.noGames')}</p>
               )}
             </CardContent>
           </Card>
@@ -302,14 +304,14 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
           <Card className="mt-6 border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Members</CardTitle>
-                <CardDescription>Members in this team</CardDescription>
+                <CardTitle>{t('team.membersTitle')}</CardTitle>
+                <CardDescription>{t('team.membersDesc')}</CardDescription>
               </div>
               <div className="flex items-center gap-3">
                 {studio?.limits?.max_total_members != null && studio?.usage?.total_members != null && (
                   <div className="w-44 space-y-1">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Studio slots</span>
+                      <span>{t('team.studioSlots')}</span>
                       <span className={`font-semibold ${
                         studio.usage.total_members >= studio.limits.max_total_members
                           ? 'text-destructive'
@@ -358,7 +360,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={member.is_active ? "default" : "secondary"}>
-                            {member.is_active ? "Active" : "Inactive"}
+                            {member.is_active ? t('common.active') : t('common.inactive')}
                           </Badge>
                           {member.role_name?.toLowerCase() !== "owner" && (
                             <RemoveMemberDialog 
@@ -371,7 +373,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
-                          <p className="text-sm font-medium">Role</p>
+                          <p className="text-sm font-medium">{t('team.role')}</p>
                           <div className="flex items-center gap-2">
                             <p className="text-sm text-muted-foreground">{member.role_name}</p>
                             <EditMemberRoleDialog 
@@ -382,18 +384,18 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                           </div>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Email</p>
+                          <p className="text-sm font-medium">{t('team.email')}</p>
                           <p className="text-sm text-muted-foreground">{member.email || "-"}</p>
                         </div>
                         <div className="col-span-2">
-                          <p className="text-sm font-medium">User ID</p>
+                          <p className="text-sm font-medium">{t('team.userId')}</p>
                           <p className="text-sm text-muted-foreground font-mono truncate flex items-center" title={member.user_id}>
                             {member.user_id}<CopyButton text={member.user_id} />
                           </p>
                         </div>
                         {member.joined_at && (
                           <div>
-                            <p className="text-sm font-medium">Joined At</p>
+                            <p className="text-sm font-medium">{t('team.joinedAt')}</p>
                             <p className="text-sm text-muted-foreground">{formatTimestamp(member.joined_at)}</p>
                           </div>
                         )}
@@ -403,7 +405,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <p className="text-muted-foreground">No members found for this team.</p>
+                  <p className="text-muted-foreground">{t('team.noMembersInTeam')}</p>
                 </div>
               )}
             </CardContent>
@@ -412,8 +414,8 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
       ) : (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Not Found</AlertTitle>
-          <AlertDescription>The requested team could not be found.</AlertDescription>
+          <AlertTitle>{t('team.notFound')}</AlertTitle>
+          <AlertDescription>{t('team.notFoundDesc')}</AlertDescription>
         </Alert>
       )}
     </div>

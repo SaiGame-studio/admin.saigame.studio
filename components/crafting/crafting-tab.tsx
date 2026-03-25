@@ -44,6 +44,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { CopyButton } from "@/components/CopyButton"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { listItemDefinitions, type TenantCtx } from "@/lib/inventory-api"
 import { listCraftingRecipes, createCraftingRecipe, getCraftingRecipe, updateCraftingRecipe, deleteCraftingRecipe } from "@/lib/crafting-api"
 import type { ItemDefinition, ItemCategory } from "@/types/inventory"
@@ -55,36 +56,37 @@ import type {
   CraftingRecipeOutput,
 } from "@/types/crafting"
 
-function ItemSelector({ 
-  value, 
-  onChange, 
-  items, 
+function ItemSelector({
+  value,
+  onChange,
+  items,
   loading,
-  placeholder = "Select item"
-}: { 
-  value: string; 
-  onChange: (v: string) => void; 
-  items: ItemDefinition[]; 
+  placeholder
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  items: ItemDefinition[];
   loading: boolean;
   placeholder?: string;
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  
+
   const selectedItem = items.find(i => i.id === value)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" aria-expanded={open} className={`w-full justify-between h-8 text-xs font-normal border-dashed ${!value ? "text-muted-foreground" : ""}`}>
-          <span className="truncate">{selectedItem ? selectedItem.name : placeholder}</span>
+          <span className="truncate">{selectedItem ? selectedItem.name : (placeholder ?? t('crafting.selectComponentItem'))}</span>
           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search items..." className="h-9 text-xs" />
+          <CommandInput placeholder={t('crafting.searchItems')} className="h-9 text-xs" />
           <CommandList>
-            <CommandEmpty>No item found.</CommandEmpty>
+            <CommandEmpty>{t('crafting.noItemFound')}</CommandEmpty>
             {loading ? (
               <div className="p-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
             ) : (
@@ -114,6 +116,7 @@ function ItemSelector({
 
 export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: string }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -162,10 +165,10 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
         router.replace(`?${params.toString()}`, { scroll: false })
       }
       setDetailCache(prev => { const n = { ...prev }; delete n[recipe.id]; return n })
-      toast({ title: "Recipe deleted", description: `"${recipe.name}" has been deleted.` })
+      toast({ title: t('crafting.recipeDeleted'), description: t('crafting.recipeDeletedDesc').replace('{name}', recipe.name) })
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete recipe"
-      toast({ title: "Error", description: msg, variant: "destructive" })
+      const msg = err instanceof Error ? err.message : t('crafting.failedToCreate')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
     } finally {
       setDeleteRecipeSaving(false)
       setDeleteRecipe(null)
@@ -183,7 +186,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       setDetailLoading(next)
       getCraftingRecipe({ gameId }, next)
         .then(res => setDetailCache(prev => ({ ...prev, [next]: res })))
-        .catch(err => setDetailError(prev => ({ ...prev, [next]: err.message ?? "Failed to load details" })))
+        .catch(err => setDetailError(prev => ({ ...prev, [next]: err.message ?? t('crafting.failedLoadDetails') })))
         .finally(() => setDetailLoading(null))
     }
   }
@@ -241,7 +244,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       setRecipes(res.recipes || [])
       setTotal(res.total || 0)
     } catch (err: any) {
-      setError(err?.message || "Failed to load crafting recipes")
+      setError(err?.message || t('crafting.failedLoadRecipes'))
     } finally {
       setLoading(false)
     }
@@ -294,9 +297,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       setDetailCache(prev => ({ ...prev, [recipeId]: updated }))
       setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, ...updated } : r))
       setEditingField(null)
-      toast({ title: "Updated", description: "Recipe updated successfully." })
+      toast({ title: t('common.success'), description: t('crafting.recipeUpdated') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Update failed", description: err?.message || "Unknown error" })
+      toast({ variant: "destructive", title: t('crafting.updateFailed'), description: err?.message || t('common.unknown') })
     } finally {
       setFieldSaving(false)
     }
@@ -310,9 +313,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       const updated = await updateCraftingRecipe({ gameId }, recipeId, { metadata })
       setDetailCache(prev => ({ ...prev, [recipeId]: updated }))
       setEditingMeta(false)
-      toast({ title: "Updated", description: "Metadata saved." })
+      toast({ title: t('common.success'), description: t('crafting.metadataSaved') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Update failed", description: err?.message || "Unknown error" })
+      toast({ variant: "destructive", title: t('crafting.updateFailed'), description: err?.message || t('common.unknown') })
     } finally {
       setMetaSaving(false)
     }
@@ -331,9 +334,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       })
       setDetailCache(prev => ({ ...prev, [recipeId]: updated }))
       setEditingInputs(false)
-      toast({ title: "Updated", description: "Input materials saved." })
+      toast({ title: t('common.success'), description: t('crafting.inputsSaved') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Update failed", description: err?.message || "Unknown error" })
+      toast({ variant: "destructive", title: t('crafting.updateFailed'), description: err?.message || t('common.unknown') })
     } finally {
       setIoSaving(false)
     }
@@ -354,9 +357,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       })
       setDetailCache(prev => ({ ...prev, [recipeId]: updated }))
       setEditingOutputs(false)
-      toast({ title: "Updated", description: "Output results saved." })
+      toast({ title: t('common.success'), description: t('crafting.outputsSaved') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Update failed", description: err?.message || "Unknown error" })
+      toast({ variant: "destructive", title: t('crafting.updateFailed'), description: err?.message || t('common.unknown') })
     } finally {
       setIoSaving(false)
     }
@@ -364,21 +367,21 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
 
   async function handleSaveRecipe() {
     if (!form.name.trim() || !form.recipe_key.trim()) {
-      toast({ variant: "destructive", title: "Error", description: "Name and Recipe Key are required." })
+      toast({ variant: "destructive", title: t('common.error'), description: t('crafting.nameAndKeyRequired') })
       return
     }
-    
+
     // Validate inputs
     const validInputs = form.inputs.filter(i => !!i.item_definition_id)
     if (validInputs.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "At least one input material is required." })
+      toast({ variant: "destructive", title: t('common.error'), description: t('crafting.inputRequired') })
       return
     }
-    
+
     // Validate outputs
     const validOutputs = form.outputs.filter(o => !!o.item_definition_id)
     if (validOutputs.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "At least one output item is required." })
+      toast({ variant: "destructive", title: t('common.error'), description: t('crafting.outputRequired') })
       return
     }
 
@@ -404,11 +407,11 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       }
 
       await createCraftingRecipe({ gameId }, payload)
-      toast({ title: "Success", description: "Crafting recipe created successfully." })
+      toast({ title: t('common.success'), description: t('crafting.recipeCreated') })
       setCreateOpen(false)
       fetchRecipes()
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to create", description: err?.message || "Unknown error" })
+      toast({ variant: "destructive", title: t('crafting.failedToCreate'), description: err?.message || t('common.unknown') })
     } finally {
       setFormSaving(false)
     }
@@ -432,11 +435,11 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       {/* TOOLBAR */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold">Crafting Recipes</h2>
+          <h2 className="text-lg font-semibold">{t('crafting.title')}</h2>
           <p className="text-sm text-muted-foreground">
             {total > 0
-              ? `${total} recipe${total !== 1 ? "s" : ""} configured`
-              : "No recipes yet"}
+              ? `${total} ${total !== 1 ? t('crafting.recipesConfigured') : t('crafting.recipeConfigured')}`
+              : t('crafting.noRecipesYet')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -446,18 +449,18 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(1) }}
           >
-            <option value="all">All categories</option>
-            <option value="weapons">Weapons</option>
-            <option value="armor">Armor</option>
-            <option value="consumables">Consumables</option>
-            <option value="materials">Materials</option>
+            <option value="all">{t('crafting.allCategories')}</option>
+            <option value="weapons">{t('crafting.categoryWeapons')}</option>
+            <option value="armor">{t('crafting.categoryArmor')}</option>
+            <option value="consumables">{t('crafting.categoryConsumables')}</option>
+            <option value="materials">{t('crafting.categoryMaterials')}</option>
           </select>
-          <Button variant="outline" size="icon" onClick={fetchRecipes} title="Refresh">
+          <Button variant="outline" size="icon" onClick={fetchRecipes} title={t('common.refresh')}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={handleCreateOpen} disabled={!studioId}>
             <Plus className="h-4 w-4 mr-1.5" />
-            New Recipe
+            {t('crafting.newRecipe')}
           </Button>
         </div>
       </div>
@@ -475,8 +478,8 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
         <Card className="border-dashed">
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
             <Hammer className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No crafting recipes found</p>
-            <Button onClick={handleCreateOpen}><Plus className="h-4 w-4 mr-2" />Create first recipe</Button>
+            <p className="text-muted-foreground">{t('crafting.noRecipesFound')}</p>
+            <Button onClick={handleCreateOpen}><Plus className="h-4 w-4 mr-2" />{t('crafting.createFirstRecipe')}</Button>
           </CardContent>
         </Card>
       ) : (
@@ -503,7 +506,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                             <CopyButton text={recipe.recipe_key} size="h-3 w-3" />
                           </div>
                           <Badge variant={recipe.is_active ? "default" : "secondary"} className="text-xs shrink-0 font-normal">
-                            {recipe.is_active ? "Active" : "Inactive"}
+                            {recipe.is_active ? t('common.active') : t('common.inactive')}
                           </Badge>
                           <Badge variant="outline" className="text-xs shrink-0 capitalize text-muted-foreground">
                             {recipe.category}
@@ -515,21 +518,21 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         <span className="font-medium text-emerald-600 dark:text-emerald-400">
                           {formatRate(recipe.success_rate)}
                         </span>
-                        <p className="text-[10px] text-muted-foreground uppercase">Success</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{t('crafting.successLabel')}</p>
                       </div>
 
                       <div className="w-24 shrink-0 text-sm text-center">
                         <span className="font-medium text-amber-500">
                           {formatRate(recipe.bonus_rate)}
                         </span>
-                        <p className="text-[10px] text-muted-foreground uppercase">Bonus</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{t('crafting.bonusLabel')}</p>
                       </div>
 
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-                        title="View craft history"
+                        title={t('crafting.viewCraftHistory')}
                         onClick={e => { e.stopPropagation(); router.push(`/games/${gameId}/crafting/recipes/${recipe.id}/history`) }}
                       >
                         <History className="h-4 w-4" />
@@ -555,7 +558,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                       {detailLoading === recipe.id ? (
                         <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Loading full recipe details...</span>
+                          <span className="text-sm">{t('crafting.loadingDetails')}</span>
                         </div>
                       ) : detailError[recipe.id] ? (
                         <div className="text-center font-medium text-sm text-destructive py-8">
@@ -565,7 +568,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-4">
                             <div>
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recipe Details</p>
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('crafting.recipeDetails')}</p>
                               <div className="text-sm bg-background border rounded-md p-3 space-y-2">
                                 <div className="grid grid-cols-[110px_1fr] gap-x-2 gap-y-2 items-center">
                                   {/* ID */}
@@ -573,7 +576,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                   <span className="font-mono text-xs">{detail.id} <CopyButton text={detail.id} /></span>
 
                                   {/* Name */}
-                                  <span className="text-muted-foreground text-xs self-center">Name:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldName')}</span>
                                   <div className="group flex items-center gap-1 min-w-0">
                                     {editingField === "name" ? (
                                       <>
@@ -590,24 +593,24 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                   </div>
 
                                   {/* Description */}
-                                  <span className="text-muted-foreground text-xs self-center">Description:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldDescription')}</span>
                                   <div className="group flex items-center gap-1 min-w-0">
                                     {editingField === "description" ? (
                                       <>
-                                        <Input value={editValue} onChange={e => setEditValue(e.target.value)} className="h-7 text-xs py-0" disabled={fieldSaving} autoFocus placeholder="Add description..." onKeyDown={e => { if (e.key === "Enter") handleFieldSave(detail.id); if (e.key === "Escape") setEditingField(null) }} />
+                                        <Input value={editValue} onChange={e => setEditValue(e.target.value)} className="h-7 text-xs py-0" disabled={fieldSaving} autoFocus placeholder={t('crafting.addDescriptionPlaceholder')} onKeyDown={e => { if (e.key === "Enter") handleFieldSave(detail.id); if (e.key === "Escape") setEditingField(null) }} />
                                         <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleFieldSave(detail.id)} disabled={fieldSaving}>{fieldSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}</Button>
                                         <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingField(null)} disabled={fieldSaving}><X className="h-3 w-3" /></Button>
                                       </>
                                     ) : (
                                       <>
-                                        <span className="text-muted-foreground italic text-xs truncate">{detail.description || <span className="opacity-40">No description</span>}</span>
+                                        <span className="text-muted-foreground italic text-xs truncate">{detail.description || <span className="opacity-40">{t('crafting.noDescription')}</span>}</span>
                                         <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.description || ""); setEditingField("description") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
 
                                   {/* Category */}
-                                  <span className="text-muted-foreground text-xs self-center">Category:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldCategory')}</span>
                                   <div className="group flex items-center gap-1 min-w-0">
                                     {editingField === "category" ? (
                                       <>
@@ -624,25 +627,25 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                   </div>
 
                                   {/* Active */}
-                                  <span className="text-muted-foreground text-xs self-center">Active:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldActive')}</span>
                                   <div className="group flex items-center gap-1">
                                     {editingField === "is_active" ? (
                                       <>
                                         <Switch checked={editValue === "true"} onCheckedChange={c => setEditValue(String(c))} disabled={fieldSaving} />
-                                        <span className="text-xs">{editValue === "true" ? "Active" : "Inactive"}</span>
+                                        <span className="text-xs">{editValue === "true" ? t('common.active') : t('common.inactive')}</span>
                                         <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleFieldSave(detail.id)} disabled={fieldSaving}>{fieldSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}</Button>
                                         <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingField(null)} disabled={fieldSaving}><X className="h-3 w-3" /></Button>
                                       </>
                                     ) : (
                                       <>
-                                        <Badge variant={detail.is_active ? "default" : "secondary"} className="text-xs font-normal">{detail.is_active ? "Active" : "Inactive"}</Badge>
+                                        <Badge variant={detail.is_active ? "default" : "secondary"} className="text-xs font-normal">{detail.is_active ? t('common.active') : t('common.inactive')}</Badge>
                                         <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.is_active)); setEditingField("is_active") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
 
                                   {/* Success Rate */}
-                                  <span className="text-muted-foreground text-xs self-center">Success Rate:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldSuccessRate')}</span>
                                   <div className="group flex items-center gap-1 min-w-0">
                                     {editingField === "success_rate" ? (
                                       <>
@@ -660,7 +663,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                   </div>
 
                                   {/* Bonus Rate */}
-                                  <span className="text-muted-foreground text-xs self-center">Bonus Rate:</span>
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldBonusRate')}</span>
                                   <div className="group flex items-center gap-1 min-w-0">
                                     {editingField === "bonus_rate" ? (
                                       <>
@@ -682,16 +685,16 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
 
                             <div>
                               <div className="flex items-center gap-2 mb-2">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1">Metadata</p>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1">{t('crafting.metadataSection')}</p>
                                 {editingMeta ? (
                                   <>
-                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingMeta(false)} disabled={metaSaving}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingMeta(false)} disabled={metaSaving}><X className="h-3 w-3 mr-1" />{t('common.cancel')}</Button>
                                     <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleSaveMeta(detail.id)} disabled={metaSaving}>
-                                      {metaSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}Save
+                                      {metaSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}{t('common.save')}
                                     </Button>
                                   </>
                                 ) : (
-                                  <Button size="icon" variant="ghost" className="h-6 w-6" title="Edit metadata" onClick={() => {
+                                  <Button size="icon" variant="ghost" className="h-6 w-6" title={t('crafting.editMetadata')} onClick={() => {
                                     setDraftMeta(Object.entries(detail.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
                                     setEditingMeta(true)
                                   }}>
@@ -715,9 +718,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                       }}><X className="h-4 w-4" /></Button>
                                     </div>
                                   ))}
-                                  {draftMeta.length === 0 && <p className="text-xs text-muted-foreground italic px-1">No metadata entries.</p>}
+                                  {draftMeta.length === 0 && <p className="text-xs text-muted-foreground italic px-1">{t('crafting.noMetadataEntries')}</p>}
                                   <Button variant="outline" size="sm" className="w-full h-7 text-xs mt-1" onClick={() => setDraftMeta([...draftMeta, { key: "", value: "" }])}>
-                                    <Plus className="h-3 w-3 mr-1" /> Add entry
+                                    <Plus className="h-3 w-3 mr-1" /> {t('crafting.addEntry')}
                                   </Button>
                                 </div>
                               ) : detail.metadata && Object.keys(detail.metadata).length > 0 ? (
@@ -730,7 +733,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-muted-foreground italic">No metadata.</p>
+                                <p className="text-xs text-muted-foreground italic">{t('crafting.noMetadata')}</p>
                               )}
                             </div>
                           </div>
@@ -739,16 +742,16 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <ArrowDownRight className="h-4 w-4 text-rose-500" />
-                                <p className="text-xs font-semibold text-rose-500 uppercase tracking-wide flex-1">Input Materials</p>
+                                <p className="text-xs font-semibold text-rose-500 uppercase tracking-wide flex-1">{t('crafting.inputMaterials')}</p>
                                 {editingInputs ? (
                                   <>
-                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingInputs(false)} disabled={ioSaving}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingInputs(false)} disabled={ioSaving}><X className="h-3 w-3 mr-1" />{t('common.cancel')}</Button>
                                     <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleSaveInputs(detail.id)} disabled={ioSaving}>
-                                      {ioSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}Save
+                                      {ioSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}{t('common.save')}
                                     </Button>
                                   </>
                                 ) : (
-                                  <Button size="icon" variant="ghost" className="h-6 w-6" title="Edit inputs" onClick={() => { setDraftInputs(detail.inputs ?? []); setEditingInputs(true) }}>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6" title={t('crafting.editInputs')} onClick={() => { setDraftInputs(detail.inputs ?? []); setEditingInputs(true) }}>
                                     <Pencil className="h-3 w-3" />
                                   </Button>
                                 )}
@@ -757,18 +760,18 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                 <div className="space-y-2 border border-rose-500/20 rounded-md p-2 bg-background">
                                   {draftInputs.map((inp, idx) => (
                                     <div key={idx} className="flex gap-2 items-center bg-muted/30 p-1.5 rounded-md">
-                                      <div className="flex items-center gap-1 shrink-0" title="Is Consumed?">
+                                      <div className="flex items-center gap-1 shrink-0" title={t('crafting.isConsumed')}>
                                         <Switch className="scale-75 data-[state=checked]:bg-destructive" checked={inp.is_consumed} onCheckedChange={c => {
                                           const n = [...draftInputs]; n[idx] = { ...n[idx], is_consumed: c }; setDraftInputs(n)
                                         }} />
-                                        <span className="text-[10px] text-muted-foreground w-7">{inp.is_consumed ? 'Burn' : 'Keep'}</span>
+                                        <span className="text-[10px] text-muted-foreground w-7">{inp.is_consumed ? t('crafting.burn') : t('crafting.keep')}</span>
                                       </div>
                                       <div className="flex-1">
                                         <ItemSelector value={inp.item_definition_id} onChange={v => {
                                           const n = [...draftInputs]; n[idx] = { ...n[idx], item_definition_id: v }; setDraftInputs(n)
-                                        }} items={allItems} loading={itemsLoading} placeholder="Select item" />
+                                        }} items={allItems} loading={itemsLoading} />
                                       </div>
-                                      <Input type="number" min={1} value={inp.quantity} className="w-14 h-8 text-xs text-center px-1" title="Quantity" onChange={e => {
+                                      <Input type="number" min={1} value={inp.quantity} className="w-14 h-8 text-xs text-center px-1" title={t('crafting.quantity')} onChange={e => {
                                         const n = [...draftInputs]; n[idx] = { ...n[idx], quantity: Number(e.target.value) }; setDraftInputs(n)
                                       }} />
                                       <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => {
@@ -778,9 +781,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                       }}><X className="h-4 w-4" /></Button>
                                     </div>
                                   ))}
-                                  {draftInputs.length === 0 && <p className="text-xs text-muted-foreground italic px-1 py-1">No input materials.</p>}
+                                  {draftInputs.length === 0 && <p className="text-xs text-muted-foreground italic px-1 py-1">{t('crafting.noInputMaterials')}</p>}
                                   <Button variant="outline" size="sm" className="w-full h-7 text-xs mt-1" onClick={() => setDraftInputs([...draftInputs, { item_definition_id: "", quantity: 1, is_consumed: true }])}>
-                                    <Plus className="h-3 w-3 mr-1" /> Add Input
+                                    <Plus className="h-3 w-3 mr-1" /> {t('crafting.addInput')}
                                   </Button>
                                 </div>
                               ) : (
@@ -788,9 +791,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                 <Table>
                                   <TableHeader>
                                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                                      <TableHead className="h-8 text-xs text-center w-24">Consumed</TableHead>
-                                      <TableHead className="h-8 text-xs">Item</TableHead>
-                                      <TableHead className="h-8 text-xs text-right w-16">Qty</TableHead>
+                                      <TableHead className="h-8 text-xs text-center w-24">{t('crafting.consumed')}</TableHead>
+                                      <TableHead className="h-8 text-xs">{t('items.name')}</TableHead>
+                                      <TableHead className="h-8 text-xs text-right w-16">{t('crafting.qty')}</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -800,7 +803,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                         <TableRow key={idx}>
                                           <TableCell className="text-center py-1.5">
                                             <Badge variant={input.is_consumed ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0 font-normal">
-                                              {input.is_consumed ? 'Yes' : 'No'}
+                                              {input.is_consumed ? t('common.yes') : t('common.no')}
                                             </Badge>
                                           </TableCell>
                                           <TableCell className="py-1.5">
@@ -818,7 +821,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     })}
                                     {(!detail.inputs || detail.inputs.length === 0) && (
                                       <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground text-xs py-3 italic">None</TableCell>
+                                        <TableCell colSpan={3} className="text-center text-muted-foreground text-xs py-3 italic">{t('common.none')}</TableCell>
                                       </TableRow>
                                     )}
                                   </TableBody>
@@ -830,16 +833,16 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <ArrowUpRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex-1">Output Results</p>
+                                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide flex-1">{t('crafting.outputResults')}</p>
                                 {editingOutputs ? (
                                   <>
-                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingOutputs(false)} disabled={ioSaving}><X className="h-3 w-3 mr-1" />Cancel</Button>
+                                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingOutputs(false)} disabled={ioSaving}><X className="h-3 w-3 mr-1" />{t('common.cancel')}</Button>
                                     <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleSaveOutputs(detail.id)} disabled={ioSaving}>
-                                      {ioSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}Save
+                                      {ioSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}{t('common.save')}
                                     </Button>
                                   </>
                                 ) : (
-                                  <Button size="icon" variant="ghost" className="h-6 w-6" title="Edit outputs" onClick={() => { setDraftOutputs(detail.outputs ?? []); setEditingOutputs(true) }}>
+                                  <Button size="icon" variant="ghost" className="h-6 w-6" title={t('crafting.editOutputs')} onClick={() => { setDraftOutputs(detail.outputs ?? []); setEditingOutputs(true) }}>
                                     <Pencil className="h-3 w-3" />
                                   </Button>
                                 )}
@@ -853,21 +856,21 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                       }}>
                                         <SelectTrigger className="h-8 w-24 text-xs shrink-0"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="main">Main</SelectItem>
-                                          <SelectItem value="bonus">Bonus</SelectItem>
+                                          <SelectItem value="main">{t('crafting.mainResult')}</SelectItem>
+                                          <SelectItem value="bonus">{t('crafting.bonusResult')}</SelectItem>
                                         </SelectContent>
                                       </Select>
                                       <div className="flex-1 min-w-[120px]">
                                         <ItemSelector value={out.item_definition_id} onChange={v => {
                                           const n = [...draftOutputs]; n[idx] = { ...n[idx], item_definition_id: v }; setDraftOutputs(n)
-                                        }} items={allItems} loading={itemsLoading} placeholder="Select item" />
+                                        }} items={allItems} loading={itemsLoading} placeholder={t('crafting.selectOutputItem')} />
                                       </div>
                                       <div className="flex items-center gap-1 shrink-0">
-                                        <Input type="number" min={1} value={out.quantity_min} className="w-14 h-8 text-xs text-center px-1" title="Min Qty" onChange={e => {
+                                        <Input type="number" min={1} value={out.quantity_min} className="w-14 h-8 text-xs text-center px-1" title={t('crafting.minQty')} onChange={e => {
                                           const n = [...draftOutputs]; n[idx] = { ...n[idx], quantity_min: Number(e.target.value) }; setDraftOutputs(n)
                                         }} />
                                         <span className="text-muted-foreground text-[10px]">-</span>
-                                        <Input type="number" min={1} value={out.quantity_max} className="w-14 h-8 text-xs text-center px-1" title="Max Qty" onChange={e => {
+                                        <Input type="number" min={1} value={out.quantity_max} className="w-14 h-8 text-xs text-center px-1" title={t('crafting.maxQty')} onChange={e => {
                                           const n = [...draftOutputs]; n[idx] = { ...n[idx], quantity_max: Number(e.target.value) }; setDraftOutputs(n)
                                         }} />
                                       </div>
@@ -878,9 +881,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                       }}><X className="h-4 w-4" /></Button>
                                     </div>
                                   ))}
-                                  {draftOutputs.length === 0 && <p className="text-xs text-muted-foreground italic px-1 py-1">No output items.</p>}
+                                  {draftOutputs.length === 0 && <p className="text-xs text-muted-foreground italic px-1 py-1">{t('crafting.noOutputItems')}</p>}
                                   <Button variant="outline" size="sm" className="w-full h-7 text-xs mt-1" onClick={() => setDraftOutputs([...draftOutputs, { item_definition_id: "", quantity_min: 1, quantity_max: 1, output_type: "main", sort_order: draftOutputs.length }])}>
-                                    <Plus className="h-3 w-3 mr-1" /> Add Output
+                                    <Plus className="h-3 w-3 mr-1" /> {t('crafting.addOutput')}
                                   </Button>
                                 </div>
                               ) : (
@@ -888,9 +891,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                 <Table>
                                   <TableHeader>
                                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                                      <TableHead className="h-8 text-xs w-16 text-center">Type</TableHead>
-                                      <TableHead className="h-8 text-xs">Item</TableHead>
-                                      <TableHead className="h-8 text-xs text-right w-20">Qty Range</TableHead>
+                                      <TableHead className="h-8 text-xs w-16 text-center">{t('crafting.outputType')}</TableHead>
+                                      <TableHead className="h-8 text-xs">{t('items.name')}</TableHead>
+                                      <TableHead className="h-8 text-xs text-right w-20">{t('crafting.qtyRange')}</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -920,7 +923,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     })}
                                     {(!detail.outputs || detail.outputs.length === 0) && (
                                       <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground text-xs py-3 italic">None</TableCell>
+                                        <TableCell colSpan={3} className="text-center text-muted-foreground text-xs py-3 italic">{t('common.none')}</TableCell>
                                       </TableRow>
                                     )}
                                   </TableBody>
@@ -941,10 +944,10 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground px-2">
-              <span>Page {page} of {totalPages}</span>
+              <span>{t('crafting.pageLabel')} {page} {t('crafting.pageOf')} {totalPages}</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>{t('common.previous')}</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{t('common.next')}</Button>
               </div>
             </div>
           )}
@@ -955,44 +958,44 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       <Sheet open={createOpen} onOpenChange={(val) => { if (!val) setCreateOpen(false) }}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-0">
           <SheetHeader className="p-6 pb-2 shrink-0">
-            <SheetTitle>New Crafting Recipe</SheetTitle>
-            <SheetDescription>Create a new recipe that allows players to combine items into others.</SheetDescription>
+            <SheetTitle>{t('crafting.newRecipeTitle')}</SheetTitle>
+            <SheetDescription>{t('crafting.newRecipeDesc')}</SheetDescription>
           </SheetHeader>
           
           <div className="px-6 py-4 flex-1 overflow-y-auto space-y-6 bg-muted/5">
             {/* General Info */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-tight">General Information</h3>
+              <h3 className="text-sm font-semibold tracking-tight">{t('crafting.generalInfo')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Name <span className="text-destructive">*</span></Label>
-                  <Input 
-                    value={form.name} 
+                  <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={form.name}
                     onChange={e => {
                       const v = e.target.value
                       if (autoSlug) {
-                        setForm({ 
-                          ...form, 
-                          name: v, 
-                          recipe_key: v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") 
+                        setForm({
+                          ...form,
+                          name: v,
+                          recipe_key: v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
                         })
                       } else {
                         setForm({ ...form, name: v })
                       }
-                    }} 
-                    placeholder="Iron Sword" 
+                    }}
+                    placeholder={t('crafting.namePlaceholder')}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Recipe Key <span className="text-destructive">*</span></Label>
+                  <Label>{t('crafting.recipeKeyLabel')} <span className="text-destructive">*</span></Label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={form.recipe_key} 
+                    <Input
+                      value={form.recipe_key}
                       onChange={e => {
                         setAutoSlug(false)
                         setForm({ ...form, recipe_key: e.target.value })
-                      }} 
-                      placeholder="iron_sword" 
+                      }}
+                      placeholder={t('crafting.recipeKeyPlaceholder')}
                       className="font-mono"
                     />
                     <Button
@@ -1000,7 +1003,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                       variant={autoSlug ? "default" : "outline"}
                       size="icon"
                       className="shrink-0"
-                      title={autoSlug ? "Auto-slug is ON" : "Auto-slug is OFF — click to re-enable"}
+                      title={autoSlug ? t('crafting.autoSlugOn') : t('crafting.autoSlugOff')}
                       onClick={() => {
                         setAutoSlug(true)
                         setForm({
@@ -1016,18 +1019,18 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
               </div>
               
               <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Combine 3 iron ingots..." />
+                <Label>{t('crafting.descriptionLabel')}</Label>
+                <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t('crafting.descriptionPlaceholder')} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Category</Label>
-                  <Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="weapons" />
+                  <Label>{t('crafting.categoryLabel')}</Label>
+                  <Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder={t('crafting.categoryPlaceholder')} />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={form.is_active} onCheckedChange={c => setForm({ ...form, is_active: c })} />
-                  <Label>Active</Label>
+                  <Label>{t('crafting.activeLabel')}</Label>
                 </div>
               </div>
             </div>
@@ -1036,28 +1039,28 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
 
             {/* Rates & Limits */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-tight">Rates</h3>
+              <h3 className="text-sm font-semibold tracking-tight">{t('crafting.ratesSection')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5 bg-muted/30 p-3 rounded-md border">
                   <Label className="flex justify-between items-center">
-                    Success Rate (Raw)
+                    {t('crafting.successRateRaw')}
                     <span className="text-emerald-600 max-w-[50px] text-right font-mono tabular-nums">{formatRate(form.success_rate)}</span>
                   </Label>
                   <div className="flex items-center gap-2 mt-2">
                     <Input type="number" min={0} max={10000000} step={1} value={form.success_rate} onChange={e => setForm({ ...form, success_rate: Number(e.target.value) })} className="font-mono text-left" />
                   </div>
-                  <p className="text-[10px] text-muted-foreground leading-tight">10000000 = 100%, 1 = 0.00001%. Chance for the craft to succeed and yield main outputs.</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{t('crafting.successRateDesc')}</p>
                 </div>
-                
+
                 <div className="space-y-1.5 bg-muted/30 p-3 rounded-md border">
                   <Label className="flex justify-between items-center">
-                    Bonus Rate (Raw)
+                    {t('crafting.bonusRateRaw')}
                     <span className="text-amber-500 max-w-[50px] text-right font-mono tabular-nums">{formatRate(form.bonus_rate)}</span>
                   </Label>
                   <div className="flex items-center gap-2 mt-2">
                     <Input type="number" min={0} max={10000000} step={1} value={form.bonus_rate} onChange={e => setForm({ ...form, bonus_rate: Number(e.target.value) })} className="font-mono text-left" />
                   </div>
-                  <p className="text-[10px] text-muted-foreground leading-tight">Chance to yield bonus outputs when crafting succeeds.</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{t('crafting.bonusRateDesc')}</p>
                 </div>
               </div>
 
@@ -1069,7 +1072,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
             {/* Inputs */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold tracking-tight">Input Materials <span className="text-destructive">*</span></h3>
+                <h3 className="text-sm font-semibold tracking-tight">{t('crafting.inputMaterials')} <span className="text-destructive">*</span></h3>
                 <Button variant="outline" size="sm" onClick={() => setForm({ ...form, inputs: [...form.inputs, { item_definition_id: "", quantity: 1, is_consumed: true }] })}>
                   <Plus className="h-3 w-3 mr-1" /> Add
                 </Button>
@@ -1087,17 +1090,17 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         }}
                         items={allItems}
                         loading={itemsLoading}
-                        placeholder="Select component item"
+                        placeholder={t('crafting.selectComponentItem')}
                       />
                     </div>
                     <Input type="number" min={1} value={inp.quantity} className="w-16 h-8 text-xs text-center" onChange={e => {
                       const newInps = [...form.inputs]; newInps[idx].quantity = Number(e.target.value); setForm({ ...form, inputs: newInps })
-                    }} title="Quantity" />
-                    <div className="flex items-center gap-1.5 px-2" title="Is Consumed?">
+                    }} title={t('crafting.quantity')} />
+                    <div className="flex items-center gap-1.5 px-2" title={t('crafting.isConsumed')}>
                       <Switch className="scale-75 data-[state=checked]:bg-destructive" checked={inp.is_consumed} onCheckedChange={c => {
                         const newInps = [...form.inputs]; newInps[idx].is_consumed = c; setForm({ ...form, inputs: newInps })
                       }} />
-                      <span className="text-[10px] text-muted-foreground w-6">{inp.is_consumed ? 'Burn' : 'Keep'}</span>
+                      <span className="text-[10px] text-muted-foreground w-6">{inp.is_consumed ? t('crafting.burn') : t('crafting.keep')}</span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => {
                       const newInps = [...form.inputs]; newInps.splice(idx, 1); setForm({ ...form, inputs: newInps })
@@ -1106,7 +1109,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                     </Button>
                   </div>
                 ))}
-                {form.inputs.length === 0 && <p className="text-xs text-muted-foreground italic pl-2">No input materials added.</p>}
+                {form.inputs.length === 0 && <p className="text-xs text-muted-foreground italic pl-2">{t('crafting.noInputMaterialsAdded')}</p>}
               </div>
             </div>
 
@@ -1115,7 +1118,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
             {/* Outputs */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold tracking-tight">Output Results <span className="text-destructive">*</span></h3>
+                <h3 className="text-sm font-semibold tracking-tight">{t('crafting.outputResults')} <span className="text-destructive">*</span></h3>
                 <Button variant="outline" size="sm" onClick={() => setForm({ ...form, outputs: [...form.outputs, { item_definition_id: "", quantity_min: 1, quantity_max: 1, output_type: "main", sort_order: form.outputs.length }] })}>
                   <Plus className="h-3 w-3 mr-1" /> Add
                 </Button>
@@ -1131,8 +1134,8 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                     >
                       <SelectTrigger className="h-8 w-24 text-xs shrink-0"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="main">Main Result</SelectItem>
-                        <SelectItem value="bonus">Bonus Result</SelectItem>
+                        <SelectItem value="main">{t('crafting.mainResult')}</SelectItem>
+                        <SelectItem value="bonus">{t('crafting.bonusResult')}</SelectItem>
                       </SelectContent>
                     </Select>
                     
@@ -1146,16 +1149,16 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         }}
                         items={allItems}
                         loading={itemsLoading}
-                        placeholder="Select output item"
+                        placeholder={t('crafting.selectOutputItem')}
                       />
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <Input type="number" min={1} value={out.quantity_min} className="w-14 h-8 text-xs text-center px-1" title="Min Qty" onChange={e => {
+                      <Input type="number" min={1} value={out.quantity_min} className="w-14 h-8 text-xs text-center px-1" title={t('crafting.minQty')} onChange={e => {
                         const newOuts = [...form.outputs]; newOuts[idx].quantity_min = Number(e.target.value); setForm({ ...form, outputs: newOuts })
                       }} />
                       <span className="text-muted-foreground text-[10px]">-</span>
-                      <Input type="number" min={1} value={out.quantity_max} className="w-14 h-8 text-xs text-center px-1" title="Max Qty" onChange={e => {
+                      <Input type="number" min={1} value={out.quantity_max} className="w-14 h-8 text-xs text-center px-1" title={t('crafting.maxQty')} onChange={e => {
                         const newOuts = [...form.outputs]; newOuts[idx].quantity_max = Number(e.target.value); setForm({ ...form, outputs: newOuts })
                       }} />
                     </div>
@@ -1167,7 +1170,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                     </Button>
                   </div>
                 ))}
-                {form.outputs.length === 0 && <p className="text-xs text-muted-foreground italic pl-2">No output items added.</p>}
+                {form.outputs.length === 0 && <p className="text-xs text-muted-foreground italic pl-2">{t('crafting.noOutputItemsAdded')}</p>}
               </div>
             </div>
 
@@ -1175,14 +1178,14 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
             
             {/* Metadata KV */}
             <div className="space-y-3 pb-6">
-              <h3 className="text-sm font-semibold tracking-tight">Metadata</h3>
+              <h3 className="text-sm font-semibold tracking-tight">{t('crafting.metadataLabel')}</h3>
               <div className="space-y-2">
                 {formMetaEntries.map((entry, idx) => (
                   <div key={idx} className="flex gap-2">
-                    <Input className="h-8 text-xs" placeholder="key (e.g. icon)" value={entry.key} onChange={e => {
+                    <Input className="h-8 text-xs" placeholder={t('crafting.metaKeyPlaceholder')} value={entry.key} onChange={e => {
                       const newM = [...formMetaEntries]; newM[idx].key = e.target.value; setFormMetaEntries(newM)
                     }} />
-                    <Input className="h-8 text-xs w-2/3" placeholder="value" value={entry.value} onChange={e => {
+                    <Input className="h-8 text-xs w-2/3" placeholder={t('crafting.metaValuePlaceholder')} value={entry.value} onChange={e => {
                       const newM = [...formMetaEntries]; newM[idx].value = e.target.value; setFormMetaEntries(newM)
                     }} />
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => {
@@ -1191,7 +1194,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                   </div>
                 ))}
                 <Button variant="outline" size="sm" onClick={() => setFormMetaEntries([...formMetaEntries, { key: "", value: "" }])}>
-                  <Plus className="h-3 w-3 mr-1" /> Add key/value
+                  <Plus className="h-3 w-3 mr-1" /> {t('crafting.addKeyValue')}
                 </Button>
               </div>
             </div>
@@ -1199,10 +1202,10 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
           </div>
           
           <SheetFooter className="p-4 shrink-0 border-t bg-background">
-            <Button variant="outline" disabled={formSaving} onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" disabled={formSaving} onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
             <Button disabled={formSaving || itemsLoading} onClick={handleSaveRecipe}>
               {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Create Recipe
+              {t('crafting.createRecipe')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -1211,17 +1214,17 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       <AlertDialog open={!!confirmDelete} onOpenChange={open => { if (!open) setConfirmDelete(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm removal</AlertDialogTitle>
+            <AlertDialogTitle>{t('crafting.confirmRemoval')}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmDelete && (confirmDelete.type === "meta"
-                ? `Remove metadata key "${confirmDelete.label}"?`
+                ? t('crafting.removeMetaKey').replace('{label}', confirmDelete.label)
                 : confirmDelete.type === "input"
-                ? `Remove input item "${confirmDelete.label}"?`
-                : `Remove output item "${confirmDelete.label}"?`)}
+                ? t('crafting.removeInputItem').replace('{label}', confirmDelete.label)
+                : t('crafting.removeOutputItem').replace('{label}', confirmDelete.label))}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
               if (!confirmDelete) return
               if (confirmDelete.type === "meta") {
@@ -1232,7 +1235,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                 const n = [...draftOutputs]; n.splice(confirmDelete.idx, 1); setDraftOutputs(n)
               }
               setConfirmDelete(null)
-            }}>Remove</AlertDialogAction>
+            }}>{t('common.remove')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1240,20 +1243,20 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       <AlertDialog open={!!deleteRecipe} onOpenChange={open => { if (!open && !deleteRecipeSaving) setDeleteRecipe(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete recipe</AlertDialogTitle>
+            <AlertDialogTitle>{t('crafting.deleteRecipeTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteRecipe && <>Are you sure you want to delete <strong>&quot;{deleteRecipe.name}&quot;</strong>? This action cannot be undone.</>}
+              {deleteRecipe && t('crafting.deleteRecipeConfirm').replace('{name}', deleteRecipe.name)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteRecipeSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteRecipeSaving}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteRecipeSaving}
               onClick={e => { e.preventDefault(); if (deleteRecipe) handleDeleteRecipe(deleteRecipe) }}
             >
               {deleteRecipeSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

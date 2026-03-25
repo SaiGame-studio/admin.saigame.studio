@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -o \"t\\(''''items\\\\.[^'''']*''''\\)\" app/games/[id]/items/page.tsx)",
+      "Bash(while read:*)",
+      "Bash(do if:*)",
+      "Bash(then echo:*)",
+      "Bash(grep -n \"?.includes\\(t\\(\\\\|?.includes\\(\\\\`\\\\|?.includes\\(t\\\\|deletingContainer.container_type\\\\|containerDefs.filter\" \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx\")",
+      "Bash(grep -n \"t\\(''''items\\\\.\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"writePropsHeader\\\\|updateQtyHeader\\\\|allowedItems\\\\|itemProfileCount\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

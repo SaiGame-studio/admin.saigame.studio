@@ -17,8 +17,37 @@ import {
   Server,
   Database,
   MessageSquare,
+  Send,
+  Loader2,
+  CalendarDays,
 } from "lucide-react"
-import { getWorkersStatus, WorkersStatusResult, Worker } from "@/lib/admin-api"
+import {
+  getWorkersStatus,
+  WorkersStatusResult,
+  Worker,
+  triggerSystemMonitorNotify,
+  triggerPlatformReport,
+  triggerReportBackfill,
+  getAllStudiosAdmin,
+  getAllGamesAdmin,
+  AdminStudio,
+  AdminGame,
+} from "@/lib/admin-api"
+import { toast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Check, ChevronsUpDown } from "lucide-react"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,6 +58,279 @@ function formatISORelative(iso?: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
   return d.toLocaleString()
+}
+
+// ---------------------------------------------------------------------------
+// Worker name → API trigger mapping
+// ---------------------------------------------------------------------------
+
+const TRIGGERABLE_WORKERS: Record<string, { label: string; type: "simple" | "date" | "backfill" }> = {
+  system_monitor: { label: "Send Notify", type: "simple" },
+  activity_summary: { label: "Send Report", type: "date" },
+  aggregation_cron: { label: "Backfill", type: "backfill" },
+}
+
+function getTriggerConfig(workerName: string) {
+  const key = workerName.toLowerCase().replace(/[\s-]+/g, "_")
+  for (const [pattern, config] of Object.entries(TRIGGERABLE_WORKERS)) {
+    if (key.includes(pattern)) return config
+  }
+  return null
+}
+
+// Simple trigger button (System Monitor)
+function SimpleTriggerButton({ workerName }: { workerName: string }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleTrigger() {
+    setLoading(true)
+    try {
+      await triggerSystemMonitorNotify()
+      toast({ title: "Triggered", description: `${workerName} notification sent.` })
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleTrigger} disabled={loading} className="flex items-center gap-1.5">
+      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+      Send Notify
+    </Button>
+  )
+}
+
+// Date trigger button (Platform Notification)
+function DateTriggerButton({ workerName }: { workerName: string }) {
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+
+  async function handleTrigger() {
+    setLoading(true)
+    try {
+      await triggerPlatformReport(date || undefined)
+      toast({ title: "Triggered", description: `Platform report${date ? ` for ${date}` : ""} sent.` })
+      setOpen(false)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+          <CalendarDays className="h-3.5 w-3.5" />
+          Send Report
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Send Platform Report</DialogTitle>
+          <DialogDescription>Send platform overview report via Telegram. Leave date empty for today.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="report-date">Date (optional)</Label>
+            <Input id="report-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Send
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Backfill trigger dialog (Report Aggregation)
+function BackfillTriggerButton({ workerName }: { workerName: string }) {
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [dates, setDates] = useState(() => new Date().toISOString().slice(0, 10))
+
+  // Studios
+  const [studios, setStudios] = useState<AdminStudio[]>([])
+  const [selectedStudio, setSelectedStudio] = useState<AdminStudio | null>(null)
+  const [studioOpen, setStudioOpen] = useState(false)
+
+  // Games (filtered by selected studio)
+  const [games, setGames] = useState<AdminGame[]>([])
+  const [selectedGame, setSelectedGame] = useState<AdminGame | null>(null)
+  const [gameOpen, setGameOpen] = useState(false)
+
+  // Load studios when dialog opens
+  useEffect(() => {
+    if (!open) return
+    getAllStudiosAdmin().then((r) => setStudios(r.studios)).catch(() => {})
+  }, [open])
+
+  // Load games when studio changes
+  useEffect(() => {
+    setSelectedGame(null)
+    setGames([])
+    if (!selectedStudio) return
+    getAllGamesAdmin({ studio_id: selectedStudio.id }).then((r) => setGames(r.games)).catch(() => {})
+  }, [selectedStudio])
+
+  async function handleTrigger() {
+    const dateList = dates
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean)
+    if (!selectedStudio || !selectedGame || dateList.length === 0) {
+      toast({ title: "Validation", description: "Studio, Game and at least 1 date required.", variant: "destructive" })
+      return
+    }
+    if (dateList.length > 7) {
+      toast({ title: "Validation", description: "Max 7 dates per request.", variant: "destructive" })
+      return
+    }
+    setLoading(true)
+    try {
+      await triggerReportBackfill({ studio_id: selectedStudio.id, game_id: selectedGame.id, dates: dateList })
+      toast({ title: "Triggered", description: `Backfill started for ${dateList.length} date(s).` })
+      setOpen(false)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+          <Database className="h-3.5 w-3.5" />
+          Backfill
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Trigger Report Backfill</DialogTitle>
+          <DialogDescription>Run aggregation for specific dates (max 7 dates per request).</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {/* Studio searchable dropdown */}
+          <div className="space-y-1.5">
+            <Label>Studio</Label>
+            <Popover open={studioOpen} onOpenChange={setStudioOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={studioOpen} className="w-full justify-between font-normal">
+                  {selectedStudio ? selectedStudio.name : "Select a studio..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search studios..." />
+                  <CommandList>
+                    <CommandEmpty>No studios found.</CommandEmpty>
+                    <CommandGroup>
+                      {studios.map((s) => (
+                        <CommandItem
+                          key={s.id}
+                          value={`${s.name} ${s.id}`}
+                          onSelect={() => {
+                            setSelectedStudio(s)
+                            setStudioOpen(false)
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selectedStudio?.id === s.id ? "opacity-100" : "opacity-0"}`} />
+                          <span>{s.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground font-mono">{s.id.slice(0, 8)}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Game searchable dropdown */}
+          <div className="space-y-1.5">
+            <Label>Game</Label>
+            <Popover open={gameOpen} onOpenChange={setGameOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={gameOpen}
+                  disabled={!selectedStudio}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedGame ? selectedGame.name : "Select a game..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search games..." />
+                  <CommandList>
+                    <CommandEmpty>No games found.</CommandEmpty>
+                    <CommandGroup>
+                      {games.map((g) => (
+                        <CommandItem
+                          key={g.id}
+                          value={`${g.name} ${g.id}`}
+                          onSelect={() => {
+                            setSelectedGame(g)
+                            setGameOpen(false)
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selectedGame?.id === g.id ? "opacity-100" : "opacity-0"}`} />
+                          <span>{g.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground font-mono">{g.id.slice(0, 8)}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Dates */}
+          <div className="space-y-1.5">
+            <Label htmlFor="backfill-dates">Dates (comma-separated, YYYY-MM-DD)</Label>
+            <Input id="backfill-dates" placeholder="2026-03-25, 2026-03-24" value={dates} onChange={(e) => setDates(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Trigger
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function WorkerTriggerButton({ worker }: { worker: Worker }) {
+  const config = getTriggerConfig(worker.name)
+  if (!config) return null
+
+  switch (config.type) {
+    case "simple":
+      return <SimpleTriggerButton workerName={worker.name} />
+    case "date":
+      return <DateTriggerButton workerName={worker.name} />
+    case "backfill":
+      return <BackfillTriggerButton workerName={worker.name} />
+    default:
+      return null
+  }
 }
 
 function WorkerCard({ worker }: { worker: Worker }) {
@@ -43,24 +345,35 @@ function WorkerCard({ worker }: { worker: Worker }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <CardTitle className="text-base font-semibold font-mono">{worker.name}</CardTitle>
-            {worker.last_event_at && (
-              <CardDescription className="flex items-center gap-1 text-xs mt-1">
-                <Clock className="h-3 w-3 shrink-0" />
-                Last event: {formatISORelative(worker.last_event_at)}
-              </CardDescription>
+            <div className="flex flex-col gap-0.5 mt-1">
+              {(worker.last_run ?? worker.last_event_at) && (
+                <CardDescription className="flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  Last run: {formatISORelative(worker.last_run ?? worker.last_event_at)}
+                </CardDescription>
+              )}
+              {worker.next_notify_at && (
+                <CardDescription className="flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3 shrink-0 text-blue-400" />
+                  Next notify: {formatISORelative(worker.next_notify_at)}
+                </CardDescription>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+            <WorkerTriggerButton worker={worker} />
+            {worker.running ? (
+              <Badge variant="default" className="bg-green-600/90 text-white flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Running
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                Stopped
+              </Badge>
             )}
           </div>
-          {worker.running ? (
-            <Badge variant="default" className="bg-green-600/90 text-white flex items-center gap-1 shrink-0 mt-0.5">
-              <CheckCircle2 className="h-3 w-3" />
-              Running
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="flex items-center gap-1 shrink-0 mt-0.5">
-              <XCircle className="h-3 w-3" />
-              Stopped
-            </Badge>
-          )}
         </div>
       </CardHeader>
 

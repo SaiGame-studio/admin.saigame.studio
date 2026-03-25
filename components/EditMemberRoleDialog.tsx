@@ -24,6 +24,7 @@ import type { Role } from "@/types/role"
 import type { TeamMember } from "@/types/team"
 import { Pencil, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 interface EditMemberRoleDialogProps {
   teamId: string
@@ -32,6 +33,7 @@ interface EditMemberRoleDialogProps {
 }
 
 export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemberRoleDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [roleId, setRoleId] = useState(member.role_id)
   const [roles, setRoles] = useState<Role[]>([])
@@ -54,8 +56,8 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
     } catch (err) {
       console.error("Failed to load roles:", err)
       toast({
-        title: "Error",
-        description: "Failed to load roles. Please try again.",
+        title: t('common.error'),
+        description: t('team.loadRolesError'),
         variant: "destructive",
       })
     } finally {
@@ -68,8 +70,8 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
     
     if (!roleId) {
       toast({
-        title: "Validation Error",
-        description: "Please select a role.",
+        title: t('team.validationError'),
+        description: t('team.selectRoleValidation'),
         variant: "destructive",
       })
       return
@@ -80,8 +82,8 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
       await updateMemberRole(teamId, member.id, roleId)
       
       toast({
-        title: "Success",
-        description: "Member role updated successfully.",
+        title: t('common.success'),
+        description: t('team.updateRoleSuccess'),
       })
       
       setOpen(false)
@@ -92,8 +94,8 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
     } catch (err) {
       console.error("Failed to update member role:", err)
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to update role. Please try again.",
+        title: t('common.error'),
+        description: err instanceof Error ? err.message : t('team.updateRole') + ' failed',
         variant: "destructive",
       })
     } finally {
@@ -111,17 +113,17 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Edit Member Role</DialogTitle>
+            <DialogTitle>{t('team.editRoleTitle')}</DialogTitle>
             <DialogDescription>
               Change the role for {member.display_name || member.username || "this member"}.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t('team.roleLabel')}</Label>
               <Select value={roleId} onValueChange={setRoleId} disabled={loading || rolesLoading}>
                 <SelectTrigger id="role">
-                  <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select a role"} />
+                  <SelectValue placeholder={rolesLoading ? t('team.loadingRoles') : t('team.selectRolePlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
@@ -145,11 +147,11 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
               onClick={() => setOpen(false)}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading || !roleId}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Role
+              {t('team.updateRole')}
             </Button>
           </DialogFooter>
         </form>

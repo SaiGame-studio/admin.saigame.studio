@@ -2,7 +2,7 @@
 
 import { Mail } from "lucide-react"
 
-export type PlayerNavTab = "info" | "items" | "containers" | "generators" | "quests" | "transactions"
+export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "quests" | "transactions"
 
 interface PlayerSectionNavProps {
   gameId: string
@@ -15,6 +15,7 @@ interface PlayerSectionNavProps {
     items?: number
     containers?: number
     containersHasMore?: boolean
+    presets?: number
     generators?: number
     quests?: number
     transactions?: number
@@ -25,6 +26,7 @@ const TABS: { value: PlayerNavTab; label: string }[] = [
   { value: "info",         label: "Player Info"  },
   { value: "items",        label: "Items"        },
   { value: "containers",   label: "Containers"   },
+  { value: "presets",      label: "Presets"      },
   { value: "generators",   label: "Generators"   },
   { value: "quests",       label: "Quests"       },
   { value: "transactions", label: "Transactions" },
@@ -48,6 +50,7 @@ export function PlayerSectionNav({
       n = counts.containers
       plus = !!counts.containersHasMore
     }
+    if (value === "presets" && counts.presets != null) n = counts.presets
     if (value === "generators" && counts.generators != null) n = counts.generators
     if (value === "quests" && counts.quests != null) n = counts.quests
     if (value === "transactions" && counts.transactions != null && activeTab === "transactions")
@@ -72,7 +75,11 @@ export function PlayerSectionNav({
               href={href}
               onClick={
                 onTabChange
-                  ? (e) => { e.preventDefault(); onTabChange(tab.value) }
+                  ? (e) => {
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return
+                      e.preventDefault()
+                      onTabChange(tab.value)
+                    }
                   : undefined
               }
               className={`inline-flex items-center whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${

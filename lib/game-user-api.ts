@@ -340,6 +340,69 @@ export async function getContainerItems(
   return api.get(`/api/v1/gamer-progress/${progressId}/containers/${containerId}/items${query ? `?${query}` : ""}`)
 }
 
+// ─── Player Presets ───────────────────────────────────────────────────────────
+
+export interface PlayerPresetContainer {
+  id: string
+  preset_type: string
+  name: string
+  max_slots: number
+  is_temp: boolean
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface PlayerPresetsResult {
+  user_id: string
+  containers: PlayerPresetContainer[]
+}
+
+export async function getPlayerPresets(
+  gameId: string,
+  userId: string,
+): Promise<PlayerPresetsResult> {
+  return api.get(`/api/v1/games/${gameId}/presets/users/${userId}`)
+}
+
+export interface PlayerPresetDefinition {
+  id: string
+  preset_type: string
+  name: string
+  max_slots: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface PlayerPresetSlot {
+  slot_index: number
+  inventory_item_id: string
+}
+
+export interface PlayerPresetDetail {
+  container: {
+    id: string
+    definition_id: string
+    definition: PlayerPresetDefinition
+    preset_type: string
+    max_slots: number
+    is_temp: boolean
+    metadata: Record<string, unknown>
+    created_at: string
+    updated_at: string
+  }
+  slots: PlayerPresetSlot[]
+}
+
+export async function getPlayerPresetDetail(
+  gameId: string,
+  userId: string,
+  presetId: string,
+): Promise<PlayerPresetDetail> {
+  return api.get(`/api/v1/games/${gameId}/presets/users/${userId}/presets/${presetId}`)
+}
+
 // ─── Gacha Transactions ───────────────────────────────────────────────────────
 
 export interface GachaItemGranted {

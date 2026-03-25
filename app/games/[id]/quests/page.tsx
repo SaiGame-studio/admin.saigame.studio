@@ -91,6 +91,7 @@ import {
   type UpdateQuestDefinitionRequest,
 } from "@/lib/quest-api"
 import { GameNavButtons } from "@/components/GameNavButtons"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { DailyTab } from "./DailyTab"
 import { ChainTab } from "./ChainTab"
 import type { Game } from "@/types/game"
@@ -99,32 +100,32 @@ import type { Game } from "@/types/game"
 
 type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest"
 
-const TABS: { value: TabValue; label: string }[] = [
-  { value: "definitions", label: "Definitions" },
-  { value: "chains", label: "Chains" },
-  { value: "daily", label: "Daily" },
-  { value: "battle-pass", label: "Battle Pass" },
-  { value: "world-quest", label: "World Quest" },
+const TABS: { value: TabValue; labelKey: string }[] = [
+  { value: "definitions", labelKey: "quest.tabDefinitions" },
+  { value: "chains", labelKey: "quest.tabChains" },
+  { value: "daily", labelKey: "quest.tabDaily" },
+  { value: "battle-pass", labelKey: "quest.tabBattlePass" },
+  { value: "world-quest", labelKey: "quest.tabWorldQuest" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const QUEST_TYPES: { value: QuestType; label: string; description?: string }[] = [
-  { value: "one_time",        label: "One-Time",       description: "Completed once per account lifetime" },
-  { value: "daily",           label: "Daily",          description: "Resets at midnight UTC" },
-  { value: "repeatable",      label: "Repeatable",     description: "Can be completed multiple times" },
-  { value: "battle_pass_task",label: "Battle Pass Task",description: "Awards Battle Pass XP on completion" },
-  { value: "chain",           label: "Story",          description: "Part of a Quest Chain (DAG)" },
+const QUEST_TYPES: { value: QuestType; labelKey: string; descKey: string }[] = [
+  { value: "one_time",        labelKey: "quest.typeOneTime",       descKey: "quest.typeOneTimeDesc" },
+  { value: "daily",           labelKey: "quest.typeDaily",         descKey: "quest.typeDailyDesc" },
+  { value: "repeatable",      labelKey: "quest.typeRepeatable",    descKey: "quest.typeRepeatableDesc" },
+  { value: "battle_pass_task",labelKey: "quest.typeBattlePassTask",descKey: "quest.typeBattlePassTaskDesc" },
+  { value: "chain",           labelKey: "quest.typeChain",         descKey: "quest.typeChainDesc" },
 ]
 
 const CONDITION_TYPE_OPTIONS = [
-  { value: "login",              label: "Login",              description: "Satisfied when the player authenticates" },
-  { value: "collect_and_keep",   label: "Collect & Keep",     description: "Player must hold items (not removed)" },
-  { value: "collect_and_submit", label: "Collect & Submit",   description: "Player must have items (deducted on completion)" },
-  { value: "not_have_item",      label: "Not Have Item",      description: "Player must NOT possess specified items" },
-  { value: "gacha_opened",       label: "Gacha Opened",       description: "Player must open a gacha pack N times" },
+  { value: "login",              labelKey: "quest.condLogin",              descKey: "quest.condLoginDesc" },
+  { value: "collect_and_keep",   labelKey: "quest.condCollectAndKeep",     descKey: "quest.condCollectAndKeepDesc" },
+  { value: "collect_and_submit", labelKey: "quest.condCollectAndSubmit",   descKey: "quest.condCollectAndSubmitDesc" },
+  { value: "not_have_item",      labelKey: "quest.condNotHaveItem",        descKey: "quest.condNotHaveItemDesc" },
+  { value: "gacha_opened",       labelKey: "quest.condGachaOpened",        descKey: "quest.condGachaOpenedDesc" },
 ]
 
 const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] }
@@ -178,6 +179,7 @@ function newLeaf(): QuestConditionLeaf {
 }
 
 function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps) {
+  const { t } = useTranslation()
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaPacksLoading, setGachaPacksLoading] = useState(false)
   const [gachaPopoverOpen, setGachaPopoverOpen] = useState<number | null>(null)
@@ -254,9 +256,9 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label>Conditions</Label>
+        <Label>{t('quest.conditions')}</Label>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Operator</span>
+          <span className="text-xs text-muted-foreground">{t('quest.operator')}</span>
           <Select value={conditions.operator} onValueChange={(v) => setOperator(v as 'AND' | 'OR')}>
             <SelectTrigger className="h-7 w-20 text-xs">
               <SelectValue />
@@ -267,21 +269,21 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
             </SelectContent>
           </Select>
           <Button type="button" size="sm" variant="outline" className="h-7" onClick={addClause}>
-            <Plus className="h-3 w-3 mr-1" /> Clause
+            <Plus className="h-3 w-3 mr-1" /> {t('quest.clause')}
           </Button>
         </div>
       </div>
 
       {conditions.clauses.length === 0 && (
         <p className="text-xs text-muted-foreground border border-dashed rounded px-3 py-4 text-center">
-          No conditions — quest completes immediately when assigned.
+          {t('quest.noConditions')}
         </p>
       )}
 
       {conditions.clauses.map((clause, i) => {
         if (!isConditionLeaf(clause)) return (
           <div key={i} className="border rounded p-2 text-xs text-muted-foreground">
-            Nested group (edit in JSON). <Button type="button" variant="ghost" size="sm" className="h-5 text-destructive" onClick={() => removeClause(i)}>Remove</Button>
+            {t('quest.nestedGroupEdit')} <Button type="button" variant="ghost" size="sm" className="h-5 text-destructive" onClick={() => removeClause(i)}>{t('common.remove')}</Button>
           </div>
         )
         return (
@@ -289,25 +291,25 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
             {/* Row 1: type + clause_id + remove */}
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
-                <Label className="text-xs text-muted-foreground">Type</Label>
+                <Label className="text-xs text-muted-foreground">{t('quest.type')}</Label>
                 <Select value={clause.type} onValueChange={(v) => handleTypeChange(i, v)}>
                   <SelectTrigger className="h-7">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {CONDITION_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      <SelectItem key={o.value} value={o.value}>{t(o.labelKey)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1 w-32 shrink-0">
                 <Label className="text-xs text-muted-foreground">
-                  Clause ID <span className="text-red-500">*</span>
+                  {t('quest.clauseId')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   className={`h-7 text-xs${!clause.clause_id.trim() ? " border-red-500 focus-visible:ring-red-500" : ""}`}
-                  placeholder="e.g. login_3"
+                  placeholder={t('quest.clauseIdPlaceholder')}
                   value={clause.clause_id}
                   onChange={(e) => updateLeaf(i, { clause_id: e.target.value })}
                 />
@@ -325,13 +327,13 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
             {(clause.type === "collect_and_keep" || clause.type === "collect_and_submit" || clause.type === "not_have_item") ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Required Items</Label>
+                  <Label className="text-xs text-muted-foreground">{t('quest.requiredItems')}</Label>
                   <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => addItem(i)}>
-                    <Plus className="h-3 w-3 mr-0.5" /> Item
+                    <Plus className="h-3 w-3 mr-0.5" /> {t('quest.addItem')}
                   </Button>
                 </div>
                 {(clause.items ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground">No items added.</p>
+                  <p className="text-xs text-muted-foreground">{t('quest.noItemsAdded')}</p>
                 )}
                 {(clause.items ?? []).map((item, ii) => (
                   <div key={ii} className="flex gap-1 items-center">
@@ -351,17 +353,17 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                               ? (itemDefs.find((d) => d.id === item.item_definition_id)
                                   ? `${itemDefs.find((d) => d.id === item.item_definition_id)!.name}`
                                   : item.item_definition_id)
-                              : (itemDefsLoading ? "Loading…" : "Select item")}
+                              : (itemDefsLoading ? t('common.loading') : t('quest.selectItem'))}
                           </span>
                           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-0" align="start">
                         <Command>
-                          <CommandInput placeholder="Search item…" className="h-8" />
+                          <CommandInput placeholder={t('quest.searchItem')} className="h-8" />
                           <CommandList>
                             <CommandEmpty>
-                              {itemDefsLoading ? "Loading…" : "No items found."}
+                              {itemDefsLoading ? t('common.loading') : t('common.noItemsFound')}
                             </CommandEmpty>
                             <CommandGroup>
                               {itemDefs.map((def) => (
@@ -418,7 +420,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                 {/* Gacha Pack — flex-1, aligns under Type */}
                 <div className="flex-1 space-y-1">
                   <Label className="text-xs text-muted-foreground">
-                    Gacha Pack <span className="text-red-500">*</span>
+                    {t('quest.gachaPack')} <span className="text-red-500">*</span>
                   </Label>
                   <Popover
                     open={gachaPopoverOpen === i}
@@ -435,17 +437,17 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                           {clause.packs?.gacha_pack_id
                             ? (gachaPacks.find((p) => p.id === clause.packs?.gacha_pack_id)?.name
                                 ?? clause.packs.gacha_pack_id)
-                            : (gachaPacksLoading ? "Loading…" : "Select gacha pack")}
+                            : (gachaPacksLoading ? t('common.loading') : t('quest.selectGachaPack'))}
                         </span>
                         <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Search pack…" className="h-8" />
+                        <CommandInput placeholder={t('quest.searchPack')} className="h-8" />
                         <CommandList>
                           <CommandEmpty>
-                            {gachaPacksLoading ? "Loading…" : "No packs found."}
+                            {gachaPacksLoading ? t('common.loading') : t('common.noItemsFound')}
                           </CommandEmpty>
                           <CommandGroup>
                             {gachaPacks.map((pack) => (
@@ -485,7 +487,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                 )}
                 {/* Quantity — w-32, aligns under Clause ID */}
                 <div className="w-32 shrink-0 space-y-1">
-                  <Label className="text-xs text-muted-foreground">Quantity</Label>
+                  <Label className="text-xs text-muted-foreground">{t('quest.quantity')}</Label>
                   <Input
                     type="number" min={1} className="h-7"
                     value={clause.packs?.quantity ?? 1}
@@ -497,7 +499,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
               </div>
             ) : (
               /* login — no extra fields needed */
-              <p className="text-xs text-muted-foreground">No extra fields — auto-checked on player login.</p>
+              <p className="text-xs text-muted-foreground">{t('quest.noExtraFields')}</p>
             )}
           </div>
         )
@@ -515,6 +517,7 @@ interface RewardEditorProps {
 }
 
 function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
+  const { t } = useTranslation()
   const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
   const [itemDefsLoading, setItemDefsLoading] = useState(false)
   const [rewardItemPopover, setRewardItemPopover] = useState<number | null>(null)
@@ -536,13 +539,13 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label>Rewards</Label>
+        <Label>{t('quest.rewards')}</Label>
         <Button type="button" size="sm" variant="outline" onClick={addReward}>
-          <Plus className="h-3 w-3 mr-1" /> Add Reward
+          <Plus className="h-3 w-3 mr-1" /> {t('quest.addReward')}
         </Button>
       </div>
       {rewards.length === 0 && (
-        <p className="text-sm text-muted-foreground">No rewards configured.</p>
+        <p className="text-sm text-muted-foreground">{t('quest.noRewards')}</p>
       )}
       {rewards.map((r, i) => (
         <div key={i} className="flex gap-2 items-start border rounded p-2">
@@ -562,16 +565,16 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                           ? (itemDefs.find((d) => d.id === r.item_definition_id)
                               ? itemDefs.find((d) => d.id === r.item_definition_id)!.name
                               : r.item_definition_id)
-                          : (itemDefsLoading ? "Loading…" : "Select item")}
+                          : (itemDefsLoading ? t('common.loading') : t('quest.selectItem'))}
                       </span>
                       <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search item…" className="h-8" />
+                      <CommandInput placeholder={t('quest.searchItem')} className="h-8" />
                       <CommandList>
-                        <CommandEmpty>{itemDefsLoading ? "Loading…" : "No items found."}</CommandEmpty>
+                        <CommandEmpty>{itemDefsLoading ? t('common.loading') : t('common.noItemsFound')}</CommandEmpty>
                         <CommandGroup>
                           {itemDefs.map((def) => (
                             <CommandItem
@@ -601,7 +604,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                   <Link
                     href={`/games/${gameId}/items/${r.item_definition_id}`}
                     className="inline-flex items-center justify-center h-8 w-8 shrink-0 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-                    title="Open item"
+                    title={t('quest.openItem')}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
@@ -609,7 +612,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Min Qty</Label>
+                    <Label className="text-xs text-muted-foreground">{t('quest.minQty')}</Label>
                     <Input
                       type="number"
                       min={1}
@@ -620,7 +623,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                     />
                   </div>
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Max Qty</Label>
+                    <Label className="text-xs text-muted-foreground">{t('quest.maxQty')}</Label>
                     <Input
                       type="number"
                       min={1}
@@ -651,6 +654,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
 // ─── Definitions Tab ──────────────────────────────────────────────────────────
 
 function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null; editQuestId?: string | null; onGameUpdate?: (g: Game) => void }) {
+  const { t } = useTranslation()
   const { id: gameId } = useParams() as { id: string }
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -716,17 +720,17 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   // Quest type options (fetched from API, falls back to QUEST_TYPES)
   const [questTypeOptions, setQuestTypeOptions] = useState<{ value: string; label: string; description: string }[]>(
-    QUEST_TYPES.map((t) => ({ value: t.value, label: t.label, description: t.description ?? "" }))
+    QUEST_TYPES.map((qt) => ({ value: qt.value, label: t(qt.labelKey), description: t(qt.descKey) }))
   )
 
   useEffect(() => {
     listQuestTypes().then((data) => {
       if (data?.quest_types?.length) {
         setQuestTypeOptions(
-          data.quest_types.map((t) => ({
-            value: t.value,
-            label: t.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-            description: t.description,
+          data.quest_types.map((qt) => ({
+            value: qt.value,
+            label: qt.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            description: qt.description,
           }))
         )
       }
@@ -823,15 +827,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     setSaving(true)
     try {
       await createQuestDefinition(game.studio_id, gameId, form)
-      toast({ title: "Quest created", description: form.name })
+      toast({ title: t('quest.questCreated'), description: form.name })
       setCreateOpen(false)
       await loadQuests(offset)
       getGame(gameId).then(onGameUpdate).catch(() => {})
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: e instanceof ApiError ? e.message : "Failed to create quest",
+        title: t('common.error'),
+        description: e instanceof ApiError ? e.message : t('quest.failedCreateQuest'),
       })
     } finally {
       setSaving(false)
@@ -844,14 +848,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     try {
       const patch: UpdateQuestDefinitionRequest = { ...form }
       await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
-      toast({ title: "Quest updated", description: form.name })
+      toast({ title: t('quest.questUpdated'), description: form.name })
       setEditQuest(null)
       await loadQuests(offset)
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: e instanceof ApiError ? e.message : "Failed to update quest",
+        title: t('common.error'),
+        description: e instanceof ApiError ? e.message : t('quest.failedUpdateQuest'),
       })
     } finally {
       setSaving(false)
@@ -865,15 +869,15 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     setDeleting(true)
     try {
       await deleteQuestDefinition(game.studio_id, gameId, deleteQuest.id)
-      toast({ title: "Quest deleted", description: deleteQuest.name })
+      toast({ title: t('quest.questDeleted'), description: deleteQuest.name })
       setDeleteQuest(null)
       await loadQuests(offset)
       getGame(gameId).then(onGameUpdate).catch(() => {})
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: e instanceof ApiError ? e.message : "Failed to delete quest",
+        title: t('common.error'),
+        description: e instanceof ApiError ? e.message : t('quest.failedDeleteQuest'),
       })
     } finally {
       setDeleting(false)
@@ -892,8 +896,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: e instanceof ApiError ? e.message : "Failed to toggle quest",
+        title: t('common.error'),
+        description: e instanceof ApiError ? e.message : t('quest.failedToggleQuest'),
       })
     }
   }
@@ -904,30 +908,30 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     <div className="space-y-5">
       {/* Name */}
       <div className="space-y-1">
-        <Label htmlFor="qname">Name <span className="text-red-500">*</span></Label>
+        <Label htmlFor="qname">{t('quest.name')} <span className="text-red-500">*</span></Label>
         <Input
           id="qname"
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="Quest name"
+          placeholder={t('quest.questNamePlaceholder')}
         />
       </div>
 
       {/* Description */}
       <div className="space-y-1">
-        <Label htmlFor="qdesc">Description</Label>
+        <Label htmlFor="qdesc">{t('quest.description')}</Label>
         <Textarea
           id="qdesc"
           rows={2}
           value={form.description ?? ""}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          placeholder="Quest description"
+          placeholder={t('quest.questDescPlaceholder')}
         />
       </div>
 
       {/* Quest Type */}
       <div className="space-y-1">
-        <Label>Quest Type <span className="text-red-500">*</span></Label>
+        <Label>{t('quest.questType')} <span className="text-red-500">*</span></Label>
         <Select
           value={form.quest_type}
           onValueChange={(v) => setForm((f) => ({ ...f, quest_type: v as QuestType }))}
@@ -949,7 +953,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           </SelectContent>
         </Select>
         {(form.quest_type === "chain") && (
-          <p className="text-xs text-muted-foreground">Story quests require a Chain Group ID.</p>
+          <p className="text-xs text-muted-foreground">{t('quest.storyChainHint')}</p>
         )}
       </div>
 
@@ -962,7 +966,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
       {/* Sort Order */}
       <div className="space-y-1">
-        <Label htmlFor="qsort">Sort Order</Label>
+        <Label htmlFor="qsort">{t('quest.sortOrder')}</Label>
         <Input
           id="qsort"
           type="number"
@@ -978,7 +982,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           checked={form.is_active ?? true}
           onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
         />
-        <Label htmlFor="qactive">Active</Label>
+        <Label htmlFor="qactive">{t('quest.active')}</Label>
       </div>
 
       {/* Rewards */}
@@ -998,7 +1002,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       <div className="flex items-center justify-end">
         <Button onClick={openCreate} disabled={loading || !game}>
           <Plus className="h-4 w-4 mr-1" />
-          New Quest
+          {t('quest.newQuest')}
         </Button>
       </div>
 
@@ -1014,13 +1018,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground mr-auto">
             {quests.length > 0
-              ? `${filteredQuests.length} of ${quests.length} quest definition${quests.length !== 1 ? "s" : ""}`
-              : "0 quest definitions"}
+              ? `${filteredQuests.length} ${t('quest.ofQuests')} ${quests.length} ${quests.length !== 1 ? t('quest.questDefinitions') : t('quest.questDefinition')}`
+              : `0 ${t('quest.questDefinitions')}`}
           </p>
           <div className="relative min-w-[200px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search by name, description…"
+              placeholder={t('quest.searchByNameDesc')}
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
               className="h-8 pl-8 text-sm"
@@ -1028,10 +1032,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="h-8 w-[140px] text-xs">
-              <SelectValue placeholder="All Types" />
+              <SelectValue placeholder={t('quest.allTypes')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="all">{t('quest.allTypes')}</SelectItem>
               {questTypeOptions.map((t) => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
               ))}
@@ -1039,12 +1043,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           </Select>
           <Select value={filterActive} onValueChange={setFilterActive}>
             <SelectTrigger className="h-8 w-[120px] text-xs">
-              <SelectValue placeholder="All Status" />
+              <SelectValue placeholder={t('quest.allStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="all">{t('quest.allStatus')}</SelectItem>
+              <SelectItem value="active">{t('quest.activeStatus')}</SelectItem>
+              <SelectItem value="inactive">{t('quest.inactiveStatus')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={`${sortBy}:${sortOrder}`} onValueChange={(v) => { const [s, o] = v.split(":"); setSortBy(s); setSortOrder(o) }}>
@@ -1052,14 +1056,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="sort_order:asc">Sort Order ↑</SelectItem>
-              <SelectItem value="sort_order:desc">Sort Order ↓</SelectItem>
-              <SelectItem value="name:asc">Name A–Z</SelectItem>
-              <SelectItem value="name:desc">Name Z–A</SelectItem>
-              <SelectItem value="created_at:desc">Newest First</SelectItem>
-              <SelectItem value="created_at:asc">Oldest First</SelectItem>
-              <SelectItem value="updated_at:desc">Recently Updated</SelectItem>
-              <SelectItem value="updated_at:asc">Least Recently Updated</SelectItem>
+              <SelectItem value="sort_order:asc">{t('quest.sortOrderAsc')}</SelectItem>
+              <SelectItem value="sort_order:desc">{t('quest.sortOrderDesc')}</SelectItem>
+              <SelectItem value="name:asc">{t('quest.nameAZ')}</SelectItem>
+              <SelectItem value="name:desc">{t('quest.nameZA')}</SelectItem>
+              <SelectItem value="created_at:desc">{t('quest.newestFirst')}</SelectItem>
+              <SelectItem value="created_at:asc">{t('quest.oldestFirst')}</SelectItem>
+              <SelectItem value="updated_at:desc">{t('quest.recentlyUpdated')}</SelectItem>
+              <SelectItem value="updated_at:asc">{t('quest.leastRecentlyUpdated')}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -1073,7 +1077,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           </Button>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1" /> Clear
+              <X className="h-3.5 w-3.5 mr-1" /> {t('quest.clear')}
             </Button>
           )}
         </div>
@@ -1093,17 +1097,17 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
               {hasActiveFilters ? (
                 <>
                   <Search className="h-10 w-10 opacity-30" />
-                  <p>No quests match the current filters.</p>
+                  <p>{t('quest.noQuestsMatch')}</p>
                   <Button onClick={clearFilters} variant="outline" size="sm">
-                    <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                    <X className="h-3.5 w-3.5 mr-1" /> {t('quest.clearFilters')}
                   </Button>
                 </>
               ) : (
                 <>
                   <ScrollText className="h-10 w-10 opacity-30" />
-                  <p>No quest definitions yet.</p>
+                  <p>{t('quest.noQuestDefs')}</p>
                   <Button onClick={openCreate} variant="outline">
-                    <Plus className="h-4 w-4 mr-1" /> Create First Quest
+                    <Plus className="h-4 w-4 mr-1" /> {t('quest.createFirstQuest')}
                   </Button>
                 </>
               )}
@@ -1112,13 +1116,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Conditions</TableHead>
-                  <TableHead>Rewards</TableHead>
+                  <TableHead>{t('quest.name')}</TableHead>
+                  <TableHead>{t('quest.type')}</TableHead>
+                  <TableHead>{t('quest.conditions')}</TableHead>
+                  <TableHead>{t('quest.rewards')}</TableHead>
 
-                  <TableHead>Active</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('quest.active')}</TableHead>
+                  <TableHead className="text-right">{t('quest.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1138,7 +1142,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                         <button
                           type="button"
                           className="text-muted-foreground hover:text-foreground transition-colors"
-                          title="Copy quest ID"
+                          title={t('quest.copyQuestId')}
                           onClick={(e) => {
                             e.stopPropagation()
                             const text = q.id
@@ -1187,7 +1191,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                             {q.conditions.operator}
                           </Badge>
                           <span className="text-muted-foreground">
-                            {q.conditions.clauses?.length ?? 0} clause{(q.conditions.clauses?.length ?? 0) !== 1 ? "s" : ""}
+                            {q.conditions.clauses?.length ?? 0} {(q.conditions.clauses?.length ?? 0) !== 1 ? t('quest.clausesCount') : t('quest.clauseCount')}
                           </span>
                         </span>
                       ) : (
@@ -1233,27 +1237,27 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                           {/* Row 1: Basic info */}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Quest ID</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
                               <p className="font-mono text-xs break-all">{q.id}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Type</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.type')}</p>
                               <Badge variant={questTypeBadgeVariant(q.quest_type)}>{q.quest_type}</Badge>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Sort Order</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.sortOrder')}</p>
                               <p>{q.sort_order}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Active</p>
-                              <Badge variant={q.is_active ? "default" : "secondary"}>{q.is_active ? "Yes" : "No"}</Badge>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.active')}</p>
+                              <Badge variant={q.is_active ? "default" : "secondary"}>{q.is_active ? t('common.yes') : t('common.no')}</Badge>
                             </div>
                           </div>
 
                           {/* Description */}
                           {q.description && (
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
                               <p className="text-sm">{q.description}</p>
                             </div>
                           )}
@@ -1261,13 +1265,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Conditions <Badge variant="outline" className="ml-1 font-mono text-xs">{q.conditions.operator}</Badge></p>
+                              <p className="text-xs text-muted-foreground mb-1">{t('quest.conditions')} <Badge variant="outline" className="ml-1 font-mono text-xs">{q.conditions.operator}</Badge></p>
                               <div className="space-y-1.5">
                                 {q.conditions.clauses.map((clause, ci) => {
                                   if (!isConditionLeaf(clause)) {
-                                    return <div key={ci} className="text-xs text-muted-foreground border rounded px-2 py-1">Nested group ({(clause as QuestConditionGroup).operator})</div>
+                                    return <div key={ci} className="text-xs text-muted-foreground border rounded px-2 py-1">{t('quest.nestedGroup')} ({(clause as QuestConditionGroup).operator})</div>
                                   }
-                                  const typeLabel = CONDITION_TYPE_OPTIONS.find(o => o.value === clause.type)?.label ?? clause.type
+                                  const typeOpt = CONDITION_TYPE_OPTIONS.find(o => o.value === clause.type)
+                                  const typeLabel = typeOpt ? t(typeOpt.labelKey) : clause.type
                                   return (
                                     <div key={ci} className="border rounded px-3 py-2 bg-background text-sm space-y-1">
                                       <div className="flex items-center gap-2">
@@ -1290,7 +1295,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                                                   target="_blank"
                                                   className="text-muted-foreground hover:text-foreground transition-colors"
                                                   onClick={(e) => e.stopPropagation()}
-                                                  title="Open item definition"
+                                                  title={t('quest.openItemDef')}
                                                 >
                                                   <ExternalLink className="h-3 w-3" />
                                                 </Link>
@@ -1312,7 +1317,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                                             target="_blank"
                                             className="text-muted-foreground hover:text-foreground transition-colors"
                                             onClick={(e) => e.stopPropagation()}
-                                            title="Open gacha pack"
+                                            title={t('quest.openGachaPack')}
                                           >
                                             <ExternalLink className="h-3 w-3" />
                                           </Link>
@@ -1320,7 +1325,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                                       )}
                                       {/* Target for login etc */}
                                       {clause.target != null && (
-                                        <div className="pl-2 text-xs text-muted-foreground">Target: {clause.target}</div>
+                                        <div className="pl-2 text-xs text-muted-foreground">{t('quest.target')} {clause.target}</div>
                                       )}
                                     </div>
                                   )
@@ -1332,13 +1337,13 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                           {/* Rewards */}
                           {q.rewards && q.rewards.length > 0 && (
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Rewards ({q.rewards.length})</p>
+                              <p className="text-xs text-muted-foreground mb-1">{t('quest.rewards')} ({q.rewards.length})</p>
                               <div className="space-y-1">
                                 {q.rewards.map((r, ri) => (
                                   <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
                                     <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
                                     {r.reward_type === "coin" && r.amount != null && (
-                                      <span className="text-xs">{r.amount} coins</span>
+                                      <span className="text-xs">{r.amount} {t('quest.coins')}</span>
                                     )}
                                     {r.reward_type === "item" && r.item_definition_id && (() => {
                                       const def = rowItemDefs.find(d => d.id === r.item_definition_id)
@@ -1354,7 +1359,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                                             target="_blank"
                                             className="text-muted-foreground hover:text-foreground transition-colors"
                                             onClick={(e) => e.stopPropagation()}
-                                            title="Open item definition"
+                                            title={t('quest.openItemDef')}
                                           >
                                             <ExternalLink className="h-3 w-3" />
                                           </Link>
@@ -1369,8 +1374,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
                           {/* Timestamps */}
                           <div className="flex gap-6 text-xs text-muted-foreground">
-                            <span>Created: {new Date(q.created_at).toLocaleString()}</span>
-                            <span>Updated: {new Date(q.updated_at).toLocaleString()}</span>
+                            <span>{t('quest.created')} {new Date(q.created_at).toLocaleString()}</span>
+                            <span>{t('quest.updated')} {new Date(q.updated_at).toLocaleString()}</span>
                           </div>
                         </div>
                       </TableCell>
@@ -1388,16 +1393,16 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Create Quest Definition</SheetTitle>
+            <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
           <SheetFooter className="mt-6">
             <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>Cancel</Button>
+              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Create
+              {t('common.submit')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -1419,7 +1424,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Edit Quest Definition</SheetTitle>
+            <SheetTitle>{t('quest.editQuestDef')}</SheetTitle>
             {editQuest && (
               <p className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono mt-0.5">
                 {editQuest.id}
@@ -1430,11 +1435,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           <div className="mt-6">{QuestForm}</div>
           <SheetFooter className="mt-6">
             <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>Cancel</Button>
+              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
             </SheetClose>
             <Button onClick={handleEdit} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Save
+              {t('common.save')}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -1444,21 +1449,20 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       <AlertDialog open={!!deleteQuest} onOpenChange={(o) => { if (!o) setDeleteQuest(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Quest</AlertDialogTitle>
+            <AlertDialogTitle>{t('quest.deleteQuest')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteQuest?.name}</strong>? This
-              action cannot be undone.
+              {t('quest.deleteQuestConfirm')} <strong>{deleteQuest?.name}</strong>{t('quest.deleteQuestUndone')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1470,11 +1474,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 // ─── Coming Soon Panel ─────────────────────────────────────────────────────────
 
 function ComingSoon({ title }: { title: string }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
       <Clock className="h-12 w-12 opacity-30" />
       <p className="text-lg font-medium">{title}</p>
-      <p className="text-sm opacity-70">This feature is coming soon.</p>
+      <p className="text-sm opacity-70">{t('quest.comingSoon')}</p>
     </div>
   )
 }
@@ -1482,6 +1487,7 @@ function ComingSoon({ title }: { title: string }) {
 // ─── Inner Page (needs useSearchParams) ───────────────────────────────────────
 
 function QuestsPageInner() {
+  const { t } = useTranslation()
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1509,7 +1515,7 @@ function QuestsPageInner() {
           }
         }
       })
-      .catch(() => toast({ variant: "destructive", title: "Error", description: "Failed to load game" }))
+      .catch(() => toast({ variant: "destructive", title: t('common.error'), description: t('quest.failedLoadGame') }))
       .finally(() => setGameLoading(false))
   }, [gameId, toast])
 
@@ -1531,14 +1537,14 @@ function QuestsPageInner() {
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem>
-              <BreadcrumbLink href="/studios">Studios</BreadcrumbLink>
+              <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             {game?.studio_id && (
               <>
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/studios/${game.studio_id}`}>
-                    {studio?.name || game.studio?.name || "Studio"}
+                    {studio?.name || game.studio?.name || t('common.studio')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
@@ -1551,7 +1557,7 @@ function QuestsPageInner() {
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem>
-              <span className="">Quests</span>
+              <span className="">{t('quest.quests')}</span>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -1566,7 +1572,7 @@ function QuestsPageInner() {
           <div>
             <div className="flex items-center gap-2">
               <ScrollText className="h-5 w-5" />
-              <h1 className="text-2xl font-bold">Quests</h1>
+              <h1 className="text-2xl font-bold">{t('quest.quests')}</h1>
             </div>
             {game && (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -1577,7 +1583,7 @@ function QuestsPageInner() {
                   return (
                     <>
                       <span className={used >= max ? "text-destructive font-medium" : ""}>
-                        {used.toLocaleString()} / {max.toLocaleString()} quests
+                        {used.toLocaleString()} / {max.toLocaleString()} {t('quest.questsCount')}
                       </span>
                       <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
                         <span
@@ -1590,7 +1596,7 @@ function QuestsPageInner() {
                       <Link
                         href={`/games/${gameId}/plugins`}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                        title="Manage plugins / raise limits"
+                        title={t('quest.managePlugins')}
                       >
                         <Hammer className="h-3.5 w-3.5" />
                       </Link>
@@ -1610,9 +1616,9 @@ function QuestsPageInner() {
       <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
-          {TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {t(tab.labelKey)}
             </TabsTrigger>
           ))}
         </TabsList>

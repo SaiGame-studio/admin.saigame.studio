@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Pencil, Trash2, Loader2, Plus, Search, PanelRightClose, PanelRightOpen, RefreshCw, ExternalLink, Lock, Unlock, Wand2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import {
   getChainLayout,
   saveChainLayout,
@@ -91,6 +92,7 @@ function getLayoutedElements(
 // ─── Custom Quest Node ────────────────────────────────────────────────────────
 
 function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
+  const { t } = useTranslation()
   return (
     <div className="relative rounded-lg border bg-card text-card-foreground shadow-sm w-[240px] select-none">
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background" />
@@ -107,21 +109,21 @@ function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
               target="_blank"
               rel="noopener noreferrer"
               className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors"
-              title="Open quest definition in new tab"
+              title={t('quest.flow.openQuestDef')}
               onClick={(e) => e.stopPropagation()}
             >
               <ExternalLink className="h-3 w-3 text-muted-foreground" />
             </a>
             <button
               className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted/80 transition-colors"
-              title="Edit membership"
+              title={t('quest.flow.editMembership')}
               onClick={(e) => { e.stopPropagation(); data.onEdit(data.member) }}
             >
               <Pencil className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-destructive/10 transition-colors"
-              title="Remove from chain"
+              title={t('quest.flow.removeFromChain')}
               onClick={(e) => { e.stopPropagation(); data.onRemove(data.member) }}
             >
               <Trash2 className="h-3 w-3 text-destructive" />
@@ -143,9 +145,9 @@ function QuestNode({ data }: NodeProps<Node<QuestNodeData>>) {
             {data.questType}
           </Badge>
           {data.isActive ? (
-            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-green-600">Active</Badge>
+            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-green-600">{t('quest.activeStatus')}</Badge>
           ) : (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Inactive</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{t('quest.inactiveStatus')}</Badge>
           )}
         </div>
       </div>
@@ -203,6 +205,7 @@ function ChainFlowViewContent({
   onDisconnectQuests,
   onRefresh,
 }: ChainFlowViewProps) {
+  const { t } = useTranslation()
   const { getNodes, screenToFlowPosition } = useReactFlow()
   const [connecting, setConnecting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -467,7 +470,7 @@ function ChainFlowViewContent({
       <div className="relative flex-1 min-w-0">
         {connecting && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-md bg-primary/90 text-primary-foreground px-3 py-1 text-xs shadow-lg">
-            <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+            <Loader2 className="h-3 w-3 animate-spin" /> {t('quest.flow.saving')}
           </div>
         )}
         {/* Top-right buttons */}
@@ -481,7 +484,7 @@ function ChainFlowViewContent({
                 setRefreshing(true)
                 try { await onRefresh() } finally { setRefreshing(false) }
               }}
-              title="Refresh graph data"
+              title={t('quest.flow.refreshGraph')}
               disabled={refreshing}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -492,7 +495,7 @@ function ChainFlowViewContent({
             variant="ghost"
             className="h-7 w-7"
             onClick={() => setSidebarOpen((v) => !v)}
-            title={sidebarOpen ? "Hide quest list" : "Show quest list"}
+            title={sidebarOpen ? t('quest.flow.hideQuestList') : t('quest.flow.showQuestList')}
           >
             {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
           </Button>
@@ -526,7 +529,7 @@ function ChainFlowViewContent({
             {members.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <p className="text-muted-foreground text-sm bg-background/80 rounded px-3 py-1.5">
-                  No quests in this chain yet. Drag quests from the panel or press&nbsp;+.
+                  {t('quest.flow.noQuestsInChain')}
                 </p>
               </div>
             )}
@@ -534,11 +537,11 @@ function ChainFlowViewContent({
             <Controls showInteractive={false}>
               <ControlButton
                 onClick={() => setLocked((v) => !v)}
-                title={locked ? "Unlock nodes" : "Lock nodes"}
+                title={locked ? t('quest.flow.unlockNodes') : t('quest.flow.lockNodes')}
               >
                 {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
               </ControlButton>
-              <ControlButton onClick={handleAutoLayout} title="Auto-align (dagre)">
+              <ControlButton onClick={handleAutoLayout} title={t('quest.flow.autoAlign')}>
                 <Wand2 className="h-3.5 w-3.5" />
               </ControlButton>
             </Controls>
@@ -555,11 +558,11 @@ function ChainFlowViewContent({
       {sidebarOpen && (
         <div className="w-[260px] shrink-0 border-l flex flex-col bg-background">
           <div className="px-3 py-2 border-b space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Available Quests</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('quest.flow.availableQuests')}</p>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search quests…"
+                placeholder={t('quest.flow.searchQuests')}
                 value={sidebarSearch}
                 onChange={(e) => setSidebarSearch(e.target.value)}
                 className="h-7 pl-7 text-xs"
@@ -569,7 +572,7 @@ function ChainFlowViewContent({
           <ScrollArea className="flex-1">
             {filteredAvailable.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">
-                {availableQuests.length === 0 ? "All quests are already in this chain" : "No matching quests"}
+                {availableQuests.length === 0 ? t('quest.flow.allQuestsInChain') : t('quest.flow.noMatchingQuests')}
               </p>
             ) : (
               <div className="p-1.5 space-y-0.5">
@@ -593,16 +596,16 @@ function ChainFlowViewContent({
                       <div className="flex items-center gap-1 mt-0.5">
                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-3.5">{quest.quest_type}</Badge>
                         {quest.is_active ? (
-                          <Badge className="text-[10px] px-1 py-0 h-3.5 bg-green-600">Active</Badge>
+                          <Badge className="text-[10px] px-1 py-0 h-3.5 bg-green-600">{t('quest.activeStatus')}</Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">Inactive</Badge>
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">{t('quest.inactiveStatus')}</Badge>
                         )}
                       </div>
                     </div>
                     <button
                       className="shrink-0 mt-0.5 h-5 w-5 inline-flex items-center justify-center rounded hover:bg-primary/20 transition-colors disabled:pointer-events-none"
                       disabled={addingQuestId !== null}
-                      title="Add to chain"
+                      title={t('quest.flow.addToChain')}
                       onClick={() => handleQuickAdd(quest.id)}
                     >
                       {addingQuestId === quest.id ? (

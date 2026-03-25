@@ -20,8 +20,7 @@ import { formatTimestamp } from "@/lib/utils/date-utils"
 import { Progress } from "@/components/ui/progress"
 import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
-import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useTranslation } from '@/lib/i18n/use-translation'
 import { DeleteGameDialog } from "@/components/DeleteGameDialog"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
@@ -39,8 +38,7 @@ const fmt = (n: number) => n.toLocaleString()
 export default function GameDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: gameId } = React.use(params)
     const router = useRouter()
-    const { locale } = useLanguage()
-    const { t } = useTranslation(locale)
+    const { t } = useTranslation()
     const { toast } = useToast()
     const [game, setGame] = useState<Game | null>(null)
     const [studio, setStudio] = useState<Studio | null>(null)
@@ -81,7 +79,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                 
                 setError(null)
             } catch (err) {
-                setError("Failed to load game details. Please try again.")
+                setError(t('game.loadErrorRetry'))
                 console.error(err)
             } finally {
                 setLoading(false)
@@ -156,7 +154,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
         const normalized = tag.trim().toLowerCase()
         if (currentTags.includes(normalized)) return
         if (currentTags.length >= 10) {
-            toast({ title: "Limit reached", description: "Maximum 10 tags per game", variant: "destructive" })
+            toast({ title: t('game.tagLimitReached'), description: t('game.tagLimitDesc'), variant: "destructive" })
             return
         }
         const newTags = [...currentTags, normalized]
@@ -168,7 +166,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
             setTagSearch("")
         } catch (err) {
             console.error("Failed to add tag:", err)
-            toast({ title: "Error", description: "Failed to add tag", variant: "destructive" })
+            toast({ title: t('common.error'), description: t('game.failedAddTag'), variant: "destructive" })
         } finally {
             setTagsSaving(false)
         }
@@ -183,7 +181,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
             setGame(prev => prev ? { ...prev, tags: updated.tags } : prev)
         } catch (err) {
             console.error("Failed to remove tag:", err)
-            toast({ title: "Error", description: "Failed to remove tag", variant: "destructive" })
+            toast({ title: t('common.error'), description: t('game.failedRemoveTag'), variant: "destructive" })
         } finally {
             setTagsSaving(false)
         }
@@ -425,7 +423,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 <div>
                                     <h3 className="text-sm font-medium flex items-center gap-1 mb-2">
                                         <Tag className="h-3.5 w-3.5" />
-                                        Tags
+                                        {t('game.tags')}
                                         <span className="text-xs text-muted-foreground font-normal">
                                             {(game.tags ?? []).length}/10
                                         </span>
@@ -453,7 +451,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                                 <PopoverContent className="w-60 p-2" align="start">
                                                     <input
                                                         type="text"
-                                                        placeholder="Search tags..."
+                                                        placeholder={t('game.searchTags')}
                                                         value={tagSearch}
                                                         onChange={e => setTagSearch(e.target.value)}
                                                         className="w-full px-2 py-1.5 text-sm border rounded-md bg-transparent outline-none focus:ring-1 focus:ring-ring mb-2"
@@ -473,7 +471,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                                                 </button>
                                                             ))}
                                                         {allTags.filter(t => !(game.tags ?? []).includes(t)).filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
-                                                            <p className="text-xs text-muted-foreground px-2 py-1.5">No tags available</p>
+                                                            <p className="text-xs text-muted-foreground px-2 py-1.5">{t('game.noTagsAvailable')}</p>
                                                         )}
                                                     </div>
                                                 </PopoverContent>
@@ -491,7 +489,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                 <Card className="lg:col-span-1">
                     <CardHeader>
                         <CardTitle className="flex items-center text-base">
-                            Settings
+                            {t('common.settings')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -499,12 +497,12 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         <div className="flex flex-col gap-2 py-2 border-b border-border">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="daily-quest-days" className="text-sm font-medium">
-                                    Daily quest max advance days
+                                    {t('game.dailyQuestAdvanceDays')}
                                 </Label>
                                 <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Maximum number of days players can advance daily quests
+                                {t('game.dailyQuestAdvanceDaysDesc')}
                             </p>
                         </div>
 
@@ -512,7 +510,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         <div className="flex flex-col gap-2 py-2 border-b border-border">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
-                                    Allow player trading and mailbox
+                                    {t('game.allowPlayerTrading')}
                                 </Label>
                                 <Switch
                                     id="allow-trading"
@@ -527,13 +525,13 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                             })
                                             setGame(updated)
                                             toast({
-                                                title: "Settings updated",
-                                                description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}`
+                                                title: t('game.settingsUpdated'),
+                                                description: checked ? t('game.tradingEnabled') : t('game.tradingDisabled')
                                             })
                                         } catch (err) {
                                             toast({
-                                                title: "Error",
-                                                description: "Failed to update settings",
+                                                title: t('common.error'),
+                                                description: t('game.failedUpdateSettings'),
                                                 variant: "destructive"
                                             })
                                         }
@@ -541,7 +539,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Enable trading between players and mailbox system
+                                {t('game.allowPlayerTradingDesc')}
                             </p>
                         </div>
 
@@ -574,7 +572,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                                     onClick={refreshCcu}
                                                     disabled={ccuRefreshing}
                                                     className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                                    title="Refresh"
+                                                    title={t('common.refresh')}
                                                 >
                                                     <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
                                                 </button>
@@ -650,7 +648,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/entities`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
-                                            Entity Defs
+                                            {t('game.entityDefs')}
                                             <ExternalLink className="h-3 w-3" />
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? 'text-destructive font-semibold' : ''}`}>
