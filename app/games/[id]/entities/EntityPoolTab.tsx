@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
@@ -63,7 +64,18 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   }
 
   const handlePoolUpdated = (updated: EntityPool) => {
-    setPools(prev => prev.map(p => p.id === updated.id ? updated : p))
+    setPools(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p))
+  }
+
+  const handleToggleActive = async (pool: EntityPool, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const updated = await updateEntityPool(gameId, pool.id, { is_active: !pool.is_active })
+      handlePoolUpdated(updated)
+    } catch (err) {
+      const msg = err instanceof ApiError ? (err as ApiError).message : t('entity.failedUpdate')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    }
   }
 
   return (
@@ -159,9 +171,10 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant={pool.is_active ? "default" : "secondary"} className={`rounded-md px-2 py-0.5 text-[10px] uppercase tracking-wider ${pool.is_active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : ""}`}>
-                              {pool.is_active ? t('common.active') : t('common.inactive')}
-                            </Badge>
+                            <Switch
+                              checked={pool.is_active}
+                              onClick={(e) => handleToggleActive(pool, e)}
+                            />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(pool.created_at).toLocaleDateString()}
@@ -345,12 +358,12 @@ function PoolExpandedContent({
 
   async function handleAddEntry() {
     if (!addDefId.trim()) {
-      toast({ title: t('common.validation'), description: "Entity Definition is required", variant: "destructive" })
+      toast({ title: t('common.validation'), description: t('entity.entityDefRequired'), variant: "destructive" })
       return
     }
     const weight = parseInt(addWeight, 10)
     if (isNaN(weight) || weight < 1) {
-      toast({ title: t('common.validation'), description: "Weight must be a positive number", variant: "destructive" })
+      toast({ title: t('common.validation'), description: t('entity.weightPositive'), variant: "destructive" })
       return
     }
     setAddingEntry(true)
@@ -364,7 +377,7 @@ function PoolExpandedContent({
       setAddWeight("1")
       setShowAddEntry(false)
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to add entry"
+      const msg = err instanceof ApiError ? err.message : t('entity.failedAddEntry')
       toast({ title: t('common.error'), description: msg, variant: "destructive" })
     } finally {
       setAddingEntry(false)
@@ -381,7 +394,7 @@ function PoolExpandedContent({
       setDetail(updated)
       toast({ title: t('common.deleted') })
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to delete entry"
+      const msg = err instanceof ApiError ? err.message : t('entity.failedDeleteEntry')
       toast({ title: t('common.error'), description: msg, variant: "destructive" })
     } finally {
       setDeletingEntryId(null)
@@ -406,7 +419,7 @@ function PoolExpandedContent({
   async function saveWeight(entryId: string) {
     const weight = parseInt(editWeightValue, 10)
     if (isNaN(weight) || weight < 0) {
-      toast({ title: t('common.validation'), description: "Weight must be a non-negative number", variant: "destructive" })
+      toast({ title: t('common.validation'), description: t('entity.weightNonNegative'), variant: "destructive" })
       return
     }
     setSavingWeight(true)
@@ -417,7 +430,7 @@ function PoolExpandedContent({
       toast({ title: t('common.saved') })
       setEditingWeightId(null)
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to update weight"
+      const msg = err instanceof ApiError ? err.message : t('entity.failedUpdateWeight')
       toast({ title: t('common.error'), description: msg, variant: "destructive" })
     } finally {
       setSavingWeight(false)
@@ -495,7 +508,7 @@ function PoolExpandedContent({
       <div>
         <div className="flex items-center gap-2 mb-2">
           <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 border-l-2 border-primary/50">
-            Entries {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
+            {t('entity.entries')} {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
           </h4>
           <Button
             variant="ghost"
@@ -509,7 +522,7 @@ function PoolExpandedContent({
         {showAddEntry && (
           <div className="flex items-end gap-2 mb-3 p-3 rounded-lg border border-muted/30 bg-background/40">
             <div className="w-1/2 min-w-[200px] space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Entity Definition</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('entity.entityDefinition')}</label>
               <Popover open={defPopoverOpen} onOpenChange={setDefPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -522,7 +535,7 @@ function PoolExpandedContent({
                     {addDefLabel ? (
                       <span className="truncate">{addDefLabel}</span>
                     ) : (
-                      <span className="text-muted-foreground">Search entity...</span>
+                      <span className="text-muted-foreground">{t('entity.searchEntityPlaceholder')}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                   </Button>
@@ -530,7 +543,7 @@ function PoolExpandedContent({
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Search by name, key, or ID..."
+                      placeholder={t('entity.searchEntityDropdown')}
                       value={defSearchInput}
                       onValueChange={handleDefSearch}
                     />
@@ -541,7 +554,7 @@ function PoolExpandedContent({
                         </div>
                       ) : (
                         <>
-                          <CommandEmpty>No entities found</CommandEmpty>
+                          <CommandEmpty>{t('entity.noEntityFound')}</CommandEmpty>
                           <CommandGroup>
                             {(() => {
                               const existingDefIds = new Set(entries.map(e => e.entity_definition_id))
@@ -563,7 +576,7 @@ function PoolExpandedContent({
                                     <span className="flex-1 truncate">{def.name}</span>
                                     {inPool && (
                                       <Badge className="ml-2 text-[10px] px-1.5 py-0 h-auto bg-amber-500/15 text-amber-600 border-amber-500/30">
-                                        In pool
+                                        {t('entity.inPool')}
                                       </Badge>
                                     )}
                                     <span className="ml-2 text-xs text-muted-foreground font-mono">{def.entity_key}</span>
@@ -580,7 +593,7 @@ function PoolExpandedContent({
               </Popover>
             </div>
             <div className="w-24 space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Weight</label>
+              <label className="text-xs font-medium text-muted-foreground">{t('entity.weight')}</label>
               <Input
                 type="number"
                 min={1}
@@ -592,7 +605,7 @@ function PoolExpandedContent({
             </div>
             <Button size="sm" className="h-8 gap-1.5" onClick={handleAddEntry} disabled={addingEntry}>
               {addingEntry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              Add
+              {t('entity.addEntry')}
             </Button>
             <Button variant="ghost" size="sm" className="h-8" onClick={() => setShowAddEntry(false)} disabled={addingEntry}>
               <X className="h-3.5 w-3.5" />
@@ -604,7 +617,7 @@ function PoolExpandedContent({
             {[1, 2].map(i => <Skeleton key={i} className="h-8 w-full rounded" />)}
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">{t('entity.noEntries') || 'No entries in this pool'}</p>
+          <p className="text-sm text-muted-foreground italic">{t('entity.noEntriesInPool')}</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-muted/30">
             <Table>
@@ -614,9 +627,9 @@ function PoolExpandedContent({
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldEntityKey')}</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldEntityType')}</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.fieldRarity')}</TableHead>
-                  <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">Weight</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">{t('entity.weight')}</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8 text-right">%</TableHead>
-                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">Stats</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground/60 h-8">{t('entity.stats')}</TableHead>
                   <TableHead className="text-xs font-semibold text-foreground/60 h-8 w-10"></TableHead>
                 </TableRow>
               </TableHeader>
