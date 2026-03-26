@@ -10,6 +10,7 @@ export const ja = {
     edit: "編集",
     delete: "削除",
     remove: "削除",
+    add: "追加",
     adding: "追加中...",
     search: "検索",
     noItemsFound: "アイテムが見つかりません",
@@ -846,8 +847,6 @@ export const ja = {
     backToPayment: "支払いページに戻る",
     totalAmount: "合計金額",
     totalScoin: "合計sCoin",
-    noteLabel: "管理者へのメモ",
-    notePlaceholder: "振込番号、銀行名、その他確認に役立つ情報を入力してください。",
   },
   adminGiftCodes: {
     // ページヘッダー
@@ -1656,6 +1655,14 @@ export const ja = {
     linkedItemDefinition: "リンクされたアイテム定義",
     noLinkedItem: "リンクされたアイテムなし",
     noLinkedItemOption: "— リンクされたアイテムなし —",
+    // Container detail
+    loadingDetailDots: "詳細データを読み込み中…",
+    containerIdLabel: "コンテナID",
+    linkedItemDefinitionId: "リンクされたアイテム定義ID",
+    dimensionsHeader: "サイズ",
+    totalSlots: "合計スロット",
+    fullMetadata: "すべてのメタデータ",
+    selectItem: "アイテムを選択...",
     // Equipment slots
     equipmentSlotsTitle: "装備スロット",
     slotKey: "スロットキー",

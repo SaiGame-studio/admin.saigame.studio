@@ -67,6 +67,7 @@ import {
   fetchItemRarities,
   listContainerDefinitions,
   createContainerDefinition,
+  getContainerDefinition,
   updateContainerDefinition,
   deleteContainerDefinition,
   listGachaPacks,
@@ -3243,12 +3244,18 @@ export default function GameItemsPage() {
   const [containerError, setContainerError] = useState<string | null>(null)
   const [containerOffset, setContainerOffset] = useState(0)
   const [showCreateContainer, setShowCreateContainer] = useState(false)
-  const [editingContainer, setEditingContainer] = useState<ContainerDefinition | null>(null)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
   const [containerSearch, setContainerSearch] = useState("")
   const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
   const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([])
+  const [expandedContainerId, setExpandedContainerId] = useState<string | null>(null)
+  const [containerDetailCache, setContainerDetailCache] = useState<Record<string, ContainerDefinition>>({})
+  const [containerDetailLoading, setContainerDetailLoading] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<{ id: string, field: string } | null>(null)
+  const [editValue, setEditValue] = useState<string>("")
+  const [editValue2, setEditValue2] = useState<string>("") // for dimensions
+  const [metadataRows, setMetadataRows] = useState<{ k: string, v: string }[]>([])
 
   // generator tab state
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
@@ -3503,9 +3510,103 @@ export default function GameItemsPage() {
       )
     : containerDefs
 
-  function containerItemName(id: string): string {
-    const it = containerAllItems.find((i) => i.id === id)
+  function getItemName(id: string | null | undefined): string {
+    if (!id) return t('items.noLinkedItem')
+    const it = containerAllItems.find((i) => i.id === id) || items.find((i) => i.id === id)
     return it ? (it.name + (it.item_code ? ` (${it.item_code})` : "")) : id.slice(0, 8) + "…"
+  }
+
+  const handleContainerRowClick = (def: ContainerDefinition) => {
+    if (expandedContainerId === def.id) {
+      setExpandedContainerId(null)
+      return
+    }
+    setExpandedContainerId(def.id)
+    setEditingField(null) // Reset inline edit state
+
+    // Initialize metadata rows immediately from cache or basic def
+    const base = containerDetailCache[def.id] || def
+    const rows = Object.entries(base.metadata || {}).map(([k, v]) => ({
+      k,
+      v: typeof v === 'object' ? JSON.stringify(v) : String(v)
+    }))
+    setMetadataRows(rows.length > 0 ? rows : [{ k: "", v: "" }])
+
+    if (containerDetailCache[def.id]) return
+
+    setContainerDetailLoading(def.id)
+    getContainerDefinition({ gameId }, def.id)
+      .then((res: { container_definition: ContainerDefinition }) => {
+        setContainerDetailCache((prev) => ({ ...prev, [def.id]: res.container_definition }))
+        // Update rows with fetched data if the user hasn't started editing yet
+        if (!editingField || editingField.id !== def.id) {
+          const fetchedRows = Object.entries(res.container_definition.metadata || {}).map(([k, v]) => ({
+            k,
+            v: typeof v === 'object' ? JSON.stringify(v) : String(v)
+          }))
+          setMetadataRows(fetchedRows.length > 0 ? fetchedRows : [{ k: "", v: "" }])
+        }
+      })
+      .catch(() => {
+        setContainerDetailCache((prev) => ({ ...prev, [def.id]: def }))
+      })
+      .finally(() => setContainerDetailLoading(null))
+  }
+
+  const [updatingContainerId, setUpdatingContainerId] = useState<string | null>(null)
+  const handleUpdateContainerField = useCallback(async (definitionId: string, patch: UpdateContainerDefinitionRequest) => {
+    setUpdatingContainerId(definitionId)
+    try {
+      const { container_definition: updated } = await updateContainerDefinition({ gameId }, definitionId, patch)
+      // Update the main list
+      setContainerDefs((prev) => prev.map((d) => d.id === definitionId ? updated : d))
+      // Update the detail cache
+      setContainerDetailCache((prev) => ({ ...prev, [definitionId]: updated }))
+      toast({ title: t('items.containerUpdated') })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" })
+    } finally {
+      setUpdatingContainerId(null)
+    }
+  }, [gameId, t, toast])
+
+  const handleSaveInlineEdit = async () => {
+    if (!editingField) return
+    const { id, field } = editingField
+    const patch: UpdateContainerDefinitionRequest = {}
+    
+    if (field === 'name') {
+      if (!editValue.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
+      patch.name = editValue.trim()
+    }
+    if (field === 'linked_item_id') patch.linked_item_definition_id = editValue
+    if (field === 'grid') {
+      const cols = parseInt(editValue)
+      const rows = parseInt(editValue2)
+      if (isNaN(cols) || cols < 1 || cols > 54) { toast({ variant: "destructive", title: t('items.colsMustBe') }); return }
+      if (isNaN(rows) || rows < 1 || rows > 54) { toast({ variant: "destructive", title: t('items.rowsMustBe') }); return }
+      patch.grid_cols = cols
+      patch.grid_rows = rows
+    }
+    if (field === 'metadata') {
+      const metadata: Record<string, any> = {}
+      metadataRows.forEach(row => {
+        const key = row.k.trim()
+        if (key) {
+          let val: any = row.v.trim()
+          // Basic type inference
+          if (val.toLowerCase() === 'true') val = true
+          else if (val.toLowerCase() === 'false') val = false
+          else if (!isNaN(Number(val)) && val !== "") val = Number(val)
+          
+          metadata[key] = val
+        }
+      })
+      patch.metadata = metadata
+    }
+    
+    await handleUpdateContainerField(id, patch)
+    setEditingField(null)
   }
 
   // ─── Gacha ───────────────────────────────────────────────────────────────────
@@ -4205,80 +4306,355 @@ export default function GameItemsPage() {
                       <TableHead>{t('items.grid')}</TableHead>
                       <TableHead>{t('items.portable')}</TableHead>
                       <TableHead>{t('items.linkedItemDefinition')}</TableHead>
-                      <TableHead>{t('items.metadata')}</TableHead>
                       <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredContainerDefs.map((def) => (
-                      <TableRow key={def.id} className="hover:bg-muted/40">
-                        <TableCell className="font-medium">
-                          {def.name}
-                          <div
-                            className="text-xs font-mono text-muted-foreground mt-0.5 max-w-[160px] truncate"
-                            title={def.id}
+                    {filteredContainerDefs.map((def) => {
+                      const isExpanded = expandedContainerId === def.id
+                      const detail = containerDetailCache[def.id]
+                      const isLoadingDetail = containerDetailLoading === def.id
+
+                      return (
+                        <Fragment key={def.id}>
+                          <TableRow
+                            className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
+                            onClick={() => handleContainerRowClick(def)}
                           >
-                            {def.id}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <ContainerTypeBadge type={def.container_type} />
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {def.grid_cols} × {def.grid_rows}
-                          <span className="text-xs ml-1">({def.grid_cols * def.grid_rows} {t('items.slots')})</span>
-                        </TableCell>
-                        <TableCell>
-                          {def.is_portable ? (
-                            <span className="text-green-500 text-sm font-medium">✓ {t('items.portable')}</span>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">✗ {t('items.fixed')}</span>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                )}
+                                <span>{def.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <ContainerTypeBadge type={def.container_type} />
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {def.grid_cols} × {def.grid_rows}
+                              <span className="text-xs ml-1">({def.grid_cols * def.grid_rows} {t('items.slots')})</span>
+                            </TableCell>
+                            <TableCell>
+                              {def.is_portable ? (
+                                <span className="text-green-500 text-sm font-medium">✓ {t('items.portable')}</span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">✗ {t('items.fixed')}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[180px]">
+                              {def.linked_item_definition_id ? (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-primary font-medium truncate" title={def.linked_item_definition_id}>
+                                    {getItemName(def.linked_item_definition_id)}
+                                  </span>
+                                  <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title={t('items.goToItemDef')}>
+                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
+                                  </Link>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex gap-1 justify-end">
+                                {def.container_type !== 'inventory' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title={t('common.delete')}
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setDeletingContainer(def)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={6} className="p-0">
+                                <div className="px-10 py-4 space-y-4 border-l-2 border-primary/20 bg-primary/5 group/expand">
+                                  {isLoadingDetail ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      {t('items.loadingDetailDots')}
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {/* ID & Name information */}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.containerIdLabel')}</p>
+                                          <div className="flex items-center gap-2 group/id">
+                                            <code className="text-xs bg-muted/60 px-1.5 py-0.5 rounded font-mono break-all">{def.id}</code>
+                                            <CopyButton text={def.id} />
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.name')}</p>
+                                          <div className="flex items-center gap-1.5">
+                                            {editingField?.id === def.id && editingField?.field === 'name' ? (
+                                              <div className="flex items-center gap-1 min-w-0 flex-1">
+                                                <Input
+                                                  value={editValue}
+                                                  onChange={(e) => setEditValue(e.target.value)}
+                                                  className="h-7 text-xs flex-1"
+                                                  autoFocus
+                                                />
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={handleSaveInlineEdit}>
+                                                  <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingField(null)}>
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center gap-1.5 group/edit">
+                                                <span className="text-sm font-medium">{def.name}</span>
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity"
+                                                  onClick={() => { setEditingField({ id: def.id, field: 'name' }); setEditValue(def.name) }}
+                                                >
+                                                  <Pencil className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <Separator />
+
+                                      {/* Details grid */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                                        <div className="space-y-0.5">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.containerType')}</p>
+                                          <p className="text-sm font-medium capitalize">{def.container_type}</p>
+                                        </div>
+                                        
+                                        <div className="space-y-0.5">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.dimensionsHeader')}</p>
+                                          <div className="flex items-center gap-1.5 min-h-[20px]">
+                                            {editingField?.id === def.id && editingField?.field === 'grid' ? (
+                                              <div className="flex items-center gap-1">
+                                                <Input
+                                                  type="number"
+                                                  value={editValue}
+                                                  onChange={(e) => setEditValue(e.target.value)}
+                                                  className="h-7 w-12 text-xs text-center px-1"
+                                                />
+                                                <span className="text-xs text-muted-foreground">×</span>
+                                                <Input
+                                                  type="number"
+                                                  value={editValue2}
+                                                  onChange={(e) => setEditValue2(e.target.value)}
+                                                  className="h-7 w-12 text-xs text-center px-1"
+                                                />
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={handleSaveInlineEdit}>
+                                                  <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingField(null)}>
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center gap-1.5 group/edit">
+                                                <p className="text-sm font-medium">{def.grid_cols} × {def.grid_rows} ({def.grid_cols * def.grid_rows} {t('items.totalSlots')})</p>
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity"
+                                                  onClick={() => {
+                                                    setEditingField({ id: def.id, field: 'grid' })
+                                                    setEditValue(String(def.grid_cols))
+                                                    setEditValue2(String(def.grid_rows))
+                                                  }}
+                                                >
+                                                  <Pencil className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-0.5">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.portable')}</p>
+                                          <p className="text-sm font-medium">{def.is_portable ? t('common.yes') : t('common.no')}</p>
+                                        </div>
+                                        
+                                        {detail && (
+                                          <div className="space-y-0.5">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.updatedAtLabel')}</p>
+                                            <p className="text-[11px] text-muted-foreground">{new Date(detail.updated_at).toLocaleString()}</p>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <Separator />
+
+                                      {/* Linked Item */}
+                                      <div className="space-y-1.5">
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.linkedItemDefinition')}</p>
+                                        <div className="flex items-center gap-1.5">
+                                          {editingField?.id === def.id && editingField?.field === 'linked_item_id' ? (
+                                            <div className="flex items-center gap-1 flex-1">
+                                              <div className="relative flex-1">
+                                                <Select
+                                                  value={editValue || "none"}
+                                                  onValueChange={(v) => setEditValue(v === "none" ? "" : v)}
+                                                >
+                                                  <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder={t('items.selectItem')} />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="none">{t('items.noLinkedItemOption')}</SelectItem>
+                                                    {containerAllItems.filter(i => i.category === 'container' || i.category === 'other').map(item => (
+                                                      <SelectItem key={item.id} value={item.id}>
+                                                        {item.name} {item.item_code ? `(${item.item_code})` : ""}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={handleSaveInlineEdit}>
+                                                <Check className="h-4 w-4" />
+                                              </Button>
+                                              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingField(null)}>
+                                                <X className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 group/edit">
+                                              {def.linked_item_definition_id ? (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-sm font-medium text-primary">
+                                                    {getItemName(def.linked_item_definition_id)}
+                                                  </span>
+                                                  <code className="text-xs text-muted-foreground bg-muted/40 px-1 rounded">{def.linked_item_definition_id}</code>
+                                                  <CopyButton text={def.linked_item_definition_id} size="h-3 w-3" />
+                                                </div>
+                                              ) : (
+                                                <span className="text-sm text-muted-foreground italic">{t('items.noLinkedItem')}</span>
+                                              )}
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity"
+                                                onClick={() => {
+                                                  setEditingField({ id: def.id, field: 'linked_item_id' })
+                                                  setEditValue(def.linked_item_definition_id || "")
+                                                }}
+                                              >
+                                                <Pencil className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Metadata */}
+                                      <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between group/meta-header">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.fullMetadata')}</p>
+                                          {editingField?.id === def.id && editingField?.field === 'metadata' && (
+                                            <div className="flex items-center gap-1">
+                                              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => {
+                                                setEditingField(null)
+                                                // Reset to cached version
+                                                const current = containerDetailCache[def.id] || def
+                                                const rows = Object.entries(current.metadata || {}).map(([k, v]) => ({
+                                                  k,
+                                                  v: typeof v === 'object' ? JSON.stringify(v) : String(v)
+                                                }))
+                                                setMetadataRows(rows.length > 0 ? rows : [{ k: "", v: "" }])
+                                              }}>{t('common.cancel')}</Button>
+                                              <Button size="sm" className="h-6 text-[10px]" onClick={handleSaveInlineEdit}>{t('common.save')}</Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="space-y-1.5 py-1">
+                                          {metadataRows.map((row, i) => (
+                                            <div key={i} className="flex gap-1.5 items-center group/meta-row">
+                                              <Input
+                                                placeholder="Key"
+                                                value={row.k}
+                                                onChange={e => {
+                                                  const next = [...metadataRows]
+                                                  next[i] = { ...next[i], k: e.target.value }
+                                                  setMetadataRows(next)
+                                                  setEditingField({ id: def.id, field: 'metadata' }) // set as dirty
+                                                }}
+                                                className="w-[140px] h-7 text-[11px] font-mono bg-background/30"
+                                              />
+                                              <span className="text-muted-foreground text-[10px]">:</span>
+                                              <Input
+                                                placeholder="Value"
+                                                value={row.v}
+                                                onChange={e => {
+                                                  const next = [...metadataRows]
+                                                  next[i] = { ...next[i], v: e.target.value }
+                                                  setMetadataRows(next)
+                                                  setEditingField({ id: def.id, field: 'metadata' }) // set as dirty
+                                                }}
+                                                className="flex-1 h-7 text-[11px] font-mono bg-background/30"
+                                              />
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0 text-destructive opacity-0 group-hover/meta-row:opacity-100 transition-opacity"
+                                                onClick={() => {
+                                                  setMetadataRows(metadataRows.filter((_, idx) => idx !== i))
+                                                  setEditingField({ id: def.id, field: 'metadata' })
+                                                }}
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </div>
+                                          ))}
+                                          
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-2 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                                            onClick={() => {
+                                              setMetadataRows([...metadataRows, { k: "", v: "" }])
+                                              setEditingField({ id: def.id, field: 'metadata' })
+                                            }}
+                                          >
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            {t('common.add' as any)}
+                                          </Button>
+                                        </div>
+                                      </div>
+
+                                      {/* Created At */}
+                                      {detail && (
+                                        <div className="text-[11px] text-muted-foreground pt-1">
+                                          <span>{t('items.createdAtLabel')}: {new Date(detail.created_at).toLocaleString()}</span>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[180px]">
-                          {def.linked_item_definition_id ? (
-                            <span className="flex items-center gap-1">
-                              <span className="text-primary font-medium truncate" title={def.linked_item_definition_id}>
-                                {containerItemName(def.linked_item_definition_id)}
-                              </span>
-                              <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title={t('items.goToItemDef')}>
-                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary shrink-0 transition-colors" />
-                              </Link>
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground italic text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
-                          {Object.keys(def.metadata ?? {}).length > 0
-                            ? Object.entries(def.metadata).map(([k, v]) => `${k}: ${v}`).join(", ")
-                            : <span className="italic">—</span>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title={t('common.edit')}
-                              onClick={() => setEditingContainer(def)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {def.container_type !== 'inventory' && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title={t('common.delete')}
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setDeletingContainer(def)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </Fragment>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -4783,17 +5159,6 @@ export default function GameItemsPage() {
         onClose={() => setShowCreateContainer(false)}
       />
 
-      {/* Edit Container Definition Modal */}
-      {editingContainer && (
-        <EditContainerDefinitionDialog
-          open={!!editingContainer}
-          gameId={gameId}
-          definition={editingContainer}
-          allItems={containerAllItems}
-          onUpdated={fetchContainerDefs}
-          onClose={() => setEditingContainer(null)}
-        />
-      )}
 
       {/* Delete Container Definition Confirmation */}
       {deletingContainer && (

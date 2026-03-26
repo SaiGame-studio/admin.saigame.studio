@@ -10,6 +10,7 @@ export const en = {
     edit: "Edit",
     delete: "Delete",
     remove: "Remove",
+    add: "Add",
     adding: "Adding...",
     search: "Search",
     noItemsFound: "No items found",
@@ -855,8 +856,6 @@ export const en = {
     backToPayment: "Back to Payment",
     totalAmount: "Total Amount",
     totalScoin: "Total sCoin",
-    noteLabel: "Note to Admin",
-    notePlaceholder: "Include your transfer reference number, bank name, or any other info to help us verify faster.",
   },
   adminGiftCodes: {
     // Page header
@@ -1675,6 +1674,14 @@ export const en = {
     linkedItemDefinition: "Linked Item Definition",
     noLinkedItem: "No linked item",
     noLinkedItemOption: "— No linked item —",
+    // Container detail
+    loadingDetailDots: "Loading detail...",
+    containerIdLabel: "Container ID",
+    linkedItemDefinitionId: "Linked Item Definition ID",
+    dimensionsHeader: "Dimensions",
+    totalSlots: "Total Slots",
+    fullMetadata: "Full Metadata",
+    selectItem: "Select an item...",
     // Equipment slots
     equipmentSlotsTitle: "Equipment Slots",
     slotKey: "Slot Key",
@@ -2767,8 +2774,6 @@ export const en = {
     toastFailedSaveInfo: "Failed to save info",
     toastFailedSaveScript: "Failed to save script",
     toastFailedLoadScript: "Failed to load script",
-    labelDescription: "Description",
-    placeholderDescription: "Describe what this script does…",
     tooltipSaveInfo: "Save info",
     tooltipRefresh: "Refresh",
     scriptBody: "Script Body",

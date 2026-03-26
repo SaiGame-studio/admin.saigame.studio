@@ -9,6 +9,7 @@ export const vi = {
     cancel: "Hủy",
     edit: "Sửa",
     delete: "Xóa",
+    add: "Thêm",
     search: "Tìm kiếm",
     noItemsFound: "Không tìm thấy mục nào",
     noData: "Không có dữ liệu",
@@ -857,8 +858,6 @@ export const vi = {
     backToPayment: "Quay lại trang thanh toán",
     totalAmount: "Tổng tiền",
     totalScoin: "Tổng sCoin",
-    noteLabel: "Ghi chú gửi Admin",
-    notePlaceholder: "Nhập mã giao dịch, tên ngân hàng hoặc thông tin để Admin xác minh nhanh hơn.",
   },
   adminGiftCodes: {
     // Tiêu đề trang
@@ -1667,6 +1666,14 @@ export const vi = {
     linkedItemDefinition: "Định nghĩa vật phẩm liên kết",
     noLinkedItem: "Không có vật phẩm liên kết",
     noLinkedItemOption: "— Không có vật phẩm liên kết —",
+    // Container detail
+    loadingDetailDots: "Đang tải chi tiết...",
+    containerIdLabel: "ID Kho chứa",
+    linkedItemDefinitionId: "ID Định nghĩa vật phẩm liên kết",
+    dimensionsHeader: "Kích thước",
+    totalSlots: "Tổng số ô",
+    fullMetadata: "Metadata đầy đủ",
+    selectItem: "Chọn một vật phẩm...",
     // Equipment slots
     equipmentSlotsTitle: "Ô trang bị",
     slotKey: "Khóa ô",
@@ -2723,8 +2730,6 @@ export const vi = {
     toastFailedSaveInfo: "Không thể lưu thông tin",
     toastFailedSaveScript: "Không thể lưu script",
     toastFailedLoadScript: "Không thể tải script",
-    labelDescription: "Mô tả",
-    placeholderDescription: "Mô tả script này làm gì…",
     tooltipSaveInfo: "Lưu thông tin",
     tooltipRefresh: "Làm mới",
     scriptBody: "Nội dung Script",
