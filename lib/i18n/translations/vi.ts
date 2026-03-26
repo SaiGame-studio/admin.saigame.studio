@@ -1938,6 +1938,38 @@ export const vi = {
     containerLinkDescPre: "Liên kết kho chứa với vật phẩm để khi người chơi sở hữu vật phẩm này, máy chủ có thể tự động tạo (qua ",
     containerLinkDescPost: ") một phiên bản kho chứa cá nhân. Đây là cách rương, ba lô và vật phẩm lưu trữ hoạt động — vật phẩm đóng vai trò \"chìa khóa\" để mở kho chứa.",
     metadataWithExample: "Metadata (vd: icon = chest_wood)",
+    explanation: {
+      writeProps: {
+        title: "Ghi thuộc tính",
+        description: "Cho phép client (người chơi) thay đổi và cập nhật trực tiếp các thuộc tính riêng của vật phẩm.",
+        whenEnabled: "Khi Bật (✓)",
+        enabled1: "Client có thể cập nhật thuộc tính vật phẩm mà không cần máy chủ xác thực",
+        enabled2: "Hữu ích cho các thuộc tính hiển thị hoặc dữ liệu phía client",
+        enabled3: "Tăng tính linh hoạt cho các tùy chỉnh vật phẩm của người chơi",
+        whenDisabled: "Khi Tắt (✗)",
+        disabled1: "Client không thể thay đổi thuộc tính vật phẩm",
+        disabled2: "Mọi thay đổi phải thông qua API của máy chủ",
+        disabled3: "Bảo mật tốt hơn cho các thuộc tính quan trọng",
+        tip: "Mẹo:",
+        tipContent: "Sử dụng tính năng này cho các thuộc tính không quan trọng như tên hiển thị, màu sắc hoặc ghi chú cá nhân.",
+      },
+      updateQty: {
+        title: "Cập nhật SL",
+        description: "Cho phép client thay đổi giá trị số lượng của các vật phẩm mà họ sở hữu.",
+        whenEnabled: "Khi Bật (✓)",
+        enabled1: "Client có thể trực tiếp cập nhật số lượng vật phẩm",
+        enabled2: "Quản lý vật phẩm nhanh hơn ở phía người dùng",
+        enabled3: "Hữu ích cho các vật phẩm tiêu hao hoặc có thể cộng dồn",
+        enabled4: "Giảm yêu cầu mạng cho các cập nhật số lượng",
+        whenDisabled: "Khi Tắt (✗)",
+        disabled1: "Thay đổi số lượng phải được máy chủ xác thực",
+        disabled2: "Ngăn chặn thay đổi số lượng vô tình hoặc ác ý",
+        disabled3: "Kiểm soát tốt hơn các vật phẩm tài nguyên giới hạn",
+        disabled4: "An toàn hơn cho các vật phẩm có giá trị hoặc loại tiền tệ",
+        warning: "Cảnh báo:",
+        warningContent: "Tắt tính năng này đối với tài nguyên giới hạn, vật phẩm cao cấp hoặc tiền tệ để ngăn chặn gian lận.",
+      }
+    }
   },
   crafting: {
     title: "Công thức Chế tạo",

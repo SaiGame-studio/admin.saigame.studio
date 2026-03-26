@@ -5194,10 +5194,10 @@ export default function GameItemsPage() {
           <SheetHeader>
             <SheetTitle>
               {explanationTopic === 'write_props' 
-                ? 'Write Props' 
+                ? t('items.explanation.writeProps.title')
                 : explanationTopic === 'update_qty' 
-                ? 'Update Qty' 
-                : 'Help'}
+                ? t('items.explanation.updateQty.title')
+                : t('common.support')}
             </SheetTitle>
           </SheetHeader>
 
@@ -5205,32 +5205,32 @@ export default function GameItemsPage() {
             {explanationTopic === 'write_props' && (
               <div className="space-y-3 text-sm">
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">Write Props</h3>
+                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.writeProps.title')}</h3>
                   <p className="text-muted-foreground">
-                    Allows clients (players) to modify and update the item's player-specific properties directly.
+                    {t('items.explanation.writeProps.description')}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenEnabled')}</h4>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>Clients can update item properties without server validation</li>
-                    <li>Useful for cosmetic properties or client-side data</li>
-                    <li>Increases flexibility for custom player item modifications</li>
+                    <li>{t('items.explanation.writeProps.enabled1')}</li>
+                    <li>{t('items.explanation.writeProps.enabled2')}</li>
+                    <li>{t('items.explanation.writeProps.enabled3')}</li>
                   </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenDisabled')}</h4>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>Clients cannot modify item properties</li>
-                    <li>All changes must go through the server API</li>
-                    <li>Better security for critical properties</li>
+                    <li>{t('items.explanation.writeProps.disabled1')}</li>
+                    <li>{t('items.explanation.writeProps.disabled2')}</li>
+                    <li>{t('items.explanation.writeProps.disabled3')}</li>
                   </ul>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
-                  💡 <strong>Tip:</strong> Use this for non-critical properties like display names, colors, or personal notes.
+                  💡 <strong>{t('items.explanation.writeProps.tip')}</strong> {t('items.explanation.writeProps.tipContent')}
                 </div>
               </div>
             )}
@@ -5238,34 +5238,34 @@ export default function GameItemsPage() {
             {explanationTopic === 'update_qty' && (
               <div className="space-y-3 text-sm">
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">Update Qty</h3>
+                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.updateQty.title')}</h3>
                   <p className="text-muted-foreground">
-                    Allows clients to modify the quantity value of items they own.
+                    {t('items.explanation.updateQty.description')}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-foreground mb-1">When Enabled (✓)</h4>
+                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenEnabled')}</h4>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>Clients can directly update item quantities</li>
-                    <li>Faster item management on client side</li>
-                    <li>Useful for consumable or stackable items</li>
-                    <li>Reduces network requests for quantity updates</li>
+                    <li>{t('items.explanation.updateQty.enabled1')}</li>
+                    <li>{t('items.explanation.updateQty.enabled2')}</li>
+                    <li>{t('items.explanation.updateQty.enabled3')}</li>
+                    <li>{t('items.explanation.updateQty.enabled4')}</li>
                   </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-foreground mb-1">When Disabled (✗)</h4>
+                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenDisabled')}</h4>
                   <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>Quantity changes must be validated by server</li>
-                    <li>Prevents accidental or malicious quantity modifications</li>
-                    <li>Better control over limited resource items</li>
-                    <li>More secure for valuable or currency-type items</li>
+                    <li>{t('items.explanation.updateQty.disabled1')}</li>
+                    <li>{t('items.explanation.updateQty.disabled2')}</li>
+                    <li>{t('items.explanation.updateQty.disabled3')}</li>
+                    <li>{t('items.explanation.updateQty.disabled4')}</li>
                   </ul>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
-                  ⚠️ <strong>Warning:</strong> Disable this for limited resources, premium items, or currency to prevent cheating.
+                  ⚠️ <strong>{t('items.explanation.updateQty.warning')}</strong> {t('items.explanation.updateQty.warningContent')}
                 </div>
               </div>
             )}

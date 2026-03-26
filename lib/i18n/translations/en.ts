@@ -1948,6 +1948,38 @@ export const en = {
     containerLinkDescPre: "Link a container to an item so that when a player owns this item, the server can automatically provision (via ",
     containerLinkDescPost: ") a personal container instance for them. This is how chests, backpacks, and storage items work — the item acts as the \"key\" to open the container.",
     metadataWithExample: "Metadata (e.g. icon = chest_wood)",
+    explanation: {
+      writeProps: {
+        title: "Write Props",
+        description: "Allows clients (players) to modify and update the item's player-specific properties directly.",
+        whenEnabled: "When Enabled (✓)",
+        enabled1: "Clients can update item properties without server validation",
+        enabled2: "Useful for cosmetic properties or client-side data",
+        enabled3: "Increases flexibility for custom player item modifications",
+        whenDisabled: "When Disabled (✗)",
+        disabled1: "Clients cannot modify item properties",
+        disabled2: "All changes must go through the server API",
+        disabled3: "Better security for critical properties",
+        tip: "Tip:",
+        tipContent: "Use this for non-critical properties like display names, colors, or personal notes.",
+      },
+      updateQty: {
+        title: "Update Qty",
+        description: "Allows clients to modify the quantity value of items they own.",
+        whenEnabled: "When Enabled (✓)",
+        enabled1: "Clients can directly update item quantities",
+        enabled2: "Faster item management on client side",
+        enabled3: "Useful for consumable or stackable items",
+        enabled4: "Reduces network requests for quantity updates",
+        whenDisabled: "When Disabled (✗)",
+        disabled1: "Quantity changes must be validated by server",
+        disabled2: "Prevents accidental or malicious quantity modifications",
+        disabled3: "Better control over limited resource items",
+        disabled4: "More secure for valuable or currency-type items",
+        warning: "Warning:",
+        warningContent: "Disable this for limited resources, premium items, or currency to prevent cheating.",
+      }
+    }
   },
   crafting: {
     // Toolbar
