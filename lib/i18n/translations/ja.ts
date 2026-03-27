@@ -2832,5 +2832,13 @@ export const ja = {
     sampleReplaceTooltip: "クリックでスクリプト全体を置換",
     noSamplesAvailable: "サンプルがありません",
     sampleFilterAll: "すべて",
+    runScript: "実行テスト",
+    runPayload: "ペイロード (JSON)",
+    runResult: "実行結果",
+    runButton: "実行",
+    running: "実行中...",
+    toastRunSuccess: "スクリプトを実行しました",
+    toastRunFailed: "スクリプトの実行に失敗しました",
+    runResultPlaceholder: "実行結果がここに表示されます...",
   },
 };

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Box, ExternalLink, Gift, Grid2x2, List, Package, RefreshCw, Search, X } from "lucide-react"
 import { PlayerSectionNav } from "@/components/PlayerSectionNav"
@@ -295,11 +295,11 @@ function GridView({ container, items, gameId, onRefresh, loading }: { container:
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ContainerItemsPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { id: string; progressId: string; containerId: string }
+  params: Promise<{ id: string; progressId: string; containerId: string }>
 }) {
-  const { id: gameId, progressId, containerId } = params
+  const { id: gameId, progressId, containerId } = use(paramsPromise)
   const router = useRouter()
   const searchParams = useSearchParams()
 

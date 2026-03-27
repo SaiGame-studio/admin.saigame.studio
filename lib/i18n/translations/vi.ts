@@ -2876,5 +2876,13 @@ export const vi = {
     sampleReplaceTooltip: "Nhấn để thay thế toàn bộ script",
     noSamplesAvailable: "Không có script mẫu",
     sampleFilterAll: "Tất cả",
+    runScript: "Chạy Thử",
+    runPayload: "Dữ liệu (JSON)",
+    runResult: "Kết quả",
+    runButton: "Chạy",
+    running: "Đang chạy...",
+    toastRunSuccess: "Thực thi script thành công",
+    toastRunFailed: "Thực thi script thất bại",
+    runResultPlaceholder: "Chạy script để thấy kết quả...",
   },
 };

@@ -2920,5 +2920,13 @@ export const en = {
     sampleReplaceTooltip: "Click replaces entire script",
     noSamplesAvailable: "No samples available",
     sampleFilterAll: "All",
+    runScript: "Run Script",
+    runPayload: "Payload (JSON)",
+    runResult: "Run Result",
+    runButton: "Run",
+    running: "Running...",
+    toastRunSuccess: "Script executed successfully",
+    toastRunFailed: "Script execution failed",
+    runResultPlaceholder: "Run script to see results...",
   },
 };

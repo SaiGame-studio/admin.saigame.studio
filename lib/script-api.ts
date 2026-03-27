@@ -52,3 +52,10 @@ export async function updateScript(
 export async function deleteScript(gameId: string, scriptId: string): Promise<void> {
   return api.delete(`/api/v1/games/${gameId}/scripts/${scriptId}`)
 }
+export async function runScript(
+  gameId: string,
+  scriptId: string,
+  payload: any,
+): Promise<any> {
+  return api.post(`/api/v1/games/${gameId}/scripts/${scriptId}/run`, { payload })
+}
