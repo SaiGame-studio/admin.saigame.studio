@@ -253,24 +253,6 @@ const LIMIT_EXPLANATIONS: Record<string, {
     ],
     tip: "Use reset schedules to keep the competition fresh. Rare tier is recommended for games with seasonal ranking systems.",
   },
-  gacha: {
-    title: "Gacha Packs",
-    icon: "🎰",
-    tagline: "Number of unique gacha/loot box definitions",
-    description: "Gacha Packs define the loot tables and drop rates for randomized item rewards. Each pack can contain multiple items with weighted probabilities.",
-    details: [
-      "Default base limit: 10 gacha definitions.",
-      "Controls how many unique gacha or loot box types you can manage.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+10 packs" },
-      { tier: "Uncommon (×7 max)", perStack: "+10 packs / stack" },
-      { tier: "Rare (×3 max)", perStack: "+100 packs / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K packs / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+10K packs / stack" },
-    ],
-    tip: "Balance your gacha rates early — Epic and Legendary tiers allow for massive variation in loot tables.",
-  },
 }
 
 // ---------------------------------------------------------------------------
@@ -578,10 +560,9 @@ export default function GamePluginsPage() {
             max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
             max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
             max_scripts: acc.max_scripts + (plugin.scripts_grant ?? 0) * n,
-            max_gacha_packs: acc.max_gacha_packs + (plugin.gacha_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0, max_gacha_packs: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -740,11 +721,10 @@ export default function GamePluginsPage() {
                   { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
                   { key: "scripts", label: t('plugins.materia.labelScripts'), max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
                   { key: "entity_defs", label: t('plugins.materia.labelEntityDefs'), max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
-                  { key: "gacha", label: t('plugins.materia.labelGacha'), max: game.limits?.max_gacha_packs ?? null, reduction: pendingReduction?.max_gacha_packs, used: game.usage?.gacha_packs ?? 0, icon: "🎰", grantField: (p: Plugin) => p.gacha_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
             const col2 = statsData.slice(0, 4)
-            const col3 = statsData.slice(4, 8)
-            const col4 = statsData.slice(8)
+            const col3 = statsData.slice(4, 7)
+            const col4 = statsData.slice(7)
             const renderStat = (row: any) => {
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
@@ -934,7 +914,6 @@ export default function GamePluginsPage() {
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
                         { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
                         { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
-                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1640,7 +1619,6 @@ export default function GamePluginsPage() {
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
                         { icon: "📜", label: t('plugins.materia.labelScripts'), val: (confirmPlugin.scripts_grant ?? 0) * confirmStacks },
                         { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: (confirmPlugin.entity_defs_grant ?? 0) * confirmStacks },
-                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: (confirmPlugin.gacha_grant ?? 0) * confirmStacks },
                       ].map((r: any) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
@@ -1733,7 +1711,6 @@ export default function GamePluginsPage() {
                       { key: "event_types", max: game.limits?.max_event_types ?? null, used: game.usage?.event_types ?? 0 },
                       { key: "scripts", max: game.limits?.max_scripts ?? null, used: game.usage?.scripts ?? 0 },
                       { key: "entity_defs", max: game.limits?.max_entity_defs ?? null, used: game.usage?.entity_definitions ?? 0 },
-                      { key: "gacha", max: game.limits?.max_gacha_packs ?? null, used: game.usage?.gacha_packs ?? 0 },
                     ].find(r => r.key === openLimitSheet)
                     if (!row || row.max == null) return null
                     const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0

@@ -2845,6 +2845,7 @@ export const en = {
     // Header
     scriptCount: "script",
     scriptCountPlural: "scripts",
+    scriptsUnit: "scripts",
 
     // Toolbar
     scriptsDefinedSingular: "script defined",
@@ -2875,7 +2876,7 @@ export const en = {
     labelTriggerType: "Trigger Type",
     placeholderName: "calc_reward",
     placeholderDescription: "Describe what this script does…",
-    placeholderTriggerType: "on_match_end",
+    triggerTypeHint: "Can be any custom string that your game logic invokes.",
     nameHint: "This is the <strong>trigger key</strong> — your game client calls this exact name to invoke the script. Must start with a letter; lowercase letters, digits and underscores only.",
     btnCancel: "Cancel",
     btnCreateScript: "Create Script",

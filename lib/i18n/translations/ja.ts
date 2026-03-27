@@ -2757,6 +2757,7 @@ export const ja = {
     // Header
     scriptCount: "スクリプト",
     scriptCountPlural: "スクリプト",
+    scriptsUnit: "スクリプト",
 
     // Toolbar
     scriptsDefinedSingular: "件のスクリプトが定義済み",
@@ -2787,7 +2788,7 @@ export const ja = {
     labelTriggerType: "トリガータイプ",
     placeholderName: "calc_reward",
     placeholderDescription: "このスクリプトの機能を説明…",
-    placeholderTriggerType: "on_match_end",
+    triggerTypeHint: "ゲームロジックから呼び出される任意のカスタム文字列（トリガー）を指定できます。",
     nameHint: "これは<strong>トリガーキー</strong>です — ゲームクライアントはこの名前でスクリプトを呼び出します。英小文字で始まり、英小文字、数字、アンダースコアのみ使用できます。",
     btnCancel: "キャンセル",
     btnCreateScript: "スクリプト作成",

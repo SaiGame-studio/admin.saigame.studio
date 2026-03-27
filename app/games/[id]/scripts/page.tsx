@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil,
+  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil, Hammer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -229,10 +229,39 @@ export default function ScriptsPage() {
               <Code2 className="h-7 w-7 text-muted-foreground" />
               {t('scripts.pageTitle')}
             </h1>
-            <p className="text-muted-foreground text-sm">
-              {scripts.length} {scripts.length !== 1 ? t('scripts.scriptCountPlural') : t('scripts.scriptCount')}
-              {game ? ` · ${game.name}` : ""}
-            </p>
+            <div className="text-muted-foreground flex items-center gap-2">
+              {game && game.limits?.max_scripts != null
+                ? (() => {
+                    const max = game.limits.max_scripts
+                    const used = game.usage?.scripts ?? scripts.length
+                    const pct = Math.min((used / max) * 100, 100)
+                    return <>
+                    <span className={used >= max ? "text-destructive font-medium" : "text-sm"}>
+                      {used.toLocaleString()} / {max.toLocaleString()} {t('scripts.scriptsUnit')}
+                    </span>
+                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                      <span
+                        className={`block h-full rounded-full transition-all ${
+                          used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </span>
+                    <Link
+                      href={`/games/${gameId}/plugins`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      title="Manage plugins / raise limits"
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
+                  })()
+                : <p className="text-sm">
+                    {scripts.length} {scripts.length !== 1 ? t('scripts.scriptCountPlural') : t('scripts.scriptCount')}
+                    {game ? ` · ${game.name}` : ""}
+                  </p>
+              }
+            </div>
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
@@ -350,12 +379,14 @@ export default function ScriptsPage() {
               <Label htmlFor="s-trigger">{t('scripts.labelTriggerType')} <span className="text-destructive">*</span></Label>
               <Input
                 id="s-trigger"
-                placeholder={t('scripts.placeholderTriggerType')}
                 value={form.trigger_type}
                 onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))}
                 className="font-mono"
                 list="trigger-suggestions"
               />
+              <p className="text-xs text-muted-foreground">
+                {t('scripts.triggerTypeHint')}
+              </p>
               <datalist id="trigger-suggestions">
                 {TRIGGER_TYPE_SUGGESTIONS.map(s => (
                   <option key={s} value={s} />

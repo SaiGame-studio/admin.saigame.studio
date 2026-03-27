@@ -2801,6 +2801,7 @@ export const vi = {
     // Header
     scriptCount: "kịch bản",
     scriptCountPlural: "kịch bản",
+    scriptsUnit: "scripts",
 
     // Toolbar
     scriptsDefinedSingular: "kịch bản đã định nghĩa",
@@ -2831,7 +2832,7 @@ export const vi = {
     labelTriggerType: "Loại trigger",
     placeholderName: "calc_reward",
     placeholderDescription: "Mô tả script này làm gì…",
-    placeholderTriggerType: "on_match_end",
+    triggerTypeHint: "Có thể là bất kỳ chuỗi nào do logic game của bạn gọi (trigger).",
     nameHint: "Đây là <strong>trigger key</strong> — game client gọi chính xác tên này để thực thi script. Phải bắt đầu bằng chữ cái; chỉ chữ thường, số và dấu gạch dưới.",
     btnCancel: "Hủy",
     btnCreateScript: "Tạo Script",
