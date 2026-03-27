@@ -2815,7 +2815,6 @@ export const vi = {
 
     // Table headers
     tableHeaderName: "Tên",
-    tableHeaderTrigger: "Trigger",
     tableHeaderDescription: "Mô tả",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Hoạt động",
@@ -2829,21 +2828,25 @@ export const vi = {
     createDescription: "Viết script Lua được kích hoạt bởi sự kiện game.",
     labelName: "Tên",
     labelDescription: "Mô tả",
-    labelTriggerType: "Loại trigger",
     placeholderName: "calc_reward",
     placeholderDescription: "Mô tả script này làm gì…",
-    triggerTypeHint: "Có thể là bất kỳ chuỗi nào do logic game của bạn gọi (trigger).",
     nameHint: "Đây là <strong>trigger key</strong> — game client gọi chính xác tên này để thực thi script. Phải bắt đầu bằng chữ cái; chỉ chữ thường, số và dấu gạch dưới.",
     btnCancel: "Hủy",
     btnCreateScript: "Tạo Script",
 
+    // Xóa
+    deleteTitle: "Xóa Script",
+    deleteDescription: "Bạn có chắc chắn muốn xóa script",
+    deleteCannotUndone: "Hành động này không thể hoàn tác.",
+
     // Validation
     validationNameRequired: "Tên là bắt buộc.",
-    validationTriggerRequired: "Loại trigger là bắt buộc.",
 
     // Toasts
     toastScriptCreated: "Đã tạo script",
+    toastScriptDeleted: "Đã xóa script",
     toastFailedCreate: "Không thể tạo script",
+    toastFailedDelete: "Không thể xóa script",
     toastFailedLoad: "Không thể tải scripts",
 
     // Edit page

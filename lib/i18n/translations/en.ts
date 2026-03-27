@@ -2859,7 +2859,6 @@ export const en = {
 
     // Table headers
     tableHeaderName: "Name",
-    tableHeaderTrigger: "Trigger",
     tableHeaderDescription: "Description",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Active",
@@ -2873,21 +2872,25 @@ export const en = {
     createDescription: "Write a Lua script triggered by a game event.",
     labelName: "Name",
     labelDescription: "Description",
-    labelTriggerType: "Trigger Type",
     placeholderName: "calc_reward",
     placeholderDescription: "Describe what this script does…",
-    triggerTypeHint: "Can be any custom string that your game logic invokes.",
     nameHint: "This is the <strong>trigger key</strong> — your game client calls this exact name to invoke the script. Must start with a letter; lowercase letters, digits and underscores only.",
     btnCancel: "Cancel",
     btnCreateScript: "Create Script",
 
+    // Delete
+    deleteTitle: "Delete Script",
+    deleteDescription: "Are you sure you want to delete script",
+    deleteCannotUndone: "This action cannot be undone.",
+
     // Validation
     validationNameRequired: "Name is required.",
-    validationTriggerRequired: "Trigger type is required.",
 
     // Toasts
     toastScriptCreated: "Script created",
+    toastScriptDeleted: "Script deleted",
     toastFailedCreate: "Failed to create script",
+    toastFailedDelete: "Failed to delete script",
     toastFailedLoad: "Failed to load scripts",
 
     // Edit page

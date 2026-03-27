@@ -355,7 +355,6 @@ export default function ScriptEditPage() {
               </h1>
               {script && (
                 <div className="flex items-center gap-2 mt-0.5 text-sm text-muted-foreground">
-                  <Badge variant="outline" className="font-mono font-normal text-xs">{script.trigger_type}</Badge>
                   <span className="flex items-center gap-1">
                     <Layers className="h-3 w-3" />
                     v{script.version}
@@ -570,7 +569,6 @@ export default function ScriptEditPage() {
                           </div>
                           <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
                           <div className="flex items-center gap-1 mt-1.5">
-                            <Badge variant="outline" className="text-[10px] font-mono font-normal px-1 py-0">{s.trigger_type}</Badge>
                             {s.game_type && <Badge variant="secondary" className="text-[10px] font-normal px-1 py-0 capitalize">{s.game_type}</Badge>}
                           </div>
                         </button>

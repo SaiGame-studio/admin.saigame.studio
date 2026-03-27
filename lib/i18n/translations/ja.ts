@@ -2771,7 +2771,6 @@ export const ja = {
 
     // Table headers
     tableHeaderName: "名前",
-    tableHeaderTrigger: "トリガー",
     tableHeaderDescription: "説明",
     tableHeaderVer: "Ver",
     tableHeaderActive: "アクティブ",
@@ -2785,21 +2784,25 @@ export const ja = {
     createDescription: "ゲームイベントでトリガーされるLuaスクリプトを作成します。",
     labelName: "名前",
     labelDescription: "説明",
-    labelTriggerType: "トリガータイプ",
     placeholderName: "calc_reward",
     placeholderDescription: "このスクリプトの機能を説明…",
-    triggerTypeHint: "ゲームロジックから呼び出される任意のカスタム文字列（トリガー）を指定できます。",
     nameHint: "これは<strong>トリガーキー</strong>です — ゲームクライアントはこの名前でスクリプトを呼び出します。英小文字で始まり、英小文字、数字、アンダースコアのみ使用できます。",
     btnCancel: "キャンセル",
     btnCreateScript: "スクリプト作成",
 
+    // 削除
+    deleteTitle: "スクリプトを削除",
+    deleteDescription: "本当にスクリプトを削除しますか",
+    deleteCannotUndone: "この操作は取り消せません。",
+
     // Validation
     validationNameRequired: "名前は必須です。",
-    validationTriggerRequired: "トリガータイプは必須です。",
 
     // Toasts
     toastScriptCreated: "スクリプトを作成しました",
+    toastScriptDeleted: "スクリプトを削除しました",
     toastFailedCreate: "スクリプトの作成に失敗しました",
+    toastFailedDelete: "スクリプトの削除に失敗しました",
     toastFailedLoad: "スクリプトの読み込みに失敗しました",
 
     // Edit page

@@ -48,3 +48,7 @@ export async function updateScript(
 ): Promise<GameScript> {
   return api.patch(`/api/v1/games/${gameId}/scripts/${scriptId}`, body)
 }
+/** DELETE /api/v1/games/:gameId/scripts/:scriptId — Delete a script */
+export async function deleteScript(gameId: string, scriptId: string): Promise<void> {
+  return api.delete(`/api/v1/games/${gameId}/scripts/${scriptId}`)
+}

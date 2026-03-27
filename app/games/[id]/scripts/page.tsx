@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil, Hammer,
+  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil, Hammer, Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,35 +18,19 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList,
 } from "@/components/ui/breadcrumb"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { getGame } from "@/lib/game-api"
-import { listScripts, createScript, updateScript } from "@/lib/script-api"
+import { listScripts, createScript, updateScript, deleteScript } from "@/lib/script-api"
 import type { Game } from "@/types/game"
 import type { GameScript, CreateScriptRequest } from "@/types/script"
-
-const TRIGGER_TYPE_SUGGESTIONS = [
-  "on_match_end",
-  "on_match_start",
-  "on_player_join",
-  "on_player_leave",
-  "on_item_craft",
-  "on_quest_complete",
-  "on_level_up",
-  "on_purchase",
-  "manual",
-]
-
-function TriggerBadge({ trigger }: { trigger: string }) {
-  return (
-    <Badge variant="outline" className="text-xs font-mono font-normal text-muted-foreground">
-      {trigger}
-    </Badge>
-  )
-}
 
 function VersionBadge({ version }: { version: number }) {
   return (
@@ -59,14 +43,14 @@ function VersionBadge({ version }: { version: number }) {
 interface ScriptRowProps {
   script: GameScript
   onUpdated: (s: GameScript) => void
+  onDeleteRequested: (s: GameScript) => void
 }
 
-function ScriptRow({ script, onUpdated }: ScriptRowProps) {
+function ScriptRow({ script, onUpdated, onDeleteRequested }: ScriptRowProps) {
   const { toast } = useToast()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
   const router = useRouter()
-  const [saving, setSaving] = useState(false)
 
   async function toggleActive() {
     try {
@@ -79,15 +63,15 @@ function ScriptRow({ script, onUpdated }: ScriptRowProps) {
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
+      {/* Version */}
+      <div className="w-[36px] shrink-0 flex justify-center">
+        <VersionBadge version={script.version} />
+      </div>
+
       {/* Name */}
       <div className="w-[180px] shrink-0 min-w-0 flex items-center gap-1">
         <p className="font-semibold text-sm truncate">{script.name}</p>
         <CopyButton text={script.name} />
-      </div>
-
-      {/* Trigger type */}
-      <div className="w-[150px] shrink-0">
-        <TriggerBadge trigger={script.trigger_type} />
       </div>
 
       {/* Description */}
@@ -95,22 +79,32 @@ function ScriptRow({ script, onUpdated }: ScriptRowProps) {
         <p className="text-sm text-muted-foreground truncate">{script.description || <span className="italic opacity-50">—</span>}</p>
       </div>
 
-      {/* Version */}
-      <VersionBadge version={script.version} />
-
       {/* Active switch */}
-      <Switch checked={script.is_active} onCheckedChange={toggleActive} className="shrink-0" />
+      <div className="w-[48px] shrink-0 flex justify-center">
+        <Switch checked={script.is_active} onCheckedChange={toggleActive} />
+      </div>
 
-      {/* Edit button → navigate to edit page */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
-        title={t('scripts.editScript')}
-        onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
+      {/* Actions column */}
+      <div className="w-16 shrink-0 flex items-center justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          title={t('scripts.editScript')}
+          onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          title={t('common.delete')}
+          onClick={() => onDeleteRequested(script)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -120,7 +114,6 @@ const DEFAULT_SCRIPT_BODY = "-- Lua script"
 const defaultForm: CreateScriptRequest = {
   name: "",
   description: "",
-  trigger_type: "",
   script_body: DEFAULT_SCRIPT_BODY,
 }
 
@@ -145,6 +138,10 @@ export default function ScriptsPage() {
   const [creating, setCreating] = useState(false)
   const [triggerOpen, setTriggerOpen] = useState(false)
 
+  // Delete confirmation
+  const [deletingScript, setDeletingScript] = useState<GameScript | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -168,9 +165,29 @@ export default function ScriptsPage() {
     setScripts(prev => prev.map(s => s.id === updated.id ? updated : s))
   }
 
+  async function handleDeleteConfirm() {
+    if (!deletingScript) return
+    setIsDeleting(true)
+    try {
+      await deleteScript(gameId, deletingScript.id)
+      setScripts(prev => prev.filter(s => s.id !== deletingScript.id))
+      toast({ title: t('scripts.toastScriptDeleted'), description: deletingScript.name })
+      setDeletingScript(null)
+      // Refresh usage/limits
+      getGame(gameId).then(g => setGame(g)).catch(() => null)
+    } catch (err: unknown) {
+      toast({ 
+        variant: "destructive", 
+        title: t('scripts.toastFailedDelete'), 
+        description: err instanceof Error ? err.message : t('common.unknownError') 
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   function validateForm(): string | null {
     if (!form.name.trim()) return t('scripts.validationNameRequired')
-    if (!form.trigger_type.trim()) return t('scripts.validationTriggerRequired')
     return null
   }
 
@@ -183,13 +200,14 @@ export default function ScriptsPage() {
       const created = await createScript(gameId, {
         name: form.name.trim(),
         description: form.description.trim(),
-        trigger_type: form.trigger_type.trim(),
         script_body: form.script_body,
       })
       setScripts(prev => [created, ...prev])
       setCreateOpen(false)
       setForm(defaultForm)
       toast({ title: t('scripts.toastScriptCreated'), description: created.name })
+      // Refresh usage/limits
+      getGame(gameId).then(g => setGame(g)).catch(() => null)
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : t('scripts.toastFailedCreate'))
     } finally {
@@ -313,16 +331,20 @@ export default function ScriptsPage() {
         <div className="border rounded-lg overflow-hidden">
           {/* Column header */}
           <div className="flex items-center gap-3 px-4 py-2 bg-muted/40 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            <div className="w-[180px] shrink-0">{t('scripts.tableHeaderName')}</div>
-            <div className="w-[150px] shrink-0">{t('scripts.tableHeaderTrigger')}</div>
-            <div className="flex-1">{t('scripts.tableHeaderDescription')}</div>
             <div className="w-[36px] shrink-0 text-center">{t('scripts.tableHeaderVer')}</div>
+            <div className="w-[180px] shrink-0">{t('scripts.tableHeaderName')}</div>
+            <div className="flex-1">{t('scripts.tableHeaderDescription')}</div>
             <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderActive')}</div>
-            <div className="w-8 shrink-0" />
+            <div className="w-16 shrink-0" />
           </div>
           <div className="divide-y">
             {scripts.map(script => (
-              <ScriptRow key={script.id} script={script} onUpdated={handleUpdated} />
+              <ScriptRow 
+                key={script.id} 
+                script={script} 
+                onUpdated={handleUpdated} 
+                onDeleteRequested={setDeletingScript}
+              />
             ))}
           </div>
         </div>
@@ -374,38 +396,6 @@ export default function ScriptsPage() {
               />
             </div>
 
-            {/* Trigger type */}
-            <div className="space-y-1.5">
-              <Label htmlFor="s-trigger">{t('scripts.labelTriggerType')} <span className="text-destructive">*</span></Label>
-              <Input
-                id="s-trigger"
-                value={form.trigger_type}
-                onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))}
-                className="font-mono"
-                list="trigger-suggestions"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('scripts.triggerTypeHint')}
-              </p>
-              <datalist id="trigger-suggestions">
-                {TRIGGER_TYPE_SUGGESTIONS.map(s => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-              <div className="flex flex-wrap gap-1 pt-0.5">
-                {TRIGGER_TYPE_SUGGESTIONS.map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, trigger_type: s }))}
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Error */}
             {formError && (
               <Alert variant="destructive">
@@ -425,6 +415,29 @@ export default function ScriptsPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingScript} onOpenChange={(v) => !v && setDeletingScript(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('scripts.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('scripts.deleteDescription')} <span className="font-mono text-primary font-bold">{deletingScript?.name}</span>? {t('scripts.deleteCannotUndone')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => { e.preventDefault(); handleDeleteConfirm() }} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
