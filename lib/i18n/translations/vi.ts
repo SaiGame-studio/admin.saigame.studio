@@ -1194,7 +1194,120 @@ export const vi = {
       toastUnsubFailed: "Hủy đăng ký thất bại.",
       toastSubFailed: "Đăng ký thất bại.",
       toastNotEnoughCoins: "Không đủ xu. Phí:",
-      toastMaxStacks: "Tất cả slot đã đầy."
+      toastMaxStacks: "Tất cả slot đã đầy.",
+      help: {
+        ccu: {
+          title: "CCU (Người chơi đồng thời)",
+          tagline: "Giới hạn số người chơi trực tuyến tại một thời điểm",
+          description: "Giới hạn này xác định số lượng người chơi có thể kết nối vào máy chủ game của bạn tại cùng một thời điểm. Khi đạt giới hạn, người chơi mới sẽ bị từ chối kết nối.",
+          tip: "Các game mong muốn tăng trưởng viral nên nâng cấp sớm — từ Uncommon lên Rare sẽ nhân giới hạn hồ sơ lên gấp ~66 lần.",
+          details: [
+            "Giới hạn cơ bản mặc định: 20 CCU. Mỗi đăng ký plugin sẽ cộng thêm vào mức cơ bản này.",
+            "Các phiên CCU tự động hết hạn sau 30 phút không hoạt động — người chơi đang active sẽ không bao giờ bị đuổi giữa chừng."
+          ]
+        },
+        profiles: {
+          title: "Hồ sơ người chơi",
+          tagline: "Tổng số tài khoản người chơi đã đăng ký",
+          description: "Số lượng tài khoản người chơi duy nhất tối đa được lưu trữ trong cơ sở dữ liệu của game. Đây là con số phản ánh tổng lượng người dùng của bạn.",
+          tip: "Hợp nhất các biến thể vật phẩm bằng thuộc tính (vd: bậc, màu sắc) thay vì tạo định nghĩa riêng để tiết kiệm giới hạn.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 hồ sơ. Plugins giúp tăng con số này lên đáng kể.",
+            "Giới hạn tính tất cả hồ sơ từng được tạo, bao gồm cả người chơi không hoạt động hoặc đã rời bỏ.",
+            "Lỗi HTTP 429 sẽ được trả về trước khi tạo hồ sơ nếu đã đạt giới hạn."
+          ]
+        },
+        items: {
+          title: "Vật phẩm",
+          tagline: "Số lượng định nghĩa vật phẩm duy nhất có thể tạo",
+          description: "Giới hạn số lượng bản thiết kế vật phẩm duy nhất (blueprints) bạn có thể định nghĩa. Mỗi biến thể được tính là một định nghĩa riêng.",
+          tip: "Nếu bạn chỉ cần vài cửa hàng, bậc Rare (lên đến 150 cửa hàng với ×3) là quá đủ cho hầu hết game tầm trung.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa vật phẩm.",
+            "Điều này kiểm soát các loại vật phẩm (định nghĩa), không phải các bản thể vật phẩm mà người chơi sở hữu.",
+            "Mỗi biến thể được tính là một định nghĩa riêng (vd: Kiếm Sắt và Kiếm Thép là hai vật phẩm khác nhau)."
+          ]
+        },
+        shops: {
+          title: "Cửa hàng",
+          tagline: "Số lượng cửa hàng trong game bạn có thể thiết lập",
+          description: "Số lượng thực thể cửa hàng tối đa bạn có thể tạo. Mỗi cửa hàng có thể có danh mục và quy tắc giá riêng.",
+          tip: "Bậc Common và Uncommon cung cấp gói nhiệm vụ giống nhau. Nâng lên Rare sẽ tăng gấp 10 lần và mở khóa Battle Pass.",
+          details: [
+            "Giới hạn cơ bản mặc định: 2 cửa hàng.",
+            "Cửa hàng sự kiện theo mùa, cửa hàng xoay vòng hàng tuần và cửa hàng vĩnh viễn đều được tính là các thực thể riêng biệt.",
+            "Cửa hàng có thể được giới hạn cho các chế độ game, khu vực hoặc phân khúc người chơi cụ thể."
+          ]
+        },
+        quests: {
+          title: "Nhiệm vụ",
+          tagline: "Số lượng định nghĩa nhiệm vụ có thể thiết kế",
+          description: "Kiểm soát số lượng định nghĩa nhiệm vụ bạn có thể tạo trên mọi loại. Yêu cầu bậc Rare trở lên để mở khóa Battle Pass.",
+          tip: "Nếu bạn cần các cốt truyện rẽ nhánh sâu, hãy ưu tiên Epic trở lên — giới hạn node trên mỗi journey thường quan trọng hơn.",
+          details: [
+            "Giới hạn cơ bản mặc định: 30 định nghĩa nhiệm vụ.",
+            "Bao gồm tất cả các loại nhiệm vụ: hàng ngày, hàng tuần, cốt truyện, một lần và theo mùa.",
+            "Các bộ Battle Pass yêu cầu bậc Rare trở lên (30 bộ/stack ở Rare, 300 ở Epic, 3,000 ở Legendary)."
+          ]
+        },
+        nodes: {
+          title: "Journey Node Def",
+          tagline: "Các mốc và cổng trong biểu đồ tiến trình người chơi",
+          description: "Journey Node Definitions xác định số lượng giai đoạn hoặc điểm kiểm soát rẽ nhánh bạn có thể tạo trong hành trình người chơi.",
+          tip: "Thiết kế Event Types xoay quanh hành động người chơi, không phải logic code. Đặt tên chung nhất để tái sử dụng cho nhiều điều kiện.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa node.",
+            "Node Defs không nhận Sự kiện người chơi trực tiếp — các sự kiện phải được ánh xạ qua một Event Type trước."
+          ]
+        },
+        event_types: {
+          title: "Event Types",
+          tagline: "Các sự kiện người chơi có tên để game phát và theo dõi",
+          description: "Event Types là điểm bắt đầu cho dữ liệu telemetry: game phát một sự kiện theo tên và hệ thống sẽ định tuyến nó.",
+          tip: "Sử dụng thiết kế script modular để tái sử dụng logic và giảm thiểu số lượng script cá nhân cần thiết.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa event type.",
+            "Event Types là cách duy nhất để hành động người chơi đi vào hệ thống Journey — Node Defs không thể nhận sự kiện trực tiếp.",
+            "Một Event Type có thể kích hoạt điều kiện cho nhiều Journey Node khác nhau cùng một lúc."
+          ]
+        },
+        scripts: {
+          title: "Scripts",
+          tagline: "Các kịch bản logic và tự động hóa tùy chỉnh cho game",
+          description: "Scripts cho phép bạn thực hiện các logic và hành vi phức tạp phía máy chủ. Mỗi tệp script duy nhất tính là một slot.",
+          tip: "Giữ các entity def chung nhất có thể. Sử dụng thuộc tính và metadata để phân biệt các biến thể thay vì tạo định nghĩa mới.",
+          details: [
+            "Giới hạn cơ bản mặc định: 10 scripts. Mỗi đăng ký plugin sẽ cộng thêm vào mức cơ bản này.",
+            "Giới hạn tính các tệp script duy nhất, không tính số lần thực thi script hoặc import thư viện."
+          ]
+        },
+        entity_defs: {
+          title: "Entity Def",
+          tagline: "Tổng số định nghĩa thực thể được phép (Kẻ địch, Phòng, Cổ vật, v.v.)",
+          description: "Entity Defs cho phép bạn tạo các bộ khung cấu trúc cho bất kỳ đối tượng nào trong game (blueprints).",
+          tip: "Thiết kế thực thể của bạn để có thể tái sử dụng qua nhiều cấp độ hoặc chế độ chơi khác nhau.",
+          details: [
+            "Ví dụ phổ biến: Kẻ địch, NPC, Phòng, Cổ vật, Boss, Đơn vị phòng thủ.",
+            "Mỗi entity def duy nhất tiêu tốn một slot trong giới hạn của bạn.",
+            "Khi đạt giới hạn, bạn không thể tạo các loại thực thể mới cho đến khi nâng cấp hoặc gỡ bỏ những định nghĩa không sử dụng."
+          ]
+        },
+        gacha: {
+          title: "Gói Gacha",
+          tagline: "Số lượng định nghĩa gói gacha/hộp quà duy nhất",
+          description: "Kiểm soát số lượng bản mẫu gói gacha duy nhất bạn có thể định nghĩa cho game của mình.",
+          tip: "Cân bằng tỷ lệ gacha sớm — bậc Epic và Legendary cho phép biến hóa cực lớn trong các bảng vật phẩm rơi ra.",
+          details: [
+            "Giới hạn cơ bản mặc định: 10 định nghĩa gacha. Mỗi đăng ký plugin cộng thêm vào mức cơ bản này.",
+            "Kiểm soát số lượng định nghĩa hòm đồ (loot box) hoặc bể phần thưởng (gacha pool) mà bạn có thể quản lý."
+          ]
+        },
+        keyPoints: "Điểm chính",
+        currentUsage: "Sử dụng hiện tại",
+        used: "đã dùng",
+        materiaGrantTable: "Bảng giới hạn Materia",
+        browseMateria: "Duyệt Materia có sẵn ↑"
+      }
     }
   },
   mailbox: {

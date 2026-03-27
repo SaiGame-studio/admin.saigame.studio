@@ -1655,26 +1655,36 @@ export default function GamePluginsPage() {
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-3xl">{exp.icon}</span>
                     <div>
-                      <SheetTitle className="text-lg leading-tight">{exp.title}</SheetTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">{exp.tagline}</p>
+                      <SheetTitle className="text-lg leading-tight">
+                        {t(`plugins.materia.help.${openLimitSheet}.title`) === `plugins.materia.help.${openLimitSheet}.title` ? exp.title : t(`plugins.materia.help.${openLimitSheet}.title`)}
+                      </SheetTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t(`plugins.materia.help.${openLimitSheet}.tagline`) === `plugins.materia.help.${openLimitSheet}.tagline` ? exp.tagline : t(`plugins.materia.help.${openLimitSheet}.tagline`)}
+                      </p>
                     </div>
                   </div>
                   <SheetDescription className="text-sm leading-relaxed text-foreground/80">
-                    {exp.description}
+                    {t(`plugins.materia.help.${openLimitSheet}.description`) === `plugins.materia.help.${openLimitSheet}.description` ? exp.description : t(`plugins.materia.help.${openLimitSheet}.description`)}
                   </SheetDescription>
                 </SheetHeader>
 
                 <div className="space-y-5">
                   {/* Key points */}
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Key Points</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                      {t('plugins.materia.help.keyPoints') === 'plugins.materia.help.keyPoints' ? 'Key Points' : t('plugins.materia.help.keyPoints')}
+                    </p>
                     <ul className="space-y-2.5">
-                      {exp.details.map((detail, i) => (
-                        <li key={i} className="flex gap-2.5 text-sm">
-                          <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
-                          <span className="text-muted-foreground leading-relaxed">{detail}</span>
-                        </li>
-                      ))}
+                      {exp.details.map((detail, i) => {
+                        const tk = `plugins.materia.help.${openLimitSheet}.details.${i}`
+                        const displayDetail = t(tk) === tk ? detail : t(tk)
+                        return (
+                          <li key={i} className="flex gap-2.5 text-sm">
+                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                            <span className="text-muted-foreground leading-relaxed">{displayDetail}</span>
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
 
@@ -1693,7 +1703,9 @@ export default function GamePluginsPage() {
                     const barColor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"
                     return (
                       <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Current Usage</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                          {t('plugins.materia.help.currentUsage') === 'plugins.materia.help.currentUsage' ? 'Current Usage' : t('plugins.materia.help.currentUsage')}
+                        </p>
                         <div className="flex items-end justify-between mb-2">
                           <span className="text-2xl font-extrabold tabular-nums">{row.used != null ? formatNumber(row.used) : "—"}</span>
                           <span className="text-sm text-muted-foreground">/ {formatNumber(row.max)}</span>
@@ -1701,14 +1713,18 @@ export default function GamePluginsPage() {
                         <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">{pct.toFixed(1)}% used</p>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {pct.toFixed(1)}% {t('plugins.materia.help.used') === 'plugins.materia.help.used' ? 'used' : t('plugins.materia.help.used')}
+                        </p>
                       </div>
                     )
                   })()}
 
                   {/* Grant table */}
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Materia Grant Table</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                      {t('plugins.materia.help.materiaGrantTable') === 'plugins.materia.help.materiaGrantTable' ? 'Materia Grant Table' : t('plugins.materia.help.materiaGrantTable')}
+                    </p>
                     <div className="space-y-1.5">
                       {exp.grantTable.map((row, i) => (
                         <div key={i} className="flex items-start justify-between gap-4 text-xs">
@@ -1722,7 +1738,7 @@ export default function GamePluginsPage() {
                       onClick={() => setOpenLimitSheet(null)}
                       className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
                     >
-                      <Zap className="h-3 w-3" /> Browse available Materia ↑
+                      <Zap className="h-3 w-3" /> {t('plugins.materia.help.browseMateria') === 'plugins.materia.help.browseMateria' ? 'Browse available Materia ↑' : t('plugins.materia.help.browseMateria')}
                     </button>
                   </div>
 
