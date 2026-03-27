@@ -2928,5 +2928,7 @@ export const en = {
     toastRunSuccess: "Script executed successfully",
     toastRunFailed: "Script execution failed",
     runResultPlaceholder: "Run script to see results...",
+    savePayload: "Save Payload",
+    footerNote: "Talk to Sai if you need more methods",
   },
 };

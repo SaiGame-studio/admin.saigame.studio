@@ -2840,5 +2840,7 @@ export const ja = {
     toastRunSuccess: "スクリプトを実行しました",
     toastRunFailed: "スクリプトの実行に失敗しました",
     runResultPlaceholder: "実行結果がここに表示されます...",
+    savePayload: "ペイロードを保存",
+    footerNote: "メソッドの追加が必要な場合はSaiにご連絡ください",
   },
 };

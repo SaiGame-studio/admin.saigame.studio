@@ -57,5 +57,5 @@ export async function runScript(
   scriptId: string,
   payload: any,
 ): Promise<any> {
-  return api.post(`/api/v1/games/${gameId}/scripts/${scriptId}/run`, { payload })
+  return api.post(`/api/v1/games/${gameId}/scripts/${scriptId}/run`, payload)
 }

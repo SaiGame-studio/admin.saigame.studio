@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
-  ChevronRight, ChevronLeft,
+  ChevronRight, ChevronLeft, Play,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,17 +24,18 @@ import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { getGame } from "@/lib/game-api"
-import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts, listEntitiesPoolSamples } from "@/lib/script-api"
+import { getScript, updateScript, listSampleScripts, listTurnBaseSampleScripts, listEntitiesPoolSamples, runScript } from "@/lib/script-api"
 import type { Game } from "@/types/game"
 import type { GameScript, SampleScript } from "@/types/script"
 import CodeMirror from "@uiw/react-codemirror"
 import { StreamLanguage } from "@codemirror/language"
 import { lua } from "@codemirror/legacy-modes/mode/lua"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
-import { EditorView } from "@codemirror/view"
+import { EditorView, keymap } from "@codemirror/view"
 import { undo, redo } from "@codemirror/commands"
 import { linter, lintGutter } from "@codemirror/lint"
 import type { Diagnostic } from "@codemirror/lint"
+import { json } from "@codemirror/lang-json"
 import luaparse from "luaparse"
 
 // ---------------------------------------------------------------------------
@@ -193,6 +194,77 @@ export default function ScriptEditPage() {
   })
   const [appendMode, setAppendMode] = useState(false)
 
+  // Run script state
+  const defaultPayload = '{\n  "payload": {\n\n  }\n}'
+  const [runPayload, setRunPayload] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`run_payload_${scriptId}`)
+      return saved ?? defaultPayload
+    }
+    return defaultPayload
+  })
+  const [runResult, setRunResult] = useState<string>("")
+  const [runningScript, setRunningScript] = useState(false)
+
+  const [savedPayloadFlag, setSavedPayloadFlag] = useState(false)
+  const savedPayloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const payloadDirty = useRef(false)
+
+  function savePayloadToStorage() {
+    if (script?.name) {
+      localStorage.setItem(`run_payload_${script.name}`, runPayload)
+      payloadDirty.current = false
+      if (savedPayloadTimer.current) clearTimeout(savedPayloadTimer.current)
+      setSavedPayloadFlag(true)
+      savedPayloadTimer.current = setTimeout(() => setSavedPayloadFlag(false), 2000)
+    }
+  }
+
+  // Mark dirty when payload changes
+  const handlePayloadChange = useCallback((v: string) => {
+    setRunPayload(v)
+    payloadDirty.current = true
+  }, [])
+
+  const savePayloadRef = useRef(savePayloadToStorage)
+  useEffect(() => { savePayloadRef.current = savePayloadToStorage })
+
+  const payloadKeymapExt = useMemo(() => keymap.of([{
+    key: "Mod-s",
+    run: () => { savePayloadRef.current(); return true },
+  }]), [])
+
+  // Auto-save every 10s if dirty
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (payloadDirty.current && script?.name) {
+        savePayloadToStorage()
+      }
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [script?.name, runPayload])
+
+  async function handleRunScript() {
+    setRunningScript(true)
+    setRunResult("")
+    try {
+      let payload: any = {}
+      try {
+        payload = JSON.parse(runPayload)
+      } catch {
+        setRunResult("❌ Invalid JSON payload")
+        setRunningScript(false)
+        return
+      }
+      const result = await runScript(gameId, script?.name ?? scriptId, payload)
+      setRunResult(JSON.stringify(result, null, 2))
+    } catch (err: unknown) {
+      setRunResult(`❌ Error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setRunningScript(false)
+    }
+  }
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -206,6 +278,9 @@ export default function ScriptEditPage() {
       setDescription(s.description)
       setIsActive(s.is_active)
       setScriptBody(s.script_body)
+      // Load saved payload by script name
+      const savedPayload = localStorage.getItem(`run_payload_${s.name}`)
+      if (savedPayload) setRunPayload(savedPayload)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('scripts.toastFailedLoadScript'))
     } finally {
@@ -282,7 +357,7 @@ export default function ScriptEditPage() {
   // -------------------------------------------------------------------------
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="flex flex-col h-[calc(100vh-60px)] overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-60px)] overflow-y-auto">
       {/* ── Top header ──────────────────────────────────────────────────── */}
       <div className="px-6 pt-4 pb-3 shrink-0">
         {/* Breadcrumb */}
@@ -406,181 +481,268 @@ export default function ScriptEditPage() {
         </Alert>
       )}
 
-      {/* ── Main: editor + sample scripts ────────────────────────────────── */}
+      {/* ── Main: editor + sample scripts + run ─────────────────────────── */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">{t('scripts.loadingScript')}</span>
         </div>
       ) : !script ? null : (
-        <div className="flex flex-1 min-h-0 px-6 py-4 overflow-hidden">
-          {/* Script body editor */}
-          <div className="flex flex-1 min-w-0 flex-col gap-2">
-            <div className="flex items-center justify-between shrink-0">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('scripts.scriptBody')}
-                <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
-              </p>
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.undo()}>
-                      <Undo2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{t('scripts.tooltipUndo')}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.redo()}>
-                      <Redo2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{t('scripts.tooltipRedo')}</TooltipContent>
-                </Tooltip>
-                <Separator orientation="vertical" className="h-4 mx-0.5" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.max(10, s - 1))} disabled={fontSize <= 10}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{t('scripts.tooltipDecreaseFontSize')}</TooltipContent>
-                </Tooltip>
-                <span className="text-[11px] text-muted-foreground tabular-nums w-6 text-center select-none">{fontSize}</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.min(24, s + 1))} disabled={fontSize >= 24}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{t('scripts.tooltipIncreaseFontSize')}</TooltipContent>
-                </Tooltip>
-                <Separator orientation="vertical" className="h-4 mx-0.5" />
-                <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
-                      {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{t('scripts.tooltipSaveScript')}</TooltipContent>
-                </Tooltip>
+        <div className="flex flex-col">
+          {/* ── Top: editor + samples ─────────────────────────────────────── */}
+          <div className="flex px-6 py-4 overflow-hidden" style={{ height: "90vh" }}>
+            {/* Script body editor */}
+            <div className="flex flex-1 min-w-0 flex-col gap-2">
+              <div className="flex items-center justify-between shrink-0">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t('scripts.scriptBody')}
+                  <span className="ml-2 font-normal normal-case text-muted-foreground/60">(Lua)</span>
+                </p>
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.undo()}>
+                        <Undo2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('scripts.tooltipUndo')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editorRef.current?.redo()}>
+                        <Redo2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('scripts.tooltipRedo')}</TooltipContent>
+                  </Tooltip>
+                  <Separator orientation="vertical" className="h-4 mx-0.5" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.max(10, s - 1))} disabled={fontSize <= 10}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('scripts.tooltipDecreaseFontSize')}</TooltipContent>
+                  </Tooltip>
+                  <span className="text-[11px] text-muted-foreground tabular-nums w-6 text-center select-none">{fontSize}</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFontSize(s => Math.min(24, s + 1))} disabled={fontSize >= 24}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('scripts.tooltipIncreaseFontSize')}</TooltipContent>
+                  </Tooltip>
+                  <Separator orientation="vertical" className="h-4 mx-0.5" />
+                  <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
+                        {savingBody ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('scripts.tooltipSaveScript')}</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                <LuaEditor ref={editorRef} value={scriptBody} onChange={setScriptBody} fontSize={fontSize} />
               </div>
             </div>
-            <div className="flex-1 min-h-0">
-              <LuaEditor ref={editorRef} value={scriptBody} onChange={setScriptBody} fontSize={fontSize} />
+
+            {/* Vertical Divider with Toggle */}
+            <div className="relative flex items-center shrink-0 h-full px-2">
+              <Separator orientation="vertical" className="h-full" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-1/2 -translate-x-1/2 h-7 w-7 rounded-full border bg-background shadow-sm z-10 hover:bg-muted"
+                onClick={() => setSamplesCollapsed(!samplesCollapsed)}
+              >
+                {samplesCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            {/* Sample scripts panel */}
+            <div
+              className={`transition-all duration-300 ease-in-out flex flex-col gap-2 shrink-0 ${
+                samplesCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80 ml-2"
+              }`}
+            >
+              <div className="flex items-center justify-between shrink-0">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {t('scripts.sampleScripts')}
+                </p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-[10px] cursor-pointer select-none ${appendMode ? "text-primary" : "text-muted-foreground/60"}`}
+                        onClick={() => setAppendMode(v => !v)}
+                      >
+                        {appendMode ? t('scripts.sampleAppend') : t('scripts.sampleReplace')}
+                      </span>
+                      <Switch checked={appendMode} onCheckedChange={setAppendMode} className="h-4 w-7 [&>span]:h-3 [&>span]:w-3" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[180px] text-center">
+                    {appendMode ? t('scripts.sampleAppendTooltip') : t('scripts.sampleReplaceTooltip')}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              {samplesLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : (() => {
+                const activeSamples = sampleTab === "core" ? samples :
+                                     sampleTab === "pool" ? entitiesPoolSamples :
+                                     turnBaseSamples
+                return (
+                  <>
+                    <Tabs value={sampleTab} onValueChange={(v) => {
+                      setSampleTab(v)
+                      const sp = new URLSearchParams(searchParams.toString())
+                      if (v === "core") sp.delete("sampleTab"); else sp.set("sampleTab", v)
+                      router.replace(`?${sp.toString()}`, { scroll: false })
+                    }} className="shrink-0">
+                      <TabsList className="h-7 w-full px-0.5">
+                        <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
+                          Core ({samples.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
+                          Pool ({entitiesPoolSamples.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="turn-base" className="text-[10px] flex-1 h-5 px-1">
+                          Turn ({turnBaseSamples.length})
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    {activeSamples.length === 0 ? (
+                      <div className="flex-1 rounded-lg border border-dashed bg-muted/20 flex flex-col items-center justify-center gap-2 text-center p-4">
+                        <Code2 className="h-8 w-8 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground/60">{t('scripts.noSamplesAvailable')}</p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                        {activeSamples.map(s => (
+                          <button
+                            key={s.name}
+                            type="button"
+                            className="w-full text-left rounded-md border bg-card px-3 py-2.5 hover:border-primary hover:bg-primary/5 transition-colors group"
+                            onClick={() => {
+                              const block = `-- ${s.name}: ${s.description}\n${s.script_body}`
+                              if (appendMode) {
+                                setScriptBody(prev => prev ? prev + "\n\n" + block : block)
+                              } else {
+                                setScriptBody(block)
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <FileCode className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
+                              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{s.no}</span>
+                              <span className="text-xs font-semibold font-mono truncate group-hover:text-primary">{s.name}</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
+                            <div className="flex items-center gap-1 mt-1.5">
+                              {s.game_type && <Badge variant="secondary" className="text-[10px] font-normal px-1 py-0 capitalize">{s.game_type}</Badge>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
 
-          {/* Vertical Divider with Toggle */}
-          <div className="relative flex items-center shrink-0 h-full px-2">
-            <Separator orientation="vertical" className="h-full" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-1/2 -translate-x-1/2 h-7 w-7 rounded-full border bg-background shadow-sm z-10 hover:bg-muted"
-              onClick={() => setSamplesCollapsed(!samplesCollapsed)}
-            >
-              {samplesCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-          </div>
-
-          {/* Sample scripts panel */}
-          <div 
-            className={`transition-all duration-300 ease-in-out flex flex-col gap-2 shrink-0 ${
-              samplesCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80 ml-2"
-            }`}
-          >
-            <div className="flex items-center justify-between shrink-0">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('scripts.sampleScripts')}
-              </p>
+          {/* ── Bottom: Run Script ────────────────────────────────────────── */}
+          <Separator />
+          <div className="px-6 py-3 flex flex-col gap-2" style={{ height: "90vh" }}>
+            <div className="flex items-center justify-center gap-2 shrink-0">
+              <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedPayloadFlag ? "opacity-100" : "opacity-0"}`} />
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`text-[10px] cursor-pointer select-none ${appendMode ? "text-primary" : "text-muted-foreground/60"}`}
-                      onClick={() => setAppendMode(v => !v)}
-                    >
-                      {appendMode ? t('scripts.sampleAppend') : t('scripts.sampleReplace')}
-                    </span>
-                    <Switch checked={appendMode} onCheckedChange={setAppendMode} className="h-4 w-7 [&>span]:h-3 [&>span]:w-3" />
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={savePayloadToStorage}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-[180px] text-center">
-                  {appendMode ? t('scripts.sampleAppendTooltip') : t('scripts.sampleReplaceTooltip')}
-                </TooltipContent>
+                <TooltipContent side="bottom">{t('scripts.savePayload')}</TooltipContent>
               </Tooltip>
+              <Button
+                size="sm"
+                className="h-7 gap-1.5"
+                onClick={handleRunScript}
+                disabled={runningScript}
+              >
+                {runningScript ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {t('scripts.runButton')}
+              </Button>
             </div>
-            {samplesLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <div className="flex flex-1 min-h-0 gap-3">
+              {/* JSON Payload editor */}
+              <div className="flex flex-col flex-1 min-w-0 gap-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Play className="h-3.5 w-3.5" />
+                    {t('scripts.runScript')}
+                  </p>
+                  <span className="font-normal normal-case text-muted-foreground/60 text-[10px]">
+                    POST /api/v1/games/{gameId}/scripts/{script?.name ?? scriptId}/run
+                  </span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <CodeMirror
+                    value={runPayload}
+                    onChange={handlePayloadChange}
+                    theme={vscodeDark}
+                    extensions={[json(), payloadKeymapExt]}
+                    basicSetup={{
+                      lineNumbers: true,
+                      foldGutter: false,
+                      bracketMatching: true,
+                      closeBrackets: true,
+                      autocompletion: false,
+                      tabSize: 2,
+                    }}
+                    style={{ height: "100%", fontSize: "12px" }}
+                    className="h-full overflow-hidden rounded-lg border border-zinc-700 [&_.cm-editor]:h-full [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto"
+                  />
+                </div>
               </div>
-            ) : (() => {
-              const activeSamples = sampleTab === "core" ? samples : 
-                                   sampleTab === "pool" ? entitiesPoolSamples :
-                                   turnBaseSamples
-              return (
-                <>
-                  <Tabs value={sampleTab} onValueChange={(v) => {
-                    setSampleTab(v)
-                    const sp = new URLSearchParams(searchParams.toString())
-                    if (v === "core") sp.delete("sampleTab"); else sp.set("sampleTab", v)
-                    router.replace(`?${sp.toString()}`, { scroll: false })
-                  }} className="shrink-0">
-                    <TabsList className="h-7 w-full px-0.5">
-                      <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
-                        Core ({samples.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
-                        Pool ({entitiesPoolSamples.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="turn-base" className="text-[10px] flex-1 h-5 px-1">
-                        Turn ({turnBaseSamples.length})
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  {activeSamples.length === 0 ? (
-                    <div className="flex-1 rounded-lg border border-dashed bg-muted/20 flex flex-col items-center justify-center gap-2 text-center p-4">
-                      <Code2 className="h-8 w-8 text-muted-foreground/30" />
-                      <p className="text-xs text-muted-foreground/60">{t('scripts.noSamplesAvailable')}</p>
+              {/* Result */}
+              <div className="flex flex-col flex-1 min-w-0 gap-1">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('scripts.runResult')}</p>
+                <div className="flex-1 min-h-0 rounded-lg border border-zinc-700 bg-[#1e1e1e] overflow-auto">
+                  {runningScript ? (
+                    <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-xs">{t('scripts.running')}</span>
                     </div>
+                  ) : runResult ? (
+                    <pre className="p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all">{runResult}</pre>
                   ) : (
-                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-                      {activeSamples.map(s => (
-                        <button
-                          key={s.name}
-                          type="button"
-                          className="w-full text-left rounded-md border bg-card px-3 py-2.5 hover:border-primary hover:bg-primary/5 transition-colors group"
-                          onClick={() => {
-                            const block = `-- ${s.name}: ${s.description}\n${s.script_body}`
-                            if (appendMode) {
-                              setScriptBody(prev => prev ? prev + "\n\n" + block : block)
-                            } else {
-                              setScriptBody(block)
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <FileCode className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
-                            <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{s.no}</span>
-                            <span className="text-xs font-semibold font-mono truncate group-hover:text-primary">{s.name}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.description}</p>
-                          <div className="flex items-center gap-1 mt-1.5">
-                            {s.game_type && <Badge variant="secondary" className="text-[10px] font-normal px-1 py-0 capitalize">{s.game_type}</Badge>}
-                          </div>
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-center h-full text-muted-foreground/40">
+                      <span className="text-xs">{t('scripts.runResultPlaceholder')}</span>
                     </div>
                   )}
-                </>
-              )
-            })()}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
+      {/* ── Footer note ──────────────────────────────────────────────── */}
+      <div className="px-6 py-4 text-center text-xs text-muted-foreground/50">
+        {t('scripts.footerNote')}
+      </div>
     </div>
     </TooltipProvider>
   )

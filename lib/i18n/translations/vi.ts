@@ -2884,5 +2884,7 @@ export const vi = {
     toastRunSuccess: "Thực thi script thành công",
     toastRunFailed: "Thực thi script thất bại",
     runResultPlaceholder: "Chạy script để thấy kết quả...",
+    savePayload: "Lưu Payload",
+    footerNote: "Liên hệ Sai nếu bạn cần thêm phương thức",
   },
 };
