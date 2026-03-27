@@ -234,6 +234,43 @@ const LIMIT_EXPLANATIONS: Record<string, {
     ],
     tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate between similar entities instead of creating separate definitions for every variation.",
   },
+  boards: {
+    title: "Leaderboards",
+    icon: "📋",
+    tagline: "Track and rank player performance across seasons",
+    description: "Leaderboards allow you to rank players based on scores from events, items, or custom triggers. You can define various scoring modes (sum, max, min, latest) and setting up automated reset schedules.",
+    details: [
+      "Default base limit: 2 leaderboard definitions.",
+      "Supports different reset frequencies: Daily, Weekly, Monthly, and Seasonal.",
+      "Each season maintains its own history and archive for historical lookups.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+2 boards" },
+      { tier: "Uncommon (×7 max)", perStack: "+2 boards / stack" },
+      { tier: "Rare (×3 max)", perStack: "+30 boards / stack" },
+      { tier: "Epic (×3 max)", perStack: "+300 boards / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+3K boards / stack" },
+    ],
+    tip: "Use reset schedules to keep the competition fresh. Rare tier is recommended for games with seasonal ranking systems.",
+  },
+  gacha: {
+    title: "Gacha Packs",
+    icon: "🎰",
+    tagline: "Number of unique gacha/loot box definitions",
+    description: "Gacha Packs define the loot tables and drop rates for randomized item rewards. Each pack can contain multiple items with weighted probabilities.",
+    details: [
+      "Default base limit: 10 gacha definitions.",
+      "Controls how many unique gacha or loot box types you can manage.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+10 packs" },
+      { tier: "Uncommon (×7 max)", perStack: "+10 packs / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 packs / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K packs / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K packs / stack" },
+    ],
+    tip: "Balance your gacha rates early — Epic and Legendary tiers allow for massive variation in loot tables.",
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -696,29 +733,19 @@ export default function GamePluginsPage() {
                   { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
                   { key: "profiles", label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
                   { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
-                  { key: "scripts", label: t('game.scripts') || "Scripts", max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
                   { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
                   { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
-                  { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
                   { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
                   { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
-                  { key: "entity_defs", label: "Entity Defs", max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
+                  { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
+                  { key: "scripts", label: t('plugins.materia.labelScripts'), max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
+                  { key: "entity_defs", label: t('plugins.materia.labelEntityDefs'), max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
+                  { key: "gacha", label: t('plugins.materia.labelGacha'), max: game.limits?.max_gacha_packs ?? null, reduction: pendingReduction?.max_gacha_packs, used: game.usage?.gacha_packs ?? 0, icon: "🎰", grantField: (p: Plugin) => p.gacha_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
             const col2 = statsData.slice(0, 4)
             const col3 = statsData.slice(4, 8)
-            const col4 = [...statsData.slice(8), { isPlaceholder: true, key: "placeholder-1" }, { isPlaceholder: true, key: "placeholder-2" }]
+            const col4 = statsData.slice(8)
             const renderStat = (row: any) => {
-                  if (row.isPlaceholder) {
-                    return (
-                      <div key={row.key} className="rounded-xl border border-dashed border-border/40 bg-muted/5 px-3 py-2.5 flex flex-col justify-center min-h-[76px] opacity-40">
-                        <div className="flex items-center gap-1.5 opacity-50">
-                          <span className="text-xs">✨</span>
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Soon</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground/60 mt-1 italic">More limits ahead</p>
-                      </div>
-                    )
-                  }
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
                   const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
@@ -905,9 +932,9 @@ export default function GamePluginsPage() {
                         { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
                         { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
-                        { icon: "📜", label: t('game.scripts') || "Scripts", val: plugin.scripts_grant ?? 0 },
-                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
-                        { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1002,19 +1029,21 @@ export default function GamePluginsPage() {
                   {/* Grants breakdown */}
                   <div className="mx-4 my-2 rounded-xl bg-muted/40 px-3 py-2 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                      Grants (total ×{totalStacks})
+                      {t('plugins.materia.materiaGrantTable')} (total ×{totalStacks})
                     </p>
                     <div className="space-y-1 text-xs">
                       {([
-                        { icon: "👥", label: "CCU", val: plugin.ccu_grant },
-                        { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
-                        { icon: "📦", label: "Items", val: plugin.items_grant },
-                        { icon: "🏪", label: "Shops", val: plugin.shops_grant },
-                        { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
-                        { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
-                        { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
-                        { icon: "📋", label: "Leaderboards", val: plugin.boards_grant ?? 0 },
-                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "👥", label: t('plugins.materia.labelCcu'), val: plugin.ccu_grant },
+                        { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
+                        { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
+                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
+                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
+                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
+                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
                       ] as { icon: string; label: string; val: number }[]).map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1601,15 +1630,18 @@ export default function GamePluginsPage() {
                 {confirmPlugin && (
                   <div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
                     {[
-                      { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
-                    ].map((r) => (
+                        { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
+                        { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
+                        { icon: "📦", label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
+                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
+                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
+                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
+                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
+                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: (confirmPlugin.scripts_grant ?? 0) * confirmStacks },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: (confirmPlugin.entity_defs_grant ?? 0) * confirmStacks },
+                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: (confirmPlugin.gacha_grant ?? 0) * confirmStacks },
+                      ].map((r: any) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
                         <span className="font-semibold">+{formatNumber(r.val)}</span>
@@ -1697,6 +1729,11 @@ export default function GamePluginsPage() {
                       { key: "shops", max: game.limits?.max_shops ?? null, used: game.usage?.shops },
                       { key: "quests", max: game.limits?.max_quests ?? null, used: game.usage?.quests ?? 0 },
                       { key: "nodes", max: game.limits?.max_node_definitions ?? null, used: game.usage?.node_definitions ?? 0 },
+                      { key: "boards", max: game.limits?.max_leaderboards ?? null, used: game.usage?.leaderboards ?? 0 },
+                      { key: "event_types", max: game.limits?.max_event_types ?? null, used: game.usage?.event_types ?? 0 },
+                      { key: "scripts", max: game.limits?.max_scripts ?? null, used: game.usage?.scripts ?? 0 },
+                      { key: "entity_defs", max: game.limits?.max_entity_defs ?? null, used: game.usage?.entity_definitions ?? 0 },
+                      { key: "gacha", max: game.limits?.max_gacha_packs ?? null, used: game.usage?.gacha_packs ?? 0 },
                     ].find(r => r.key === openLimitSheet)
                     if (!row || row.max == null) return null
                     const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0

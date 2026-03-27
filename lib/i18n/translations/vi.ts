@@ -321,8 +321,8 @@ export const vi = {
     navAnalytic: "Phân tích",
     navUpgrade: "Nâng cấp",
     navMailbox: "Hộp thư",
-    navScripts: "Scripts",
-    scripts: "Scripts",
+    navScripts: "Kịch bản",
+    scripts: "Kịch bản",
     compactNav: "Thu gọn",
     expandNav: "Mở rộng",
     loadErrorRetry: "Không thể tải thông tin game. Vui lòng thử lại.",
@@ -1175,6 +1175,8 @@ export const vi = {
       labelNodeDefs: "Journey Node",
       labelEventTypes: "Event Types",
       labelBoards: "Leaderboard",
+      labelScripts: "Kịch bản",
+      labelEntityDefs: "Định nghĩa thực thể",
       labelGacha: "Gacha",
       willNotRenew: "Sẽ không gia hạn",
       daysLeft: "ngày còn lại",
@@ -1300,6 +1302,17 @@ export const vi = {
           details: [
             "Giới hạn cơ bản mặc định: 10 định nghĩa gacha. Mỗi đăng ký plugin cộng thêm vào mức cơ bản này.",
             "Kiểm soát số lượng định nghĩa hòm đồ (loot box) hoặc bể phần thưởng (gacha pool) mà bạn có thể quản lý."
+          ]
+        },
+        boards: {
+          title: "Bảng xếp hạng",
+          tagline: "Theo dõi và xếp hạng thành tích người chơi qua các mùa",
+          description: "Bảng xếp hạng cho phép bạn xếp hạng người chơi dựa trên các điểm số từ việc mở Gacha, thu thập vật phẩm hoặc các trigger tùy chỉnh.",
+          tip: "Sử dụng lịch đặt lại (Hàng ngày, Hàng tuần, Hàng tháng) để giữ cho sự cạnh tranh luôn sôi động và công bằng cho người chơi mới.",
+          details: [
+            "Giới hạn cơ bản mặc định: 2 bảng xếp hạng. Các plugin sẽ cộng thêm khi game của bạn phát triển.",
+            "Hỗ trợ nhiều chế độ tính điểm: Tổng, Cao nhất, Thấp nhất và Điểm mới nhất.",
+            "Tính năng mùa giải tự động và lưu trữ lịch sử để xem lại các thứ hạng cũ."
           ]
         },
         keyPoints: "Điểm chính",
@@ -2781,19 +2794,19 @@ export const vi = {
   },
   scripts: {
     // Page
-    pageTitle: "Scripts",
+    pageTitle: "Kịch bản",
     breadcrumbGames: "Games",
     breadcrumbScripts: "Scripts",
 
     // Header
-    scriptCount: "script",
-    scriptCountPlural: "scripts",
+    scriptCount: "kịch bản",
+    scriptCountPlural: "kịch bản",
 
     // Toolbar
-    scriptsDefinedSingular: "script đã định nghĩa",
-    scriptsDefinedPlural: "scripts đã định nghĩa",
+    scriptsDefinedSingular: "kịch bản đã định nghĩa",
+    scriptsDefinedPlural: "kịch bản đã định nghĩa",
     noScriptsYet: "Chưa có script nào",
-    newScript: "Script mới",
+    newScript: "Kịch bản mới",
     loadingScripts: "Đang tải scripts…",
 
     // Empty state

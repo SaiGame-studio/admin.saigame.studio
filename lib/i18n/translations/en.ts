@@ -1181,6 +1181,8 @@ export const en = {
       labelNodeDefs: "Journey Node",
       labelEventTypes: "Event Types",
       labelBoards: "Leaderboards",
+      labelScripts: "Scripts",
+      labelEntityDefs: "Entity Defs",
       labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",
@@ -1306,6 +1308,17 @@ export const en = {
           details: [
             "Default base limit: 10 gacha definitions. Every plugin subscription adds on top of this base.",
             "Controls how many unique loot box or gacha pool definitions you can manage."
+          ]
+        },
+        boards: {
+          title: "Leaderboards",
+          tagline: "Track and rank player performance across seasons",
+          description: "Leaderboards allow you to rank players globally or locally based on scores from Gacha openings, item collection, or custom triggers.",
+          tip: "Use reset schedules (Daily, Weekly, Monthly) to keep the competition active and fair for new players.",
+          details: [
+            "Default base limit: 2 leaderboard definitions. Plugins add more as your game grows.",
+            "Supports multiple scoring modes: sum, max, min, and latest score.",
+            "Features automated seasons and history archiving for historical rankings."
           ]
         },
         keyPoints: "Key Points",
