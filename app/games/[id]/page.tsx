@@ -743,6 +743,25 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         className={`h-2 ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? '[&>div]:bg-destructive' : ''}`}
                                     />
                                 </div>
+                                {/* Scripts */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <Link href={`/games/${game.id}/scripts`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
+                                            {t('game.scripts') ?? 'Scripts'}
+                                            <ExternalLink className="h-3 w-3" />
+                                        </Link>
+                                        <span className={`text-muted-foreground ${game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts ? 'text-destructive font-semibold' : ''}`}>
+                                            {fmt(game.usage?.scripts ?? 0)} / {game.limits?.max_scripts != null ? fmt(game.limits.max_scripts) : '∞'}
+                                            {game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts && ` (${t('game.limitReached')})`}
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={game.limits?.max_scripts
+                                            ? Math.min(((game.usage?.scripts ?? 0) / game.limits.max_scripts) * 100, 100)
+                                            : 0}
+                                        className={`h-2 ${game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts ? '[&>div]:bg-destructive' : ''}`}
+                                    />
+                                </div>
                             </div>
 
                             {/* Column 3: Equipment Panel */}

@@ -20,6 +20,7 @@ export interface Plugin {
   gacha_grant: number
   boards_grant: number
   entity_defs_grant: number
+  scripts_grant?: number
   cost_coins: number
   max_stacks: number
   sort_order: number
@@ -55,6 +56,11 @@ export interface EffectiveLimits {
   max_gacha_packs?: number
   max_leaderboards?: number
   max_boards?: number
+  max_quests?: number
+  max_node_defs?: number
+  max_event_types?: number
+  max_entity_defs?: number
+  max_scripts?: number
 }
 
 export interface GamePluginsResult {

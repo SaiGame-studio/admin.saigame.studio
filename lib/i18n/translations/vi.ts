@@ -322,6 +322,7 @@ export const vi = {
     navUpgrade: "Nâng cấp",
     navMailbox: "Hộp thư",
     navScripts: "Scripts",
+    scripts: "Scripts",
     compactNav: "Thu gọn",
     expandNav: "Mở rộng",
     loadErrorRetry: "Không thể tải thông tin game. Vui lòng thử lại.",

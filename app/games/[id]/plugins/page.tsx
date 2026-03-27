@@ -197,6 +197,43 @@ const LIMIT_EXPLANATIONS: Record<string, {
     ],
     tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across multiple quest conditions and journey nodes.",
   },
+  scripts: {
+    title: "Scripts",
+    icon: "📜",
+    tagline: "Custom logic and automation scripts for your game",
+    description: "Scripts allow you to implement complex server-side logic, automation, and custom behaviors. Each unique script file you upload consumes one slot. When the limit is reached, new script creation is blocked with HTTP 429.",
+    details: [
+      "Default base limit: 10 scripts. Every plugin subscription adds on top of this base.",
+      "The limit counts unique script files, not script executions or library imports.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+10 scripts" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 scripts / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 scripts / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K scripts / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K scripts / stack" },
+    ],
+    tip: "Use modular script design to reuse logic across multiple functions and minimize the number of individual scripts needed.",
+  },
+  entity_defs: {
+    title: "Entity Def",
+    icon: "🧩",
+    tagline: "Total entity definitions allowed (Enemy, Room, Relic, etc.)",
+    description: "Entity Defs allow you to create structured schemas for any object in your game. This includes enemies, NPCs, rooms, relics, and any other custom entity type. These definitions serve as blueprints for the individual instances that populate your game world.",
+    details: [
+      "Common examples: Enemy, NPC, Room, Relic, Boss, Defense Unit.",
+      "Each unique entity def consumes one slot in your limit.",
+      "When the limit is reached, you cannot create new types of entities until you upgrade or remove unused ones.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+0 entity defs" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 entity defs / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 entity defs / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K entity defs / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K entity defs / stack" },
+    ],
+    tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate between similar entities instead of creating separate definitions for every variation.",
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -503,9 +540,11 @@ export default function GamePluginsPage() {
             max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
             max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
             max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
+            max_scripts: acc.max_scripts + (plugin.scripts_grant ?? 0) * n,
+            max_gacha_packs: acc.max_gacha_packs + (plugin.gacha_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0, max_gacha_packs: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -657,6 +696,7 @@ export default function GamePluginsPage() {
                   { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
                   { key: "profiles", label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
                   { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
+                  { key: "scripts", label: t('game.scripts') || "Scripts", max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
                   { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
                   { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
                   { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
@@ -664,10 +704,21 @@ export default function GamePluginsPage() {
                   { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
                   { key: "entity_defs", label: "Entity Defs", max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
-            const col2 = statsData.slice(0, 3)
-            const col3 = statsData.slice(3, 6)
-            const col4 = statsData.slice(6)
-            const renderStat = (row: typeof statsData[number]) => {
+            const col2 = statsData.slice(0, 4)
+            const col3 = statsData.slice(4, 8)
+            const col4 = [...statsData.slice(8), { isPlaceholder: true, key: "placeholder-1" }, { isPlaceholder: true, key: "placeholder-2" }]
+            const renderStat = (row: any) => {
+                  if (row.isPlaceholder) {
+                    return (
+                      <div key={row.key} className="rounded-xl border border-dashed border-border/40 bg-muted/5 px-3 py-2.5 flex flex-col justify-center min-h-[76px] opacity-40">
+                        <div className="flex items-center gap-1.5 opacity-50">
+                          <span className="text-xs">✨</span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Soon</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1 italic">More limits ahead</p>
+                      </div>
+                    )
+                  }
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
                   const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
@@ -854,7 +905,9 @@ export default function GamePluginsPage() {
                         { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
                         { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
+                        { icon: "📜", label: t('game.scripts') || "Scripts", val: plugin.scripts_grant ?? 0 },
                         { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1217,6 +1270,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.boards_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Scripts grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.scripts_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1446,6 +1503,10 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Leaderboards grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.boards_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Scripts grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.scripts_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>

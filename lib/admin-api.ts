@@ -213,6 +213,7 @@ export interface RecalcLimitSet {
   max_quests: number
   max_shops: number
   max_leaderboards?: number
+  max_scripts?: number
 }
 
 export interface RecalcSubscription {
@@ -478,6 +479,10 @@ export interface CreateCustomPluginBody {
   node_defs_grant?: number
   event_types_grant?: number
   boards_grant?: number
+  quests_grant?: number
+  entity_defs_grant?: number
+  gacha_grant?: number
+  scripts_grant?: number
   duration_days?: number | null
   is_template?: boolean
 }
@@ -492,6 +497,10 @@ export interface UpdateCustomPluginBody {
   node_defs_grant?: number
   event_types_grant?: number
   boards_grant?: number
+  quests_grant?: number
+  entity_defs_grant?: number
+  gacha_grant?: number
+  scripts_grant?: number
   duration_days?: number | null
 }
 

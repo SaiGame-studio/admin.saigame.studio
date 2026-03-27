@@ -322,6 +322,7 @@ export const en = {
     navUpgrade: "Upgrade",
     navMailbox: "Mailbox",
     navScripts: "Scripts",
+    scripts: "Scripts",
     compactNav: "Compact nav",
     expandNav: "Expand nav",
     loadErrorRetry: "Failed to load game details. Please try again.",
