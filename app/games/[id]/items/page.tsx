@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Maximize2, Tag, Lock } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Maximize2, Info, Tag, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { MermaidDiagram } from "@/components/MermaidDiagram"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
 import {
@@ -2526,6 +2527,10 @@ function EquipmentsTab({
         <TabsContent value="character_slot" className="mt-0">
           <Card>
             <CardContent className="p-6 space-y-6 max-w-4xl">
+              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+                <Info className="h-4 w-4 shrink-0"/>
+                <span>{t('items.charSlotSetupNote')}</span>
+              </div>
               <div>
                 <h2 className="text-xl font-bold mb-2">{t('items.charSlotGuideTitle')}</h2>
                 <p className="text-sm text-muted-foreground">{t('items.charSlotGuideIntro')}</p>
@@ -3542,7 +3547,6 @@ export default function GameItemsPage() {
   const [editValue, setEditValue] = useState<string>("")
   const [editValue2, setEditValue2] = useState<string>("") // for dimensions
   const [metadataRows, setMetadataRows] = useState<{ k: string, v: string }[]>([])
-
   // generator tab state
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
   const [generatorLoading, setGeneratorLoading] = useState(false)
@@ -4521,6 +4525,208 @@ export default function GameItemsPage() {
         </TabsContent>
 
         <TabsContent value="containers" className="space-y-4">
+          <Tabs defaultValue="definitions" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="definitions">Definitions</TabsTrigger>
+              <TabsTrigger value="slot-guide">Slot Guide</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="slot-guide" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    {t('items.containerSlotGuideTitle')}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('items.containerSlotGuideDesc')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 text-sm">
+
+                  {/* Overview */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('items.containerSlotOverviewTitle')}</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {t('items.containerSlotOverviewText')}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Diagram */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">{t('items.containerSlotDiagramTitle')}</h3>
+                    <div className="border rounded-md p-4 bg-muted/20 overflow-x-auto">
+                      <MermaidDiagram chart={`flowchart TB
+  subgraph SETUP["⚙️ SETUP — Definitions"]
+    direction LR
+    A["📦 ItemDefinition\\n─────────────\\ncategory: character\\nitem_code: warrior\\nid: uuid-warrior-def"]
+    M["🔒 Slot Restrictions\\n─────────────\\nslot_0: helmet\\nslot_1: armor\\nslot_2: boots\\nslot_3: gloves\\nslot_4: weapon\\nslot_5: shield"]
+    B["🗃️ ContainerDefinition\\n─────────────\\nname: hero_warrior_slots\\ntype: equipment\\ngrid: 6×1\\nlinked_item_def_id: ↑"]
+    A -- "linked_item_definition_id →" --> B
+    B -. "reverse lookup" .-> A
+    M -. "attached metadata" .-> B
+  end
+
+  subgraph RUNTIME["▶️ RUNTIME — Instances"]
+    direction LR
+    C["🦸 InventoryItem\\n─────────────\\nid: uuid-my-warrior\\nitem_definition_id:\\n  uuid-warrior-def"]
+    D["📂 ContainerInstance\\n─────────────\\ndefinition: hero_warrior_slots\\nowner_item_instance_id:\\n  uuid-my-warrior\\nslots: [0][1][2][3][⚔4][5]"]
+    E["⚔️ InventoryItem\\n─────────────\\nitem: sword\\ncontainer_id: D\\nslot_index: 4"]
+    C -- "grant → auto-creates" --> D
+    D -. "owner_item_instance_id" .-> C
+    E -- "equip into slot 4" --> D
+  end
+
+  B -- "instantiated from" --> D
+
+  style A fill:#eff6ff,stroke:#93c5fd
+  style B fill:#fff7ed,stroke:#fb923c
+  style M fill:#f8fafc,stroke:#cbd5e1,stroke-dasharray:4
+  style C fill:#f0fdf4,stroke:#86efac
+  style D fill:#fef9c3,stroke:#fbbf24
+  style E fill:#faf5ff,stroke:#c4b5fd
+  style SETUP fill:#f8fafc,stroke:#e2e8f0
+  style RUNTIME fill:#f8fafc,stroke:#e2e8f0`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
+                      <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.containerSlotDiagramCaption')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 1 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</span>
+                      {t('items.containerSlotStep1Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7">{t('items.containerSlotStep1Desc')}</p>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 space-y-1.5 font-mono text-xs">
+                        <div><span className="text-muted-foreground">name:</span> <span>"hero_warrior_slots"</span></div>
+                        <div><span className="text-muted-foreground">container_type:</span> <span>"equipment"</span></div>
+                        <div><span className="text-muted-foreground">grid_cols:</span> <span>6</span></div>
+                        <div><span className="text-muted-foreground">grid_rows:</span> <span>1</span></div>
+                        <div><span className="text-muted-foreground">is_portable:</span> <span>false</span></div>
+                        <div><span className="text-muted-foreground">linked_item_definition_id:</span> <span>"&lt;hero_item_def_id&gt;"</span></div>
+                      </div>
+                      <p className="text-muted-foreground text-xs">{t('items.containerSlotStep1Note')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 2 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</span>
+                      {t('items.containerSlotStep2Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep2Desc')}</p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 3 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">3</span>
+                      {t('items.containerSlotStep3Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7">{t('items.containerSlotStep3Desc')}</p>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1.5">
+                        <div><span className="text-muted-foreground">"slot_0_allowed_tags":</span> <span>"helmet"</span></div>
+                        <div><span className="text-muted-foreground">"slot_1_allowed_tags":</span> <span>"armor"</span></div>
+                        <div><span className="text-muted-foreground">"slot_2_allowed_tags":</span> <span>"boots"</span></div>
+                        <div><span className="text-muted-foreground">"slot_3_allowed_tags":</span> <span>"gloves"</span></div>
+                        <div><span className="text-muted-foreground">"slot_4_allowed_tags":</span> <span>"weapon,sword,axe"</span></div>
+                        <div><span className="text-muted-foreground">"slot_5_allowed_tags":</span> <span>"shield,offhand"</span></div>
+                      </div>
+                      <p className="text-muted-foreground text-xs">{t('items.containerSlotStep3Note')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 4 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">4</span>
+                      {t('items.containerSlotStep4Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep4Desc')}</p>
+                    <ul className="pl-7 list-disc list-inside text-muted-foreground space-y-1 text-xs">
+                      <li><code className="bg-muted px-1 rounded">owner_item_instance_id</code> — {t('items.containerSlotStep4Bullet1')}</li>
+                      <li><code className="bg-muted px-1 rounded">definition_id</code> — {t('items.containerSlotStep4Bullet2')}</li>
+                      <li>{t('items.containerSlotStep4Bullet3')}</li>
+                    </ul>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 5 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">5</span>
+                      {t('items.containerSlotStep5Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep5Desc')}</p>
+                    <div className="pl-7 rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                      <div className="text-muted-foreground font-sans text-[11px] mb-2">// Equip request example</div>
+                      <div><span className="text-muted-foreground">source_container_id:</span> <span>&lt;player_inventory_container_id&gt;</span></div>
+                      <div><span className="text-muted-foreground">source_slot:</span> <span>3</span></div>
+                      <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;hero_equipment_container_id&gt;</span></div>
+                      <div><span className="text-muted-foreground">target_slot:</span> <span>4</span></div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Summary table */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('items.containerSlotCompareTitle')}</h3>
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareCriteria')}</TableHead>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareEqSlotDef')}</TableHead>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareContainer')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareScope')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotScopeEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotScopeContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareMultiHero')}</TableCell>
+                            <TableCell className="text-xs text-destructive">{t('items.containerSlotMultiHeroEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotMultiHeroContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareRestrictions')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotRestrictEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotRestrictContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareAutoCreate')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotAutoEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotAutoContainer')}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="definitions" className="space-y-4">
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
@@ -4973,6 +5179,8 @@ export default function GameItemsPage() {
               </div>
             </div>
           )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="gacha" className="space-y-4">
