@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImper
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
-  ChevronRight, ChevronLeft, Play, ArrowUp, ArrowDown,
+  ChevronRight, ChevronLeft, Play,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -764,7 +764,7 @@ export default function ScriptEditPage() {
               className="h-9 w-9 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border-border/50 hover:bg-primary hover:text-primary-foreground"
               onClick={() => document.getElementById("section-save-script")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             >
-              <ArrowUp className="h-4 w-4" />
+              <Pencil className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left">Save Scripts Body</TooltipContent>
@@ -777,7 +777,7 @@ export default function ScriptEditPage() {
               className="h-9 w-9 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border-border/50 hover:bg-primary hover:text-primary-foreground"
               onClick={() => document.getElementById("section-run-payload")?.scrollIntoView({ behavior: "smooth", block: "start" })}
             >
-              <ArrowDown className="h-4 w-4" />
+              <Play className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left">Run Payload</TooltipContent>
