@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImper
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
-  ChevronRight, ChevronLeft, Play,
+  ChevronRight, ChevronLeft, Play, ArrowUp, ArrowDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -492,7 +492,7 @@ export default function ScriptEditPage() {
           {/* ── Top: editor + samples ─────────────────────────────────────── */}
           <div className="flex px-6 py-4 overflow-hidden" style={{ height: "90vh" }}>
             {/* Script body editor */}
-            <div className="flex flex-1 min-w-0 flex-col gap-2">
+            <div id="section-save-script" className="flex flex-1 min-w-0 flex-col gap-2 scroll-mt-[60px]">
               <div className="flex items-center justify-between shrink-0">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {t('scripts.scriptBody')}
@@ -660,7 +660,7 @@ export default function ScriptEditPage() {
 
           {/* ── Bottom: Run Script ────────────────────────────────────────── */}
           <Separator />
-          <div className="px-6 py-3 flex flex-col gap-2" style={{ height: "90vh" }}>
+          <div id="section-run-payload" className="px-6 py-3 flex flex-col gap-2 scroll-mt-[60px]" style={{ height: "90vh" }}>
             <div className="flex items-center justify-center gap-2 shrink-0">
               <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedPayloadFlag ? "opacity-100" : "opacity-0"}`} />
               <Tooltip>
@@ -742,6 +742,36 @@ export default function ScriptEditPage() {
       {/* ── Footer note ──────────────────────────────────────────────── */}
       <div className="px-6 py-4 text-center text-xs text-muted-foreground/50">
         {t('scripts.footerNote')}
+      </div>
+
+      {/* ── Floating scroll buttons ──────────────────────────────────── */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border-border/50 hover:bg-primary hover:text-primary-foreground"
+              onClick={() => document.getElementById("section-save-script")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Save Scripts Body</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border-border/50 hover:bg-primary hover:text-primary-foreground"
+              onClick={() => document.getElementById("section-run-payload")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Run Payload</TooltipContent>
+        </Tooltip>
       </div>
     </div>
     </TooltipProvider>
