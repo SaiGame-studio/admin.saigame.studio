@@ -204,6 +204,7 @@ export default function ScriptEditPage() {
     return defaultPayload
   })
   const [runResult, setRunResult] = useState<string>("")
+  const [runDuration, setRunDuration] = useState<number | null>(null)
   const [runningScript, setRunningScript] = useState(false)
 
   const [savedPayloadFlag, setSavedPayloadFlag] = useState(false)
@@ -247,6 +248,7 @@ export default function ScriptEditPage() {
   async function handleRunScript() {
     setRunningScript(true)
     setRunResult("")
+    setRunDuration(null)
     try {
       let payload: any = {}
       try {
@@ -257,6 +259,9 @@ export default function ScriptEditPage() {
         return
       }
       const result = await runScript(gameId, script?.name ?? scriptId, payload)
+      if (result && typeof result === "object" && "duration_ms" in result) {
+        setRunDuration(result.duration_ms as number)
+      }
       setRunResult(JSON.stringify(result, null, 2))
     } catch (err: unknown) {
       setRunResult(`❌ Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -719,7 +724,12 @@ export default function ScriptEditPage() {
               </div>
               {/* Result */}
               <div className="flex flex-col flex-1 min-w-0 gap-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('scripts.runResult')}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('scripts.runResult')}</p>
+                  {runDuration != null && (
+                    <span className="text-[10px] text-emerald-500 font-mono tabular-nums">{runDuration}ms</span>
+                  )}
+                </div>
                 <div className="flex-1 min-h-0 rounded-lg border border-zinc-700 bg-[#1e1e1e] overflow-auto">
                   {runningScript ? (
                     <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
