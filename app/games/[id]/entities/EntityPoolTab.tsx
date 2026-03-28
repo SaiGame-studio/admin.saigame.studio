@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react"
 import Link from "next/link"
-import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink, ChevronsUpDown, Check } from "lucide-react"
+import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink, ChevronsUpDown, Check, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,8 +15,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
-import { listEntityPools, getEntityPool, updateEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
+import { listEntityPools, getEntityPool, updateEntityPool, createEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
 import { ApiError } from "@/lib/api-client"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet"
+import { Label } from "@/components/ui/label"
 import type { EntityPool, EntityPoolEntry, EntityRarity, EntityDefinition } from "@/types/entity-definition"
 import { ENTITY_RARITY_COLORS, ENTITY_TYPE_LABELS } from "@/types/entity-definition"
 import { CopyButton } from "@/components/CopyButton"
@@ -34,6 +36,13 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState({ pool_key: "", name: "", description: "" })
+  const [creating, setCreating] = useState(false)
+  const [autoSlug, setAutoSlug] = useState(true)
+
+  const toSlug = (name: string) =>
+    name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
 
   const loadPools = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -78,6 +87,27 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
     }
   }
 
+  const handleCreatePool = async () => {
+    if (!createForm.pool_key.trim() || !createForm.name.trim()) return
+    setCreating(true)
+    try {
+      const created = await createEntityPool(gameId, {
+        pool_key: createForm.pool_key.trim(),
+        name: createForm.name.trim(),
+        description: createForm.description.trim() || undefined,
+      })
+      setPools(prev => [created, ...prev])
+      toast({ title: t('common.added'), description: `Pool "${created.name}" created` })
+      setCreateOpen(false)
+      setCreateForm({ pool_key: "", name: "", description: "" })
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSave')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
       {/* Toolbar */}
@@ -106,11 +136,10 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               </button>
             )}
           </div>
-          <Button variant="outline" size="sm" className="h-9 gap-2" onClick={() => loadPools(true)} disabled={refreshing}>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => loadPools(true)} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            {t('common.refresh')}
           </Button>
-          <Button size="sm" className="h-9 gap-2" onClick={() => toast({ title: t('entity.featureComingSoon') })}>
+          <Button size="sm" className="h-9 gap-2" onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}>
             <Plus className="h-4 w-4" />
             {t('entity.newPool')}
           </Button>
@@ -128,7 +157,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               <Skull className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p className="font-semibold text-lg">{t('entity.noPoolsFound')}</p>
               <p className="text-sm mt-2 max-w-xs mx-auto opacity-70">{t('entity.createFirstPool')}</p>
-              <Button variant="outline" size="sm" className="mt-6" onClick={() => toast({ title: t('entity.featureComingSoon') })}>
+              <Button variant="outline" size="sm" className="mt-6" onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}>
                 <Plus className="h-4 w-4 mr-2" /> {t('entity.newPool')}
               </Button>
             </div>
@@ -203,6 +232,81 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Pool Sheet */}
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{t('entity.newPool')}</SheetTitle>
+            <SheetDescription>{t('entity.createFirstPool')}</SheetDescription>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t('entity.poolName')} <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="e.g. Floor 3 Enemy Pool"
+                value={createForm.name}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setCreateForm(f => ({
+                    ...f,
+                    name: v,
+                    ...(autoSlug ? { pool_key: toSlug(v) } : {}),
+                  }))
+                }}
+                disabled={creating}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('entity.poolKey')} <span className="text-destructive">*</span></Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. floor_3_enemies"
+                  value={createForm.pool_key}
+                  onChange={(e) => {
+                    setAutoSlug(false)
+                    setCreateForm(f => ({ ...f, pool_key: e.target.value }))
+                  }}
+                  disabled={creating}
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant={autoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0"
+                  title={autoSlug ? t('entity.autoSlugOn') : t('entity.autoSlugOff')}
+                  onClick={() => {
+                    setAutoSlug(true)
+                    setCreateForm(f => ({ ...f, pool_key: toSlug(f.name) }))
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('entity.fieldDescription')}</Label>
+              <Textarea
+                placeholder="Optional description..."
+                value={createForm.description}
+                onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))}
+                disabled={creating}
+                rows={3}
+              />
+            </div>
+          </div>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button variant="outline" disabled={creating}>{t('common.cancel')}</Button>
+            </SheetClose>
+            <Button onClick={handleCreatePool} disabled={creating || !createForm.pool_key.trim() || !createForm.name.trim()}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
