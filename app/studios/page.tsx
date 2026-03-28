@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Plus, X, ExternalLink, Lock } from "lucide-react"
+import { AlertCircle, CheckCircle2, Loader2, Plus, ShieldOff, TicketPercent, X, ExternalLink, Lock } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { useAuth } from "@/contexts/auth-context"
+import { activateReferralCode } from "@/lib/referral-api"
 import Link from "next/link"
 
 export default function StudiosPage() {
@@ -33,30 +34,29 @@ export default function StudiosPage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
   const maxStudios = user?.limits?.max_studios ?? null
   const usedStudios = user?.usage?.studios ?? 0
   const atLimit = maxStudios !== null && usedStudios >= maxStudios
   const STUDIO_COST = 50
   const isFirstStudio = studios.length === 0
+  const isActivated = user?.is_activated ?? false
 
-  useEffect(() => {
-    async function loadStudios() {
-      try {
-        setLoading(true)
-        const data = await fetchUserStudios()
-        setStudios(data)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load studios")
-      } finally {
-        setLoading(false)
-      }
+  async function loadStudios() {
+    try {
+      setLoading(true)
+      const data = await fetchUserStudios()
+      setStudios(data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load studios")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadStudios()
-  }, [])
+  useEffect(() => { loadStudios() }, [])
 
   async function handleCreateStudio() {
     if (!newStudioName.trim()) {
@@ -116,6 +116,17 @@ export default function StudiosPage() {
           <p className="">{t('studio.manageTitle')}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
+          {isActivated ? (
+            <div className="flex items-center gap-1.5 text-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-green-500 font-medium">Activated</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-sm">
+              <ShieldOff className="h-3.5 w-3.5 text-yellow-500" />
+              <span className="text-yellow-500 font-medium">Not activated</span>
+            </div>
+          )}
           {maxStudios !== null && (
             <div className="flex items-center gap-1.5 text-sm">
               <span className="text-muted-foreground">Studios used:</span>
@@ -132,23 +143,23 @@ export default function StudiosPage() {
                 onChange={e => setNewStudioName(e.target.value)}
                 placeholder={t('studio.newName')}
                 className="w-48"
-                disabled={creating || atLimit}
+                disabled={creating || atLimit || !isActivated}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !creating && !atLimit) {
+                  if (e.key === 'Enter' && !creating && !atLimit && isActivated) {
                     handleCreateStudio();
                   }
                 }}
               />
               <Button
                 onClick={handleCreateStudio}
-                disabled={creating || atLimit}
+                disabled={creating || atLimit || !isActivated}
                 variant="default"
-                title={atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
+                title={!isActivated ? "Please activate your account with a referral code first" : atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
               >
                 {creating ? t('common.loading') : t('studio.create')}
               </Button>
             </div>
-            {!atLimit && (
+            {!atLimit && isActivated && (
               <p className="text-xs text-muted-foreground">
                 {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
               </p>
@@ -212,6 +223,9 @@ export default function StudiosPage() {
         <Card className="bg-muted/50">
           <CardContent className="flex flex-col items-center justify-center py-10">
             <p className="mb-4">{t('studio.noStudios')}</p>
+            {!isActivated && (
+              <ReferralCodeInput onActivated={async () => { await refreshUser(); loadStudios() }} />
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -259,5 +273,61 @@ export default function StudiosPage() {
       )}
     </div>
     </>
+  )
+}
+
+function ReferralCodeInput({ onActivated }: { onActivated: () => void }) {
+  const [code, setCode] = useState("")
+  const [activating, setActivating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  async function handleActivate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!code.trim()) return
+
+    setActivating(true)
+    setError(null)
+    try {
+      await activateReferralCode(code.trim())
+      setSuccess(true)
+      setCode("")
+      onActivated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid or expired referral code")
+    } finally {
+      setActivating(false)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-md mt-2">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground uppercase tracking-wide">Have a referral code?</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <form onSubmit={handleActivate} className="flex gap-2">
+        <div className="relative flex-1">
+          <TicketPercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Enter referral code"
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setError(null) }}
+            className="pl-9"
+            disabled={activating || success}
+          />
+        </div>
+        <Button type="submit" disabled={activating || !code.trim() || success}>
+          {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Activate"}
+        </Button>
+      </form>
+      {error && (
+        <p className="text-sm text-destructive mt-2">{error}</p>
+      )}
+      {success && (
+        <p className="text-sm text-green-500 mt-2">Referral code activated successfully!</p>
+      )}
+    </div>
   )
 }

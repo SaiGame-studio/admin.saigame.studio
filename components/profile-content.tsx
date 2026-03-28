@@ -7,7 +7,7 @@ import {
   ChevronsUpDown,
   Copy,
   Globe,
-  Layers,
+
   Mail,
   Pencil,
   ShieldCheck,
@@ -66,8 +66,6 @@ export function ProfileContent() {
     .split(/[\s_@]/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?"
 
   const currentTz = user.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  const studiosUsed = user.usage?.studios ?? 0
-  const studiosMax = user.limits?.max_studios ?? null
 
   async function saveTz() {
     setTzSaving(true)
@@ -129,115 +127,68 @@ export function ProfileContent() {
         </div>
       </div>
 
-      {/* ── Two-column grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Account info ── */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Account Information</p>
 
-        {/* Account info */}
-        <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Account Information</p>
-
-          <InfoRow icon={<UserIcon className="h-3.5 w-3.5" />} label={t('profilePage.userId')}>
-            <div className="flex items-center gap-2">
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">{user.id}</code>
-              <CopyButton text={user.id} />
-            </div>
-          </InfoRow>
-
-          <InfoRow icon={<Mail className="h-3.5 w-3.5" />} label="Email">
-            <span>{user.email}</span>
-          </InfoRow>
-
-          <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={t('profilePage.memberSince')}>
-            <span>{formatDate(user.created_at * 1000)}</span>
-          </InfoRow>
-
-          {/* Timezone */}
-          <div className="flex flex-col gap-1 group/tz">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Globe className="h-3.5 w-3.5" /> {t('profilePage.timezone')}
-            </div>
-            {tzEditing ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Popover open={tzOpen} onOpenChange={setTzOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-56 justify-between font-normal text-sm h-8">
-                      <span className="truncate">{tzValue}</span>
-                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search timezone..." className="h-8" />
-                      <CommandList className="max-h-60">
-                        <CommandEmpty>No timezone found.</CommandEmpty>
-                        <CommandGroup>
-                          {ALL_TIMEZONES.map(tz => (
-                            <CommandItem key={tz} value={tz} onSelect={val => { setTzValue(val); setTzOpen(false) }}>
-                              <Check className={`mr-2 h-3.5 w-3.5 ${tzValue === tz ? "opacity-100" : "opacity-0"}`} />
-                              {tz}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <Button size="sm" disabled={tzSaving} onClick={saveTz}>{tzSaving ? "Saving…" : t('profilePage.timezoneSave')}</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setTzValue(currentTz); setTzEditing(false) }}>{t('profilePage.timezoneCancel')}</Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <span>{currentTz}</span>
-                {!user.timezone && <span className="text-[10px] text-muted-foreground">(local)</span>}
-                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/tz:opacity-100 transition-opacity"
-                  onClick={() => { setTzValue(currentTz); setTzEditing(true) }}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
+        <InfoRow icon={<UserIcon className="h-3.5 w-3.5" />} label={t('profilePage.userId')}>
+          <div className="flex items-center gap-2">
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">{user.id}</code>
+            <CopyButton text={user.id} />
           </div>
-        </div>
+        </InfoRow>
 
-        {/* Usage & permissions */}
-        <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Usage & Limits</p>
+        <InfoRow icon={<Mail className="h-3.5 w-3.5" />} label="Email">
+          <span>{user.email}</span>
+        </InfoRow>
 
-          {/* Studios */}
-          <div className="rounded-xl bg-muted/40 px-4 py-3 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Layers className="h-4 w-4" /> Studios
-            </div>
-            <div className="text-xl font-bold tabular-nums">
-              {studiosUsed}
-              {studiosMax != null && (
-                <span className="text-xs text-muted-foreground font-normal"> / {studiosMax}</span>
-              )}
-            </div>
+        <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={t('profilePage.memberSince')}>
+          <span>{formatDate(user.created_at * 1000)}</span>
+        </InfoRow>
+
+        {/* Timezone */}
+        <div className="flex flex-col gap-1 group/tz">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <Globe className="h-3.5 w-3.5" /> {t('profilePage.timezone')}
           </div>
-
-          {/* Permissions / capabilities */}
-          {user.capabilities?.is_super_admin && (
-            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 flex items-center gap-2">
-              <UserIcon className="h-4 w-4 text-destructive" />
-              <span className="text-sm font-semibold text-destructive">Super Admin</span>
+          {tzEditing ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Popover open={tzOpen} onOpenChange={setTzOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-56 justify-between font-normal text-sm h-8">
+                    <span className="truncate">{tzValue}</span>
+                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search timezone..." className="h-8" />
+                    <CommandList className="max-h-60">
+                      <CommandEmpty>No timezone found.</CommandEmpty>
+                      <CommandGroup>
+                        {ALL_TIMEZONES.map(tz => (
+                          <CommandItem key={tz} value={tz} onSelect={val => { setTzValue(val); setTzOpen(false) }}>
+                            <Check className={`mr-2 h-3.5 w-3.5 ${tzValue === tz ? "opacity-100" : "opacity-0"}`} />
+                            {tz}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Button size="sm" disabled={tzSaving} onClick={saveTz}>{tzSaving ? "Saving…" : t('profilePage.timezoneSave')}</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setTzValue(currentTz); setTzEditing(false) }}>{t('profilePage.timezoneCancel')}</Button>
             </div>
-          )}
-
-          {user.permissions && user.permissions.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Permissions</p>
-              <div className="flex flex-wrap gap-1.5">
-                {user.permissions.map(p => (
-                  <span key={p} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-                    {p}
-                  </span>
-                ))}
-              </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span>{currentTz}</span>
+              {!user.timezone && <span className="text-[10px] text-muted-foreground">(local)</span>}
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/tz:opacity-100 transition-opacity"
+                onClick={() => { setTzValue(currentTz); setTzEditing(true) }}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
             </div>
-          )}
-
-          {!user.capabilities?.is_super_admin && (!user.permissions || user.permissions.length === 0) && (
-            <p className="text-sm text-muted-foreground">No special permissions.</p>
           )}
         </div>
       </div>
@@ -266,10 +217,7 @@ function ProfileSkeleton() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Skeleton className="h-56 rounded-2xl" />
-        <Skeleton className="h-56 rounded-2xl" />
-      </div>
+      <Skeleton className="h-56 rounded-2xl" />
     </div>
   )
 }

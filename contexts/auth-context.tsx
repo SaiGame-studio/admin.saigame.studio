@@ -28,6 +28,7 @@ interface User {
   email: string
   is_active: boolean
   is_verified: boolean
+  is_activated: boolean
   created_at: number
   display_name?: string
   permissions?: string[]
