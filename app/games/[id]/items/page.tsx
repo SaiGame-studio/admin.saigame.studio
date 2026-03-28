@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Tag, Lock } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Maximize2, Tag, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -1804,6 +1804,8 @@ function EquipmentsTab({
   activeTab: string
 }) {
   const { t } = useTranslation()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [expandedSlotKey, setExpandedSlotKey] = useState<string | null>(null)
   const [detailCache, setDetailCache] = useState<Record<string, EquipmentSlot>>({})
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
@@ -1811,7 +1813,21 @@ function EquipmentsTab({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<EquipmentSlot | null>(null)
   const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
-  const [subTab, setSubTab] = useState<"grid" | "list">("grid")
+  const [subTab, setSubTab] = useState<"grid" | "list" | "character_slot">(() => {
+    const st = searchParams.get("subtab")
+    return (st === "grid" || st === "list" || st === "character_slot") ? st : "grid"
+  })
+  const [diagramZoom, setDiagramZoom] = useState(1)
+  const [diagramOpen, setDiagramOpen] = useState(false)
+  const [diagramModalZoom, setDiagramModalZoom] = useState(1)
+
+  function handleSubTabChange(v: string) {
+    const value = v as "grid" | "list" | "character_slot"
+    setSubTab(value)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("subtab", value)
+    router.push(`${window.location.pathname}?${newParams.toString()}`)
+  }
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
   const [snapBonds, setSnapBonds] = useState<Record<string, string[]>>({}) // adjacency list: slotKey -> bonded keys
   const [draggingPos, setDraggingPos] = useState<Record<string, { x: number; y: number }> | null>(null)
@@ -2002,10 +2018,11 @@ function EquipmentsTab({
         {headerActions}
       </div>
 
-      <Tabs value={subTab} onValueChange={(v) => setSubTab(v as "grid" | "list")}>
+      <Tabs value={subTab} onValueChange={handleSubTabChange}>
         <TabsList className="mb-2">
           <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
           <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
+          <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
         </TabsList>
 
         {/* ── Grid (drag-and-drop canvas) ── */}
@@ -2501,6 +2518,275 @@ function EquipmentsTab({
                   })}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Character Slot Guide ── */}
+        <TabsContent value="character_slot" className="mt-0">
+          <Card>
+            <CardContent className="p-6 space-y-6 max-w-4xl">
+              <div>
+                <h2 className="text-xl font-bold mb-2">{t('items.charSlotGuideTitle')}</h2>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotGuideIntro')}</p>
+              </div>
+
+              {/* Diagram */}
+              {(() => {
+                const renderDiagramSvg = (p: string) => (
+                  <svg viewBox="0 0 640 310" style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace', display: 'block' }}>
+                    <defs>
+                      <marker id={`${p}arr`}        markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/></marker>
+                      <marker id={`${p}arr-blue`}   markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/></marker>
+                      <marker id={`${p}arr-orange`} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f97316"/></marker>
+                      <marker id={`${p}arr-purple`} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8b5cf6"/></marker>
+                      <marker id={`${p}arr-cyan`}   markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#0891b2"/></marker>
+                    </defs>
+                    {/* Section labels */}
+                    <text x="120" y="14" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramSetup')}</text>
+                    <text x="520" y="14" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramSetup')}</text>
+                    <text x="120" y="173" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramRuntime')}</text>
+                    <text x="520" y="173" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramRuntime')}</text>
+                    {/* Box A — ItemDefinition */}
+                    <rect x="10" y="18" width="220" height="100" rx="6" fill="#eff6ff" stroke="#93c5fd" strokeWidth="1.5"/>
+                    <text x="120" y="36" textAnchor="middle" fill="#1d4ed8" fontSize="11" fontWeight="600">ItemDefinition</text>
+                    <text x="120" y="50" textAnchor="middle" fill="#3b82f6" fontSize="10">(warrior)</text>
+                    <text x="22" y="67" fill="#64748b" fontSize="9">category: "character"</text>
+                    <text x="22" y="81" fill="#64748b" fontSize="9">metadata:</text>
+                    <text x="30" y="95" fill="#64748b" fontSize="9">equipment_slots: [</text>
+                    <text x="30" y="109" fill="#64748b" fontSize="9">  "warrior__main_hand", ...]</text>
+                    {/* Box B — EquipmentSlotDefinition */}
+                    <rect x="410" y="18" width="220" height="100" rx="6" fill="#fff7ed" stroke="#fb923c" strokeWidth="1.5"/>
+                    <text x="520" y="36" textAnchor="middle" fill="#c2410c" fontSize="11" fontWeight="600">EquipmentSlotDef</text>
+                    <text x="520" y="50" textAnchor="middle" fill="#ea580c" fontSize="10">warrior__main_hand</text>
+                    <text x="422" y="67" fill="#64748b" fontSize="9">allowed_categories: ["weapon"]</text>
+                    <text x="422" y="81" fill="#64748b" fontSize="9">metadata:</text>
+                    <text x="430" y="95" fill="#64748b" fontSize="9">character_definition_id:</text>
+                    <text x="430" y="109" fill="#64748b" fontSize="9">  "uuid-of-warrior-def"</text>
+                    {/* Box C — InventoryItem (warrior instance) */}
+                    <rect x="10" y="180" width="220" height="85" rx="6" fill="#f0fdf4" stroke="#86efac" strokeWidth="1.5"/>
+                    <text x="120" y="198" textAnchor="middle" fill="#15803d" fontSize="11" fontWeight="600">InventoryItem</text>
+                    <text x="120" y="212" textAnchor="middle" fill="#16a34a" fontSize="10">(warrior instance)</text>
+                    <text x="22" y="230" fill="#64748b" fontSize="9">id: "uuid-of-my-warrior"</text>
+                    <text x="22" y="244" fill="#64748b" fontSize="9">item_definition_id: warrior def</text>
+                    {/* Box D — InventoryItem (sword) */}
+                    <rect x="410" y="180" width="220" height="85" rx="6" fill="#faf5ff" stroke="#c4b5fd" strokeWidth="1.5"/>
+                    <text x="520" y="198" textAnchor="middle" fill="#6d28d9" fontSize="11" fontWeight="600">InventoryItem</text>
+                    <text x="520" y="212" textAnchor="middle" fill="#7c3aed" fontSize="10">(sword)</text>
+                    <text x="422" y="230" fill="#64748b" fontSize="9">equipped_slot_key:</text>
+                    <text x="422" y="244" fill="#64748b" fontSize="9">  "warrior__main_hand"</text>
+                    <text x="422" y="258" fill="#64748b" fontSize="9">slot_data.character_item_id:</text>
+                    <text x="422" y="272" fill="#64748b" fontSize="9">  "uuid-of-my-warrior"</text>
+                    {/* Arrow 1: A → B */}
+                    <line x1="232" y1="46" x2="407" y2="46" stroke="#3b82f6" strokeWidth="1.5" markerEnd={`url(#${p}arr-blue)`}/>
+                    <text x="320" y="40" textAnchor="middle" fill="#3b82f6" fontSize="8">declares via equipment_slots[ ]</text>
+                    {/* Arrow 2: B → A (dashed) */}
+                    <line x1="410" y1="68" x2="233" y2="68" stroke="#f97316" strokeWidth="1.5" strokeDasharray="4,3" markerEnd={`url(#${p}arr-orange)`}/>
+                    <text x="320" y="82" textAnchor="middle" fill="#f97316" fontSize="8">character_definition_id (reverse ref)</text>
+                    {/* Arrow 3: D → B */}
+                    <line x1="520" y1="179" x2="520" y2="120" stroke="#8b5cf6" strokeWidth="1.5" markerEnd={`url(#${p}arr-purple)`}/>
+                    <text x="594" y="154" textAnchor="middle" fill="#7c3aed" fontSize="8" transform="rotate(90,594,154)">equipped_slot_key</text>
+                    {/* Arrow 4: D → C */}
+                    <line x1="408" y1="222" x2="233" y2="222" stroke="#0891b2" strokeWidth="1.5" markerEnd={`url(#${p}arr-cyan)`}/>
+                    <text x="320" y="216" textAnchor="middle" fill="#0891b2" fontSize="8">slot_data.character_item_id</text>
+                    {/* Divider */}
+                    <line x1="320" y1="18" x2="320" y2="275" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3,4"/>
+                  </svg>
+                )
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-semibold">{t('items.charSlotDiagramTitle')}</h3>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramZoom(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))))} disabled={diagramZoom <= 0.5}>
+                          <ZoomOut className="h-3.5 w-3.5"/>
+                        </Button>
+                        <button
+                          className="text-xs text-muted-foreground w-10 text-center tabular-nums hover:text-foreground transition-colors"
+                          onClick={() => setDiagramZoom(1)}
+                          title="Reset zoom"
+                        >
+                          {Math.round(diagramZoom * 100)}%
+                        </button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramZoom(z => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} disabled={diagramZoom >= 4}>
+                          <ZoomIn className="h-3.5 w-3.5"/>
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 ml-1" onClick={() => setDiagramOpen(true)} title="Fullscreen">
+                          <Maximize2 className="h-3.5 w-3.5"/>
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="border rounded-md p-3 bg-muted/20 overflow-x-auto cursor-zoom-in" onClick={() => setDiagramOpen(true)}>
+                      <div style={{ width: `${diagramZoom * 100}%`, minWidth: 480 }}>
+                        {renderDiagramSvg('csg-i-')}
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.charSlotDiagramCaption')}</p>
+                    </div>
+
+                    <Dialog open={diagramOpen} onOpenChange={(o) => { setDiagramOpen(o); if (!o) setDiagramModalZoom(1) }}>
+                      <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
+                        <DialogHeader>
+                          <div className="flex items-center justify-between pr-6">
+                            <DialogTitle>{t('items.charSlotDiagramTitle')}</DialogTitle>
+                            <div className="flex items-center gap-0.5">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramModalZoom(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))))} disabled={diagramModalZoom <= 0.5}>
+                                <ZoomOut className="h-3.5 w-3.5"/>
+                              </Button>
+                              <button
+                                className="text-xs text-muted-foreground w-10 text-center tabular-nums hover:text-foreground transition-colors"
+                                onClick={() => setDiagramModalZoom(1)}
+                                title="Reset zoom"
+                              >
+                                {Math.round(diagramModalZoom * 100)}%
+                              </button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramModalZoom(z => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} disabled={diagramModalZoom >= 4}>
+                                <ZoomIn className="h-3.5 w-3.5"/>
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogHeader>
+                        <div className="overflow-auto flex-1 rounded-md border bg-muted/20 p-4">
+                          <div style={{ width: `${diagramModalZoom * 100}%`, minWidth: 640 }}>
+                            {renderDiagramSvg('csg-m-')}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center italic pt-1">{t('items.charSlotDiagramCaption')}</p>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )
+              })()}
+
+              {/* Step 1 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep1Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep1Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`warrior__main_hand    (AllowedCategories: ["weapon"])
+warrior__armor        (AllowedCategories: ["armor"])
+warrior__accessory    (AllowedCategories: ["decoration"])
+
+mage__main_hand       (AllowedCategories: ["weapon"])
+mage__off_hand        (AllowedCategories: ["weapon", "shield"])
+mage__robe            (AllowedCategories: ["armor"])`}</pre>
+              </div>
+
+              {/* Step 2 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep2Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep2Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`// warrior
+{
+  "item_code": "warrior",
+  "category": "character",
+  "metadata": {
+    "equipment_slots": ["warrior__main_hand", "warrior__armor", "warrior__accessory"]
+  }
+}
+
+// mage
+{
+  "item_code": "mage",
+  "category": "character",
+  "metadata": {
+    "equipment_slots": ["mage__main_hand", "mage__off_hand", "mage__robe"]
+  }
+}`}</pre>
+              </div>
+
+              {/* Step 3 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep3Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep3Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`POST /api/v1/games/{game_id}/inventory/equip
+
+{
+  "item_id": "uuid-of-sword-inventory-item",
+  "slot_key": "warrior__main_hand",
+  "slot_data": {
+    "character_item_id": "uuid-of-warrior-inventory-item"
+  }
+}`}</pre>
+                <p className="text-xs text-muted-foreground font-mono">{t('items.charSlotStep3Response')}</p>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep3ApiNote')}</p>
+              </div>
+
+              {/* Step 4 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep4Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep4DescCreate')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`POST /api/v1/games/{game_id}/equipment-slots
+
+{
+  "slot_key": "warrior__main_hand",
+  "name": "Warrior - Main Hand",
+  "allowed_categories": ["weapon"],
+  "metadata": {
+    "character_definition_id": "uuid-of-warrior-item-definition"
+  }
+}`}</pre>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep4DescUpdate')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`PUT /api/v1/games/{game_id}/equipment-slots/warrior__main_hand
+
+{
+  "metadata": {
+    "character_definition_id": "uuid-of-warrior-item-definition"
+  }
+}`}</pre>
+                <p className="text-xs text-muted-foreground font-mono">{t('items.charSlotStep4Response')}</p>
+              </div>
+
+              {/* Flow */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotFlowTitle')}</h3>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground pl-1">
+                  <li>{t('items.charSlotFlowStep1')}</li>
+                  <li>{t('items.charSlotFlowStep2')}</li>
+                  <li>{t('items.charSlotFlowStep3')}</li>
+                  <li>{t('items.charSlotFlowStep4')}</li>
+                </ol>
+              </div>
+
+              {/* Limitations table */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotLimitTitle')}</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3 font-semibold w-1/2">{t('items.charSlotIssueCol')}</th>
+                        <th className="text-left p-3 font-semibold w-1/2">{t('items.charSlotSolutionCol')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue1')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol1')}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue2')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol2')}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue3')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol3')}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="text-base font-semibold">{t('items.charSlotSummaryTitle')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotSummaryDesc')}</p>
+                <ul className="list-disc list-inside space-y-1 text-sm pl-1">
+                  <li><span className="font-mono font-semibold">SlotKey</span> — {t('items.charSlotSummaryPoint1')}</li>
+                  <li><span className="font-mono font-semibold">ItemDefinition.Metadata</span> — {t('items.charSlotSummaryPoint2')}</li>
+                  <li><span className="font-mono font-semibold">SlotData</span> — {t('items.charSlotSummaryPoint3')}</li>
+                  <li><span className="font-mono font-semibold">EquipmentSlotDefinition.Metadata</span> — {t('items.charSlotSummaryPoint4')}</li>
+                </ul>
+                <p className="text-sm text-muted-foreground italic">{t('items.charSlotSummaryFooter')}</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
