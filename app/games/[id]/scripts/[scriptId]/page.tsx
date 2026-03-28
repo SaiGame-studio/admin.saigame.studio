@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImper
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft, Save, Loader2, Code2, RefreshCw, Clock, Layers, FileCode, Undo2, Redo2, Minus, Plus, Pencil, X, Check,
-  ChevronRight, ChevronLeft, Play,
+  ChevronRight, ChevronLeft, Play, Braces,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +37,26 @@ import { linter, lintGutter } from "@codemirror/lint"
 import type { Diagnostic } from "@codemirror/lint"
 import { json } from "@codemirror/lang-json"
 import luaparse from "luaparse"
+
+// ---------------------------------------------------------------------------
+// JSON linter
+// ---------------------------------------------------------------------------
+function jsonLinter(view: EditorView): Diagnostic[] {
+  const code = view.state.doc.toString()
+  if (!code.trim()) return []
+  try {
+    JSON.parse(code)
+    return []
+  } catch (err: unknown) {
+    if (err instanceof SyntaxError) {
+      const match = err.message.match(/position\s+(\d+)/i)
+      const pos = match ? Math.min(Number(match[1]), view.state.doc.length) : 0
+      const line = view.state.doc.lineAt(pos)
+      return [{ from: pos, to: Math.max(pos + 1, line.to), severity: "error", message: err.message }]
+    }
+    return []
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Lua linter
@@ -207,6 +227,7 @@ export default function ScriptEditPage() {
   const [runDuration, setRunDuration] = useState<number | null>(null)
   const [runningScript, setRunningScript] = useState(false)
 
+  const [payloadKey, setPayloadKey] = useState(0)
   const [savedPayloadFlag, setSavedPayloadFlag] = useState(false)
   const savedPayloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const payloadDirty = useRef(false)
@@ -539,7 +560,6 @@ export default function ScriptEditPage() {
                     <TooltipContent side="bottom">{t('scripts.tooltipIncreaseFontSize')}</TooltipContent>
                   </Tooltip>
                   <Separator orientation="vertical" className="h-4 mx-0.5" />
-                  <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="icon" className="h-7 w-7" onClick={handleSaveBody} disabled={savingBody}>
@@ -548,6 +568,7 @@ export default function ScriptEditPage() {
                     </TooltipTrigger>
                     <TooltipContent side="bottom">{t('scripts.tooltipSaveScript')}</TooltipContent>
                   </Tooltip>
+                  <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedBody ? "opacity-100" : "opacity-0"}`} />
                 </div>
               </div>
               <div className="flex-1 min-h-0">
@@ -667,7 +688,29 @@ export default function ScriptEditPage() {
           <Separator />
           <div id="section-run-payload" className="px-6 py-3 flex flex-col gap-2 scroll-mt-[60px]" style={{ height: "90vh" }}>
             <div className="flex items-center justify-center gap-2 shrink-0">
-              <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedPayloadFlag ? "opacity-100" : "opacity-0"}`} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => {
+                      try {
+                        const trimmed = runPayload.replace(/^\uFEFF/, "").trim()
+                        const parsed = JSON.parse(trimmed)
+                        const beautified = JSON.stringify(parsed, null, 2)
+                        setRunPayload(beautified)
+                        setPayloadKey(k => k + 1)
+                      } catch (e) {
+                        toast({ variant: "destructive", title: "Invalid JSON", description: e instanceof Error ? e.message : "Cannot beautify invalid JSON" })
+                      }
+                    }}
+                  >
+                    <Braces className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Beautify JSON</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -681,6 +724,7 @@ export default function ScriptEditPage() {
                 </TooltipTrigger>
                 <TooltipContent side="bottom">{t('scripts.savePayload')}</TooltipContent>
               </Tooltip>
+              <Check className={`h-3.5 w-3.5 text-emerald-500 transition-opacity duration-500 ${savedPayloadFlag ? "opacity-100" : "opacity-0"}`} />
               <Button
                 size="sm"
                 className="h-7 gap-1.5"
@@ -705,10 +749,11 @@ export default function ScriptEditPage() {
                 </div>
                 <div className="flex-1 min-h-0">
                   <CodeMirror
+                    key={payloadKey}
                     value={runPayload}
                     onChange={handlePayloadChange}
                     theme={vscodeDark}
-                    extensions={[json(), payloadKeymapExt]}
+                    extensions={[json(), lintGutter(), linter(jsonLinter, { delay: 400 }), payloadKeymapExt]}
                     basicSetup={{
                       lineNumbers: true,
                       foldGutter: false,
