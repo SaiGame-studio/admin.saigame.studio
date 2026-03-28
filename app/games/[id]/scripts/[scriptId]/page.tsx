@@ -357,7 +357,7 @@ export default function ScriptEditPage() {
   // -------------------------------------------------------------------------
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="flex flex-col h-[calc(100vh-60px)] overflow-y-auto">
+    <div className="flex flex-col">
       {/* ── Top header ──────────────────────────────────────────────────── */}
       <div className="px-6 pt-4 pb-3 shrink-0">
         {/* Breadcrumb */}
