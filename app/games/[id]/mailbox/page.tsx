@@ -115,9 +115,10 @@ function ReadBadge({ readAt, claimedAt }: { readAt: string | null; claimedAt: st
   )
 }
 
-export default function MailboxPage({ params }: { params: { id: string } }) {
+export default function MailboxPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params)
   const router = useRouter()
-  const gameId = params.id
+  const gameId = id
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { toast } = useToast()

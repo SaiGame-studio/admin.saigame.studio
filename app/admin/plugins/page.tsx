@@ -111,6 +111,8 @@ interface PluginFormState {
   entity_defs_grant: string
   event_types_grant: string
   boards_grant: string
+  scripts_grant: string
+  quests_grant: string
   duration_days: string
   is_template: boolean
 }
@@ -126,6 +128,8 @@ const defaultForm: PluginFormState = {
   entity_defs_grant: "0",
   event_types_grant: "0",
   boards_grant: "0",
+  scripts_grant: "0",
+  quests_grant: "0",
   duration_days: "0",
   is_template: false,
 }
@@ -142,6 +146,8 @@ function pluginToForm(p: Plugin): PluginFormState {
     entity_defs_grant: String(p.entity_defs_grant ?? 0),
     event_types_grant: String(p.event_types_grant ?? 0),
     boards_grant: String(p.boards_grant ?? 0),
+    scripts_grant: String(p.scripts_grant ?? 0),
+    quests_grant: String(p.quests_grant ?? 0),
     duration_days: String(p.duration_days ?? 0),
     is_template: p.is_template ?? false,
   }
@@ -305,6 +311,8 @@ export default function AdminPluginsPage() {
         entity_defs_grant: Number(form.entity_defs_grant) || 0,
         event_types_grant: Number(form.event_types_grant) || 0,
         boards_grant: Number(form.boards_grant) || 0,
+        scripts_grant: Number(form.scripts_grant) || 0,
+        quests_grant: Number(form.quests_grant) || 0,
         duration_days: Number(form.duration_days) || null,
         is_template: form.is_template,
       }
@@ -357,17 +365,20 @@ export default function AdminPluginsPage() {
       ])
       const el = pluginsResult.effective_limits
       const leaderboardsLimit = el.max_leaderboards ?? el.max_boards ?? fresh.limits?.max_leaderboards ?? 0
-      // Overlay effective_limits onto the game object so the UI reflects plugin contributions
       setGameLimits({
         ...fresh,
         limits: {
-          ...fresh.limits,
-          max_concurrent_users: el.max_concurrent_users,
-          max_player_profiles: el.max_profiles,
-          max_items: el.max_items,
-          max_shops: el.max_shops,
+          max_concurrent_users: el.max_concurrent_users ?? fresh.limits?.max_concurrent_users ?? 0,
+          max_player_profiles: el.max_profiles ?? fresh.limits?.max_player_profiles ?? 0,
+          max_items: el.max_items ?? fresh.limits?.max_items ?? 0,
+          max_shops: el.max_shops ?? fresh.limits?.max_shops ?? 0,
           max_gacha_packs: el.max_gacha_packs ?? fresh.limits?.max_gacha_packs ?? 0,
-          max_leaderboards: leaderboardsLimit,
+          max_leaderboards: el.max_leaderboards ?? el.max_boards ?? fresh.limits?.max_leaderboards ?? 0,
+          max_scripts: el.max_scripts ?? fresh.limits?.max_scripts ?? 0,
+          max_quests: el.max_quests ?? fresh.limits?.max_quests ?? 0,
+          max_node_definitions: el.max_node_defs ?? fresh.limits?.max_node_definitions ?? 0,
+          max_event_types: el.max_event_types ?? fresh.limits?.max_event_types ?? 0,
+          max_entity_defs: el.max_entity_defs ?? fresh.limits?.max_entity_defs ?? 0,
         },
       })
     } catch (err: any) {
@@ -451,13 +462,14 @@ export default function AdminPluginsPage() {
       setGameLimits((prev) => prev ? {
         ...prev,
         limits: {
-          ...prev.limits,
           max_concurrent_users: result.totals.max_concurrent_users,
           max_player_profiles: result.totals.max_player_profiles,
           max_items: result.totals.max_items,
           max_shops: result.totals.max_shops,
           max_quests: result.totals.max_quests,
           max_leaderboards: result.totals.max_leaderboards ?? 0,
+          max_scripts: result.totals.max_scripts ?? 0,
+          max_gacha_packs: prev.limits?.max_gacha_packs ?? 0,
         },
       } : prev)
     } catch (err: any) {
@@ -529,6 +541,7 @@ export default function AdminPluginsPage() {
                     <TableHead>Entity Defs</TableHead>
                     <TableHead>Event Types</TableHead>
                     <TableHead>Leaderboards</TableHead>
+                    <TableHead>Scripts</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Reusable</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -561,6 +574,7 @@ export default function AdminPluginsPage() {
                           <TableCell>{(plugin.entity_defs_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.event_types_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>{(plugin.boards_grant ?? 0).toLocaleString()}</TableCell>
+                          <TableCell>{(plugin.scripts_grant ?? 0).toLocaleString()}</TableCell>
                           <TableCell>
                             {plugin.duration_days ? `${plugin.duration_days}d` : "Permanent"}
                           </TableCell>
@@ -631,9 +645,11 @@ export default function AdminPluginsPage() {
                                       { icon: "🏪", label: "Shops", val: plugin.shops_grant },
                                       { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
                                       { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
+                                      { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
                                       { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
                                       { icon: "🎰", label: "Gacha", val: plugin.gacha_grant ?? 0 },
                                       { icon: "📋", label: "Leaderboards", val: plugin.boards_grant ?? 0 },
+                                      { icon: "📜", label: "Scripts", val: plugin.scripts_grant ?? 0 },
                                     ] as { icon: string; label: string; val: number }[]).map((r) => (
                                       <div key={r.label} className="flex items-center gap-1.5">
                                         <span>{r.icon}</span>
@@ -787,6 +803,7 @@ export default function AdminPluginsPage() {
                             { label: "Max Items", value: gameLimits.limits?.max_items },
                             { label: "Max Shops", value: gameLimits.limits?.max_shops },
                             { label: "Max Leaderboards", value: gameLimits.limits?.max_leaderboards ?? 0, usage: gameLimits.usage?.leaderboards ?? 0 },
+                            { label: "Max Scripts", value: gameLimits.limits?.max_scripts ?? 0, usage: gameLimits.usage?.scripts ?? 0 },
                           ] as { label: string; value?: number | null; usage?: number | null }[]).map(({ label, value, usage }) => (
                             <div key={label} className="flex items-center justify-between">
                               <span className="text-muted-foreground">{label}</span>
@@ -1096,7 +1113,10 @@ export default function AdminPluginsPage() {
                                                   { icon: "📜", label: "Quests", val: pluginDef.quests_grant ?? 0 },
                                                   { icon: "🔗", label: "Journey Node", val: pluginDef.node_defs_grant ?? 0 },
                                                   { icon: "📡", label: "Event Types", val: pluginDef.event_types_grant ?? 0 },
+                                                  { icon: "🧩", label: "Entity Defs", val: pluginDef.entity_defs_grant ?? 0 },
+                                                  { icon: "🎰", label: "Gacha", val: pluginDef.gacha_grant ?? 0 },
                                                   { icon: "📋", label: "Leaderboards", val: pluginDef.boards_grant ?? 0 },
+                                                  { icon: "📜", label: "Scripts", val: pluginDef.scripts_grant ?? 0 },
                                                 ] as { icon: string; label: string; val: number }[])
                                                   .filter((r) => r.val > 0)
                                                   .map((r) => (
@@ -1174,6 +1194,8 @@ export default function AdminPluginsPage() {
                   { key: "entity_defs_grant", label: t('plugins.fieldEntityDefsGrant') || "Entity Definitions Grant" },
                   { key: "event_types_grant", label: t('plugins.fieldEventTypesGrant') || "Event Types Grant" },
                   { key: "boards_grant", label: t('plugins.fieldBoardsGrant') || "Leaderboard Grant" },
+                  { key: "scripts_grant", label: "Scripts Grant" },
+                  { key: "quests_grant", label: t('plugins.fieldQuestsGrant') || "Quests Grant" },
                 ] as { key: keyof PluginFormState; label: string }[]
               ).map(({ key, label }) => (
                 <div key={key} className="space-y-1">

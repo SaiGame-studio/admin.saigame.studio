@@ -133,13 +133,13 @@ export function SideNav() {
         <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
           {!isCollapsed && (
             <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
-              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" />
+              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" style={{ width: 24, height: 24 }} />
               <span>{SITE_NAME}</span>
             </Link>
           )}
           {isCollapsed && (
             <div className="flex justify-center w-full">
-              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" />
+              <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" style={{ width: 24, height: 24 }} />
             </div>
           )}
           <Button

@@ -4,7 +4,6 @@ export interface GameScript {
   game_id: string
   name: string
   description: string
-  trigger_type: string
   script_body: string
   version: number
   is_active: boolean
@@ -16,7 +15,6 @@ export interface GameScript {
 export interface CreateScriptRequest {
   name: string
   description: string
-  trigger_type: string
   script_body: string
 }
 
@@ -31,7 +29,6 @@ export interface SampleScript {
   no: number
   name: string
   description: string
-  trigger_type: string
   game_type: string
   script_body: string
 }

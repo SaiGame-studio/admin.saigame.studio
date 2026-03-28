@@ -659,7 +659,20 @@ export default function GameUserProgressDetailPage({
     setPresetsError(null)
     try {
       const res = await getPlayerPresets(gameId, detail.user_id)
-      setPresets(res.containers ?? [])
+      const containers = res.containers ?? []
+      setPresets(containers)
+      // Load all preset details in parallel to get definition names
+      const detailResults = await Promise.allSettled(
+        containers.map(c => getPlayerPresetDetail(gameId, detail.user_id, c.id))
+      )
+      const newDetails: Record<string, PlayerPresetDetail> = {}
+      for (let i = 0; i < containers.length; i++) {
+        const r = detailResults[i]
+        if (r.status === "fulfilled") {
+          newDetails[containers[i].id] = r.value
+        }
+      }
+      setPresetDetails(prev => ({ ...prev, ...newDetails }))
     } catch (err: any) {
       setPresetsError(err?.message ?? "Failed to load presets")
     } finally {
@@ -2552,7 +2565,13 @@ export default function GameUserProgressDetailPage({
                                 <CopyButton text={p.id} size="h-3 w-3" />
                               </span>
                             </TableCell>
-                            <TableCell className="text-sm font-medium">{p.name || "—"}</TableCell>
+                            <TableCell className="text-sm font-medium">
+                              <div>{presetDetails[p.id]?.container.definition?.name || p.name || "—"}</div>
+                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground font-normal mt-0.5">
+                                {p.id.slice(0, 8)}…
+                                <CopyButton text={p.id} size="h-3 w-3" />
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
                                 <Package className="h-3 w-3 shrink-0" />
@@ -2574,9 +2593,9 @@ export default function GameUserProgressDetailPage({
                             <TableRow className="bg-muted/30 hover:bg-muted/40">
                               <TableCell colSpan={7} className="p-0">
                                 <div className="px-6 py-4 space-y-4">
-                                  {/* Full Preset ID */}
+                                  {/* Instance ID */}
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold text-foreground">Preset ID:</span>
+                                    <span className="text-xs font-semibold text-foreground">Instance ID:</span>
                                     <span className="text-xs font-mono text-muted-foreground">{p.id}</span>
                                     <CopyButton text={p.id} />
                                   </div>

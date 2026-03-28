@@ -10,6 +10,7 @@ export const ja = {
     edit: "編集",
     delete: "削除",
     remove: "削除",
+    add: "追加",
     adding: "追加中...",
     search: "検索",
     noItemsFound: "アイテムが見つかりません",
@@ -846,8 +847,6 @@ export const ja = {
     backToPayment: "支払いページに戻る",
     totalAmount: "合計金額",
     totalScoin: "合計sCoin",
-    noteLabel: "管理者へのメモ",
-    notePlaceholder: "振込番号、銀行名、その他確認に役立つ情報を入力してください。",
   },
   adminGiftCodes: {
     // ページヘッダー
@@ -1164,6 +1163,8 @@ export const ja = {
       labelNodeDefs: "ジャーニーノード",
       labelEventTypes: "イベントタイプ",
       labelBoards: "リーダーボード",
+      labelScripts: "スクリプト",
+      labelEntityDefs: "エンティティ定義",
       labelGacha: "ガチャ",
       willNotRenew: "更新されません",
       daysLeft: "日残り",
@@ -1183,7 +1184,131 @@ export const ja = {
       toastUnsubFailed: "購読解除に失敗しました。",
       toastSubFailed: "購読に失敗しました。",
       toastNotEnoughCoins: "コイン不足。費用:",
-      toastMaxStacks: "全スロットが埋まっています。"
+      toastMaxStacks: "全スロットが埋まっています。",
+      help: {
+        ccu: {
+          title: "同時接続ユーザー (CCU)",
+          tagline: "同時にオンラインになれるプレイヤーの最大数",
+          description: "CCUは、特定の瞬間にゲームに接続しているプレイヤーの最大数です。制限に達すると、誰かが切断するまで新しい接続は拒否されます。",
+          tip: "急速な成長が予想される場合は、早めにアップグレードしてください。UncommonからRareに上げると、プロフィールの上限が約66倍になります。",
+          details: [
+            "デフォルトの基本制限: 20 CCU。各プラグインの購読がこの基本値に加算されます。",
+            "CCUセッションは30分間操作がないと自動的に終了しますが、アクティブなプレイヤーがプレイ中に切断されることはありません。"
+          ]
+        },
+        profiles: {
+          title: "プレイヤープロフィール",
+          tagline: "登録可能なプレイヤーアカウントの総数",
+          description: "ゲームのデータベースに保存できる一意のプレイヤーアカウントの最大数です。これは総ユーザー数を反映します。",
+          tip: "制限内に収めるために、別々の定義を作るのではなく、アイテム属性（ティア、色など）を使用してアイテムのバリエーションを統合してください。",
+          details: [
+            "デフォルトの基本制限: 100プロフィール。プラグインによって大幅に増加します。",
+            "この制限は、過去に作成されたすべてのプロフィール（非アクティブなユーザーを含む）をカウントします。",
+            "制限に達すると、プロフィール作成前にHTTP 429が返されます。"
+          ]
+        },
+        items: {
+          title: "アイテム",
+          tagline: "作成可能な一意のアイテム定義の数",
+          description: "定義できる一意のアイテムテンプレート（設計図）の数を制限します。各バリエーションは個別の定義としてカウントされます。",
+          tip: "数個のショップしか必要ない場合、Rareティア（×3で最大150ショップ）はほとんどの中規模ゲームにとって十分すぎます。",
+          details: [
+            "デフォルトの基本制限: 100アイテム定義。",
+            "これはプレイヤーが所有するアイテムの個数ではなく、アイテムの種類（定義）を制御します。",
+            "各バリエーションは個別の定義としてカウントされます（例：鉄の剣と鋼の剣は2つのアイテムです）。"
+          ]
+        },
+        shops: {
+          title: "ショップ",
+          tagline: "設置可能なゲーム内ストアの数",
+          description: "作成できるショップインスタンスの最大数です。各ショップは独自のカタログと価格設定ルールを持つことができます。",
+          tip: "CommonとUncommonはスタックあたりのクエスト付与が同じです。Rareにアップグレードすると10倍になり、バトルパスが開放されます。",
+          details: [
+            "デフォルトの基本制限: 2ショップ。",
+            "期間限定のイベントショップ、週替わりショップ、常設ショップはそれぞれ別個にカウントされます。",
+            "ショップは特定のモード、地域、またはプレイヤーセグメントに限定して公開できます。"
+          ]
+        },
+        quests: {
+          title: "クエスト",
+          tagline: "設計可能なクエスト定義の数",
+          description: "すべてのタイプにわたって作成できるクエスト定義の数を制御します。バトルパス機能をアンロックするにはRareティア以上が必要です。",
+          tip: "深い分岐ストーリーが必要な場合は、Epic以上を優先してください。1ジャーニーあたりのノード上限の方が制限になりやすいです。",
+          details: [
+            "デフォルトの基本制限: 30クエスト定義。",
+            "デイリー、ウィークリー、ストーリー、単発、シーズンなどすべてのタイプのクエストを含みます。",
+            "バトルパスのセットにはRare以上が必要です（Rareでスタックあたり30、Epicで300、Legendaryで3,000）。"
+          ]
+        },
+        nodes: {
+          title: "Journey Node Def",
+          tagline: "進行グラフの節目とゲート",
+          description: "Journey Node Definitionsは、プレイヤーの進行状況において作成できるステージや分岐チェックポイントの数を決定します。",
+          tip: "Event Typesをコードのロジックではなく、プレイヤーの行動中心に設計してください。汎用的な名前を付けることで再利用が容易になります。",
+          details: [
+            "デフォルトの基本制限: 100ノード定義。",
+            "Node Defsはユーザーイベントを直接受信しません。イベントはまずEvent Typeを通じてマッピングされる必要があります。"
+          ]
+        },
+        event_types: {
+          title: "Event Types",
+          tagline: "ゲームが送信・追跡できるプレイヤーイベント",
+          description: "Event Typesは生データ（テレメトリ）の入力ポイントです。ゲームが名前でイベントを送信し、システムがそれをルーティングします。",
+          tip: "モジュラーなスクリプト設計を使用して、複数の関数でロジックを再利用し、必要な個別のスクリプト数を最小限に抑えてください。",
+          details: [
+            "デフォルトの基本制限: 100イベントタイプ定義。",
+            "Event Typesは、プレイヤーの行動がJourneyシステムに入る唯一の方法です。Node Defsは直接イベントを受信できません。",
+            "1つのEvent Typeで、複数のJourney Nodeの条件を同時にトリガーできます。"
+          ]
+        },
+        scripts: {
+          title: "Scripts",
+          tagline: "ゲーム用のカスタムロジックと自動化スクリプト",
+          description: "Scriptsを使用すると、複雑なサーバーサイドのロジックや動作を実装できます。一意のスクリプトファイルごとに1スロット消費します。",
+          tip: "Entity Defは可能な限り汎用的に保ってください。プロパティやメタデータを使用してバリエーションを区別し、新しい定義の作成を避けてください。",
+          details: [
+            "デフォルトの基本制限: 10スクリプト。各プラグインの購読がこの基本値に加算されます。",
+            "この制限は一意のスクリプトファイル数をカウントし、実行回数やインポートは含まれません。"
+          ]
+        },
+        entity_defs: {
+          title: "Entity Def",
+          tagline: "許可される総エンティティ定義数 (敵, 部屋, 遺物など)",
+          description: "Entity Defsを使用すると、ゲーム内のあらゆるオブジェクトに対して構造化されたスキーマ（設計図）を作成できます。",
+          tip: "エンティティを異なるレベルやゲームモードで再利用できるように設計してください。",
+          details: [
+            "一般的な例：敵、NPC、部屋、遺物、ボス、防衛ユニット。",
+            "一意のエンティティ定義ごとに制限の1スロットを消費します。",
+            "制限に達すると、アップグレードするか未使用のものを削除するまで、新しい種類のエンティティを作成できません。"
+          ]
+        },
+        gacha: {
+          title: "ガチャパック",
+          tagline: "一意のガチャ/ルートボックス定義の数",
+          description: "ゲームに定義できる一意のガチャパックテンプレートの数を制御します。",
+          tip: "ガチャの確率は早めにバランス調整してください。EpicやLegendaryティアでは、ルートテーブルに膨大なバリエーションを持たせることができます。",
+          details: [
+            "デフォルトの基本制限: 10ガチャ定義。各プラグインの購読がこの基本値に加算されます。",
+            "管理可能なルートボックスまたはガチャプールの定義数を制御します。"
+          ]
+        },
+        boards: {
+          title: "リーダーボード",
+          tagline: "シーズンを通じたプレイヤーのパフォーマンス追跡とランク付け",
+          description: "リーダーボードでは、ガチャの開封、アイテム収集、またはカスタムトリガーからのスコアに基づいて、プレイヤーをランク付けできます。",
+          tip: "日次、週次、月次のリセットスケジュールを使用して、競争を活発に保ち、新規プレイヤーにも公平な機会を提供しましょう。",
+          details: [
+            "デフォルトの基本制限: 2つのリーダーボード定義。プラグインの追加により、ゲームの成長に合わせて拡張可能です。",
+            "合計、最大、最小、最新スコアの複数のスコアリングモードをサポートしています。",
+            "自動化されたシーズン機能と、過去のランキングを閲覧できる履歴アーカイブ機能を備えています。"
+          ]
+        },
+        keyPoints: "主なポイント",
+        currentUsage: "現在の使用状況",
+        used: "使用済み",
+        materiaGrantTable: "マテリア付与表",
+        browseMateria: "使用可能なマテリアを閲覧 ↑"
+      }
     }
   },
   mailbox: {
@@ -1656,6 +1781,14 @@ export const ja = {
     linkedItemDefinition: "リンクされたアイテム定義",
     noLinkedItem: "リンクされたアイテムなし",
     noLinkedItemOption: "— リンクされたアイテムなし —",
+    // Container detail
+    loadingDetailDots: "詳細データを読み込み中…",
+    containerIdLabel: "コンテナID",
+    linkedItemDefinitionId: "リンクされたアイテム定義ID",
+    dimensionsHeader: "サイズ",
+    totalSlots: "合計スロット",
+    fullMetadata: "すべてのメタデータ",
+    selectItem: "アイテムを選択...",
     // Equipment slots
     equipmentSlotsTitle: "装備スロット",
     slotKey: "スロットキー",
@@ -2624,6 +2757,7 @@ export const ja = {
     // Header
     scriptCount: "スクリプト",
     scriptCountPlural: "スクリプト",
+    scriptsUnit: "スクリプト",
 
     // Toolbar
     scriptsDefinedSingular: "件のスクリプトが定義済み",
@@ -2637,7 +2771,6 @@ export const ja = {
 
     // Table headers
     tableHeaderName: "名前",
-    tableHeaderTrigger: "トリガー",
     tableHeaderDescription: "説明",
     tableHeaderVer: "Ver",
     tableHeaderActive: "アクティブ",
@@ -2651,21 +2784,25 @@ export const ja = {
     createDescription: "ゲームイベントでトリガーされるLuaスクリプトを作成します。",
     labelName: "名前",
     labelDescription: "説明",
-    labelTriggerType: "トリガータイプ",
     placeholderName: "calc_reward",
     placeholderDescription: "このスクリプトの機能を説明…",
-    placeholderTriggerType: "on_match_end",
     nameHint: "これは<strong>トリガーキー</strong>です — ゲームクライアントはこの名前でスクリプトを呼び出します。英小文字で始まり、英小文字、数字、アンダースコアのみ使用できます。",
     btnCancel: "キャンセル",
     btnCreateScript: "スクリプト作成",
 
+    // 削除
+    deleteTitle: "スクリプトを削除",
+    deleteDescription: "本当にスクリプトを削除しますか",
+    deleteCannotUndone: "この操作は取り消せません。",
+
     // Validation
     validationNameRequired: "名前は必須です。",
-    validationTriggerRequired: "トリガータイプは必須です。",
 
     // Toasts
     toastScriptCreated: "スクリプトを作成しました",
+    toastScriptDeleted: "スクリプトを削除しました",
     toastFailedCreate: "スクリプトの作成に失敗しました",
+    toastFailedDelete: "スクリプトの削除に失敗しました",
     toastFailedLoad: "スクリプトの読み込みに失敗しました",
 
     // Edit page
@@ -2680,8 +2817,6 @@ export const ja = {
     toastFailedSaveInfo: "情報の保存に失敗しました",
     toastFailedSaveScript: "スクリプトの保存に失敗しました",
     toastFailedLoadScript: "スクリプトの読み込みに失敗しました",
-    labelDescription: "説明",
-    placeholderDescription: "このスクリプトの機能を説明…",
     tooltipSaveInfo: "情報を保存",
     tooltipRefresh: "更新",
     scriptBody: "スクリプト本文",
@@ -2697,5 +2832,15 @@ export const ja = {
     sampleReplaceTooltip: "クリックでスクリプト全体を置換",
     noSamplesAvailable: "サンプルがありません",
     sampleFilterAll: "すべて",
+    runScript: "実行テスト",
+    runPayload: "ペイロード (JSON)",
+    runResult: "実行結果",
+    runButton: "実行",
+    running: "実行中...",
+    toastRunSuccess: "スクリプトを実行しました",
+    toastRunFailed: "スクリプトの実行に失敗しました",
+    runResultPlaceholder: "実行結果がここに表示されます...",
+    savePayload: "ペイロードを保存",
+    footerNote: "メソッドの追加が必要な場合はSaiにご連絡ください",
   },
 };

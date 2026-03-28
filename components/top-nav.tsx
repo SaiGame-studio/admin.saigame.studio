@@ -30,7 +30,7 @@ export function TopNav() {
         </SheetContent>
       </Sheet>
       <div className="flex items-center gap-2 lg:hidden">
-        <Image src="/logo.png" alt="Logo" width={24} height={24} />
+        <Image src="/logo.png" alt="Logo" width={24} height={24} style={{ width: 24, height: 24 }} />
         <Link href="/" className="font-semibold">
           Sai's Admin
         </Link>

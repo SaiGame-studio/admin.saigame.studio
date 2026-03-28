@@ -10,6 +10,7 @@ export const en = {
     edit: "Edit",
     delete: "Delete",
     remove: "Remove",
+    add: "Add",
     adding: "Adding...",
     search: "Search",
     noItemsFound: "No items found",
@@ -321,6 +322,7 @@ export const en = {
     navUpgrade: "Upgrade",
     navMailbox: "Mailbox",
     navScripts: "Scripts",
+    scripts: "Scripts",
     compactNav: "Compact nav",
     expandNav: "Expand nav",
     loadErrorRetry: "Failed to load game details. Please try again.",
@@ -855,8 +857,6 @@ export const en = {
     backToPayment: "Back to Payment",
     totalAmount: "Total Amount",
     totalScoin: "Total sCoin",
-    noteLabel: "Note to Admin",
-    notePlaceholder: "Include your transfer reference number, bank name, or any other info to help us verify faster.",
   },
   adminGiftCodes: {
     // Page header
@@ -1181,6 +1181,8 @@ export const en = {
       labelNodeDefs: "Journey Node",
       labelEventTypes: "Event Types",
       labelBoards: "Leaderboards",
+      labelScripts: "Scripts",
+      labelEntityDefs: "Entity Defs",
       labelGacha: "Gacha",
       willNotRenew: "Will not renew",
       daysLeft: "d left",
@@ -1200,7 +1202,131 @@ export const en = {
       toastUnsubFailed: "Unsubscribe failed.",
       toastSubFailed: "Subscription failed.",
       toastNotEnoughCoins: "Not enough coins. Cost:",
-      toastMaxStacks: "All slots are filled for this materia."
+      toastMaxStacks: "All slots are filled for this materia.",
+      help: {
+        ccu: {
+          title: "CCU (Concurrent Users)",
+          tagline: "Peak simultaneous player count allowed",
+          description: "This limits how many players can be connected to your game servers at the exact same time. If the limit is reached, new player connections will be rejected until someone disconnects.",
+          tip: "Games expecting viral growth should upgrade early — going from Uncommon to Rare multiplies your profile cap by ~66×.",
+          details: [
+            "Default base limit: 20 CCU. Each plugin subscription adds on top of this base.",
+            "CCU sessions expire automatically after 30 minutes of inactivity — active players never get kicked mid-session."
+          ]
+        },
+        profiles: {
+          title: "Player Profiles",
+          tagline: "Total registered player accounts",
+          description: "The maximum number of unique player accounts stored in your game's database. This reflects your total user base.",
+          tip: "Consolidate item variants using item attributes (e.g. tier, color) rather than separate definitions to stay within limits.",
+          details: [
+            "Default base limit: 100 profiles. Plugins increase this significantly.",
+            "The limit counts all profiles ever created, including inactive or churned players.",
+            "HTTP 429 is returned before profile creation when the cap is reached."
+          ]
+        },
+        items: {
+          title: "Items",
+          tagline: "Number of unique item definitions you can create",
+          description: "This limits how many unique item templates (blueprints) you can define. Each variation counts as a separate definition.",
+          tip: "If you only need a few shops, Rare tier (up to 150 shops with ×3) is more than enough for most mid-size games.",
+          details: [
+            "Default base limit: 100 item definitions.",
+            "This controls item types (definitions), not item instances owned by players.",
+            "Each variation counts as a separate definition (e.g. Iron Sword and Steel Sword are two items)."
+          ]
+        },
+        shops: {
+          title: "Shops",
+          tagline: "Number of in-game stores you can set up",
+          description: "Maximum number of shop instances you can create. Each shop can have catalog and pricing rules.",
+          tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
+          details: [
+            "Default base limit: 2 shops.",
+            "Seasonal event shops, weekly rotating shops, and permanent shops each count as separate instances.",
+            "Shops can be scoped to specific game modes, regions, or player segments."
+          ]
+        },
+        quests: {
+          title: "Quests",
+          tagline: "Number of quest definitions you can design",
+          description: "Controls how many quest definitions you can create across all types. Requires Rare tier or above to unlock Battle Pass.",
+          tip: "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap is often more limiting.",
+          details: [
+            "Default base limit: 30 quest definitions.",
+            "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
+            "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary)."
+          ]
+        },
+        nodes: {
+          title: "Journey Node Def",
+          tagline: "Milestones and gates in your player progression graph",
+          description: "Journey Node Definitions determine how many stages or branching checkpoints you can create.",
+          tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across conditions.",
+          details: [
+            "Default base limit: 100 node definitions.",
+            "Node Defs do not receive User Events directly — events must be mapped through an Event Type first."
+          ]
+        },
+        event_types: {
+          title: "Event Types",
+          tagline: "Named player events your game can emit and track",
+          description: "Event Types are the entry point for raw player telemetry: your game emits an event by name, and the system routes it.",
+          tip: "Use modular script design to reuse logic across multiple functions and minimize the number of individual scripts needed.",
+          details: [
+            "Default base limit: 100 event type definitions.",
+            "Event Types are the only way for player actions to enter the Journey system — Node Defs cannot receive events directly.",
+            "One Event Type can trigger conditions on many different Journey Nodes at the same time."
+          ]
+        },
+        scripts: {
+          title: "Scripts",
+          tagline: "Custom logic and automation scripts for your game",
+          description: "Scripts allow you to implement complex server-side logic and behaviors. Each unique script file consumes one slot.",
+          tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate variations.",
+          details: [
+            "Default base limit: 10 scripts. Every plugin subscription adds on top of this base.",
+            "The limit counts unique script files, not script executions or library imports."
+          ]
+        },
+        entity_defs: {
+          title: "Entity Def",
+          tagline: "Total entity definitions allowed (Enemy, Room, Relic, etc.)",
+          description: "Entity Defs allow you to create structured schemas for any object in your game (blueprints).",
+          tip: "Design your entities to be reusable across different levels or game modes.",
+          details: [
+            "Common examples: Enemy, NPC, Room, Relic, Boss, Defense Unit.",
+            "Each unique entity def consumes one slot in your limit.",
+            "When the limit is reached, you cannot create new types of entities until you upgrade or remove unused ones."
+          ]
+        },
+        gacha: {
+          title: "Gacha Packs",
+          tagline: "Number of unique gacha/loot box definitions",
+          description: "Controls how many unique gacha pack templates you can define for your game.",
+          tip: "Balance your gacha rates early — Epic and Legendary tiers allow for massive variation in loot tables.",
+          details: [
+            "Default base limit: 10 gacha definitions. Every plugin subscription adds on top of this base.",
+            "Controls how many unique loot box or gacha pool definitions you can manage."
+          ]
+        },
+        boards: {
+          title: "Leaderboards",
+          tagline: "Track and rank player performance across seasons",
+          description: "Leaderboards allow you to rank players globally or locally based on scores from Gacha openings, item collection, or custom triggers.",
+          tip: "Use reset schedules (Daily, Weekly, Monthly) to keep the competition active and fair for new players.",
+          details: [
+            "Default base limit: 2 leaderboard definitions. Plugins add more as your game grows.",
+            "Supports multiple scoring modes: sum, max, min, and latest score.",
+            "Features automated seasons and history archiving for historical rankings."
+          ]
+        },
+        keyPoints: "Key Points",
+        currentUsage: "Current Usage",
+        used: "used",
+        materiaGrantTable: "Materia Grant Table",
+        browseMateria: "Browse available Materia ↑"
+      }
     }
   },
   mailbox: {
@@ -1675,6 +1801,14 @@ export const en = {
     linkedItemDefinition: "Linked Item Definition",
     noLinkedItem: "No linked item",
     noLinkedItemOption: "— No linked item —",
+    // Container detail
+    loadingDetailDots: "Loading detail...",
+    containerIdLabel: "Container ID",
+    linkedItemDefinitionId: "Linked Item Definition ID",
+    dimensionsHeader: "Dimensions",
+    totalSlots: "Total Slots",
+    fullMetadata: "Full Metadata",
+    selectItem: "Select an item...",
     // Equipment slots
     equipmentSlotsTitle: "Equipment Slots",
     slotKey: "Slot Key",
@@ -1948,6 +2082,38 @@ export const en = {
     containerLinkDescPre: "Link a container to an item so that when a player owns this item, the server can automatically provision (via ",
     containerLinkDescPost: ") a personal container instance for them. This is how chests, backpacks, and storage items work — the item acts as the \"key\" to open the container.",
     metadataWithExample: "Metadata (e.g. icon = chest_wood)",
+    explanation: {
+      writeProps: {
+        title: "Write Props",
+        description: "Allows clients (players) to modify and update the item's player-specific properties directly.",
+        whenEnabled: "When Enabled (✓)",
+        enabled1: "Clients can update item properties without server validation",
+        enabled2: "Useful for cosmetic properties or client-side data",
+        enabled3: "Increases flexibility for custom player item modifications",
+        whenDisabled: "When Disabled (✗)",
+        disabled1: "Clients cannot modify item properties",
+        disabled2: "All changes must go through the server API",
+        disabled3: "Better security for critical properties",
+        tip: "Tip:",
+        tipContent: "Use this for non-critical properties like display names, colors, or personal notes.",
+      },
+      updateQty: {
+        title: "Update Qty",
+        description: "Allows clients to modify the quantity value of items they own.",
+        whenEnabled: "When Enabled (✓)",
+        enabled1: "Clients can directly update item quantities",
+        enabled2: "Faster item management on client side",
+        enabled3: "Useful for consumable or stackable items",
+        enabled4: "Reduces network requests for quantity updates",
+        whenDisabled: "When Disabled (✗)",
+        disabled1: "Quantity changes must be validated by server",
+        disabled2: "Prevents accidental or malicious quantity modifications",
+        disabled3: "Better control over limited resource items",
+        disabled4: "More secure for valuable or currency-type items",
+        warning: "Warning:",
+        warningContent: "Disable this for limited resources, premium items, or currency to prevent cheating.",
+      }
+    }
   },
   crafting: {
     // Toolbar
@@ -2679,6 +2845,7 @@ export const en = {
     // Header
     scriptCount: "script",
     scriptCountPlural: "scripts",
+    scriptsUnit: "scripts",
 
     // Toolbar
     scriptsDefinedSingular: "script defined",
@@ -2692,7 +2859,6 @@ export const en = {
 
     // Table headers
     tableHeaderName: "Name",
-    tableHeaderTrigger: "Trigger",
     tableHeaderDescription: "Description",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Active",
@@ -2706,21 +2872,25 @@ export const en = {
     createDescription: "Write a Lua script triggered by a game event.",
     labelName: "Name",
     labelDescription: "Description",
-    labelTriggerType: "Trigger Type",
     placeholderName: "calc_reward",
     placeholderDescription: "Describe what this script does…",
-    placeholderTriggerType: "on_match_end",
     nameHint: "This is the <strong>trigger key</strong> — your game client calls this exact name to invoke the script. Must start with a letter; lowercase letters, digits and underscores only.",
     btnCancel: "Cancel",
     btnCreateScript: "Create Script",
 
+    // Delete
+    deleteTitle: "Delete Script",
+    deleteDescription: "Are you sure you want to delete script",
+    deleteCannotUndone: "This action cannot be undone.",
+
     // Validation
     validationNameRequired: "Name is required.",
-    validationTriggerRequired: "Trigger type is required.",
 
     // Toasts
     toastScriptCreated: "Script created",
+    toastScriptDeleted: "Script deleted",
     toastFailedCreate: "Failed to create script",
+    toastFailedDelete: "Failed to delete script",
     toastFailedLoad: "Failed to load scripts",
 
     // Edit page
@@ -2735,8 +2905,6 @@ export const en = {
     toastFailedSaveInfo: "Failed to save info",
     toastFailedSaveScript: "Failed to save script",
     toastFailedLoadScript: "Failed to load script",
-    labelDescription: "Description",
-    placeholderDescription: "Describe what this script does…",
     tooltipSaveInfo: "Save info",
     tooltipRefresh: "Refresh",
     scriptBody: "Script Body",
@@ -2752,5 +2920,15 @@ export const en = {
     sampleReplaceTooltip: "Click replaces entire script",
     noSamplesAvailable: "No samples available",
     sampleFilterAll: "All",
+    runScript: "Run Script",
+    runPayload: "Payload (JSON)",
+    runResult: "Run Result",
+    runButton: "Run",
+    running: "Running...",
+    toastRunSuccess: "Script executed successfully",
+    toastRunFailed: "Script execution failed",
+    runResultPlaceholder: "Run script to see results...",
+    savePayload: "Save Payload",
+    footerNote: "Talk to Sai if you need more methods",
   },
 };

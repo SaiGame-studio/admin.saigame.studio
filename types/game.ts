@@ -11,6 +11,7 @@ export interface GameLimits {
   max_daily_quest_sets?: number
   max_battle_pass_sets?: number
   max_entity_defs?: number
+  max_scripts?: number
 }
 
 export interface GameUsage {
@@ -24,6 +25,7 @@ export interface GameUsage {
   event_types?: number
   leaderboards?: number
   entity_definitions?: number
+  scripts?: number
 }
 
 export interface Game {

@@ -9,6 +9,7 @@ export const vi = {
     cancel: "Hủy",
     edit: "Sửa",
     delete: "Xóa",
+    add: "Thêm",
     search: "Tìm kiếm",
     noItemsFound: "Không tìm thấy mục nào",
     noData: "Không có dữ liệu",
@@ -320,7 +321,8 @@ export const vi = {
     navAnalytic: "Phân tích",
     navUpgrade: "Nâng cấp",
     navMailbox: "Hộp thư",
-    navScripts: "Scripts",
+    navScripts: "Kịch bản",
+    scripts: "Kịch bản",
     compactNav: "Thu gọn",
     expandNav: "Mở rộng",
     loadErrorRetry: "Không thể tải thông tin game. Vui lòng thử lại.",
@@ -857,8 +859,6 @@ export const vi = {
     backToPayment: "Quay lại trang thanh toán",
     totalAmount: "Tổng tiền",
     totalScoin: "Tổng sCoin",
-    noteLabel: "Ghi chú gửi Admin",
-    notePlaceholder: "Nhập mã giao dịch, tên ngân hàng hoặc thông tin để Admin xác minh nhanh hơn.",
   },
   adminGiftCodes: {
     // Tiêu đề trang
@@ -1175,6 +1175,8 @@ export const vi = {
       labelNodeDefs: "Journey Node",
       labelEventTypes: "Event Types",
       labelBoards: "Leaderboard",
+      labelScripts: "Kịch bản",
+      labelEntityDefs: "Định nghĩa thực thể",
       labelGacha: "Gacha",
       willNotRenew: "Sẽ không gia hạn",
       daysLeft: "ngày còn lại",
@@ -1194,7 +1196,131 @@ export const vi = {
       toastUnsubFailed: "Hủy đăng ký thất bại.",
       toastSubFailed: "Đăng ký thất bại.",
       toastNotEnoughCoins: "Không đủ xu. Phí:",
-      toastMaxStacks: "Tất cả slot đã đầy."
+      toastMaxStacks: "Tất cả slot đã đầy.",
+      help: {
+        ccu: {
+          title: "CCU (Người chơi đồng thời)",
+          tagline: "Giới hạn số người chơi trực tuyến tại một thời điểm",
+          description: "Giới hạn này xác định số lượng người chơi có thể kết nối vào máy chủ game của bạn tại cùng một thời điểm. Khi đạt giới hạn, người chơi mới sẽ bị từ chối kết nối.",
+          tip: "Các game mong muốn tăng trưởng viral nên nâng cấp sớm — từ Uncommon lên Rare sẽ nhân giới hạn hồ sơ lên gấp ~66 lần.",
+          details: [
+            "Giới hạn cơ bản mặc định: 20 CCU. Mỗi đăng ký plugin sẽ cộng thêm vào mức cơ bản này.",
+            "Các phiên CCU tự động hết hạn sau 30 phút không hoạt động — người chơi đang active sẽ không bao giờ bị đuổi giữa chừng."
+          ]
+        },
+        profiles: {
+          title: "Hồ sơ người chơi",
+          tagline: "Tổng số tài khoản người chơi đã đăng ký",
+          description: "Số lượng tài khoản người chơi duy nhất tối đa được lưu trữ trong cơ sở dữ liệu của game. Đây là con số phản ánh tổng lượng người dùng của bạn.",
+          tip: "Hợp nhất các biến thể vật phẩm bằng thuộc tính (vd: bậc, màu sắc) thay vì tạo định nghĩa riêng để tiết kiệm giới hạn.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 hồ sơ. Plugins giúp tăng con số này lên đáng kể.",
+            "Giới hạn tính tất cả hồ sơ từng được tạo, bao gồm cả người chơi không hoạt động hoặc đã rời bỏ.",
+            "Lỗi HTTP 429 sẽ được trả về trước khi tạo hồ sơ nếu đã đạt giới hạn."
+          ]
+        },
+        items: {
+          title: "Vật phẩm",
+          tagline: "Số lượng định nghĩa vật phẩm duy nhất có thể tạo",
+          description: "Giới hạn số lượng bản thiết kế vật phẩm duy nhất (blueprints) bạn có thể định nghĩa. Mỗi biến thể được tính là một định nghĩa riêng.",
+          tip: "Nếu bạn chỉ cần vài cửa hàng, bậc Rare (lên đến 150 cửa hàng với ×3) là quá đủ cho hầu hết game tầm trung.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa vật phẩm.",
+            "Điều này kiểm soát các loại vật phẩm (định nghĩa), không phải các bản thể vật phẩm mà người chơi sở hữu.",
+            "Mỗi biến thể được tính là một định nghĩa riêng (vd: Kiếm Sắt và Kiếm Thép là hai vật phẩm khác nhau)."
+          ]
+        },
+        shops: {
+          title: "Cửa hàng",
+          tagline: "Số lượng cửa hàng trong game bạn có thể thiết lập",
+          description: "Số lượng thực thể cửa hàng tối đa bạn có thể tạo. Mỗi cửa hàng có thể có danh mục và quy tắc giá riêng.",
+          tip: "Bậc Common và Uncommon cung cấp gói nhiệm vụ giống nhau. Nâng lên Rare sẽ tăng gấp 10 lần và mở khóa Battle Pass.",
+          details: [
+            "Giới hạn cơ bản mặc định: 2 cửa hàng.",
+            "Cửa hàng sự kiện theo mùa, cửa hàng xoay vòng hàng tuần và cửa hàng vĩnh viễn đều được tính là các thực thể riêng biệt.",
+            "Cửa hàng có thể được giới hạn cho các chế độ game, khu vực hoặc phân khúc người chơi cụ thể."
+          ]
+        },
+        quests: {
+          title: "Nhiệm vụ",
+          tagline: "Số lượng định nghĩa nhiệm vụ có thể thiết kế",
+          description: "Kiểm soát số lượng định nghĩa nhiệm vụ bạn có thể tạo trên mọi loại. Yêu cầu bậc Rare trở lên để mở khóa Battle Pass.",
+          tip: "Nếu bạn cần các cốt truyện rẽ nhánh sâu, hãy ưu tiên Epic trở lên — giới hạn node trên mỗi journey thường quan trọng hơn.",
+          details: [
+            "Giới hạn cơ bản mặc định: 30 định nghĩa nhiệm vụ.",
+            "Bao gồm tất cả các loại nhiệm vụ: hàng ngày, hàng tuần, cốt truyện, một lần và theo mùa.",
+            "Các bộ Battle Pass yêu cầu bậc Rare trở lên (30 bộ/stack ở Rare, 300 ở Epic, 3,000 ở Legendary)."
+          ]
+        },
+        nodes: {
+          title: "Journey Node Def",
+          tagline: "Các mốc và cổng trong biểu đồ tiến trình người chơi",
+          description: "Journey Node Definitions xác định số lượng giai đoạn hoặc điểm kiểm soát rẽ nhánh bạn có thể tạo trong hành trình người chơi.",
+          tip: "Thiết kế Event Types xoay quanh hành động người chơi, không phải logic code. Đặt tên chung nhất để tái sử dụng cho nhiều điều kiện.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa node.",
+            "Node Defs không nhận Sự kiện người chơi trực tiếp — các sự kiện phải được ánh xạ qua một Event Type trước."
+          ]
+        },
+        event_types: {
+          title: "Event Types",
+          tagline: "Các sự kiện người chơi có tên để game phát và theo dõi",
+          description: "Event Types là điểm bắt đầu cho dữ liệu telemetry: game phát một sự kiện theo tên và hệ thống sẽ định tuyến nó.",
+          tip: "Sử dụng thiết kế script modular để tái sử dụng logic và giảm thiểu số lượng script cá nhân cần thiết.",
+          details: [
+            "Giới hạn cơ bản mặc định: 100 định nghĩa event type.",
+            "Event Types là cách duy nhất để hành động người chơi đi vào hệ thống Journey — Node Defs không thể nhận sự kiện trực tiếp.",
+            "Một Event Type có thể kích hoạt điều kiện cho nhiều Journey Node khác nhau cùng một lúc."
+          ]
+        },
+        scripts: {
+          title: "Scripts",
+          tagline: "Các kịch bản logic và tự động hóa tùy chỉnh cho game",
+          description: "Scripts cho phép bạn thực hiện các logic và hành vi phức tạp phía máy chủ. Mỗi tệp script duy nhất tính là một slot.",
+          tip: "Giữ các entity def chung nhất có thể. Sử dụng thuộc tính và metadata để phân biệt các biến thể thay vì tạo định nghĩa mới.",
+          details: [
+            "Giới hạn cơ bản mặc định: 10 scripts. Mỗi đăng ký plugin sẽ cộng thêm vào mức cơ bản này.",
+            "Giới hạn tính các tệp script duy nhất, không tính số lần thực thi script hoặc import thư viện."
+          ]
+        },
+        entity_defs: {
+          title: "Entity Def",
+          tagline: "Tổng số định nghĩa thực thể được phép (Kẻ địch, Phòng, Cổ vật, v.v.)",
+          description: "Entity Defs cho phép bạn tạo các bộ khung cấu trúc cho bất kỳ đối tượng nào trong game (blueprints).",
+          tip: "Thiết kế thực thể của bạn để có thể tái sử dụng qua nhiều cấp độ hoặc chế độ chơi khác nhau.",
+          details: [
+            "Ví dụ phổ biến: Kẻ địch, NPC, Phòng, Cổ vật, Boss, Đơn vị phòng thủ.",
+            "Mỗi entity def duy nhất tiêu tốn một slot trong giới hạn của bạn.",
+            "Khi đạt giới hạn, bạn không thể tạo các loại thực thể mới cho đến khi nâng cấp hoặc gỡ bỏ những định nghĩa không sử dụng."
+          ]
+        },
+        gacha: {
+          title: "Gói Gacha",
+          tagline: "Số lượng định nghĩa gói gacha/hộp quà duy nhất",
+          description: "Kiểm soát số lượng bản mẫu gói gacha duy nhất bạn có thể định nghĩa cho game của mình.",
+          tip: "Cân bằng tỷ lệ gacha sớm — bậc Epic và Legendary cho phép biến hóa cực lớn trong các bảng vật phẩm rơi ra.",
+          details: [
+            "Giới hạn cơ bản mặc định: 10 định nghĩa gacha. Mỗi đăng ký plugin cộng thêm vào mức cơ bản này.",
+            "Kiểm soát số lượng định nghĩa hòm đồ (loot box) hoặc bể phần thưởng (gacha pool) mà bạn có thể quản lý."
+          ]
+        },
+        boards: {
+          title: "Bảng xếp hạng",
+          tagline: "Theo dõi và xếp hạng thành tích người chơi qua các mùa",
+          description: "Bảng xếp hạng cho phép bạn xếp hạng người chơi dựa trên các điểm số từ việc mở Gacha, thu thập vật phẩm hoặc các trigger tùy chỉnh.",
+          tip: "Sử dụng lịch đặt lại (Hàng ngày, Hàng tuần, Hàng tháng) để giữ cho sự cạnh tranh luôn sôi động và công bằng cho người chơi mới.",
+          details: [
+            "Giới hạn cơ bản mặc định: 2 bảng xếp hạng. Các plugin sẽ cộng thêm khi game của bạn phát triển.",
+            "Hỗ trợ nhiều chế độ tính điểm: Tổng, Cao nhất, Thấp nhất và Điểm mới nhất.",
+            "Tính năng mùa giải tự động và lưu trữ lịch sử để xem lại các thứ hạng cũ."
+          ]
+        },
+        keyPoints: "Điểm chính",
+        currentUsage: "Sử dụng hiện tại",
+        used: "đã dùng",
+        materiaGrantTable: "Bảng giới hạn Materia",
+        browseMateria: "Duyệt Materia có sẵn ↑"
+      }
     }
   },
   mailbox: {
@@ -1667,6 +1793,14 @@ export const vi = {
     linkedItemDefinition: "Định nghĩa vật phẩm liên kết",
     noLinkedItem: "Không có vật phẩm liên kết",
     noLinkedItemOption: "— Không có vật phẩm liên kết —",
+    // Container detail
+    loadingDetailDots: "Đang tải chi tiết...",
+    containerIdLabel: "ID Kho chứa",
+    linkedItemDefinitionId: "ID Định nghĩa vật phẩm liên kết",
+    dimensionsHeader: "Kích thước",
+    totalSlots: "Tổng số ô",
+    fullMetadata: "Metadata đầy đủ",
+    selectItem: "Chọn một vật phẩm...",
     // Equipment slots
     equipmentSlotsTitle: "Ô trang bị",
     slotKey: "Khóa ô",
@@ -1938,6 +2072,38 @@ export const vi = {
     containerLinkDescPre: "Liên kết kho chứa với vật phẩm để khi người chơi sở hữu vật phẩm này, máy chủ có thể tự động tạo (qua ",
     containerLinkDescPost: ") một phiên bản kho chứa cá nhân. Đây là cách rương, ba lô và vật phẩm lưu trữ hoạt động — vật phẩm đóng vai trò \"chìa khóa\" để mở kho chứa.",
     metadataWithExample: "Metadata (vd: icon = chest_wood)",
+    explanation: {
+      writeProps: {
+        title: "Ghi thuộc tính",
+        description: "Cho phép client (người chơi) thay đổi và cập nhật trực tiếp các thuộc tính riêng của vật phẩm.",
+        whenEnabled: "Khi Bật (✓)",
+        enabled1: "Client có thể cập nhật thuộc tính vật phẩm mà không cần máy chủ xác thực",
+        enabled2: "Hữu ích cho các thuộc tính hiển thị hoặc dữ liệu phía client",
+        enabled3: "Tăng tính linh hoạt cho các tùy chỉnh vật phẩm của người chơi",
+        whenDisabled: "Khi Tắt (✗)",
+        disabled1: "Client không thể thay đổi thuộc tính vật phẩm",
+        disabled2: "Mọi thay đổi phải thông qua API của máy chủ",
+        disabled3: "Bảo mật tốt hơn cho các thuộc tính quan trọng",
+        tip: "Mẹo:",
+        tipContent: "Sử dụng tính năng này cho các thuộc tính không quan trọng như tên hiển thị, màu sắc hoặc ghi chú cá nhân.",
+      },
+      updateQty: {
+        title: "Cập nhật SL",
+        description: "Cho phép client thay đổi giá trị số lượng của các vật phẩm mà họ sở hữu.",
+        whenEnabled: "Khi Bật (✓)",
+        enabled1: "Client có thể trực tiếp cập nhật số lượng vật phẩm",
+        enabled2: "Quản lý vật phẩm nhanh hơn ở phía người dùng",
+        enabled3: "Hữu ích cho các vật phẩm tiêu hao hoặc có thể cộng dồn",
+        enabled4: "Giảm yêu cầu mạng cho các cập nhật số lượng",
+        whenDisabled: "Khi Tắt (✗)",
+        disabled1: "Thay đổi số lượng phải được máy chủ xác thực",
+        disabled2: "Ngăn chặn thay đổi số lượng vô tình hoặc ác ý",
+        disabled3: "Kiểm soát tốt hơn các vật phẩm tài nguyên giới hạn",
+        disabled4: "An toàn hơn cho các vật phẩm có giá trị hoặc loại tiền tệ",
+        warning: "Cảnh báo:",
+        warningContent: "Tắt tính năng này đối với tài nguyên giới hạn, vật phẩm cao cấp hoặc tiền tệ để ngăn chặn gian lận.",
+      }
+    }
   },
   crafting: {
     title: "Công thức Chế tạo",
@@ -2628,19 +2794,20 @@ export const vi = {
   },
   scripts: {
     // Page
-    pageTitle: "Scripts",
+    pageTitle: "Kịch bản",
     breadcrumbGames: "Games",
     breadcrumbScripts: "Scripts",
 
     // Header
-    scriptCount: "script",
-    scriptCountPlural: "scripts",
+    scriptCount: "kịch bản",
+    scriptCountPlural: "kịch bản",
+    scriptsUnit: "scripts",
 
     // Toolbar
-    scriptsDefinedSingular: "script đã định nghĩa",
-    scriptsDefinedPlural: "scripts đã định nghĩa",
+    scriptsDefinedSingular: "kịch bản đã định nghĩa",
+    scriptsDefinedPlural: "kịch bản đã định nghĩa",
     noScriptsYet: "Chưa có script nào",
-    newScript: "Script mới",
+    newScript: "Kịch bản mới",
     loadingScripts: "Đang tải scripts…",
 
     // Empty state
@@ -2648,7 +2815,6 @@ export const vi = {
 
     // Table headers
     tableHeaderName: "Tên",
-    tableHeaderTrigger: "Trigger",
     tableHeaderDescription: "Mô tả",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Hoạt động",
@@ -2662,21 +2828,25 @@ export const vi = {
     createDescription: "Viết script Lua được kích hoạt bởi sự kiện game.",
     labelName: "Tên",
     labelDescription: "Mô tả",
-    labelTriggerType: "Loại trigger",
     placeholderName: "calc_reward",
     placeholderDescription: "Mô tả script này làm gì…",
-    placeholderTriggerType: "on_match_end",
     nameHint: "Đây là <strong>trigger key</strong> — game client gọi chính xác tên này để thực thi script. Phải bắt đầu bằng chữ cái; chỉ chữ thường, số và dấu gạch dưới.",
     btnCancel: "Hủy",
     btnCreateScript: "Tạo Script",
 
+    // Xóa
+    deleteTitle: "Xóa Script",
+    deleteDescription: "Bạn có chắc chắn muốn xóa script",
+    deleteCannotUndone: "Hành động này không thể hoàn tác.",
+
     // Validation
     validationNameRequired: "Tên là bắt buộc.",
-    validationTriggerRequired: "Loại trigger là bắt buộc.",
 
     // Toasts
     toastScriptCreated: "Đã tạo script",
+    toastScriptDeleted: "Đã xóa script",
     toastFailedCreate: "Không thể tạo script",
+    toastFailedDelete: "Không thể xóa script",
     toastFailedLoad: "Không thể tải scripts",
 
     // Edit page
@@ -2691,8 +2861,6 @@ export const vi = {
     toastFailedSaveInfo: "Không thể lưu thông tin",
     toastFailedSaveScript: "Không thể lưu script",
     toastFailedLoadScript: "Không thể tải script",
-    labelDescription: "Mô tả",
-    placeholderDescription: "Mô tả script này làm gì…",
     tooltipSaveInfo: "Lưu thông tin",
     tooltipRefresh: "Làm mới",
     scriptBody: "Nội dung Script",
@@ -2708,5 +2876,15 @@ export const vi = {
     sampleReplaceTooltip: "Nhấn để thay thế toàn bộ script",
     noSamplesAvailable: "Không có script mẫu",
     sampleFilterAll: "Tất cả",
+    runScript: "Chạy Thử",
+    runPayload: "Dữ liệu (JSON)",
+    runResult: "Kết quả",
+    runButton: "Chạy",
+    running: "Đang chạy...",
+    toastRunSuccess: "Thực thi script thành công",
+    toastRunFailed: "Thực thi script thất bại",
+    runResultPlaceholder: "Chạy script để thấy kết quả...",
+    savePayload: "Lưu Payload",
+    footerNote: "Liên hệ Sai nếu bạn cần thêm phương thức",
   },
 };

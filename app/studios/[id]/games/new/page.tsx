@@ -10,7 +10,8 @@ import {Label} from "@/components/ui/label"
 import {ArrowLeft, Loader2} from "lucide-react"
 import {useToast} from "@/components/ui/use-toast"
 
-export default function NewGamePage({params}: { params: { id: string } }) {
+export default function NewGamePage({params}: { params: Promise<{ id: string }> }) {
+    const { id: studioId } = React.use(params)
     const router = useRouter()
     const {toast} = useToast()
     const [name, setName] = useState("")
@@ -20,7 +21,6 @@ export default function NewGamePage({params}: { params: { id: string } }) {
     const [serverRegion, setServerRegion] = useState("us-west")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const studioId = React.use(params).id
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()

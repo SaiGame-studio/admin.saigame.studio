@@ -197,6 +197,62 @@ const LIMIT_EXPLANATIONS: Record<string, {
     ],
     tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across multiple quest conditions and journey nodes.",
   },
+  scripts: {
+    title: "Scripts",
+    icon: "📜",
+    tagline: "Custom logic and automation scripts for your game",
+    description: "Scripts allow you to implement complex server-side logic, automation, and custom behaviors. Each unique script file you upload consumes one slot. When the limit is reached, new script creation is blocked with HTTP 429.",
+    details: [
+      "Default base limit: 10 scripts. Every plugin subscription adds on top of this base.",
+      "The limit counts unique script files, not script executions or library imports.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+10 scripts" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 scripts / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 scripts / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K scripts / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K scripts / stack" },
+    ],
+    tip: "Use modular script design to reuse logic across multiple functions and minimize the number of individual scripts needed.",
+  },
+  entity_defs: {
+    title: "Entity Def",
+    icon: "🧩",
+    tagline: "Total entity definitions allowed (Enemy, Room, Relic, etc.)",
+    description: "Entity Defs allow you to create structured schemas for any object in your game. This includes enemies, NPCs, rooms, relics, and any other custom entity type. These definitions serve as blueprints for the individual instances that populate your game world.",
+    details: [
+      "Common examples: Enemy, NPC, Room, Relic, Boss, Defense Unit.",
+      "Each unique entity def consumes one slot in your limit.",
+      "When the limit is reached, you cannot create new types of entities until you upgrade or remove unused ones.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+0 entity defs" },
+      { tier: "Uncommon (×7 max)", perStack: "+0 entity defs / stack" },
+      { tier: "Rare (×3 max)", perStack: "+100 entity defs / stack" },
+      { tier: "Epic (×3 max)", perStack: "+1K entity defs / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+10K entity defs / stack" },
+    ],
+    tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate between similar entities instead of creating separate definitions for every variation.",
+  },
+  boards: {
+    title: "Leaderboards",
+    icon: "📋",
+    tagline: "Track and rank player performance across seasons",
+    description: "Leaderboards allow you to rank players based on scores from events, items, or custom triggers. You can define various scoring modes (sum, max, min, latest) and setting up automated reset schedules.",
+    details: [
+      "Default base limit: 2 leaderboard definitions.",
+      "Supports different reset frequencies: Daily, Weekly, Monthly, and Seasonal.",
+      "Each season maintains its own history and archive for historical lookups.",
+    ],
+    grantTable: [
+      { tier: "Common (auto)", perStack: "+2 boards" },
+      { tier: "Uncommon (×7 max)", perStack: "+2 boards / stack" },
+      { tier: "Rare (×3 max)", perStack: "+30 boards / stack" },
+      { tier: "Epic (×3 max)", perStack: "+300 boards / stack" },
+      { tier: "Legendary (×3 max)", perStack: "+3K boards / stack" },
+    ],
+    tip: "Use reset schedules to keep the competition fresh. Rare tier is recommended for games with seasonal ranking systems.",
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -503,9 +559,10 @@ export default function GamePluginsPage() {
             max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
             max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
             max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
+            max_scripts: acc.max_scripts + (plugin.scripts_grant ?? 0) * n,
           }
         },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0 }
+        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0 }
       )
     : null
   const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
@@ -659,15 +716,16 @@ export default function GamePluginsPage() {
                   { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
                   { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
                   { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
-                  { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
                   { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
                   { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
-                  { key: "entity_defs", label: "Entity Defs", max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
+                  { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
+                  { key: "scripts", label: t('plugins.materia.labelScripts'), max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
+                  { key: "entity_defs", label: t('plugins.materia.labelEntityDefs'), max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
             ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
-            const col2 = statsData.slice(0, 3)
-            const col3 = statsData.slice(3, 6)
-            const col4 = statsData.slice(6)
-            const renderStat = (row: typeof statsData[number]) => {
+            const col2 = statsData.slice(0, 4)
+            const col3 = statsData.slice(4, 7)
+            const col4 = statsData.slice(7)
+            const renderStat = (row: any) => {
                   const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
                   const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
                   const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
@@ -854,7 +912,8 @@ export default function GamePluginsPage() {
                         { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
                         { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
-                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
                       ].map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -949,19 +1008,21 @@ export default function GamePluginsPage() {
                   {/* Grants breakdown */}
                   <div className="mx-4 my-2 rounded-xl bg-muted/40 px-3 py-2 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                      Grants (total ×{totalStacks})
+                      {t('plugins.materia.materiaGrantTable')} (total ×{totalStacks})
                     </p>
                     <div className="space-y-1 text-xs">
                       {([
-                        { icon: "👥", label: "CCU", val: plugin.ccu_grant },
-                        { icon: "👤", label: "Profiles", val: plugin.profiles_grant },
-                        { icon: "📦", label: "Items", val: plugin.items_grant },
-                        { icon: "🏪", label: "Shops", val: plugin.shops_grant },
-                        { icon: "📜", label: "Quests", val: plugin.quests_grant ?? 0 },
-                        { icon: "🔗", label: "Journey Node", val: plugin.node_defs_grant ?? 0 },
-                        { icon: "📡", label: "Event Types", val: plugin.event_types_grant ?? 0 },
-                        { icon: "📋", label: "Leaderboards", val: plugin.boards_grant ?? 0 },
-                        { icon: "🧩", label: "Entity Defs", val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "👥", label: t('plugins.materia.labelCcu'), val: plugin.ccu_grant },
+                        { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
+                        { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
+                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
+                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
+                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
+                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
+                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
                       ] as { icon: string; label: string; val: number }[]).map((r) => (
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
@@ -1217,6 +1278,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.boards_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Scripts grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.scripts_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1448,6 +1513,10 @@ export default function GamePluginsPage() {
                             <span className="font-semibold">+{formatNumber(plugin.boards_grant ?? 0)}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground w-28 shrink-0">Scripts grant</span>
+                            <span className="font-semibold">+{formatNumber(plugin.scripts_grant ?? 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost coins</span>
                             <span className="font-semibold">{plugin.cost_coins > 0 ? `🪙 ${plugin.cost_coins.toLocaleString()}` : "Free"}</span>
                           </div>
@@ -1540,15 +1609,17 @@ export default function GamePluginsPage() {
                 {confirmPlugin && (
                   <div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
                     {[
-                      { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
-                      { label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
-                    ].map((r) => (
+                        { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
+                        { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
+                        { icon: "📦", label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
+                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
+                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
+                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
+                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
+                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
+                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: (confirmPlugin.scripts_grant ?? 0) * confirmStacks },
+                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: (confirmPlugin.entity_defs_grant ?? 0) * confirmStacks },
+                      ].map((r: any) => (
                       <div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
                         <span className="font-semibold">+{formatNumber(r.val)}</span>
@@ -1594,26 +1665,36 @@ export default function GamePluginsPage() {
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-3xl">{exp.icon}</span>
                     <div>
-                      <SheetTitle className="text-lg leading-tight">{exp.title}</SheetTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">{exp.tagline}</p>
+                      <SheetTitle className="text-lg leading-tight">
+                        {t(`plugins.materia.help.${openLimitSheet}.title`) === `plugins.materia.help.${openLimitSheet}.title` ? exp.title : t(`plugins.materia.help.${openLimitSheet}.title`)}
+                      </SheetTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t(`plugins.materia.help.${openLimitSheet}.tagline`) === `plugins.materia.help.${openLimitSheet}.tagline` ? exp.tagline : t(`plugins.materia.help.${openLimitSheet}.tagline`)}
+                      </p>
                     </div>
                   </div>
                   <SheetDescription className="text-sm leading-relaxed text-foreground/80">
-                    {exp.description}
+                    {t(`plugins.materia.help.${openLimitSheet}.description`) === `plugins.materia.help.${openLimitSheet}.description` ? exp.description : t(`plugins.materia.help.${openLimitSheet}.description`)}
                   </SheetDescription>
                 </SheetHeader>
 
                 <div className="space-y-5">
                   {/* Key points */}
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Key Points</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                      {t('plugins.materia.help.keyPoints') === 'plugins.materia.help.keyPoints' ? 'Key Points' : t('plugins.materia.help.keyPoints')}
+                    </p>
                     <ul className="space-y-2.5">
-                      {exp.details.map((detail, i) => (
-                        <li key={i} className="flex gap-2.5 text-sm">
-                          <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
-                          <span className="text-muted-foreground leading-relaxed">{detail}</span>
-                        </li>
-                      ))}
+                      {exp.details.map((detail, i) => {
+                        const tk = `plugins.materia.help.${openLimitSheet}.details.${i}`
+                        const displayDetail = t(tk) === tk ? detail : t(tk)
+                        return (
+                          <li key={i} className="flex gap-2.5 text-sm">
+                            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                            <span className="text-muted-foreground leading-relaxed">{displayDetail}</span>
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
 
@@ -1626,13 +1707,19 @@ export default function GamePluginsPage() {
                       { key: "shops", max: game.limits?.max_shops ?? null, used: game.usage?.shops },
                       { key: "quests", max: game.limits?.max_quests ?? null, used: game.usage?.quests ?? 0 },
                       { key: "nodes", max: game.limits?.max_node_definitions ?? null, used: game.usage?.node_definitions ?? 0 },
+                      { key: "boards", max: game.limits?.max_leaderboards ?? null, used: game.usage?.leaderboards ?? 0 },
+                      { key: "event_types", max: game.limits?.max_event_types ?? null, used: game.usage?.event_types ?? 0 },
+                      { key: "scripts", max: game.limits?.max_scripts ?? null, used: game.usage?.scripts ?? 0 },
+                      { key: "entity_defs", max: game.limits?.max_entity_defs ?? null, used: game.usage?.entity_definitions ?? 0 },
                     ].find(r => r.key === openLimitSheet)
                     if (!row || row.max == null) return null
                     const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0
                     const barColor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"
                     return (
                       <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Current Usage</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                          {t('plugins.materia.help.currentUsage') === 'plugins.materia.help.currentUsage' ? 'Current Usage' : t('plugins.materia.help.currentUsage')}
+                        </p>
                         <div className="flex items-end justify-between mb-2">
                           <span className="text-2xl font-extrabold tabular-nums">{row.used != null ? formatNumber(row.used) : "—"}</span>
                           <span className="text-sm text-muted-foreground">/ {formatNumber(row.max)}</span>
@@ -1640,14 +1727,18 @@ export default function GamePluginsPage() {
                         <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">{pct.toFixed(1)}% used</p>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {pct.toFixed(1)}% {t('plugins.materia.help.used') === 'plugins.materia.help.used' ? 'used' : t('plugins.materia.help.used')}
+                        </p>
                       </div>
                     )
                   })()}
 
                   {/* Grant table */}
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Materia Grant Table</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                      {t('plugins.materia.help.materiaGrantTable') === 'plugins.materia.help.materiaGrantTable' ? 'Materia Grant Table' : t('plugins.materia.help.materiaGrantTable')}
+                    </p>
                     <div className="space-y-1.5">
                       {exp.grantTable.map((row, i) => (
                         <div key={i} className="flex items-start justify-between gap-4 text-xs">
@@ -1661,7 +1752,7 @@ export default function GamePluginsPage() {
                       onClick={() => setOpenLimitSheet(null)}
                       className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
                     >
-                      <Zap className="h-3 w-3" /> Browse available Materia ↑
+                      <Zap className="h-3 w-3" /> {t('plugins.materia.help.browseMateria') === 'plugins.materia.help.browseMateria' ? 'Browse available Materia ↑' : t('plugins.materia.help.browseMateria')}
                     </button>
                   </div>
 

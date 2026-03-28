@@ -27,7 +27,8 @@ import { CopyButton } from "@/components/CopyButton"
 import { DeleteTeamDialog } from "@/components/DeleteTeamDialog"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
-export default function TeamDetailsPage({ params }: { params: { id: string } }) {
+export default function TeamDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params)
   const router = useRouter()
   const { t } = useTranslation()
   const [team, setTeam] = useState<Team | null>(null)
@@ -49,7 +50,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     async function loadTeam() {
       try {
         setLoading(true)
-        const data = await fetchTeamDetails(params.id)
+        const data = await fetchTeamDetails(id)
         setTeam(data)
         
         // Load studio data with cache if studio_id exists
@@ -73,7 +74,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     async function loadMembers() {
       try {
         setMembersLoading(true)
-        const data = await fetchTeamMembers(params.id)
+        const data = await fetchTeamMembers(id)
         setMembers(data)
         setMembersError(null)
       } catch (err) {
@@ -86,7 +87,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     async function loadGames() {
       try {
         setGamesLoading(true)
-        const data = await fetchTeamGames(params.id)
+        const data = await fetchTeamGames(id)
         setGames(data)
         setGamesError(null)
       } catch (err) {
@@ -99,11 +100,11 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
     loadTeam().then();
     loadMembers().then();
     loadGames().then();
-  }, [params.id])
+  }, [id])
 
   const handleMemberAdded = () => {
     // Reload members list after adding a new member
-    fetchTeamMembers(params.id)
+    fetchTeamMembers(id)
       .then(data => setMembers(data))
       .catch(err => console.error("Failed to reload members:", err))
     // Refresh studio usage so slot counter stays accurate
@@ -116,7 +117,7 @@ export default function TeamDetailsPage({ params }: { params: { id: string } }) 
 
   const handleGamesAdded = () => {
     // Reload games list after adding new games
-    fetchTeamGames(params.id)
+    fetchTeamGames(id)
       .then(data => setGames(data))
       .catch(err => console.error("Failed to reload games:", err))
   }
