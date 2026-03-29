@@ -1376,7 +1376,7 @@ export const vi = {
     tip2: "Khoản phí một lần là để giảm spam, không phải để kiếm tiền.",
     tip3: "Nếu bạn định mua nhiều sCoin, hãy nói chuyện với Sai trước.",
     tip4: "Bạn có thể nhận báo cáo hàng ngày về studio qua một nhóm Telegram.",
-    tip5: "Về mặt kỹ thuật, bạn không thể rút tiền thật từ sCoin.",
+    tip5: "Không thể rút tiền thật từ sCoin.",
     tip6: "HTTPS CCU và WebSocket CCU không giống nhau. WebSocket CCU dành cho kết nối thời gian thực.",
     tip7: "Mỗi team studio làm việc trên game của riêng mình.",
     tip8: "Chúng tôi có thể tạo game Idle, Card PvE, Roguelike, Async PvP và Match-3 mà không cần kết nối thời gian thực.",
@@ -1384,7 +1384,9 @@ export const vi = {
     tip10: "Vì lý do bảo mật, không ai có thể chỉnh sửa dữ liệu người chơi ngoại trừ chính họ.",
     tip11: "Bạn không bắt buộc dùng thuộc tính item mặc định, có thể tự thiết kế hệ thống riêng bằng base stats hoặc metadata.",
     tip12: "Cách duy nhất để thêm item mới vào container là qua hộp thư.",
-    tip13: "Thay đổi kích thước grid container sẽ không tính toán lại bố cục; vị trí của các item vẫn giữ nguyên."
+    tip13: "Thay đổi kích thước grid container sẽ không tính toán lại bố cục; vị trí của các item vẫn giữ nguyên.",
+    tip14: "Bạn có thể tạo chuỗi quest tuyến tính kèm phân nhánh node — hoàn toàn được hỗ trợ.",
+    tip15: "Script Lua là cách bạn tùy chỉnh Sai Service, giống như mod hóa một trò chơi.",
   },
   leaderboard: {
     resetScheduleHint_never: "Season không bao giờ reset — 1 season duy nhất, tích lũy mãi. Không ai có thể kết thúc season thủ công.",
@@ -1730,6 +1732,8 @@ export const vi = {
     tabGacha: "Gacha",
     tabPreset: "Cấu hình sẵn",
     tabCrafting: "Chế tạo",
+    subTabDefinitions: "Định nghĩa",
+    subTabSlotGuide: "Hướng dẫn Slot",
     // Page title
     itemCatalogue: "Danh mục Vật phẩm",
     itemDefinitions: "Định nghĩa Vật phẩm",

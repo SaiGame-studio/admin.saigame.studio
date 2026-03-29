@@ -1382,7 +1382,7 @@ export const en = {
     tip2: "The one-time fee is there to reduce spam, not to make money.",
     tip3: "If you plan to purchase a lot of sCoin, please talk to Sai first.",
     tip4: "You can receive daily reports about your studio via a Telegram group.",
-    tip5: "Technically, you cannot withdraw real money from sCoin.",
+    tip5: "You cannot withdraw real money from sCoin.",
     tip6: "HTTPS CCU and WebSocket CCU are not the same. WebSocket CCU is for real-time connections.",
     tip7: "Every studio team works on its own game.",
     tip8: "We can create Idle, Card PvE, Roguelike, Async PvP, and Match-3 games without real-time connections.",
@@ -1391,8 +1391,8 @@ export const en = {
     tip11: "You don’t have to use the default item properties, you can design your own system using base stats or metadata instead.",
     tip12: "The only way to add new items to a container is through the mailbox.",
     tip13: "Resizing the grid container will not trigger a layout recalculation; item positions remain fixed.",
-
-    tip14: "You can create a linear quest chain with node branching, that’s fine..",
+    tip14: "You can create a linear quest chain with node branching, that’s fully supported.",
+    tip15: "Lua scripts are how you modify Sai Service, just like modding a game.",
   },
   leaderboard: {
     resetScheduleHint_never: "Season never resets — one permanent season that accumulates forever. Nobody can end the season manually.",
@@ -1738,6 +1738,8 @@ export const en = {
     tabGacha: "Gacha",
     tabPreset: "Preset",
     tabCrafting: "Crafting",
+    subTabDefinitions: "Definitions",
+    subTabSlotGuide: "Slot Guide",
     // Page title
     itemCatalogue: "Item Catalogue",
     itemDefinitions: "Item Definitions",

@@ -2253,8 +2253,8 @@ export default function GameUserProgressDetailPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-right">Grid</TableHead>
                       <TableHead>Portable</TableHead>
@@ -2279,13 +2279,6 @@ export default function GameUserProgressDetailPage({
                           })
                         }}
                       >
-                        <TableCell className="font-mono text-xs">
-                          <span className="flex items-center gap-1">
-                            {cExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                            {c.id.slice(0, 8)}…
-                            <CopyButton text={c.id} size="h-3 w-3" />
-                          </span>
-                        </TableCell>
                         <TableCell className="text-sm">
                           <div className="flex items-center gap-1">
                             {c.definition?.name || "—"}
@@ -2300,6 +2293,13 @@ export default function GameUserProgressDetailPage({
                               </a>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <span className="flex items-center gap-1">
+                            {cExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                            {c.id.slice(0, 8)}…
+                            <CopyButton text={c.id} size="h-3 w-3" />
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize ${

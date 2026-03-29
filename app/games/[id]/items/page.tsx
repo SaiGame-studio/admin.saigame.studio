@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -4124,14 +4124,14 @@ export default function GameItemsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="catalogue">{t('items.tabItems')}</TabsTrigger>
-            <TabsTrigger value="tags">{t('items.tabTags')}</TabsTrigger>
-            <TabsTrigger value="containers">{t('items.tabContainers')}</TabsTrigger>
-            <TabsTrigger value="gacha">{t('items.tabGacha')}</TabsTrigger>
-            <TabsTrigger value="generators">{t('items.tabGenerators')}</TabsTrigger>
-            <TabsTrigger value="equipments">{t('items.tabEquipmentSlots')}</TabsTrigger>
-            <TabsTrigger value="preset">{t('items.tabPreset')}</TabsTrigger>
-            <TabsTrigger value="crafting">{t('items.tabCrafting')}</TabsTrigger>
+            <TabsTrigger value="catalogue"><Package className="h-3.5 w-3.5 mr-1.5" />{t('items.tabItems')}</TabsTrigger>
+            <TabsTrigger value="tags"><Tag className="h-3.5 w-3.5 mr-1.5" />{t('items.tabTags')}</TabsTrigger>
+            <TabsTrigger value="containers"><Archive className="h-3.5 w-3.5 mr-1.5" />{t('items.tabContainers')}</TabsTrigger>
+            <TabsTrigger value="gacha"><Dices className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGacha')}</TabsTrigger>
+            <TabsTrigger value="generators"><Zap className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGenerators')}</TabsTrigger>
+            <TabsTrigger value="equipments"><Shield className="h-3.5 w-3.5 mr-1.5" />{t('items.tabEquipmentSlots')}</TabsTrigger>
+            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
+            <TabsTrigger value="crafting"><Hammer className="h-3.5 w-3.5 mr-1.5" />{t('items.tabCrafting')}</TabsTrigger>
           </TabsList>
 
         <TabsContent value="crafting" className="space-y-4">
@@ -4465,8 +4465,8 @@ export default function GameItemsPage() {
         <TabsContent value="containers" className="space-y-4">
           <Tabs value={containerSubTab} onValueChange={handleContainerSubTabChange} className="space-y-4">
             <TabsList>
-              <TabsTrigger value="definitions">Definitions</TabsTrigger>
-              <TabsTrigger value="slot-guide">Slot Guide</TabsTrigger>
+              <TabsTrigger value="definitions">{t('items.subTabDefinitions')}</TabsTrigger>
+              <TabsTrigger value="slot-guide">{t('items.subTabSlotGuide')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="slot-guide" className="space-y-6">
