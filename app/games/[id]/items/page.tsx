@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Maximize2, Info, Tag, Lock } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -71,6 +71,8 @@ import {
   getContainerDefinition,
   updateContainerDefinition,
   deleteContainerDefinition,
+  fetchContainerTypes,
+  type ContainerTypeOption,
   listGachaPacks,
   createGachaPack,
   updateGachaPack,
@@ -256,12 +258,13 @@ function emptyGachaForm() {
 
 // ─── Container Definition helpers ────────────────────────────────────────────
 
-const CONTAINER_TYPE_META: Record<ContainerType, { label: string; className: string }> = {
+const CONTAINER_TYPE_META: Record<string, { label: string; className: string }> = {
   inventory:   { label: 'Inventory',   className: 'bg-gray-500/15 text-gray-400 border-gray-400/40' },
   chest:       { label: 'Chest',       className: 'bg-amber-500/15 text-amber-500 border-amber-500/40' },
   bag:         { label: 'Bag',         className: 'bg-green-500/15 text-green-500 border-green-500/40' },
   vault:       { label: 'Vault',       className: 'bg-purple-500/15 text-purple-500 border-purple-500/40' },
   shulker_box: { label: 'Shulker Box', className: 'bg-pink-500/15 text-pink-500 border-pink-500/40' },
+  equipment:   { label: 'Equipment',   className: 'bg-blue-500/15 text-blue-400 border-blue-400/40' },
 }
 
 function ContainerTypeBadge({ type }: { type: ContainerType }) {
@@ -277,12 +280,14 @@ function CreateContainerDefinitionDialog({
   open,
   gameId,
   allItems,
+  containerTypeOptions,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
   allItems: ItemDefinition[]
+  containerTypeOptions: ContainerTypeOption[]
   onCreated: () => void
   onClose: () => void
 }) {
@@ -370,8 +375,10 @@ function CreateContainerDefinitionDialog({
               <Select value={containerType} onValueChange={(v) => setContainerType(v as ContainerType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CONTAINER_TYPE_META) as ContainerType[]).map((t) => (
-                    <SelectItem key={t} value={t}>{CONTAINER_TYPE_META[t].label}</SelectItem>
+                  {containerTypeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {CONTAINER_TYPE_META[opt.value]?.label ?? opt.value}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1818,9 +1825,7 @@ function EquipmentsTab({
     const st = searchParams.get("subtab")
     return (st === "grid" || st === "list" || st === "character_slot") ? st : "grid"
   })
-  const [diagramZoom, setDiagramZoom] = useState(1)
-  const [diagramOpen, setDiagramOpen] = useState(false)
-  const [diagramModalZoom, setDiagramModalZoom] = useState(1)
+
 
   function handleSubTabChange(v: string) {
     const value = v as "grid" | "list" | "character_slot"
@@ -2537,130 +2542,35 @@ function EquipmentsTab({
               </div>
 
               {/* Diagram */}
-              {(() => {
-                const renderDiagramSvg = (p: string) => (
-                  <svg viewBox="0 0 640 310" style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace', display: 'block' }}>
-                    <defs>
-                      <marker id={`${p}arr`}        markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6b7280"/></marker>
-                      <marker id={`${p}arr-blue`}   markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/></marker>
-                      <marker id={`${p}arr-orange`} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f97316"/></marker>
-                      <marker id={`${p}arr-purple`} markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8b5cf6"/></marker>
-                      <marker id={`${p}arr-cyan`}   markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#0891b2"/></marker>
-                    </defs>
-                    {/* Section labels */}
-                    <text x="120" y="14" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramSetup')}</text>
-                    <text x="520" y="14" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramSetup')}</text>
-                    <text x="120" y="173" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramRuntime')}</text>
-                    <text x="520" y="173" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" letterSpacing="1">{t('items.charSlotDiagramRuntime')}</text>
-                    {/* Box A — ItemDefinition */}
-                    <rect x="10" y="18" width="220" height="100" rx="6" fill="#eff6ff" stroke="#93c5fd" strokeWidth="1.5"/>
-                    <text x="120" y="36" textAnchor="middle" fill="#1d4ed8" fontSize="11" fontWeight="600">ItemDefinition</text>
-                    <text x="120" y="50" textAnchor="middle" fill="#3b82f6" fontSize="10">(warrior)</text>
-                    <text x="22" y="67" fill="#64748b" fontSize="9">category: "character"</text>
-                    <text x="22" y="81" fill="#64748b" fontSize="9">metadata:</text>
-                    <text x="30" y="95" fill="#64748b" fontSize="9">equipment_slots: [</text>
-                    <text x="30" y="109" fill="#64748b" fontSize="9">  "warrior__main_hand", ...]</text>
-                    {/* Box B — EquipmentSlotDefinition */}
-                    <rect x="410" y="18" width="220" height="100" rx="6" fill="#fff7ed" stroke="#fb923c" strokeWidth="1.5"/>
-                    <text x="520" y="36" textAnchor="middle" fill="#c2410c" fontSize="11" fontWeight="600">EquipmentSlotDef</text>
-                    <text x="520" y="50" textAnchor="middle" fill="#ea580c" fontSize="10">warrior__main_hand</text>
-                    <text x="422" y="67" fill="#64748b" fontSize="9">allowed_categories: ["weapon"]</text>
-                    <text x="422" y="81" fill="#64748b" fontSize="9">metadata:</text>
-                    <text x="430" y="95" fill="#64748b" fontSize="9">character_definition_id:</text>
-                    <text x="430" y="109" fill="#64748b" fontSize="9">  "uuid-of-warrior-def"</text>
-                    {/* Box C — InventoryItem (warrior instance) */}
-                    <rect x="10" y="180" width="220" height="85" rx="6" fill="#f0fdf4" stroke="#86efac" strokeWidth="1.5"/>
-                    <text x="120" y="198" textAnchor="middle" fill="#15803d" fontSize="11" fontWeight="600">InventoryItem</text>
-                    <text x="120" y="212" textAnchor="middle" fill="#16a34a" fontSize="10">(warrior instance)</text>
-                    <text x="22" y="230" fill="#64748b" fontSize="9">id: "uuid-of-my-warrior"</text>
-                    <text x="22" y="244" fill="#64748b" fontSize="9">item_definition_id: warrior def</text>
-                    {/* Box D — InventoryItem (sword) */}
-                    <rect x="410" y="180" width="220" height="85" rx="6" fill="#faf5ff" stroke="#c4b5fd" strokeWidth="1.5"/>
-                    <text x="520" y="198" textAnchor="middle" fill="#6d28d9" fontSize="11" fontWeight="600">InventoryItem</text>
-                    <text x="520" y="212" textAnchor="middle" fill="#7c3aed" fontSize="10">(sword)</text>
-                    <text x="422" y="230" fill="#64748b" fontSize="9">equipped_slot_key:</text>
-                    <text x="422" y="244" fill="#64748b" fontSize="9">  "warrior__main_hand"</text>
-                    <text x="422" y="258" fill="#64748b" fontSize="9">slot_data.character_item_id:</text>
-                    <text x="422" y="272" fill="#64748b" fontSize="9">  "uuid-of-my-warrior"</text>
-                    {/* Arrow 1: A → B */}
-                    <line x1="232" y1="46" x2="407" y2="46" stroke="#3b82f6" strokeWidth="1.5" markerEnd={`url(#${p}arr-blue)`}/>
-                    <text x="320" y="40" textAnchor="middle" fill="#3b82f6" fontSize="8">declares via equipment_slots[ ]</text>
-                    {/* Arrow 2: B → A (dashed) */}
-                    <line x1="410" y1="68" x2="233" y2="68" stroke="#f97316" strokeWidth="1.5" strokeDasharray="4,3" markerEnd={`url(#${p}arr-orange)`}/>
-                    <text x="320" y="82" textAnchor="middle" fill="#f97316" fontSize="8">character_definition_id (reverse ref)</text>
-                    {/* Arrow 3: D → B */}
-                    <line x1="520" y1="179" x2="520" y2="120" stroke="#8b5cf6" strokeWidth="1.5" markerEnd={`url(#${p}arr-purple)`}/>
-                    <text x="594" y="154" textAnchor="middle" fill="#7c3aed" fontSize="8" transform="rotate(90,594,154)">equipped_slot_key</text>
-                    {/* Arrow 4: D → C */}
-                    <line x1="408" y1="222" x2="233" y2="222" stroke="#0891b2" strokeWidth="1.5" markerEnd={`url(#${p}arr-cyan)`}/>
-                    <text x="320" y="216" textAnchor="middle" fill="#0891b2" fontSize="8">slot_data.character_item_id</text>
-                    {/* Divider */}
-                    <line x1="320" y1="18" x2="320" y2="275" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3,4"/>
-                  </svg>
-                )
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold">{t('items.charSlotDiagramTitle')}</h3>
-                      <div className="flex items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramZoom(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))))} disabled={diagramZoom <= 0.5}>
-                          <ZoomOut className="h-3.5 w-3.5"/>
-                        </Button>
-                        <button
-                          className="text-xs text-muted-foreground w-10 text-center tabular-nums hover:text-foreground transition-colors"
-                          onClick={() => setDiagramZoom(1)}
-                          title="Reset zoom"
-                        >
-                          {Math.round(diagramZoom * 100)}%
-                        </button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramZoom(z => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} disabled={diagramZoom >= 4}>
-                          <ZoomIn className="h-3.5 w-3.5"/>
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 ml-1" onClick={() => setDiagramOpen(true)} title="Fullscreen">
-                          <Maximize2 className="h-3.5 w-3.5"/>
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="border rounded-md p-3 bg-muted/20 overflow-x-auto cursor-zoom-in" onClick={() => setDiagramOpen(true)}>
-                      <div style={{ width: `${diagramZoom * 100}%`, minWidth: 480 }}>
-                        {renderDiagramSvg('csg-i-')}
-                      </div>
-                      <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.charSlotDiagramCaption')}</p>
-                    </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotDiagramTitle')}</h3>
+                <div className="border rounded-md p-4 bg-muted/20 overflow-x-auto">
+                  <MermaidDiagram chart={(isDark) => `flowchart LR
+  subgraph SETUP["⚙️ STUDIO SETUP"]
+    direction TB
+    A["📦 ItemDefinition\\n─────────────\\ncategory: character\\nmetadata.equipment_slots:\\n  warrior__main_hand\\n  warrior__armor\\n  warrior__accessory"]
+    B["🔧 EquipmentSlotDef\\n─────────────\\nslot_key: warrior__main_hand\\nallowed_categories: weapon\\nmetadata.character_definition_id:\\n  uuid-of-warrior-def"]
+    A -- "declares via equipment_slots[ ] →" --> B
+    B -. "character_definition_id (reverse ref)" .-> A
+  end
 
-                    <Dialog open={diagramOpen} onOpenChange={(o) => { setDiagramOpen(o); if (!o) setDiagramModalZoom(1) }}>
-                      <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
-                        <DialogHeader>
-                          <div className="flex items-center justify-between pr-6">
-                            <DialogTitle>{t('items.charSlotDiagramTitle')}</DialogTitle>
-                            <div className="flex items-center gap-0.5">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramModalZoom(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))))} disabled={diagramModalZoom <= 0.5}>
-                                <ZoomOut className="h-3.5 w-3.5"/>
-                              </Button>
-                              <button
-                                className="text-xs text-muted-foreground w-10 text-center tabular-nums hover:text-foreground transition-colors"
-                                onClick={() => setDiagramModalZoom(1)}
-                                title="Reset zoom"
-                              >
-                                {Math.round(diagramModalZoom * 100)}%
-                              </button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDiagramModalZoom(z => Math.min(4, parseFloat((z + 0.25).toFixed(2))))} disabled={diagramModalZoom >= 4}>
-                                <ZoomIn className="h-3.5 w-3.5"/>
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogHeader>
-                        <div className="overflow-auto flex-1 rounded-md border bg-muted/20 p-4">
-                          <div style={{ width: `${diagramModalZoom * 100}%`, minWidth: 640 }}>
-                            {renderDiagramSvg('csg-m-')}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center italic pt-1">{t('items.charSlotDiagramCaption')}</p>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                )
-              })()}
+  subgraph RUNTIME["▶️ PLAYER RUNTIME"]
+    direction TB
+    C["🦸 InventoryItem\\n─────────────\\nid: uuid-of-my-warrior\\nitem_definition_id:\\n  uuid-of-warrior-def"]
+    D["⚔️ InventoryItem\\n─────────────\\nitem: sword\\nequipped_slot_key:\\n  warrior__main_hand\\nslot_data.character_item_id:\\n  uuid-of-my-warrior"]
+    D -- "slot_data.character_item_id →" --> C
+    D -. "equipped_slot_key" .-> B
+  end
+
+  style A fill:${isDark ? "#1e3a5f" : "#eff6ff"},stroke:${isDark ? "#60a5fa" : "#93c5fd"},color:${isDark ? "#bfdbfe" : "#1e40af"}
+  style B fill:${isDark ? "#431407" : "#fff7ed"},stroke:${isDark ? "#f97316" : "#fb923c"},color:${isDark ? "#fed7aa" : "#9a3412"}
+  style C fill:${isDark ? "#052e16" : "#f0fdf4"},stroke:${isDark ? "#4ade80" : "#86efac"},color:${isDark ? "#bbf7d0" : "#166534"}
+  style D fill:${isDark ? "#2e1065" : "#faf5ff"},stroke:${isDark ? "#a855f7" : "#c4b5fd"},color:${isDark ? "#e9d5ff" : "#6b21a8"}
+  style SETUP fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}
+  style RUNTIME fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
+                  <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.charSlotDiagramCaption')}</p>
+                </div>
+              </div>
 
               {/* Step 1 */}
               <div className="space-y-2">
@@ -3540,6 +3450,7 @@ export default function GameItemsPage() {
   const [containerSearch, setContainerSearch] = useState("")
   const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
   const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([])
+  const [containerTypeOptions, setContainerTypeOptions] = useState<ContainerTypeOption[]>([])
   const [expandedContainerId, setExpandedContainerId] = useState<string | null>(null)
   const [containerDetailCache, setContainerDetailCache] = useState<Record<string, ContainerDefinition>>({})
   const [containerDetailLoading, setContainerDetailLoading] = useState<string | null>(null)
@@ -3547,6 +3458,8 @@ export default function GameItemsPage() {
   const [editValue, setEditValue] = useState<string>("")
   const [editValue2, setEditValue2] = useState<string>("") // for dimensions
   const [metadataRows, setMetadataRows] = useState<{ k: string, v: string }[]>([])
+  const [containerSubTab, setContainerSubTab] = useState<"definitions" | "slot-guide">("definitions")
+
   // generator tab state
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
   const [generatorLoading, setGeneratorLoading] = useState(false)
@@ -3601,6 +3514,8 @@ export default function GameItemsPage() {
     if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting") {
       setActiveTab(tab)
     }
+    const cst = searchParams.get("csubtab")
+    if (cst === "definitions" || cst === "slot-guide") setContainerSubTab(cst)
     // initialize container search from URL `q` param
     const q = searchParams.get("q")
     if (q) setContainerSearch(q)
@@ -3612,6 +3527,14 @@ export default function GameItemsPage() {
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.set("tab", value)
     router.push(`${window.location.pathname}?${newParams.toString()}`)
+  }
+
+  const handleContainerSubTabChange = (value: string) => {
+    const v = value as "definitions" | "slot-guide"
+    setContainerSubTab(v)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("csubtab", v)
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
   }
 
   // debounce name filter
@@ -3765,6 +3688,10 @@ export default function GameItemsPage() {
       fetchContainerDefs()
     }
   }, [activeTab, fetchContainerDefs])
+
+  useEffect(() => {
+    fetchContainerTypes().then(setContainerTypeOptions).catch(() => {})
+  }, [])
 
   async function handleDeleteContainer() {
     if (!deletingContainer) return
@@ -4525,7 +4452,7 @@ export default function GameItemsPage() {
         </TabsContent>
 
         <TabsContent value="containers" className="space-y-4">
-          <Tabs defaultValue="definitions" className="space-y-4">
+          <Tabs value={containerSubTab} onValueChange={handleContainerSubTabChange} className="space-y-4">
             <TabsList>
               <TabsTrigger value="definitions">Definitions</TabsTrigger>
               <TabsTrigger value="slot-guide">Slot Guide</TabsTrigger>
@@ -4558,7 +4485,7 @@ export default function GameItemsPage() {
                   <div className="space-y-2">
                     <h3 className="font-semibold">{t('items.containerSlotDiagramTitle')}</h3>
                     <div className="border rounded-md p-4 bg-muted/20 overflow-x-auto">
-                      <MermaidDiagram chart={`flowchart TB
+                      <MermaidDiagram chart={(isDark) => `flowchart TB
   subgraph SETUP["⚙️ SETUP — Definitions"]
     direction LR
     A["📦 ItemDefinition\\n─────────────\\ncategory: character\\nitem_code: warrior\\nid: uuid-warrior-def"]
@@ -4572,23 +4499,23 @@ export default function GameItemsPage() {
   subgraph RUNTIME["▶️ RUNTIME — Instances"]
     direction LR
     C["🦸 InventoryItem\\n─────────────\\nid: uuid-my-warrior\\nitem_definition_id:\\n  uuid-warrior-def"]
-    D["📂 ContainerInstance\\n─────────────\\ndefinition: hero_warrior_slots\\nowner_item_instance_id:\\n  uuid-my-warrior\\nslots: [0][1][2][3][⚔4][5]"]
-    E["⚔️ InventoryItem\\n─────────────\\nitem: sword\\ncontainer_id: D\\nslot_index: 4"]
+    D["📂 ContainerInstance\\n─────────────\\nitem_container_definition_id:\\n  hero_warrior_slots\\nowner_user_id: player-uuid\\nslots: [0][1][2][3][⚔4][5]"]
+    E["⚔️ InventoryItem\\n─────────────\\nitem: sword\\ncontainer_id: D\\ngrid_x: 4  grid_y: 0"]
     C -- "grant → auto-creates" --> D
-    D -. "owner_item_instance_id" .-> C
-    E -- "equip into slot 4" --> D
+    D -. "owner_user_id (NOT item id)" .-> C
+    E -- "POST /inventory/move → slot 4" --> D
   end
 
   B -- "instantiated from" --> D
 
-  style A fill:#eff6ff,stroke:#93c5fd
-  style B fill:#fff7ed,stroke:#fb923c
-  style M fill:#f8fafc,stroke:#cbd5e1,stroke-dasharray:4
-  style C fill:#f0fdf4,stroke:#86efac
-  style D fill:#fef9c3,stroke:#fbbf24
-  style E fill:#faf5ff,stroke:#c4b5fd
-  style SETUP fill:#f8fafc,stroke:#e2e8f0
-  style RUNTIME fill:#f8fafc,stroke:#e2e8f0`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
+  style A fill:${isDark ? "#1e3a5f" : "#eff6ff"},stroke:${isDark ? "#60a5fa" : "#93c5fd"},color:${isDark ? "#bfdbfe" : "#1e40af"}
+  style B fill:${isDark ? "#431407" : "#fff7ed"},stroke:${isDark ? "#f97316" : "#fb923c"},color:${isDark ? "#fed7aa" : "#9a3412"}
+  style M fill:${isDark ? "#1e293b" : "#f8fafc"},stroke:${isDark ? "#475569" : "#cbd5e1"},stroke-dasharray:4,color:${isDark ? "#94a3b8" : "#64748b"}
+  style C fill:${isDark ? "#052e16" : "#f0fdf4"},stroke:${isDark ? "#4ade80" : "#86efac"},color:${isDark ? "#bbf7d0" : "#166534"}
+  style D fill:${isDark ? "#422006" : "#fef9c3"},stroke:${isDark ? "#f59e0b" : "#fbbf24"},color:${isDark ? "#fde68a" : "#92400e"}
+  style E fill:${isDark ? "#2e1065" : "#faf5ff"},stroke:${isDark ? "#a855f7" : "#c4b5fd"},color:${isDark ? "#e9d5ff" : "#6b21a8"}
+  style SETUP fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}
+  style RUNTIME fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
                       <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.containerSlotDiagramCaption')}</p>
                     </div>
                   </div>
@@ -4658,8 +4585,8 @@ export default function GameItemsPage() {
                     </h3>
                     <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep4Desc')}</p>
                     <ul className="pl-7 list-disc list-inside text-muted-foreground space-y-1 text-xs">
-                      <li><code className="bg-muted px-1 rounded">owner_item_instance_id</code> — {t('items.containerSlotStep4Bullet1')}</li>
-                      <li><code className="bg-muted px-1 rounded">definition_id</code> — {t('items.containerSlotStep4Bullet2')}</li>
+                      <li><code className="bg-muted px-1 rounded">owner_user_id</code> — {t('items.containerSlotStep4Bullet1')}</li>
+                      <li><code className="bg-muted px-1 rounded">item_container_definition_id</code> — {t('items.containerSlotStep4Bullet2')}</li>
                       <li>{t('items.containerSlotStep4Bullet3')}</li>
                     </ul>
                   </div>
@@ -4673,12 +4600,20 @@ export default function GameItemsPage() {
                       {t('items.containerSlotStep5Title')}
                     </h3>
                     <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep5Desc')}</p>
-                    <div className="pl-7 rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
-                      <div className="text-muted-foreground font-sans text-[11px] mb-2">// Equip request example</div>
-                      <div><span className="text-muted-foreground">source_container_id:</span> <span>&lt;player_inventory_container_id&gt;</span></div>
-                      <div><span className="text-muted-foreground">source_slot:</span> <span>3</span></div>
-                      <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;hero_equipment_container_id&gt;</span></div>
-                      <div><span className="text-muted-foreground">target_slot:</span> <span>4</span></div>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                        <div className="text-muted-foreground font-sans text-[11px] mb-2">// POST /inventory/move — Equip vào slot 4 (weapon)</div>
+                        <div><span className="text-muted-foreground">item_id:</span> <span>&lt;item_id_cần_equip&gt;</span></div>
+                        <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;hero_equipment_container_id&gt;</span></div>
+                        <div><span className="text-muted-foreground">grid_x:</span> <span>4</span></div>
+                        <div><span className="text-muted-foreground">grid_y:</span> <span>0</span></div>
+                      </div>
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                        <div className="text-muted-foreground font-sans text-[11px] mb-2">// POST /inventory/move — Unequip (về main inventory)</div>
+                        <div><span className="text-muted-foreground">item_id:</span> <span>&lt;item_id_cần_unequip&gt;</span></div>
+                        <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;player_main_inventory_container_id&gt;</span></div>
+                        <div className="text-muted-foreground font-sans text-[11px] mt-1">// grid_x/grid_y optional — server tự tìm vị trí trống</div>
+                      </div>
                     </div>
                   </div>
 
@@ -4700,12 +4635,12 @@ export default function GameItemsPage() {
                           <TableRow>
                             <TableCell className="text-xs font-medium">{t('items.containerSlotCompareScope')}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotScopeEq')}</TableCell>
-                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotScopeContainer')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotScopeContainer')}</TableCell>
                           </TableRow>
                           <TableRow>
                             <TableCell className="text-xs font-medium">{t('items.containerSlotCompareMultiHero')}</TableCell>
                             <TableCell className="text-xs text-destructive">{t('items.containerSlotMultiHeroEq')}</TableCell>
-                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotMultiHeroContainer')}</TableCell>
+                            <TableCell className="text-xs text-amber-600 font-medium">{t('items.containerSlotMultiHeroContainer')}</TableCell>
                           </TableRow>
                           <TableRow>
                             <TableCell className="text-xs font-medium">{t('items.containerSlotCompareRestrictions')}</TableCell>
@@ -5649,6 +5584,7 @@ export default function GameItemsPage() {
         open={showCreateContainer}
         gameId={gameId}
         allItems={containerAllItems}
+        containerTypeOptions={containerTypeOptions}
         onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
         onClose={() => setShowCreateContainer(false)}
       />

@@ -192,6 +192,19 @@ export async function fetchItemRarities(): Promise<ItemRarity[]> {
   return Array.isArray(res) ? res : (res.rarities ?? [])
 }
 
+// ─── Container Types ──────────────────────────────────────────────────────────
+
+export interface ContainerTypeOption {
+  value: string
+  description: string
+}
+
+/** GET /api/v1/container-types — List all available container types */
+export async function fetchContainerTypes(): Promise<ContainerTypeOption[]> {
+  const res: any = await api.get('/api/v1/container-types')
+  return Array.isArray(res) ? res : (res.container_types ?? [])
+}
+
 // ─── Container Definitions ────────────────────────────────────────────────────
 
 export interface ListContainerDefsParams {

@@ -157,7 +157,7 @@ export interface Paginated<T> {
 
 // ─── Container Definitions ────────────────────────────────────────────────────
 
-export type ContainerType = 'inventory' | 'chest' | 'bag' | 'vault' | 'shulker_box'
+export type ContainerType = 'inventory' | 'chest' | 'bag' | 'vault' | 'shulker_box' | 'equipment'
 
 export interface ContainerDefinition {
   id: string
