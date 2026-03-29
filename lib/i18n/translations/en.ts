@@ -2160,6 +2160,8 @@ export const en = {
     noPermissionCreateContainer: "You do not have permission to create container definitions.",
     itemsOutOfBounds: "Items would go out of bounds. Remove items first.",
     immutable: "(immutable)",
+    instancedPerItem: "Instanced Per Item",
+    instancedPerItemDesc: "When enabled, each player gets their own separate container instance linked to this item.",
     containerLinkDescPre: "Link a container to an item so that when a player owns this item, the server can automatically provision (via ",
     containerLinkDescPost: ") a personal container instance for them. This is how chests, backpacks, and storage items work — the item acts as the \"key\" to open the container.",
     metadataWithExample: "Metadata (e.g. icon = chest_wood)",

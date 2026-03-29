@@ -2138,6 +2138,8 @@ export const ja = {
     noPermissionCreateContainer: "コンテナ定義を作成する権限がありません。",
     itemsOutOfBounds: "アイテムが範囲外になります。先にアイテムを削除してください。",
     immutable: "(変更不可)",
+    instancedPerItem: "アイテム別インスタンス化",
+    instancedPerItemDesc: "有効にすると、各プレイヤーがこのアイテムに紐づいた独自のコンテナインスタンスを持ちます。",
     containerLinkDescPre: "プレイヤーがこのアイテムを所持したとき、サーバーが自動的に（",
     containerLinkDescPost: " を使って）個人用コンテナインスタンスを作成できるよう、コンテナとアイテムをリンクします。チェスト、バックパック、収納アイテムはこの仕組みで動作します — アイテムがコンテナを開く「鍵」として機能します。",
     metadataWithExample: "メタデータ (例: icon = chest_wood)",

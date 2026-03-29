@@ -528,6 +528,7 @@ function EditContainerDefinitionDialog({
   const [linkedItemId, setLinkedItemId] = useState(definition.linked_item_definition_id ?? "")
   const [linkedItemOpen, setLinkedItemOpen] = useState(false)
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
+  const [instancedPerItem, setInstancedPerItem] = useState(definition.instanced_per_item ?? false)
   const [meta, setMeta] = useState<KVEntry[]>(
     Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
   )
@@ -539,6 +540,7 @@ function EditContainerDefinitionDialog({
     setGridRows(String(definition.grid_rows))
     setLinkedItemId(definition.linked_item_definition_id ?? "")
     setLinkedItemSearch("")
+    setInstancedPerItem(definition.instanced_per_item ?? false)
     setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
     setErrors({})
   }, [definition])
@@ -565,6 +567,7 @@ function EditContainerDefinitionDialog({
         name: name.trim(),
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
+        instanced_per_item: instancedPerItem,
         metadata,
       }
       // Only send linked_item_definition_id if it changed
@@ -706,6 +709,13 @@ function EditContainerDefinitionDialog({
             <p className="text-xs text-muted-foreground">
               {t('items.containerLinkDescPre')}<code className="bg-muted px-1 rounded">ensure-container</code>{t('items.containerLinkDescPost')}
             </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="ed-instanced-per-item">{t('items.instancedPerItem')}</Label>
+              <p className="text-xs text-muted-foreground">{t('items.instancedPerItemDesc')}</p>
+            </div>
+            <Switch id="ed-instanced-per-item" checked={instancedPerItem} onCheckedChange={setInstancedPerItem} />
           </div>
           <KVEditor entries={meta} onChange={setMeta} label={t('items.metadata')} />
         </div>
@@ -4920,7 +4930,7 @@ export default function GameItemsPage() {
                                           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.portable')}</p>
                                           <p className="text-sm font-medium">{def.is_portable ? t('common.yes') : t('common.no')}</p>
                                         </div>
-                                        
+
                                         {detail && (
                                           <div className="space-y-0.5">
                                             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.updatedAtLabel')}</p>
@@ -4990,6 +5000,20 @@ export default function GameItemsPage() {
                                           )}
                                         </div>
                                       </div>
+
+                                      {/* Instanced Per Item — only when linked item exists */}
+                                      {def.linked_item_definition_id && (
+                                        <div className="flex items-center gap-3">
+                                          <Switch
+                                            checked={def.instanced_per_item ?? false}
+                                            onCheckedChange={(checked) => handleUpdateContainerField(def.id, { instanced_per_item: checked })}
+                                          />
+                                          <div className="space-y-0.5">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.instancedPerItem')}</p>
+                                            <p className="text-xs text-muted-foreground">{t('items.instancedPerItemDesc')}</p>
+                                          </div>
+                                        </div>
+                                      )}
 
                                       {/* Metadata */}
                                       <div className="space-y-1.5">

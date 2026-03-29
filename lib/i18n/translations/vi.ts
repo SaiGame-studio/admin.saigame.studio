@@ -2150,6 +2150,8 @@ export const vi = {
     noPermissionCreateContainer: "Bạn không có quyền tạo định nghĩa kho chứa.",
     itemsOutOfBounds: "Vật phẩm sẽ ra ngoài giới hạn. Hãy xóa vật phẩm trước.",
     immutable: "(không thể thay đổi)",
+    instancedPerItem: "Phân Tách Theo Vật Phẩm",
+    instancedPerItemDesc: "Khi bật, mỗi người chơi sẽ có một phiên bản kho chứa riêng gắn với vật phẩm này.",
     containerLinkDescPre: "Liên kết kho chứa với vật phẩm để khi người chơi sở hữu vật phẩm này, máy chủ có thể tự động tạo (qua ",
     containerLinkDescPost: ") một phiên bản kho chứa cá nhân. Đây là cách rương, ba lô và vật phẩm lưu trữ hoạt động — vật phẩm đóng vai trò \"chìa khóa\" để mở kho chứa.",
     metadataWithExample: "Metadata (vd: icon = chest_wood)",
