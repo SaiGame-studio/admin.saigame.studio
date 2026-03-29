@@ -3467,6 +3467,7 @@ export default function GameItemsPage() {
   const [editingField, setEditingField] = useState<{ id: string, field: string } | null>(null)
   const [editValue, setEditValue] = useState<string>("")
   const [editValue2, setEditValue2] = useState<string>("") // for dimensions
+  const [containerItemsOnly, setContainerItemsOnly] = useState<boolean>(false)
   const [metadataRows, setMetadataRows] = useState<{ k: string, v: string }[]>([])
   const [containerSubTab, setContainerSubTab] = useState<"definitions" | "slot-guide">("definitions")
 
@@ -4946,7 +4947,20 @@ export default function GameItemsPage() {
                                         <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.linkedItemDefinition')}</p>
                                         <div className="flex items-center gap-1.5">
                                           {editingField?.id === def.id && editingField?.field === 'linked_item_id' ? (
-                                            <div className="flex items-center gap-1 flex-1">
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                              <div className="flex items-center gap-1.5">
+                                                <input
+                                                  type="checkbox"
+                                                  id="containerItemsOnly"
+                                                  checked={containerItemsOnly}
+                                                  onChange={(e) => setContainerItemsOnly(e.target.checked)}
+                                                  className="h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <label htmlFor="containerItemsOnly" className="text-[10px] text-muted-foreground cursor-pointer select-none">
+                                                  {t('items.showContainerItemsOnly') ?? 'Show container items only'}
+                                                </label>
+                                              </div>
+                                              <div className="flex items-center gap-1 flex-1">
                                               <div className="relative flex-1">
                                                 <Select
                                                   value={editValue || "none"}
@@ -4957,7 +4971,10 @@ export default function GameItemsPage() {
                                                   </SelectTrigger>
                                                   <SelectContent>
                                                     <SelectItem value="none">{t('items.noLinkedItemOption')}</SelectItem>
-                                                    {containerAllItems.filter(i => i.category === 'container' || i.category === 'other').map(item => (
+                                                    {(containerItemsOnly
+                                                      ? containerAllItems.filter(i => i.category === 'container' || i.category === 'other')
+                                                      : containerAllItems
+                                                    ).map(item => (
                                                       <SelectItem key={item.id} value={item.id}>
                                                         {item.name} {item.item_code ? `(${item.item_code})` : ""}
                                                       </SelectItem>
@@ -4972,15 +4989,19 @@ export default function GameItemsPage() {
                                                 <X className="h-4 w-4" />
                                               </Button>
                                             </div>
+                                            </div>
                                           ) : (
                                             <div className="flex items-center gap-2 group/edit">
                                               {def.linked_item_definition_id ? (
                                                 <div className="flex items-center gap-2">
-                                                  <span className="text-sm font-medium text-primary">
+                                                  <Link
+                                                    href={`/games/${gameId}/items/${def.linked_item_definition_id}`}
+                                                    className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                                                    title={t('items.goToItemDef')}
+                                                  >
                                                     {getItemName(def.linked_item_definition_id)}
-                                                  </span>
-                                                  <code className="text-xs text-muted-foreground bg-muted/40 px-1 rounded">{def.linked_item_definition_id}</code>
-                                                  <CopyButton text={def.linked_item_definition_id} size="h-3 w-3" />
+                                                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                                  </Link>
                                                 </div>
                                               ) : (
                                                 <span className="text-sm text-muted-foreground italic">{t('items.noLinkedItem')}</span>

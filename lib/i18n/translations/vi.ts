@@ -1793,6 +1793,7 @@ export const vi = {
     linkedItemDefinition: "Định nghĩa vật phẩm liên kết",
     noLinkedItem: "Không có vật phẩm liên kết",
     noLinkedItemOption: "— Không có vật phẩm liên kết —",
+    showContainerItemsOnly: "Chỉ hiển thị item container",
     // Container detail
     loadingDetailDots: "Đang tải chi tiết...",
     containerIdLabel: "ID Kho chứa",
