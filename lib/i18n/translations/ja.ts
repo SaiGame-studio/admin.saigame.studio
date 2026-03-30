@@ -1785,7 +1785,7 @@ export const ja = {
     linkedItemDefinition: "リンクされたアイテム定義",
     noLinkedItem: "リンクされたアイテムなし",
     noLinkedItemOption: "— リンクされたアイテムなし —",
-    showContainerItemsOnly: "コンテナアイテムのみ表示",
+    showContainerItemsOnly: "コンテナ・キャラクターアイテムのみ表示",
     // Container detail
     loadingDetailDots: "詳細データを読み込み中…",
     containerIdLabel: "コンテナID",

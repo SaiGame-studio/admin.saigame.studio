@@ -4942,6 +4942,9 @@ export default function GameItemsPage() {
 
                                       <Separator />
 
+                                      {/* Linked Item + Instanced Per Item — 3-col grid */}
+                                      <div className="grid grid-cols-3 gap-6">
+
                                       {/* Linked Item */}
                                       <div className="space-y-1.5">
                                         <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.linkedItemDefinition')}</p>
@@ -4972,7 +4975,7 @@ export default function GameItemsPage() {
                                                   <SelectContent>
                                                     <SelectItem value="none">{t('items.noLinkedItemOption')}</SelectItem>
                                                     {(containerItemsOnly
-                                                      ? containerAllItems.filter(i => i.category === 'container' || i.category === 'other')
+                                                      ? containerAllItems.filter(i => i.category === 'container' || i.category === 'character' || i.category === 'other')
                                                       : containerAllItems
                                                     ).map(item => (
                                                       <SelectItem key={item.id} value={item.id}>
@@ -5023,7 +5026,7 @@ export default function GameItemsPage() {
                                       </div>
 
                                       {/* Instanced Per Item — only when linked item exists */}
-                                      {def.linked_item_definition_id && (
+                                      {def.linked_item_definition_id ? (
                                         <div className="flex items-center gap-3">
                                           <Switch
                                             checked={def.instanced_per_item ?? false}
@@ -5034,7 +5037,9 @@ export default function GameItemsPage() {
                                             <p className="text-xs text-muted-foreground">{t('items.instancedPerItemDesc')}</p>
                                           </div>
                                         </div>
-                                      )}
+                                      ) : <div />}
+
+                                      </div>{/* end 3-col grid */}
 
                                       {/* Metadata */}
                                       <div className="space-y-1.5">

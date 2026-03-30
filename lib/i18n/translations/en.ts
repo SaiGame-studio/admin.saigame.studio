@@ -1803,7 +1803,7 @@ export const en = {
     linkedItemDefinition: "Linked Item Definition",
     noLinkedItem: "No linked item",
     noLinkedItemOption: "— No linked item —",
-    showContainerItemsOnly: "Show container items only",
+    showContainerItemsOnly: "Show container & character items only",
     // Container detail
     loadingDetailDots: "Loading detail...",
     containerIdLabel: "Container ID",
