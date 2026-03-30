@@ -26,9 +26,9 @@ const TABS: { value: PlayerNavTab; label: string }[] = [
   { value: "info",         label: "Player Info"  },
   { value: "items",        label: "Items"        },
   { value: "containers",   label: "Containers"   },
-  { value: "presets",      label: "Presets"      },
   { value: "generators",   label: "Generators"   },
   { value: "equipments",   label: "Equipments"   },
+  { value: "presets",      label: "Presets"      },
   { value: "quests",       label: "Quests"       },
   { value: "transactions", label: "Transactions" },
 ]
