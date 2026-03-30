@@ -1753,7 +1753,7 @@ export const vi = {
     gridWidth: "Chiều rộng lưới",
     gridHeight: "Chiều cao lưới",
     stackable: "Có thể xếp chồng",
-    allowClientWriteProps: "Cho phép client ghi thuộc tính người chơi",
+    allowClientWriteProps: "Cho phép client ghi thuộc tính công khai",
     allowClientUpdateQty: "Cho phép client cập nhật số lượng",
     baseStats: "Chỉ số cơ bản",
     baseStatsLabel: "Chỉ số cơ bản (vd: attack = 10)",

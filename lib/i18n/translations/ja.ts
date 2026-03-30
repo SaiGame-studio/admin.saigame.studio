@@ -1741,7 +1741,7 @@ export const ja = {
     gridWidth: "グリッド幅",
     gridHeight: "グリッド高さ",
     stackable: "スタック可能",
-    allowClientWriteProps: "クライアントがプレイヤープロパティを書き込むことを許可",
+    allowClientWriteProps: "クライアントがパブリックプロパティを書き込むことを許可",
     allowClientUpdateQty: "クライアントが数量を更新することを許可",
     baseStats: "基本ステータス",
     baseStatsLabel: "基本ステータス（例：attack = 10）",

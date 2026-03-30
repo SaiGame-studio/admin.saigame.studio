@@ -1759,7 +1759,7 @@ export const en = {
     gridWidth: "Grid Width",
     gridHeight: "Grid Height",
     stackable: "Stackable",
-    allowClientWriteProps: "Allow client to write player properties",
+    allowClientWriteProps: "Allow client to write public properties",
     allowClientUpdateQty: "Allow client to update quantity",
     baseStats: "Base Stats",
     baseStatsLabel: "Base Stats (e.g. attack = 10)",
