@@ -9,7 +9,17 @@
       "Bash(grep -n \"No quests\\\\|No daily\\\\|No quest chains\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)",
       "Bash(grep -n \"t\\(''''quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)",
       "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
-      "Bash(find g:/Projects/ss/admin.saigame.studio/app -type f -name *player*)"
+      "Bash(find g:/Projects/ss/admin.saigame.studio/app -type f -name *player*)",
+      "Bash(grep -r \"tags\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/ --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(grep -n \"defined.limit\\\\|definedLimit\\\\|ItemTagTable\\\\|TagsTab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(ls -la /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/)",
+      "Bash(grep -n \"ItemTag\\\\|interface.*Tag\\\\|type.*Tag\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -rn \"definedLimit\\\\|defined.*limit\\\\|tagMaxReached\\\\|50\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"const.*=.*50\\\\|>=.*50\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"^const LIMIT\\\\|^const.*LIMIT\\\\|export.*50\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"LIMIT\\\\|definedLimit\\\\|MAX.*TAG\\\\|TAG.*MAX\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"TabsContent value=\"\"tags\"\"\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"TabsTrigger.*tags\\\\|items.tabTags\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"

@@ -2907,7 +2907,7 @@ function TagsTab({
           <h2 className="text-lg font-semibold">{t('items.itemTagsTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             {tags.length > 0
-              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 {t('items.tagsLabel')}</span></>
+              ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 {t('items.tagsLabel')} · {t('items.tagLimitFixed')}</span></>
               : t('items.noTagsYet')}
           </p>
         </div>
