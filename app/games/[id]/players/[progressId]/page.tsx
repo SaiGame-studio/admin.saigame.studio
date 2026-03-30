@@ -523,6 +523,8 @@ export default function GameUserProgressDetailPage({
   )
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
+  const [containersProfileId, setContainersProfileId] = useState<string | null>(null)
+  const [containersUserId, setContainersUserId] = useState<string | null>(null)
 
   // sync containers instance filter to URL
   useEffect(() => {
@@ -657,6 +659,8 @@ export default function GameUserProgressDetailPage({
       })
       setContainers(res.containers ?? [])
       setContainersHasMore(res.has_more ?? false)
+      setContainersProfileId(res.profile_id ?? null)
+      setContainersUserId(res.user_id ?? null)
       setContainersTotal(
         res.has_more
           ? containersOffset + (res.containers?.length ?? 0) + 1
@@ -2370,6 +2374,26 @@ export default function GameUserProgressDetailPage({
             </div>
           </div>
 
+          {/* Response-level metadata */}
+          {(containersProfileId || containersUserId) && (
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground px-1">
+              {containersProfileId && (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-foreground">profile_id:</span>
+                  <span className="font-mono">{containersProfileId}</span>
+                  <CopyButton text={containersProfileId} size="h-3 w-3" />
+                </div>
+              )}
+              {containersUserId && (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-foreground">user_id:</span>
+                  <span className="font-mono">{containersUserId}</span>
+                  <CopyButton text={containersUserId} size="h-3 w-3" />
+                </div>
+              )}
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-0">
               {containersLoading ? (
@@ -2531,6 +2555,24 @@ export default function GameUserProgressDetailPage({
                                 </div>
                               )}
 
+                              {/* Game ID */}
+                              {c.game_id && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Game ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{c.game_id}</span>
+                                  <CopyButton text={c.game_id} />
+                                </div>
+                              )}
+
+                              {/* Studio ID */}
+                              {c.studio_id && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Studio ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{c.studio_id}</span>
+                                  <CopyButton text={c.studio_id} />
+                                </div>
+                              )}
+
                               {/* Container Info */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
                                 <div>
@@ -2543,7 +2585,9 @@ export default function GameUserProgressDetailPage({
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Portable: </span>
-                                  <span className="font-medium">{c.definition == null ? "—" : c.definition.is_portable ? "Yes" : "No"}</span>
+                                  {c.definition == null ? <span className="font-medium">—</span> : c.definition.is_portable
+                                    ? <span className="font-medium text-green-500">Yes</span>
+                                    : <span className="font-medium text-orange-400">No</span>}
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Created: </span>
@@ -2602,6 +2646,11 @@ export default function GameUserProgressDetailPage({
                                       <span className="font-mono text-muted-foreground">{c.definition.id}</span>
                                       <CopyButton text={c.definition.id} />
                                     </div>
+                                    <div className="col-span-2 sm:col-span-4 flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">Game ID:</span>
+                                      <span className="font-mono text-muted-foreground">{c.definition.game_id}</span>
+                                      <CopyButton text={c.definition.game_id} />
+                                    </div>
                                     <div>
                                       <span className="text-muted-foreground">Type: </span>
                                       <span className="font-medium capitalize">{c.definition.container_type}</span>
@@ -2612,11 +2661,15 @@ export default function GameUserProgressDetailPage({
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Portable: </span>
-                                      <span className="font-medium">{c.definition.is_portable ? "Yes" : "No"}</span>
+                                      {c.definition.is_portable
+                                        ? <span className="font-medium text-green-500">Yes</span>
+                                        : <span className="font-medium text-orange-400">No</span>}
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Instanced per item: </span>
-                                      <span className="font-medium">{c.definition.instanced_per_item ? "Yes" : "No"}</span>
+                                      {c.definition.instanced_per_item
+                                        ? <span className="font-medium text-green-500">Yes</span>
+                                        : <span className="font-medium text-orange-400">No</span>}
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Created: </span>
@@ -2625,6 +2678,16 @@ export default function GameUserProgressDetailPage({
                                     <div>
                                       <span className="text-muted-foreground">Updated: </span>
                                       <span className="font-medium">{formatISODate(c.definition.updated_at)}</span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">Created by:</span>
+                                      <span className="font-mono text-muted-foreground">{c.definition.created_by}</span>
+                                      <CopyButton text={c.definition.created_by} />
+                                    </div>
+                                    <div className="col-span-2 flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">Updated by:</span>
+                                      <span className="font-mono text-muted-foreground">{c.definition.updated_by}</span>
+                                      <CopyButton text={c.definition.updated_by} />
                                     </div>
                                   </div>
 
