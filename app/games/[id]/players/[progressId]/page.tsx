@@ -513,6 +513,8 @@ export default function GameUserProgressDetailPage({
   const [equipmentSlots, setEquipmentSlots] = useState<import("@/types/inventory").EquipmentSlot[]>([])
   const [equipmentLoading, setEquipmentLoading] = useState(false)
   const [equipmentError, setEquipmentError] = useState<string | null>(null)
+  const [equippedItems, setEquippedItems] = useState<import("@/lib/game-user-api").PlayerEquippedItem[]>([])
+  const [equippedLoading, setEquippedLoading] = useState(false)
 
   // Generators tab
   const [generatorItems, setGeneratorItems] = useState<PlayerItem[]>([])
@@ -904,16 +906,29 @@ export default function GameUserProgressDetailPage({
 
   useEffect(() => {
     if (activeTab !== "equipments" || !gameId) return
-    if (equipmentSlots.length > 0 || equipmentLoading) return
-    setEquipmentLoading(true)
-    setEquipmentError(null)
-    import("@/lib/inventory-api").then(({ listEquipmentSlots }) =>
-      listEquipmentSlots({ gameId }, { limit: 100, offset: 0, is_active: true })
-        .then((res) => setEquipmentSlots(res.slots ?? []))
-        .catch((e: unknown) => setEquipmentError((e as Error)?.message ?? "Failed to load equipment slots"))
-        .finally(() => setEquipmentLoading(false))
-    )
-  }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+    // Load equipment slot definitions
+    if (equipmentSlots.length === 0 && !equipmentLoading) {
+      setEquipmentLoading(true)
+      setEquipmentError(null)
+      import("@/lib/inventory-api").then(({ listEquipmentSlots }) =>
+        listEquipmentSlots({ gameId }, { limit: 100, offset: 0, is_active: true })
+          .then((res) => setEquipmentSlots(res.slots ?? []))
+          .catch((e: unknown) => setEquipmentError((e as Error)?.message ?? "Failed to load equipment slots"))
+          .finally(() => setEquipmentLoading(false))
+      )
+    }
+    // Load player equipped items — requires detail.user_id (different from progressId)
+    const userId = detail?.user_id
+    if (userId && equippedItems.length === 0 && !equippedLoading) {
+      setEquippedLoading(true)
+      import("@/lib/game-user-api").then(({ getPlayerEquipped }) =>
+        getPlayerEquipped(gameId, userId)
+          .then((res) => setEquippedItems(res.equipped ?? []))
+          .catch(() => {}) // non-fatal — just show empty
+          .finally(() => setEquippedLoading(false))
+      )
+    }
+  }, [activeTab, gameId, detail?.user_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load pools when entering the daily-ahead sub-tab (or once game loads)
   useEffect(() => {
@@ -3296,6 +3311,10 @@ export default function GameUserProgressDetailPage({
             maxEquipmentSlots={null}
             equipmentSlotsUsage={null}
             onLoadGameInfo={() => {}}
+            equippedItems={equippedItems}
+            equippedLoading={equippedLoading}
+            readOnly
+            playerProgressId={progressId}
           />
         </TabsContent>
       </Tabs>

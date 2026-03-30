@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   Plus, RefreshCw, Check, ChevronDown, ChevronRight, Loader2, Wand2,
-  ZoomIn, ZoomOut, Info, X, ChevronsUpDown, Pencil, Trash2,
+  ZoomIn, ZoomOut, Info, X, ChevronsUpDown, Pencil, Trash2, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,7 +42,9 @@ import {
   fetchItemCategories,
   getItemDefinition,
 } from "@/lib/inventory-api"
-import type { EquipmentSlot, ItemDefinition } from "@/types/inventory"
+import type { EquipmentSlot, ItemDefinition, ItemRarity } from "@/types/inventory"
+import { RARITY_COLORS } from "@/types/inventory"
+import type { PlayerEquippedItem } from "@/lib/game-user-api"
 
 // ─── KV helpers ──────────────────────────────────────────────────────────────
 
@@ -391,6 +393,11 @@ export function EquipmentSlotSheet({
   )
 }
 
+function getRarityClass(rarity: string): string {
+  const c = RARITY_COLORS[rarity as ItemRarity]
+  return c ? c.text : "text-muted-foreground"
+}
+
 // ─── EquipmentsTab ────────────────────────────────────────────────────────────
 
 export function EquipmentsTab({
@@ -405,6 +412,10 @@ export function EquipmentsTab({
   maxEquipmentSlots,
   equipmentSlotsUsage,
   onLoadGameInfo,
+  equippedItems,
+  equippedLoading,
+  readOnly,
+  playerProgressId,
 }: {
   gameId: string
   slots: EquipmentSlot[]
@@ -417,7 +428,17 @@ export function EquipmentsTab({
   maxEquipmentSlots: number | null
   equipmentSlotsUsage: number | null
   onLoadGameInfo: () => void
+  equippedItems?: PlayerEquippedItem[]
+  equippedLoading?: boolean
+  /** When true: hides create/edit/delete actions (used in player context) */
+  readOnly?: boolean
+  /** Player progress ID — when provided, equipped item names link to ?tab=items&item_iid=... */
+  playerProgressId?: string
 }) {
+  // Build a map of slot_key → equipped item for fast lookup
+  const equippedMap = equippedItems
+    ? Object.fromEntries(equippedItems.map((e) => [e.slot_key, e]))
+    : null
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -573,10 +594,12 @@ export function EquipmentsTab({
       <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSlots} disabled={loading} title={t('common.refresh')}>
         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
       </Button>
-      <Button size="sm" className="h-8" onClick={openCreate}>
-        <Plus className="h-4 w-4 mr-1" />
-        {t('items.newEquipmentSlot')}
-      </Button>
+      {!readOnly && (
+        <Button size="sm" className="h-8" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-1" />
+          {t('items.newEquipmentSlot')}
+        </Button>
+      )}
     </div>
   )
 
@@ -628,7 +651,7 @@ export function EquipmentsTab({
         <TabsContent value="grid" className="mt-0">
           {(() => {
             const CARD_W = 116
-            const CARD_H_EST = 80
+            const CARD_H_EST = equippedMap ? 100 : 80
             const GAP = 12
             const COLS = 6
             const getDefaultPos = (idx: number) => ({
@@ -788,6 +811,7 @@ export function EquipmentsTab({
                     {slots.map((slot, i) => {
                       const isDragging = !!draggingPos?.[slot.slot_key]
                       const pos = draggingPos?.[slot.slot_key] ?? (positions[slot.slot_key] ?? getDefaultPos(i))
+                      const equippedInSlot = equippedMap?.[slot.slot_key] ?? null
                       const bondedEdges = {
                         top: getBondedNeighbor(slot.slot_key, "top"),
                         right: getBondedNeighbor(slot.slot_key, "right"),
@@ -818,7 +842,7 @@ export function EquipmentsTab({
                               <button key={dir} style={edgeStyle} className="w-2.5 h-2.5 rounded-full bg-blue-400 hover:bg-red-400 cursor-pointer transition-colors border border-background" title={`${t('items.detachFrom')} ${neighbor}`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); detachBond(slot.slot_key, neighbor) }} />
                             )
                           })}
-                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}`} style={{ height: CARD_H_EST }}>
+                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}${equippedInSlot ? " ring-1 ring-emerald-400/60" : ""}`} style={{ height: CARD_H_EST }}>
                             <CardContent className="p-1.5">
                               <div className="flex gap-0.5">
                                 <div className="min-w-0 flex-1 space-y-1">
@@ -838,14 +862,34 @@ export function EquipmentsTab({
                                         : <span className="text-[8px] text-muted-foreground">{slot.allowed_categories.length}× {t('items.typesCount')}</span>
                                       : <span className="text-[8px] text-muted-foreground italic">{t('items.anyType')}</span>}
                                   </div>
-                                  <div className="flex text-[8px] text-muted-foreground">
-                                    <span>
-                                      {slot.allowed_item_definition_ids && slot.allowed_item_definition_ids.length > 0
-                                        ? `${slot.allowed_item_definition_ids.length}× ${t('items.itemsUnit')}`
-                                        : t('items.anyItems')}
-                                    </span>
-                                  </div>
+                                  {/* Equipped item row */}
+                                  {equippedMap !== null && (
+                                    <div className={`flex items-center gap-0.5 border-t pt-0.5 mt-0.5 ${equippedLoading ? "opacity-50" : ""}`}>
+                                      {equippedInSlot ? (
+                                        <>
+                                          <ExternalLink className="h-2 w-2 text-emerald-500 shrink-0" />
+                                          {playerProgressId ? (
+                                            <a
+                                              href={`/games/${gameId}/players/${playerProgressId}?tab=items&item_iid=${equippedInSlot.item_id}`}
+                                              className={`text-[8px] truncate font-medium hover:underline ${getRarityClass(equippedInSlot.rarity)}`}
+                                              onPointerDown={(e) => e.stopPropagation()}
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {equippedInSlot.item_name}
+                                            </a>
+                                          ) : (
+                                            <span className={`text-[8px] truncate font-medium ${getRarityClass(equippedInSlot.rarity)}`}>
+                                              {equippedInSlot.item_name}
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <span className="text-[8px] text-muted-foreground/50 italic">empty</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
+                                {!readOnly && (
                                 <div className="flex flex-col items-center justify-between shrink-0">
                                   <Button variant="ghost" size="icon" className="h-4 w-4" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); openEdit(detailCache[slot.slot_key] ?? slot, e) }}>
                                     <Pencil className="h-2 w-2" />
@@ -854,6 +898,7 @@ export function EquipmentsTab({
                                     {deleteSlotLoading && pendingDeleteSlot === slot.slot_key ? <Loader2 className="h-2 w-2 animate-spin" /> : <Trash2 className="h-2 w-2" />}
                                   </Button>
                                 </div>
+                                )}
                               </div>
                             </CardContent>
                           </Card>
@@ -879,8 +924,9 @@ export function EquipmentsTab({
                     <TableHead>{t('items.slotKeyHeader')}</TableHead>
                     <TableHead>{t('items.allowedCategoriesHeader')}</TableHead>
                     <TableHead>{t('items.allowedItemsHeader')}</TableHead>
+                    {equippedMap !== null && <TableHead>Equipped Item</TableHead>}
                     <TableHead>{t('items.status')}</TableHead>
-                    <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>
+                    {!readOnly && <TableHead className="text-right">{t('items.actionsHeader')}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -889,6 +935,7 @@ export function EquipmentsTab({
                     const detail = detailCache[slot.slot_key]
                     const isLoadingDetail = detailLoading === slot.slot_key
                     const detailErr = detailError[slot.slot_key]
+                    const equippedInSlot = equippedMap?.[slot.slot_key] ?? null
                     return (
                       <Fragment key={slot.id}>
                         <TableRow className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => handleRowClick(slot)}>
@@ -917,6 +964,38 @@ export function EquipmentsTab({
                               <span className="italic">{t('items.anyItems')}</span>
                             )}
                           </TableCell>
+                          {equippedMap !== null && (
+                            <TableCell>
+                              {equippedLoading ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                              ) : equippedInSlot ? (
+                                <div className="flex items-center gap-1.5">
+                                  <ExternalLink className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                  <div className="min-w-0">
+                                    {playerProgressId ? (
+                                      <a
+                                        href={`/games/${gameId}/players/${playerProgressId}?tab=items&item_iid=${equippedInSlot.item_id}`}
+                                        className={`text-xs font-medium hover:underline ${getRarityClass(equippedInSlot.rarity)}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {equippedInSlot.item_name}
+                                      </a>
+                                    ) : (
+                                      <span className={`text-xs font-medium ${getRarityClass(equippedInSlot.rarity)}`}>
+                                        {equippedInSlot.item_name}
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">{equippedInSlot.category}</Badge>
+                                      <span className={`text-[10px] capitalize font-medium ${getRarityClass(equippedInSlot.rarity)}`}>{equippedInSlot.rarity}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">—</span>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell>
                             {slot.is_active ? (
                               <span className="text-green-500 text-sm font-medium">{t('common.active')}</span>
@@ -924,6 +1003,7 @@ export function EquipmentsTab({
                               <span className="text-muted-foreground text-sm">{t('common.inactive')}</span>
                             )}
                           </TableCell>
+                          {!readOnly && (
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.edit')} onClick={(e) => openEdit(detail ?? slot, e)}>
                               <Pencil className="h-4 w-4" />
@@ -932,11 +1012,12 @@ export function EquipmentsTab({
                               {deleteSlotLoading && pendingDeleteSlot === slot.slot_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                             </Button>
                           </TableCell>
+                          )}
                         </TableRow>
 
                         {isExpanded && (
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={8} className="p-0">
+                            <TableCell colSpan={equippedMap !== null ? 9 : 8} className="p-0">
                               <div className="px-6 py-4 space-y-4">
                                 {isLoadingDetail ? (
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -947,6 +1028,44 @@ export function EquipmentsTab({
                                   <p className="text-sm text-destructive">{detailErr}</p>
                                 ) : detail ? (
                                   <>
+                                    {/* Equipped item detail panel */}
+                                    {equippedInSlot && (
+                                      <div className="rounded-md border border-emerald-400/30 bg-emerald-50/10 dark:bg-emerald-950/20 p-3 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <ExternalLink className="h-4 w-4 text-emerald-500 shrink-0" />
+                                          <span className="text-xs font-semibold text-foreground">Equipped Item</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
+                                          <div>
+                                            <span className="text-muted-foreground">Name: </span>
+                                            <Link href={`/games/${gameId}/items/${equippedInSlot.item_definition_id}`} className={`font-medium hover:underline ${getRarityClass(equippedInSlot.rarity)}`} onClick={(e) => e.stopPropagation()}>
+                                              {equippedInSlot.item_name}
+                                            </Link>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Category: </span>
+                                            <span className="capitalize font-medium">{equippedInSlot.category}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Rarity: </span>
+                                            <span className={`capitalize font-medium ${getRarityClass(equippedInSlot.rarity)}`}>{equippedInSlot.rarity}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Item ID: </span>
+                                            <span className="font-mono">{equippedInSlot.item_id.slice(0, 12)}…</span>
+                                            <CopyButton text={equippedInSlot.item_id} />
+                                          </div>
+                                        </div>
+                                        {equippedInSlot.slot_data && Object.keys(equippedInSlot.slot_data).length > 0 && (
+                                          <div className="space-y-0.5">
+                                            <p className="text-xs font-semibold text-foreground">Slot Data</p>
+                                            <pre className="text-[11px] font-mono bg-background/60 border rounded-md p-2 overflow-auto max-h-[120px] whitespace-pre-wrap">
+                                              {JSON.stringify(equippedInSlot.slot_data, null, 2)}
+                                            </pre>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                     <div className="flex flex-wrap gap-x-6 gap-y-2">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-semibold text-foreground">{t('items.slotIdLabel')}:</span>

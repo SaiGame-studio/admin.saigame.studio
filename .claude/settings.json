@@ -35,7 +35,8 @@
       "Bash(grep -n \"TabsContent value=\"\"equipments\\\\|equipments tab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
       "Bash(grep -n \"function EquipmentsTab\\\\|const EquipmentsTab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
       "Bash(grep -n \"TabsContent value=\"\"catalogue\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
-      "Bash(grep -n \"getPlayerEquipments\\\\|listPlayerEquipments\\\\|player.*equipment\\\\|equipment.*player\\\\|PlayerEquipment\\\\|player_equipment\" g:/Projects/ss/admin.saigame.studio/lib/*.ts)"
+      "Bash(grep -n \"getPlayerEquipments\\\\|listPlayerEquipments\\\\|player.*equipment\\\\|equipment.*player\\\\|PlayerEquipment\\\\|player_equipment\" g:/Projects/ss/admin.saigame.studio/lib/*.ts)",
+      "Bash(\"g:/Projects/ss/admin.saigame.studio/lib/game-user-api.ts\")"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"

@@ -520,3 +520,28 @@ export async function getPlayerQuestHistory(
     `/api/v1/studios/${studioId}/games/${gameId}/players/${userId}/quest-history${query ? `?${query}` : ""}`
   )
 }
+
+// ─── Player Equipped Items ────────────────────────────────────────────────────
+
+export interface PlayerEquippedItem {
+  slot_key: string
+  slot_name: string
+  item_id: string
+  item_definition_id: string
+  item_name: string
+  category: string
+  rarity: string
+  slot_data: Record<string, unknown>
+}
+
+export interface PlayerEquippedResult {
+  equipped: PlayerEquippedItem[]
+}
+
+/** GET /api/v1/games/:gameId/players/:progressId/equipped */
+export async function getPlayerEquipped(
+  gameId: string,
+  progressId: string,
+): Promise<PlayerEquippedResult> {
+  return api.get(`/api/v1/games/${gameId}/players/${progressId}/equipped`)
+}
