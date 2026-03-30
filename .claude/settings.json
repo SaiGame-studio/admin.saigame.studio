@@ -29,7 +29,13 @@
       "Bash(grep -r \"itemUsage\\\\|item_usage\\\\|itemUsages\\\\|item_usages\" g:/Projects/ss/admin.saigame.studio --include=*.tsx --include=*.ts)",
       "Bash(find g:/Projects/ss/admin.saigame.studio -type f -name *.md)",
       "Bash(find g:/Projects/ss/admin.saigame.studio/docs -type f -name *.md)",
-      "Bash(grep -r \"5000\\\\|max_equipment\" \"g:\\\\Projects\\\\ss\\\\admin.saigame.studio\\\\types\"\" --include=\"*.ts\" --include=\"*.tsx \")"
+      "Bash(grep -r \"5000\\\\|max_equipment\" \"g:\\\\Projects\\\\ss\\\\admin.saigame.studio\\\\types\"\" --include=\"*.ts\" --include=\"*.tsx \")",
+      "Bash(grep -n \"TabsList\\\\|TabsTrigger\\\\|<Tabs\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/players/[progressId]/page.tsx)",
+      "Bash(grep -n \"TabsList\\\\|TabsTrigger\\\\|equipments\\\\|equipment\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"TabsContent value=\"\"equipments\\\\|equipments tab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"function EquipmentsTab\\\\|const EquipmentsTab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"TabsContent value=\"\"catalogue\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"getPlayerEquipments\\\\|listPlayerEquipments\\\\|player.*equipment\\\\|equipment.*player\\\\|PlayerEquipment\\\\|player_equipment\" g:/Projects/ss/admin.saigame.studio/lib/*.ts)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"

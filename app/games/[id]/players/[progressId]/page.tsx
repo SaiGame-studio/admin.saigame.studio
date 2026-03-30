@@ -21,6 +21,7 @@ import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPo
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
 import { CopyButton } from "@/components/CopyButton"
+import { EquipmentsTab } from "@/components/EquipmentsTab"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -444,7 +445,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -507,6 +508,11 @@ export default function GameUserProgressDetailPage({
   const [presetDetailsError, setPresetDetailsError] = useState<Record<string, string>>({})
   // inventory_item_id → { name, definitionId }
   const [presetSlotItemNames, setPresetSlotItemNames] = useState<Record<string, { name: string; definitionId: string }>>({})
+
+  // Equipments tab
+  const [equipmentSlots, setEquipmentSlots] = useState<import("@/types/inventory").EquipmentSlot[]>([])
+  const [equipmentLoading, setEquipmentLoading] = useState(false)
+  const [equipmentError, setEquipmentError] = useState<string | null>(null)
 
   // Generators tab
   const [generatorItems, setGeneratorItems] = useState<PlayerItem[]>([])
@@ -895,6 +901,19 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
   }, [activeTab, loadQuestHistory])
+
+  useEffect(() => {
+    if (activeTab !== "equipments" || !gameId) return
+    if (equipmentSlots.length > 0 || equipmentLoading) return
+    setEquipmentLoading(true)
+    setEquipmentError(null)
+    import("@/lib/inventory-api").then(({ listEquipmentSlots }) =>
+      listEquipmentSlots({ gameId }, { limit: 100, offset: 0, is_active: true })
+        .then((res) => setEquipmentSlots(res.slots ?? []))
+        .catch((e: unknown) => setEquipmentError((e as Error)?.message ?? "Failed to load equipment slots"))
+        .finally(() => setEquipmentLoading(false))
+    )
+  }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load pools when entering the daily-ahead sub-tab (or once game loads)
   useEffect(() => {
@@ -3262,6 +3281,22 @@ export default function GameUserProgressDetailPage({
               })}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="equipments" className="space-y-4">
+          <EquipmentsTab
+            gameId={gameId}
+            slots={equipmentSlots}
+            setSlots={setEquipmentSlots}
+            loading={equipmentLoading}
+            setLoading={setEquipmentLoading}
+            error={equipmentError}
+            setError={setEquipmentError}
+            activeTab={activeTab}
+            maxEquipmentSlots={null}
+            equipmentSlotsUsage={null}
+            onLoadGameInfo={() => {}}
+          />
         </TabsContent>
       </Tabs>
 
