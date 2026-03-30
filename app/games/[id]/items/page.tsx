@@ -4148,6 +4148,15 @@ export default function GameItemsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Clear all */}
+              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]) }}
+                >
+                  Clear
+                </button>
+              )}
               {/* Name search */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -4245,15 +4254,6 @@ export default function GameItemsPage() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-              )}
-              {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]) }}
-                >
-                  Clear
-                </button>
               )}
               <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
