@@ -1351,14 +1351,6 @@ export default function GameUserProgressDetailPage({
                               <div className="font-medium whitespace-nowrap flex items-center gap-1">
                                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                                 {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
-                                <a
-                                  href={`/games/${gameId}/items/${item.item_definition_id}`}
-                                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                                  title="Open item definition"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1420,20 +1412,38 @@ export default function GameUserProgressDetailPage({
                           <TableCell colSpan={9} className="p-0">
                             <div className="px-6 py-3 space-y-3">
                               {/* IDs */}
-                              <div className="flex flex-wrap gap-x-8 gap-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-foreground">Instance ID:</span>
-                                  <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                                  <CopyButton text={item.id} />
+                              <div className="space-y-1">
+                                {/* Row 1: Instance ID + Version */}
+                                <div className="flex flex-wrap items-center gap-x-8 gap-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Instance ID:</span>
+                                    <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                                    <CopyButton text={item.id} />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Version:</span>
+                                    <span className="text-xs font-mono text-muted-foreground">{item.version}</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-foreground">Definition ID:</span>
-                                  <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
-                                  <CopyButton text={item.item_definition_id} />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-foreground">Version:</span>
-                                  <span className="text-xs font-mono text-muted-foreground">{item.version}</span>
+                                {/* Row 2: Definition ID + Definition Item */}
+                                <div className="flex flex-wrap items-center gap-x-8 gap-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                    <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
+                                    <CopyButton text={item.item_definition_id} />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">Definition Item:</span>
+                                    <a
+                                      href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                                      title="Open item definition"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {item.definition?.name ?? item.item_definition_id.slice(0, 8)}
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </a>
+                                  </div>
                                 </div>
                               </div>
 
