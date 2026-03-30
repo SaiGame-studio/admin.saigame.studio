@@ -12,6 +12,7 @@ export interface GameLimits {
   max_battle_pass_sets?: number
   max_entity_defs?: number
   max_scripts?: number
+  max_equipment_slots?: number
 }
 
 export interface GameUsage {
@@ -26,6 +27,7 @@ export interface GameUsage {
   leaderboards?: number
   entity_definitions?: number
   scripts?: number
+  equipment_slots?: number
 }
 
 export interface Game {
