@@ -2588,19 +2588,19 @@ export default function GameUserProgressDetailPage({
                                     <p className="text-xs font-semibold text-foreground">Definition</p>
                                     <a
                                       href={`/games/${gameId}/items?tab=containers&q=${c.definition.id}`}
-                                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono"
+                                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                                       title="Go to container definition"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      {c.definition.id}
+                                      {c.definition.name}
                                       <ExternalLink className="h-3 w-3 shrink-0" />
                                     </a>
-                                    <CopyButton text={c.definition.id} />
                                   </div>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
-                                    <div>
-                                      <span className="text-muted-foreground">Name: </span>
-                                      <span className="font-medium">{c.definition.name}</span>
+                                    <div className="col-span-2 sm:col-span-4 flex items-center gap-1.5">
+                                      <span className="text-muted-foreground">ID:</span>
+                                      <span className="font-mono text-muted-foreground">{c.definition.id}</span>
+                                      <CopyButton text={c.definition.id} />
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Type: </span>
