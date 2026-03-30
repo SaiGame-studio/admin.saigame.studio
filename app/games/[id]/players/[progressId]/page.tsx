@@ -1177,6 +1177,15 @@ export default function GameUserProgressDetailPage({
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Clear all */}
+              {(itemFilterName || itemFilterCategory || itemFilterRarity || itemFilterContainerId || itemFilterId) && (
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity(""); setItemFilterContainerId(""); setItemFilterId("") }}
+                >
+                  Clear
+                </button>
+              )}
               {/* Instance ID search */}
               <div className="relative">
                 <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1216,50 +1225,71 @@ export default function GameUserProgressDetailPage({
                 )}
               </div>
               {/* Category */}
-              <select
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
-                value={itemFilterCategory}
-                onChange={(e) => setItemFilterCategory(e.target.value)}
-              >
-                <option value="">All categories</option>
-                {itemCategories.map((c) => (
-                  <option key={c} value={c} className="capitalize">{c}</option>
-                ))}
-              </select>
-              {/* Rarity */}
-              <select
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
-                value={itemFilterRarity}
-                onChange={(e) => setItemFilterRarity(e.target.value)}
-              >
-                <option value="">All rarities</option>
-                {itemRarities.map((r) => (
-                  <option key={r} value={r} className="capitalize">{r}</option>
-                ))}
-              </select>
-              {/* Container */}
-              {Object.keys(containerMapForItems).length > 0 && (
+              <div className="relative">
                 <select
-                  className="h-8 rounded-md border border-input bg-background px-2 text-sm max-w-[180px]"
-                  value={itemFilterContainerId}
-                  onChange={(e) => setItemFilterContainerId(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize pr-6"
+                  value={itemFilterCategory}
+                  onChange={(e) => setItemFilterCategory(e.target.value)}
                 >
-                  <option value="">All containers</option>
-                  {Object.values(containerMapForItems).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.definition?.name ?? c.container_type} ({c.id.slice(0, 8)}…)
-                    </option>
+                  <option value="">All categories</option>
+                  {itemCategories.map((c) => (
+                    <option key={c} value={c} className="capitalize">{c}</option>
                   ))}
                 </select>
-              )}
-              {/* Clear all */}
-              {(itemFilterName || itemFilterCategory || itemFilterRarity || itemFilterContainerId || itemFilterId) && (
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setItemFilterName(""); setItemFilterCategory(""); setItemFilterRarity(""); setItemFilterContainerId(""); setItemFilterId("") }}
+                {itemFilterCategory && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setItemFilterCategory("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              {/* Rarity */}
+              <div className="relative">
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize pr-6"
+                  value={itemFilterRarity}
+                  onChange={(e) => setItemFilterRarity(e.target.value)}
                 >
-                  Clear
-                </button>
+                  <option value="">All rarities</option>
+                  {itemRarities.map((r) => (
+                    <option key={r} value={r} className="capitalize">{r}</option>
+                  ))}
+                </select>
+                {itemFilterRarity && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setItemFilterRarity("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              {/* Container */}
+              {Object.keys(containerMapForItems).length > 0 && (
+                <div className="relative">
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-sm max-w-[180px] pr-6"
+                    value={itemFilterContainerId}
+                    onChange={(e) => setItemFilterContainerId(e.target.value)}
+                  >
+                    <option value="">All containers</option>
+                    {Object.values(containerMapForItems).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.definition?.name ?? c.container_type} ({c.id.slice(0, 8)}…)
+                      </option>
+                    ))}
+                  </select>
+                  {itemFilterContainerId && (
+                    <button
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setItemFilterContainerId("")}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               )}
               <Button variant="outline" size="icon" onClick={loadItems} disabled={itemsLoading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${itemsLoading ? "animate-spin" : ""}`} />
@@ -2348,16 +2378,26 @@ export default function GameUserProgressDetailPage({
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Instance ID search */}
-              <input
-                type="text"
-                placeholder="Search by instance ID…"
-                className="h-8 w-64 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                value={containersInstanceId}
-                onChange={(e) => {
-                  setContainersInstanceId(e.target.value)
-                  setContainersOffset(0)
-                }}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by instance ID…"
+                  className="h-8 w-64 rounded-md border border-input bg-background px-3 pr-7 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  value={containersInstanceId}
+                  onChange={(e) => {
+                    setContainersInstanceId(e.target.value)
+                    setContainersOffset(0)
+                  }}
+                />
+                {containersInstanceId && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => { setContainersInstanceId(""); setContainersOffset(0) }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               {/* Type filter */}
               <select
                 className="h-8 rounded-md border border-input bg-background px-2 text-sm"
