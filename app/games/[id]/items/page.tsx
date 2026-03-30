@@ -1811,6 +1811,9 @@ function EquipmentsTab({
   error,
   setError,
   activeTab,
+  maxEquipmentSlots,
+  equipmentSlotsUsage,
+  onLoadGameInfo,
 }: {
   gameId: string
   slots: EquipmentSlot[]
@@ -1820,6 +1823,9 @@ function EquipmentsTab({
   error: string | null
   setError: (v: string | null) => void
   activeTab: string
+  maxEquipmentSlots: number | null
+  equipmentSlotsUsage: number | null
+  onLoadGameInfo: () => void
 }) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -1955,6 +1961,7 @@ function EquipmentsTab({
           return n
         })
         setPendingDeleteSlot(null)
+        onLoadGameInfo()
       })
       .catch((err: unknown) => alert((err as Error)?.message ?? t('items.failedDeleteSlot')))
       .finally(() => setDeleteSlotLoading(false))
@@ -1965,11 +1972,13 @@ function EquipmentsTab({
     setDetailCache((prev) => ({ ...prev, [saved.slot_key]: saved }))
     fetchItemNames(saved.allowed_item_definition_ids)
     // update list
+    const isNew = !slots.some((s) => s.slot_key === saved.slot_key)
     setSlots(
-      slots.some((s) => s.slot_key === saved.slot_key)
-        ? slots.map((s) => s.slot_key === saved.slot_key ? { ...s, ...saved } : s)
-        : [saved, ...slots]
+      isNew
+        ? [saved, ...slots]
+        : slots.map((s) => s.slot_key === saved.slot_key ? { ...s, ...saved } : s)
     )
+    if (isNew) onLoadGameInfo()
   }
 
   if (loading) {
@@ -2021,14 +2030,10 @@ function EquipmentsTab({
         <div>
           <h2 className="text-lg font-semibold">{t('items.equipmentSlotsTitle')}</h2>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <span className={slots.length >= 5000 ? "text-destructive font-medium" : ""}>
-              {slots.length} / 5000
+            <span className={maxEquipmentSlots != null && (equipmentSlotsUsage ?? slots.length) >= maxEquipmentSlots ? "text-destructive font-medium" : ""}>
+              {equipmentSlotsUsage ?? slots.length}{maxEquipmentSlots != null ? ` / ${maxEquipmentSlots}` : ""}
             </span>
             {" "}{t('items.slotsDefined')}
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/50">
-              <Lock className="h-3 w-3" />
-              {t('items.systemMaximum')}
-            </span>
           </p>
         </div>
         {headerActions}
@@ -3417,6 +3422,8 @@ export default function GameItemsPage() {
   const [studioId, setStudioId] = useState("")
   const [maxItems, setMaxItems] = useState<number | null>(null)
   const [itemUsage, setItemUsage] = useState<number | null>(null)
+  const [maxEquipmentSlots, setMaxEquipmentSlots] = useState<number | null>(null)
+  const [equipmentSlotsUsage, setEquipmentSlotsUsage] = useState<number | null>(null)
   const [items, setItems] = useState<ItemDefinition[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -3609,6 +3616,8 @@ export default function GameItemsPage() {
       setMaxItems(g.limits?.max_items ?? null)
       setItemUsage(g.usage?.items ?? null)
       setGameLimits(g.limits ?? null)
+      setMaxEquipmentSlots(g.limits?.max_equipment_slots ?? null)
+      setEquipmentSlotsUsage(g.usage?.equipment_slots ?? null)
     } catch {
       // game failed to load — stop the skeleton
       setLoading(false)
@@ -5450,6 +5459,9 @@ export default function GameItemsPage() {
             error={equipmentError}
             setError={setEquipmentError}
             activeTab={activeTab}
+            maxEquipmentSlots={maxEquipmentSlots}
+            equipmentSlotsUsage={equipmentSlotsUsage}
+            onLoadGameInfo={loadGameInfo}
           />
         </TabsContent>
 

@@ -19,7 +19,17 @@
       "Bash(grep -n \"^const LIMIT\\\\|^const.*LIMIT\\\\|export.*50\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
       "Bash(grep -n \"LIMIT\\\\|definedLimit\\\\|MAX.*TAG\\\\|TAG.*MAX\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
       "Bash(grep -n \"TabsContent value=\"\"tags\"\"\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
-      "Bash(grep -n \"TabsTrigger.*tags\\\\|items.tabTags\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)"
+      "Bash(grep -n \"TabsTrigger.*tags\\\\|items.tabTags\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio -type f \\\\\\(-name *equipment* -o -name *slot* \\\\\\))",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/app -type f -name *.tsx -o -name *.ts)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/app/games/[id] -type f -name *.tsx -o -name *.ts)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/lib -type f -name *.ts -o -name *.tsx)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/app -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(grep -r 5000 g:/Projects/ss/admin.saigame.studio/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"itemUsage\\\\|item_usage\\\\|itemUsages\\\\|item_usages\" g:/Projects/ss/admin.saigame.studio --include=*.tsx --include=*.ts)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio -type f -name *.md)",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/docs -type f -name *.md)",
+      "Bash(grep -r \"5000\\\\|max_equipment\" \"g:\\\\Projects\\\\ss\\\\admin.saigame.studio\\\\types\"\" --include=\"*.ts\" --include=\"*.tsx \")"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"
