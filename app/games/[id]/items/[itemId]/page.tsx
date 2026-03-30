@@ -1059,7 +1059,7 @@ export default function ItemDefinitionDetailPage() {
                 <span className="text-muted-foreground font-mono text-xs">linked_container_definition_id</span>
                 <div className="flex items-center gap-1.5 ml-1">
                   <Link
-                    href={`/games/${gameId}/items?tab=containers`}
+                    href={`/games/${gameId}/items?tab=containers&q=${linkedContainerInfo.id}`}
                     title="Go to container definitions"
                     className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                   >

@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
 import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
-import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack } from "@/lib/inventory-api"
+import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/useTranslation"
@@ -448,6 +448,9 @@ export default function GameUserProgressDetailPage({
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
+  // Cache: container instance id → name, container definition id → name
+  const [linkedInstanceNames, setLinkedInstanceNames] = useState<Record<string, string>>({})
+  const [linkedDefNames, setLinkedDefNames] = useState<Record<string, string>>({})
   const [itemsTotal, setItemsTotal] = useState(0)
   const [itemsOffset, setItemsOffset] = useState(0)
   const [itemsLoading, setItemsLoading] = useState(false)
@@ -515,9 +518,21 @@ export default function GameUserProgressDetailPage({
   const [containersHasMore, setContainersHasMore] = useState(false)
   const [containersOffset, setContainersOffset] = useState(0)
   const [containersType, setContainersType] = useState<"" | "inventory" | "shulker_box">("")
+  const [containersInstanceId, setContainersInstanceId] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("container_q") ?? "" : ""
+  )
   const [containersLoading, setContainersLoading] = useState(false)
   const [containersError, setContainersError] = useState<string | null>(null)
+
+  // sync containers instance filter to URL
+  useEffect(() => {
+    const newParams = new URLSearchParams(window.location.search)
+    containersInstanceId ? newParams.set("container_q", containersInstanceId) : newParams.delete("container_q")
+    router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
+  }, [containersInstanceId]) // eslint-disable-line react-hooks/exhaustive-deps
   const [expandedContainerIds, setExpandedContainerIds] = useState<Set<string>>(new Set())
+  // Cache: item definition id → name
+  const [itemDefNames, setItemDefNames] = useState<Record<string, string>>({})
 
   // Container map used in the Items tab (id → container)
   const [containerMapForItems, setContainerMapForItems] = useState<Record<string, PlayerContainer>>({})
@@ -638,6 +653,7 @@ export default function GameUserProgressDetailPage({
         limit: CONTAINERS_LIMIT,
         offset: containersOffset,
         type: containersType || undefined,
+        instance_id: containersInstanceId.trim() || undefined,
       })
       setContainers(res.containers ?? [])
       setContainersHasMore(res.has_more ?? false)
@@ -647,11 +663,12 @@ export default function GameUserProgressDetailPage({
           : containersOffset + (res.containers?.length ?? 0)
       )
     } catch (err: any) {
-      setContainersError(err?.message ?? "Failed to load containers")
+      const msg = err?.message ?? ""
+      setContainersError(msg.includes("invalid_instance_id") ? "Invalid instance ID — must be a valid UUID." : (msg || "Failed to load containers"))
     } finally {
       setContainersLoading(false)
     }
-  }, [progressId, containersOffset, containersType])
+  }, [progressId, containersOffset, containersType, containersInstanceId])
 
   const loadPresets = useCallback(async () => {
     if (!detail?.user_id) return
@@ -1293,8 +1310,30 @@ export default function GameUserProgressDetailPage({
                       const toggleExpand = () => {
                         setExpandedItemIds((prev) => {
                           const next = new Set(prev)
-                          if (next.has(item.id)) next.delete(item.id)
-                          else next.add(item.id)
+                          if (next.has(item.id)) {
+                            next.delete(item.id)
+                          } else {
+                            next.add(item.id)
+                            // Resolve linked container instance name from already-loaded containerMapForItems
+                            const instanceId = item.private_properties?.linked_container_instance_id
+                            if (typeof instanceId === "string") {
+                              const c = containerMapForItems[instanceId]
+                              if (c) {
+                                setLinkedInstanceNames((m) => ({ ...m, [instanceId]: c.definition?.name ?? c.container_type }))
+                              }
+                            }
+                            // Fetch linked container definition name
+                            const defId = item.definition?.metadata?.linked_container_definition_id
+                            if (typeof defId === "string") {
+                              setLinkedDefNames((m) => {
+                                if (m[defId] !== undefined) return m
+                                getContainerDefinition({ gameId }, defId)
+                                  .then((r) => setLinkedDefNames((prev2) => ({ ...prev2, [defId]: r.container_definition.name })))
+                                  .catch(() => setLinkedDefNames((prev2) => ({ ...prev2, [defId]: "" })))
+                                return { ...m, [defId]: "…" }
+                              })
+                            }
+                          }
                           return next
                         })
                       }
@@ -1376,60 +1415,143 @@ export default function GameUserProgressDetailPage({
                         <TableRow className="bg-muted/30 hover:bg-muted/40">
                           <TableCell colSpan={9} className="p-0">
                             <div className="px-6 py-3 space-y-3">
-                              {/* Instance ID */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-foreground">Instance ID:</span>
-                                <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
-                                <CopyButton text={item.id} />
+                              {/* IDs */}
+                              <div className="flex flex-wrap gap-x-8 gap-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Instance ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{item.id}</span>
+                                  <CopyButton text={item.id} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Definition ID:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
+                                  <CopyButton text={item.item_definition_id} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground">Version:</span>
+                                  <span className="text-xs font-mono text-muted-foreground">{item.version}</span>
+                                </div>
                               </div>
 
-                              {/* Definition ID */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-foreground">Definition ID:</span>
-                                <span className="text-xs font-mono text-muted-foreground">{item.item_definition_id}</span>
-                                <CopyButton text={item.item_definition_id} />
-                              </div>
-
-                              {/* Full Metadata */}
-                              {item.definition?.metadata && Object.keys(item.definition.metadata).length > 0 && (
+                              {/* Private Properties */}
+                              {item.private_properties && Object.keys(item.private_properties).length > 0 && (
                                 <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Metadata</p>
-                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
-                                    {JSON.stringify(item.definition.metadata, null, 2)}
-                                  </pre>
+                                  <p className="text-xs font-semibold text-foreground">Private Properties</p>
+                                  <div className="bg-muted rounded p-2 space-y-1">
+                                    {Object.entries(item.private_properties).map(([k, v]) => {
+                                      if (k === "linked_container_instance_id" && typeof v === "string") {
+                                        return (
+                                          <div key={k} className="flex items-center gap-2 text-xs font-mono">
+                                            <span className="text-muted-foreground">{k}:</span>
+                                            <a
+                                              href={`/games/${gameId}/players/${progressId}?tab=containers&container_q=${v}`}
+                                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                                              title="Go to container instance"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {linkedInstanceNames[v] ? (
+                                                <span className="font-semibold not-italic">{linkedInstanceNames[v]}</span>
+                                              ) : null}
+                                              <span className="opacity-60">{v}</span>
+                                              <ExternalLink className="h-3 w-3 shrink-0" />
+                                            </a>
+                                            <CopyButton text={v} />
+                                          </div>
+                                        )
+                                      }
+                                      return (
+                                        <div key={k} className="flex items-start gap-2 text-xs font-mono">
+                                          <span className="text-muted-foreground shrink-0">{k}:</span>
+                                          <span>{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
                               )}
 
-                              {/* Definition Info */}
-                              <div className="space-y-1">
-                                <p className="text-xs font-semibold text-foreground">Definition Info</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
-                                  <div>
-                                    <span className="text-muted-foreground">Stackable: </span>
-                                    <span className="font-medium">{item.definition?.is_stackable ? `Yes (max ${item.definition.max_stack_size ?? "∞"})` : "No"}</span>
+                              {/* Public Properties */}
+                              {item.public_properties && Object.keys(item.public_properties).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold text-foreground">Public Properties</p>
+                                  <div className="bg-muted rounded p-2 space-y-1">
+                                    {Object.entries(item.public_properties).map(([k, v]) => (
+                                      <div key={k} className="flex items-start gap-2 text-xs font-mono">
+                                        <span className="text-muted-foreground shrink-0">{k}:</span>
+                                        <span>{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Grid: </span>
-                                    <span className="font-medium">{item.definition?.grid_width ?? 1}×{item.definition?.grid_height ?? 1}</span>
+                                </div>
+                              )}
+
+                              {/* Definition */}
+                              {item.definition && (
+                                <div className="space-y-2 border border-border/60 rounded-md p-3">
+                                  <p className="text-xs font-semibold text-foreground">Definition</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Stackable: </span>
+                                      <span className="font-medium">{item.definition.is_stackable ? `Yes (max ${item.definition.max_stack_size ?? "∞"})` : "No"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Grid: </span>
+                                      <span className="font-medium">{item.definition.grid_width ?? 1}×{item.definition.grid_height ?? 1}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Client Writable: </span>
+                                      <span className="font-medium">{item.definition.client_writable ? "Yes" : "No"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Client Update Qty: </span>
+                                      <span className="font-medium">{item.definition.allow_client_update_qty ? "Yes" : "No"}</span>
+                                    </div>
+                                    {item.definition.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
+                                      <div className="col-span-2 sm:col-span-4">
+                                        <span className="text-muted-foreground">Base Stats: </span>
+                                        <span className="font-mono font-medium">
+                                          {Object.entries(item.definition.base_stats).map(([k, v]) => `${k}=${v}`).join(", ")}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
-                                  {item.definition?.base_stats && Object.keys(item.definition.base_stats).length > 0 && (
-                                    <div className="col-span-2">
-                                      <span className="text-muted-foreground">Base Stats: </span>
-                                      <span className="font-mono font-medium">
-                                        {Object.entries(item.definition.base_stats).map(([k, v]) => `${k}=${v}`).join(", ")}
-                                      </span>
+
+                                  {/* Definition Metadata */}
+                                  {item.definition.metadata && Object.keys(item.definition.metadata).length > 0 && (
+                                    <div className="space-y-1 pt-1 border-t border-border/40">
+                                      <p className="text-xs font-semibold text-muted-foreground">Metadata</p>
+                                      <div className="space-y-1">
+                                        {Object.entries(item.definition.metadata).map(([k, v]) => {
+                                          if (k === "linked_container_definition_id" && typeof v === "string") {
+                                            return (
+                                              <div key={k} className="flex items-center gap-2 text-xs font-mono">
+                                                <span className="text-muted-foreground">{k}:</span>
+                                                <a
+                                                  href={`/games/${gameId}/items?tab=containers&q=${v}`}
+                                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                  title="Go to container definition"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {linkedDefNames[v] ? (
+                                                    <span className="font-semibold not-italic">{linkedDefNames[v]}</span>
+                                                  ) : null}
+                                                  <span className="opacity-60">{v}</span>
+                                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                                                </a>
+                                                <CopyButton text={v} />
+                                              </div>
+                                            )
+                                          }
+                                          return (
+                                            <div key={k} className="flex items-start gap-2 text-xs font-mono">
+                                              <span className="text-muted-foreground shrink-0">{k}:</span>
+                                              <span>{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
                                     </div>
                                   )}
-                                </div>
-                              </div>
-
-                              {/* Custom Properties */}
-                              {item.custom_properties && Object.keys(item.custom_properties).length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-foreground">Custom Properties (Instance)</p>
-                                  <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
-                                    {JSON.stringify(item.custom_properties, null, 2)}
-                                  </pre>
                                 </div>
                               )}
                             </div>
@@ -2211,6 +2333,17 @@ export default function GameUserProgressDetailPage({
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Instance ID search */}
+              <input
+                type="text"
+                placeholder="Search by instance ID…"
+                className="h-8 w-64 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                value={containersInstanceId}
+                onChange={(e) => {
+                  setContainersInstanceId(e.target.value)
+                  setContainersOffset(0)
+                }}
+              />
               {/* Type filter */}
               <select
                 className="h-8 rounded-md border border-input bg-background px-2 text-sm"
@@ -2224,6 +2357,13 @@ export default function GameUserProgressDetailPage({
                 <option value="inventory">inventory</option>
                 <option value="shulker_box">shulker_box</option>
               </select>
+              {(containersInstanceId || containersType) && (
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => {
+                  setContainersInstanceId("")
+                  setContainersType("")
+                  setContainersOffset(0)
+                }}>Clear</Button>
+              )}
               <Button variant="outline" size="icon" onClick={loadContainers} disabled={containersLoading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${containersLoading ? "animate-spin" : ""}`} />
               </Button>
@@ -2246,8 +2386,12 @@ export default function GameUserProgressDetailPage({
               ) : containers.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   <Archive className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No containers</p>
-                  <p className="text-sm mt-1">This player has no containers{containersType ? ` of type "${containersType}"` : ""}.</p>
+                  <p className="text-lg font-medium">{(containersInstanceId || containersType) ? "No matching containers" : "No containers"}</p>
+                  <p className="text-sm mt-1">
+                    {(containersInstanceId || containersType)
+                      ? "No containers match the current filters."
+                      : "This player has no containers."}
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -2273,8 +2417,21 @@ export default function GameUserProgressDetailPage({
                         onClick={() => {
                           setExpandedContainerIds(prev => {
                             const next = new Set(prev)
-                            if (next.has(c.id)) next.delete(c.id)
-                            else next.add(c.id)
+                            if (next.has(c.id)) {
+                              next.delete(c.id)
+                            } else {
+                              next.add(c.id)
+                              const linkedItemId = c.definition?.linked_item_definition_id
+                              if (linkedItemId) {
+                                setItemDefNames(m => {
+                                  if (m[linkedItemId] !== undefined) return m
+                                  getItemDefinition({ gameId }, linkedItemId)
+                                    .then(r => setItemDefNames(p => ({ ...p, [linkedItemId]: r.item.name })))
+                                    .catch(() => setItemDefNames(p => ({ ...p, [linkedItemId]: "" })))
+                                  return { ...m, [linkedItemId]: "…" }
+                                })
+                              }
+                            }
                             return next
                           })
                         }}
@@ -2426,8 +2583,20 @@ export default function GameUserProgressDetailPage({
 
                               {/* Container Definition */}
                               {c.definition && (
-                                <div className="space-y-1.5">
-                                  <p className="text-xs font-semibold text-foreground">Container Definition</p>
+                                <div className="space-y-2 border border-border/60 rounded-md p-3">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs font-semibold text-foreground">Definition</p>
+                                    <a
+                                      href={`/games/${gameId}/items?tab=containers&q=${c.definition.id}`}
+                                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-mono"
+                                      title="Go to container definition"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {c.definition.id}
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </a>
+                                    <CopyButton text={c.definition.id} />
+                                  </div>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5 text-xs">
                                     <div>
                                       <span className="text-muted-foreground">Name: </span>
@@ -2446,20 +2615,51 @@ export default function GameUserProgressDetailPage({
                                       <span className="font-medium">{c.definition.is_portable ? "Yes" : "No"}</span>
                                     </div>
                                     <div>
-                                      <span className="text-muted-foreground">Def Created: </span>
+                                      <span className="text-muted-foreground">Instanced per item: </span>
+                                      <span className="font-medium">{c.definition.instanced_per_item ? "Yes" : "No"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Created: </span>
                                       <span className="font-medium">{formatISODate(c.definition.created_at)}</span>
                                     </div>
                                     <div>
-                                      <span className="text-muted-foreground">Def Updated: </span>
+                                      <span className="text-muted-foreground">Updated: </span>
                                       <span className="font-medium">{formatISODate(c.definition.updated_at)}</span>
                                     </div>
                                   </div>
+
+                                  {/* Linked item definition */}
+                                  {c.definition.linked_item_definition_id && (
+                                    <div className="flex items-center gap-2 text-xs pt-1 border-t border-border/40">
+                                      <span className="text-muted-foreground font-mono">linked_item_definition_id:</span>
+                                      <a
+                                        href={`/games/${gameId}/items/${c.definition.linked_item_definition_id}`}
+                                        className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
+                                        title="Go to item definition"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {itemDefNames[c.definition.linked_item_definition_id] && (
+                                          <span className="font-semibold not-italic">{itemDefNames[c.definition.linked_item_definition_id]}</span>
+                                        )}
+                                        <span className="opacity-60">{c.definition.linked_item_definition_id}</span>
+                                        <ExternalLink className="h-3 w-3 shrink-0" />
+                                      </a>
+                                      <CopyButton text={c.definition.linked_item_definition_id} />
+                                    </div>
+                                  )}
+
+                                  {/* Definition Metadata */}
                                   {c.definition.metadata && Object.keys(c.definition.metadata).length > 0 && (
-                                    <div className="space-y-1 mt-1">
-                                      <p className="text-xs font-semibold text-foreground">Definition Metadata</p>
-                                      <pre className="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-[200px]">
-                                        {JSON.stringify(c.definition.metadata, null, 2)}
-                                      </pre>
+                                    <div className="space-y-1 pt-1 border-t border-border/40">
+                                      <p className="text-xs font-semibold text-muted-foreground">Metadata</p>
+                                      <div className="space-y-0.5">
+                                        {Object.entries(c.definition.metadata).map(([k, v]) => (
+                                          <div key={k} className="flex items-start gap-2 text-xs font-mono">
+                                            <span className="text-muted-foreground shrink-0">{k}:</span>
+                                            <span>{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>

@@ -7,7 +7,9 @@
       "Bash(grep -n \">.*Quest\\\\|>Quest\\\\|=.*\"\".*Quest\\\\|=.*''''.*Quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/ChainTab.tsx)",
       "Bash(grep -n \"toast.*Quest\\\\|>Quest\\\\|\"\"Quest\\\\|''''Quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/page.tsx)",
       "Bash(grep -n \"No quests\\\\|No daily\\\\|No quest chains\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)",
-      "Bash(grep -n \"t\\(''''quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)"
+      "Bash(grep -n \"t\\(''''quest\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/*.tsx)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(find g:/Projects/ss/admin.saigame.studio/app -type f -name *player*)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"
