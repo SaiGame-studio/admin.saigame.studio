@@ -202,7 +202,6 @@ export async function unbanProgress(progressId: string): Promise<void> {
 
 export interface PlayerItemDefinition {
   id: string
-  studio_id: string
   game_id: string
   item_code: string
   name: string
@@ -214,14 +213,16 @@ export interface PlayerItemDefinition {
   max_stack_size: number | null
   grid_width: number
   grid_height: number
+  client_writable: boolean
+  allow_client_update_qty: boolean
   created_by: string
+  updated_by: string
   created_at: string
   updated_at: string
 }
 
 export interface PlayerItem {
   id: string
-  studio_id: string
   game_id: string
   user_id: string
   item_definition_id: string
@@ -230,7 +231,8 @@ export interface PlayerItem {
   grid_y: number
   quantity: number
   level: number
-  custom_properties: Record<string, unknown> | null
+  private_properties: Record<string, unknown> | null
+  public_properties: Record<string, unknown> | null
   acquired_at: string
   last_modified_at: string
   version: number
@@ -265,14 +267,17 @@ export async function getProgressItems(
 
 export interface PlayerContainerDefinition {
   id: string
-  studio_id: string
   game_id: string
   name: string
   container_type: string
   grid_cols: number
   grid_rows: number
   is_portable: boolean
+  instanced_per_item: boolean
+  linked_item_definition_id?: string | null
   metadata?: Record<string, unknown> | null
+  created_by: string
+  updated_by: string
   created_at: string
   updated_at: string
 }
@@ -303,13 +308,14 @@ export interface PlayerContainersResult {
 
 export async function getProgressContainers(
   progressId: string,
-  params?: { limit?: number; offset?: number; type?: string; include_deleted?: boolean },
+  params?: { limit?: number; offset?: number; type?: string; include_deleted?: boolean; instance_id?: string },
 ): Promise<PlayerContainersResult> {
   const qs = new URLSearchParams()
   if (params?.limit         != null) qs.set("limit",           String(params.limit))
   if (params?.offset        != null) qs.set("offset",          String(params.offset))
   if (params?.type)                  qs.set("type",            params.type)
   if (params?.include_deleted)       qs.set("include_deleted", "true")
+  if (params?.instance_id)           qs.set("instance_id",     params.instance_id)
   const query = qs.toString()
   return api.get(`/api/v1/gamer-progress/${progressId}/containers${query ? `?${query}` : ""}`)
 }

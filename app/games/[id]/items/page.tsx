@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Tag, Lock } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { MermaidDiagram } from "@/components/MermaidDiagram"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
 import {
@@ -70,6 +71,8 @@ import {
   getContainerDefinition,
   updateContainerDefinition,
   deleteContainerDefinition,
+  fetchContainerTypes,
+  type ContainerTypeOption,
   listGachaPacks,
   createGachaPack,
   updateGachaPack,
@@ -255,12 +258,13 @@ function emptyGachaForm() {
 
 // ─── Container Definition helpers ────────────────────────────────────────────
 
-const CONTAINER_TYPE_META: Record<ContainerType, { label: string; className: string }> = {
+const CONTAINER_TYPE_META: Record<string, { label: string; className: string }> = {
   inventory:   { label: 'Inventory',   className: 'bg-gray-500/15 text-gray-400 border-gray-400/40' },
   chest:       { label: 'Chest',       className: 'bg-amber-500/15 text-amber-500 border-amber-500/40' },
   bag:         { label: 'Bag',         className: 'bg-green-500/15 text-green-500 border-green-500/40' },
   vault:       { label: 'Vault',       className: 'bg-purple-500/15 text-purple-500 border-purple-500/40' },
   shulker_box: { label: 'Shulker Box', className: 'bg-pink-500/15 text-pink-500 border-pink-500/40' },
+  equipment:   { label: 'Equipment',   className: 'bg-blue-500/15 text-blue-400 border-blue-400/40' },
 }
 
 function ContainerTypeBadge({ type }: { type: ContainerType }) {
@@ -276,12 +280,14 @@ function CreateContainerDefinitionDialog({
   open,
   gameId,
   allItems,
+  containerTypeOptions,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
   allItems: ItemDefinition[]
+  containerTypeOptions: ContainerTypeOption[]
   onCreated: () => void
   onClose: () => void
 }) {
@@ -369,8 +375,10 @@ function CreateContainerDefinitionDialog({
               <Select value={containerType} onValueChange={(v) => setContainerType(v as ContainerType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CONTAINER_TYPE_META) as ContainerType[]).map((t) => (
-                    <SelectItem key={t} value={t}>{CONTAINER_TYPE_META[t].label}</SelectItem>
+                  {containerTypeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {CONTAINER_TYPE_META[opt.value]?.label ?? opt.value}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -520,6 +528,7 @@ function EditContainerDefinitionDialog({
   const [linkedItemId, setLinkedItemId] = useState(definition.linked_item_definition_id ?? "")
   const [linkedItemOpen, setLinkedItemOpen] = useState(false)
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
+  const [instancedPerItem, setInstancedPerItem] = useState(definition.instanced_per_item ?? false)
   const [meta, setMeta] = useState<KVEntry[]>(
     Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
   )
@@ -531,6 +540,7 @@ function EditContainerDefinitionDialog({
     setGridRows(String(definition.grid_rows))
     setLinkedItemId(definition.linked_item_definition_id ?? "")
     setLinkedItemSearch("")
+    setInstancedPerItem(definition.instanced_per_item ?? false)
     setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
     setErrors({})
   }, [definition])
@@ -557,6 +567,7 @@ function EditContainerDefinitionDialog({
         name: name.trim(),
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
+        instanced_per_item: instancedPerItem,
         metadata,
       }
       // Only send linked_item_definition_id if it changed
@@ -698,6 +709,13 @@ function EditContainerDefinitionDialog({
             <p className="text-xs text-muted-foreground">
               {t('items.containerLinkDescPre')}<code className="bg-muted px-1 rounded">ensure-container</code>{t('items.containerLinkDescPost')}
             </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="ed-instanced-per-item">{t('items.instancedPerItem')}</Label>
+              <p className="text-xs text-muted-foreground">{t('items.instancedPerItemDesc')}</p>
+            </div>
+            <Switch id="ed-instanced-per-item" checked={instancedPerItem} onCheckedChange={setInstancedPerItem} />
           </div>
           <KVEditor entries={meta} onChange={setMeta} label={t('items.metadata')} />
         </div>
@@ -1804,6 +1822,8 @@ function EquipmentsTab({
   activeTab: string
 }) {
   const { t } = useTranslation()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [expandedSlotKey, setExpandedSlotKey] = useState<string | null>(null)
   const [detailCache, setDetailCache] = useState<Record<string, EquipmentSlot>>({})
   const [detailLoading, setDetailLoading] = useState<string | null>(null)
@@ -1811,7 +1831,19 @@ function EquipmentsTab({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<EquipmentSlot | null>(null)
   const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
-  const [subTab, setSubTab] = useState<"grid" | "list">("grid")
+  const [subTab, setSubTab] = useState<"grid" | "list" | "character_slot">(() => {
+    const st = searchParams.get("subtab")
+    return (st === "grid" || st === "list" || st === "character_slot") ? st : "grid"
+  })
+
+
+  function handleSubTabChange(v: string) {
+    const value = v as "grid" | "list" | "character_slot"
+    setSubTab(value)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("subtab", value)
+    router.push(`${window.location.pathname}?${newParams.toString()}`)
+  }
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
   const [snapBonds, setSnapBonds] = useState<Record<string, string[]>>({}) // adjacency list: slotKey -> bonded keys
   const [draggingPos, setDraggingPos] = useState<Record<string, { x: number; y: number }> | null>(null)
@@ -2002,10 +2034,11 @@ function EquipmentsTab({
         {headerActions}
       </div>
 
-      <Tabs value={subTab} onValueChange={(v) => setSubTab(v as "grid" | "list")}>
+      <Tabs value={subTab} onValueChange={handleSubTabChange}>
         <TabsList className="mb-2">
           <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
           <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
+          <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
         </TabsList>
 
         {/* ── Grid (drag-and-drop canvas) ── */}
@@ -2501,6 +2534,184 @@ function EquipmentsTab({
                   })}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Character Slot Guide ── */}
+        <TabsContent value="character_slot" className="mt-0">
+          <Card>
+            <CardContent className="p-6 space-y-6 max-w-4xl">
+              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+                <Info className="h-4 w-4 shrink-0"/>
+                <span>{t('items.charSlotSetupNote')}</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold mb-2">{t('items.charSlotGuideTitle')}</h2>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotGuideIntro')}</p>
+              </div>
+
+              {/* Diagram */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotDiagramTitle')}</h3>
+                <div className="border rounded-md p-4 bg-muted/20 overflow-x-auto">
+                  <MermaidDiagram chart={(isDark) => `flowchart LR
+  subgraph SETUP["⚙️ STUDIO SETUP"]
+    direction TB
+    A["📦 ItemDefinition\\n─────────────\\ncategory: character\\nmetadata.equipment_slots:\\n  warrior__main_hand\\n  warrior__armor\\n  warrior__accessory"]
+    B["🔧 EquipmentSlotDef\\n─────────────\\nslot_key: warrior__main_hand\\nallowed_categories: weapon\\nmetadata.character_definition_id:\\n  uuid-of-warrior-def"]
+    A -- "declares via equipment_slots[ ] →" --> B
+    B -. "character_definition_id (reverse ref)" .-> A
+  end
+
+  subgraph RUNTIME["▶️ PLAYER RUNTIME"]
+    direction TB
+    C["🦸 InventoryItem\\n─────────────\\nid: uuid-of-my-warrior\\nitem_definition_id:\\n  uuid-of-warrior-def"]
+    D["⚔️ InventoryItem\\n─────────────\\nitem: sword\\nequipped_slot_key:\\n  warrior__main_hand\\nslot_data.character_item_id:\\n  uuid-of-my-warrior"]
+    D -- "slot_data.character_item_id →" --> C
+    D -. "equipped_slot_key" .-> B
+  end
+
+  style A fill:${isDark ? "#1e3a5f" : "#eff6ff"},stroke:${isDark ? "#60a5fa" : "#93c5fd"},color:${isDark ? "#bfdbfe" : "#1e40af"}
+  style B fill:${isDark ? "#431407" : "#fff7ed"},stroke:${isDark ? "#f97316" : "#fb923c"},color:${isDark ? "#fed7aa" : "#9a3412"}
+  style C fill:${isDark ? "#052e16" : "#f0fdf4"},stroke:${isDark ? "#4ade80" : "#86efac"},color:${isDark ? "#bbf7d0" : "#166534"}
+  style D fill:${isDark ? "#2e1065" : "#faf5ff"},stroke:${isDark ? "#a855f7" : "#c4b5fd"},color:${isDark ? "#e9d5ff" : "#6b21a8"}
+  style SETUP fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}
+  style RUNTIME fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
+                  <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.charSlotDiagramCaption')}</p>
+                </div>
+              </div>
+
+              {/* Step 1 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep1Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep1Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`warrior__main_hand    (AllowedCategories: ["weapon"])
+warrior__armor        (AllowedCategories: ["armor"])
+warrior__accessory    (AllowedCategories: ["decoration"])
+
+mage__main_hand       (AllowedCategories: ["weapon"])
+mage__off_hand        (AllowedCategories: ["weapon", "shield"])
+mage__robe            (AllowedCategories: ["armor"])`}</pre>
+              </div>
+
+              {/* Step 2 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep2Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep2Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`// warrior
+{
+  "item_code": "warrior",
+  "category": "character",
+  "metadata": {
+    "equipment_slots": ["warrior__main_hand", "warrior__armor", "warrior__accessory"]
+  }
+}
+
+// mage
+{
+  "item_code": "mage",
+  "category": "character",
+  "metadata": {
+    "equipment_slots": ["mage__main_hand", "mage__off_hand", "mage__robe"]
+  }
+}`}</pre>
+              </div>
+
+              {/* Step 3 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep3Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep3Desc')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`POST /api/v1/games/{game_id}/inventory/equip
+
+{
+  "item_id": "uuid-of-sword-inventory-item",
+  "slot_key": "warrior__main_hand",
+  "slot_data": {
+    "character_item_id": "uuid-of-warrior-inventory-item"
+  }
+}`}</pre>
+                <p className="text-xs text-muted-foreground font-mono">{t('items.charSlotStep3Response')}</p>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep3ApiNote')}</p>
+              </div>
+
+              {/* Step 4 */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotStep4Title')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep4DescCreate')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`POST /api/v1/games/{game_id}/equipment-slots
+
+{
+  "slot_key": "warrior__main_hand",
+  "name": "Warrior - Main Hand",
+  "allowed_categories": ["weapon"],
+  "metadata": {
+    "character_definition_id": "uuid-of-warrior-item-definition"
+  }
+}`}</pre>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotStep4DescUpdate')}</p>
+                <pre className="text-[12px] font-mono bg-muted border rounded-md p-3 overflow-x-auto whitespace-pre">{`PUT /api/v1/games/{game_id}/equipment-slots/warrior__main_hand
+
+{
+  "metadata": {
+    "character_definition_id": "uuid-of-warrior-item-definition"
+  }
+}`}</pre>
+                <p className="text-xs text-muted-foreground font-mono">{t('items.charSlotStep4Response')}</p>
+              </div>
+
+              {/* Flow */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotFlowTitle')}</h3>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground pl-1">
+                  <li>{t('items.charSlotFlowStep1')}</li>
+                  <li>{t('items.charSlotFlowStep2')}</li>
+                  <li>{t('items.charSlotFlowStep3')}</li>
+                  <li>{t('items.charSlotFlowStep4')}</li>
+                </ol>
+              </div>
+
+              {/* Limitations table */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{t('items.charSlotLimitTitle')}</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3 font-semibold w-1/2">{t('items.charSlotIssueCol')}</th>
+                        <th className="text-left p-3 font-semibold w-1/2">{t('items.charSlotSolutionCol')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue1')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol1')}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue2')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol2')}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3 align-top text-muted-foreground">{t('items.charSlotLimitIssue3')}</td>
+                        <td className="p-3 align-top">{t('items.charSlotLimitSol3')}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="text-base font-semibold">{t('items.charSlotSummaryTitle')}</h3>
+                <p className="text-sm text-muted-foreground">{t('items.charSlotSummaryDesc')}</p>
+                <ul className="list-disc list-inside space-y-1 text-sm pl-1">
+                  <li><span className="font-mono font-semibold">SlotKey</span> — {t('items.charSlotSummaryPoint1')}</li>
+                  <li><span className="font-mono font-semibold">ItemDefinition.Metadata</span> — {t('items.charSlotSummaryPoint2')}</li>
+                  <li><span className="font-mono font-semibold">SlotData</span> — {t('items.charSlotSummaryPoint3')}</li>
+                  <li><span className="font-mono font-semibold">EquipmentSlotDefinition.Metadata</span> — {t('items.charSlotSummaryPoint4')}</li>
+                </ul>
+                <p className="text-sm text-muted-foreground italic">{t('items.charSlotSummaryFooter')}</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3249,13 +3460,16 @@ export default function GameItemsPage() {
   const [containerSearch, setContainerSearch] = useState("")
   const [containerSearchDebounced, setContainerSearchDebounced] = useState("")
   const [containerAllItems, setContainerAllItems] = useState<ItemDefinition[]>([])
+  const [containerTypeOptions, setContainerTypeOptions] = useState<ContainerTypeOption[]>([])
   const [expandedContainerId, setExpandedContainerId] = useState<string | null>(null)
   const [containerDetailCache, setContainerDetailCache] = useState<Record<string, ContainerDefinition>>({})
   const [containerDetailLoading, setContainerDetailLoading] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<{ id: string, field: string } | null>(null)
   const [editValue, setEditValue] = useState<string>("")
   const [editValue2, setEditValue2] = useState<string>("") // for dimensions
+  const [containerItemsOnly, setContainerItemsOnly] = useState<boolean>(false)
   const [metadataRows, setMetadataRows] = useState<{ k: string, v: string }[]>([])
+  const [containerSubTab, setContainerSubTab] = useState<"definitions" | "slot-guide">("definitions")
 
   // generator tab state
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
@@ -3311,6 +3525,8 @@ export default function GameItemsPage() {
     if (tab === "containers" || tab === "catalogue" || tab === "gacha" || tab === "generators" || tab === "equipments" || tab === "tags" || tab === "preset" || tab === "crafting") {
       setActiveTab(tab)
     }
+    const cst = searchParams.get("csubtab")
+    if (cst === "definitions" || cst === "slot-guide") setContainerSubTab(cst)
     // initialize container search from URL `q` param
     const q = searchParams.get("q")
     if (q) setContainerSearch(q)
@@ -3322,6 +3538,14 @@ export default function GameItemsPage() {
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.set("tab", value)
     router.push(`${window.location.pathname}?${newParams.toString()}`)
+  }
+
+  const handleContainerSubTabChange = (value: string) => {
+    const v = value as "definitions" | "slot-guide"
+    setContainerSubTab(v)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.set("csubtab", v)
+    router.replace(`${window.location.pathname}?${newParams.toString()}`)
   }
 
   // debounce name filter
@@ -3475,6 +3699,10 @@ export default function GameItemsPage() {
       fetchContainerDefs()
     }
   }, [activeTab, fetchContainerDefs])
+
+  useEffect(() => {
+    fetchContainerTypes().then(setContainerTypeOptions).catch(() => {})
+  }, [])
 
   async function handleDeleteContainer() {
     if (!deletingContainer) return
@@ -3896,14 +4124,14 @@ export default function GameItemsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="catalogue">{t('items.tabItems')}</TabsTrigger>
-            <TabsTrigger value="tags">{t('items.tabTags')}</TabsTrigger>
-            <TabsTrigger value="containers">{t('items.tabContainers')}</TabsTrigger>
-            <TabsTrigger value="gacha">{t('items.tabGacha')}</TabsTrigger>
-            <TabsTrigger value="generators">{t('items.tabGenerators')}</TabsTrigger>
-            <TabsTrigger value="equipments">{t('items.tabEquipmentSlots')}</TabsTrigger>
-            <TabsTrigger value="preset">{t('items.tabPreset')}</TabsTrigger>
-            <TabsTrigger value="crafting">{t('items.tabCrafting')}</TabsTrigger>
+            <TabsTrigger value="catalogue"><Package className="h-3.5 w-3.5 mr-1.5" />{t('items.tabItems')}</TabsTrigger>
+            <TabsTrigger value="tags"><Tag className="h-3.5 w-3.5 mr-1.5" />{t('items.tabTags')}</TabsTrigger>
+            <TabsTrigger value="containers"><Archive className="h-3.5 w-3.5 mr-1.5" />{t('items.tabContainers')}</TabsTrigger>
+            <TabsTrigger value="gacha"><Dices className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGacha')}</TabsTrigger>
+            <TabsTrigger value="generators"><Zap className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGenerators')}</TabsTrigger>
+            <TabsTrigger value="equipments"><Shield className="h-3.5 w-3.5 mr-1.5" />{t('items.tabEquipmentSlots')}</TabsTrigger>
+            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
+            <TabsTrigger value="crafting"><Hammer className="h-3.5 w-3.5 mr-1.5" />{t('items.tabCrafting')}</TabsTrigger>
           </TabsList>
 
         <TabsContent value="crafting" className="space-y-4">
@@ -3920,6 +4148,15 @@ export default function GameItemsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Clear all */}
+              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (
+                <button
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]) }}
+                >
+                  Clear
+                </button>
+              )}
               {/* Name search */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -4017,15 +4254,6 @@ export default function GameItemsPage() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-              )}
-              {/* Clear all */}
-              {(searchName || filterCategory !== "all" || filterRarity !== "all" || filterAllowClientUpdateQty !== "all" || selectedTagKeys.length > 0) && (
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setSearchName(""); setFilterCategory("all"); setFilterRarity("all"); setFilterAllowClientUpdateQty("all"); setSelectedTagKeys([]) }}
-                >
-                  Clear
-                </button>
               )}
               <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchItems} disabled={loading} title="Refresh">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -4235,6 +4463,216 @@ export default function GameItemsPage() {
         </TabsContent>
 
         <TabsContent value="containers" className="space-y-4">
+          <Tabs value={containerSubTab} onValueChange={handleContainerSubTabChange} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="definitions">{t('items.subTabDefinitions')}</TabsTrigger>
+              <TabsTrigger value="slot-guide">{t('items.subTabSlotGuide')}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="slot-guide" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    {t('items.containerSlotGuideTitle')}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('items.containerSlotGuideDesc')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 text-sm">
+
+                  {/* Overview */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('items.containerSlotOverviewTitle')}</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {t('items.containerSlotOverviewText')}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Diagram */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">{t('items.containerSlotDiagramTitle')}</h3>
+                    <div className="border rounded-md p-4 bg-muted/20 overflow-x-auto">
+                      <MermaidDiagram chart={(isDark) => `flowchart TB
+  subgraph SETUP["⚙️ SETUP — Definitions"]
+    direction LR
+    A["📦 ItemDefinition\\n─────────────\\ncategory: character\\nitem_code: warrior\\nid: uuid-warrior-def"]
+    M["🔒 Slot Restrictions\\n─────────────\\nslot_0: helmet\\nslot_1: armor\\nslot_2: boots\\nslot_3: gloves\\nslot_4: weapon\\nslot_5: shield"]
+    B["🗃️ ContainerDefinition\\n─────────────\\nname: hero_warrior_slots\\ntype: equipment\\ngrid: 6×1\\nlinked_item_def_id: ↑"]
+    A -- "linked_item_definition_id →" --> B
+    B -. "reverse lookup" .-> A
+    M -. "attached metadata" .-> B
+  end
+
+  subgraph RUNTIME["▶️ RUNTIME — Instances"]
+    direction LR
+    C["🦸 InventoryItem\\n─────────────\\nid: uuid-my-warrior\\nitem_definition_id:\\n  uuid-warrior-def"]
+    D["📂 ContainerInstance\\n─────────────\\nitem_container_definition_id:\\n  hero_warrior_slots\\nowner_user_id: player-uuid\\nslots: [0][1][2][3][⚔4][5]"]
+    E["⚔️ InventoryItem\\n─────────────\\nitem: sword\\ncontainer_id: D\\ngrid_x: 4  grid_y: 0"]
+    C -- "grant → auto-creates" --> D
+    D -. "owner_user_id (NOT item id)" .-> C
+    E -- "POST /inventory/move → slot 4" --> D
+  end
+
+  B -- "instantiated from" --> D
+
+  style A fill:${isDark ? "#1e3a5f" : "#eff6ff"},stroke:${isDark ? "#60a5fa" : "#93c5fd"},color:${isDark ? "#bfdbfe" : "#1e40af"}
+  style B fill:${isDark ? "#431407" : "#fff7ed"},stroke:${isDark ? "#f97316" : "#fb923c"},color:${isDark ? "#fed7aa" : "#9a3412"}
+  style M fill:${isDark ? "#1e293b" : "#f8fafc"},stroke:${isDark ? "#475569" : "#cbd5e1"},stroke-dasharray:4,color:${isDark ? "#94a3b8" : "#64748b"}
+  style C fill:${isDark ? "#052e16" : "#f0fdf4"},stroke:${isDark ? "#4ade80" : "#86efac"},color:${isDark ? "#bbf7d0" : "#166534"}
+  style D fill:${isDark ? "#422006" : "#fef9c3"},stroke:${isDark ? "#f59e0b" : "#fbbf24"},color:${isDark ? "#fde68a" : "#92400e"}
+  style E fill:${isDark ? "#2e1065" : "#faf5ff"},stroke:${isDark ? "#a855f7" : "#c4b5fd"},color:${isDark ? "#e9d5ff" : "#6b21a8"}
+  style SETUP fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}
+  style RUNTIME fill:${isDark ? "#1c1c1e" : "#f8fafc"},stroke:${isDark ? "#374151" : "#e2e8f0"}`} className="[&_svg]:max-w-full [&_svg]:h-auto" />
+                      <p className="text-xs text-muted-foreground text-center mt-2 italic">{t('items.containerSlotDiagramCaption')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 1 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">1</span>
+                      {t('items.containerSlotStep1Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7">{t('items.containerSlotStep1Desc')}</p>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 space-y-1.5 font-mono text-xs">
+                        <div><span className="text-muted-foreground">name:</span> <span>"hero_warrior_slots"</span></div>
+                        <div><span className="text-muted-foreground">container_type:</span> <span>"equipment"</span></div>
+                        <div><span className="text-muted-foreground">grid_cols:</span> <span>6</span></div>
+                        <div><span className="text-muted-foreground">grid_rows:</span> <span>1</span></div>
+                        <div><span className="text-muted-foreground">is_portable:</span> <span>false</span></div>
+                        <div><span className="text-muted-foreground">linked_item_definition_id:</span> <span>"&lt;hero_item_def_id&gt;"</span></div>
+                      </div>
+                      <p className="text-muted-foreground text-xs">{t('items.containerSlotStep1Note')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 2 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">2</span>
+                      {t('items.containerSlotStep2Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep2Desc')}</p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 3 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">3</span>
+                      {t('items.containerSlotStep3Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7">{t('items.containerSlotStep3Desc')}</p>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1.5">
+                        <div><span className="text-muted-foreground">"slot_0_allowed_tags":</span> <span>"helmet"</span></div>
+                        <div><span className="text-muted-foreground">"slot_1_allowed_tags":</span> <span>"armor"</span></div>
+                        <div><span className="text-muted-foreground">"slot_2_allowed_tags":</span> <span>"boots"</span></div>
+                        <div><span className="text-muted-foreground">"slot_3_allowed_tags":</span> <span>"gloves"</span></div>
+                        <div><span className="text-muted-foreground">"slot_4_allowed_tags":</span> <span>"weapon,sword,axe"</span></div>
+                        <div><span className="text-muted-foreground">"slot_5_allowed_tags":</span> <span>"shield,offhand"</span></div>
+                      </div>
+                      <p className="text-muted-foreground text-xs">{t('items.containerSlotStep3Note')}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 4 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">4</span>
+                      {t('items.containerSlotStep4Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep4Desc')}</p>
+                    <ul className="pl-7 list-disc list-inside text-muted-foreground space-y-1 text-xs">
+                      <li><code className="bg-muted px-1 rounded">owner_user_id</code> — {t('items.containerSlotStep4Bullet1')}</li>
+                      <li><code className="bg-muted px-1 rounded">item_container_definition_id</code> — {t('items.containerSlotStep4Bullet2')}</li>
+                      <li>{t('items.containerSlotStep4Bullet3')}</li>
+                    </ul>
+                  </div>
+
+                  <Separator />
+
+                  {/* Step 5 */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">5</span>
+                      {t('items.containerSlotStep5Title')}
+                    </h3>
+                    <p className="text-muted-foreground pl-7 leading-relaxed">{t('items.containerSlotStep5Desc')}</p>
+                    <div className="pl-7 space-y-2">
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                        <div className="text-muted-foreground font-sans text-[11px] mb-2">// POST /inventory/move — Equip vào slot 4 (weapon)</div>
+                        <div><span className="text-muted-foreground">item_id:</span> <span>&lt;item_id_cần_equip&gt;</span></div>
+                        <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;hero_equipment_container_id&gt;</span></div>
+                        <div><span className="text-muted-foreground">grid_x:</span> <span>4</span></div>
+                        <div><span className="text-muted-foreground">grid_y:</span> <span>0</span></div>
+                      </div>
+                      <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                        <div className="text-muted-foreground font-sans text-[11px] mb-2">// POST /inventory/move — Unequip (về main inventory)</div>
+                        <div><span className="text-muted-foreground">item_id:</span> <span>&lt;item_id_cần_unequip&gt;</span></div>
+                        <div><span className="text-muted-foreground">target_container_id:</span> <span>&lt;player_main_inventory_container_id&gt;</span></div>
+                        <div className="text-muted-foreground font-sans text-[11px] mt-1">// grid_x/grid_y optional — server tự tìm vị trí trống</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Summary table */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('items.containerSlotCompareTitle')}</h3>
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareCriteria')}</TableHead>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareEqSlotDef')}</TableHead>
+                            <TableHead className="text-xs">{t('items.containerSlotCompareContainer')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareScope')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotScopeEq')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotScopeContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareMultiHero')}</TableCell>
+                            <TableCell className="text-xs text-destructive">{t('items.containerSlotMultiHeroEq')}</TableCell>
+                            <TableCell className="text-xs text-amber-600 font-medium">{t('items.containerSlotMultiHeroContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareRestrictions')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotRestrictEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotRestrictContainer')}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="text-xs font-medium">{t('items.containerSlotCompareAutoCreate')}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t('items.containerSlotAutoEq')}</TableCell>
+                            <TableCell className="text-xs text-green-600 font-medium">{t('items.containerSlotAutoContainer')}</TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="definitions" className="space-y-4">
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
@@ -4493,7 +4931,7 @@ export default function GameItemsPage() {
                                           <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.portable')}</p>
                                           <p className="text-sm font-medium">{def.is_portable ? t('common.yes') : t('common.no')}</p>
                                         </div>
-                                        
+
                                         {detail && (
                                           <div className="space-y-0.5">
                                             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.updatedAtLabel')}</p>
@@ -4504,12 +4942,28 @@ export default function GameItemsPage() {
 
                                       <Separator />
 
+                                      {/* Linked Item + Instanced Per Item — 3-col grid */}
+                                      <div className="grid grid-cols-3 gap-6">
+
                                       {/* Linked Item */}
                                       <div className="space-y-1.5">
                                         <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.linkedItemDefinition')}</p>
                                         <div className="flex items-center gap-1.5">
                                           {editingField?.id === def.id && editingField?.field === 'linked_item_id' ? (
-                                            <div className="flex items-center gap-1 flex-1">
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                              <div className="flex items-center gap-1.5">
+                                                <input
+                                                  type="checkbox"
+                                                  id="containerItemsOnly"
+                                                  checked={containerItemsOnly}
+                                                  onChange={(e) => setContainerItemsOnly(e.target.checked)}
+                                                  className="h-3.5 w-3.5 cursor-pointer"
+                                                />
+                                                <label htmlFor="containerItemsOnly" className="text-[10px] text-muted-foreground cursor-pointer select-none">
+                                                  {t('items.showContainerItemsOnly') ?? 'Show container items only'}
+                                                </label>
+                                              </div>
+                                              <div className="flex items-center gap-1 flex-1">
                                               <div className="relative flex-1">
                                                 <Select
                                                   value={editValue || "none"}
@@ -4520,7 +4974,10 @@ export default function GameItemsPage() {
                                                   </SelectTrigger>
                                                   <SelectContent>
                                                     <SelectItem value="none">{t('items.noLinkedItemOption')}</SelectItem>
-                                                    {containerAllItems.filter(i => i.category === 'container' || i.category === 'other').map(item => (
+                                                    {(containerItemsOnly
+                                                      ? containerAllItems.filter(i => i.category === 'container' || i.category === 'character' || i.category === 'other')
+                                                      : containerAllItems
+                                                    ).map(item => (
                                                       <SelectItem key={item.id} value={item.id}>
                                                         {item.name} {item.item_code ? `(${item.item_code})` : ""}
                                                       </SelectItem>
@@ -4535,15 +4992,19 @@ export default function GameItemsPage() {
                                                 <X className="h-4 w-4" />
                                               </Button>
                                             </div>
+                                            </div>
                                           ) : (
                                             <div className="flex items-center gap-2 group/edit">
                                               {def.linked_item_definition_id ? (
                                                 <div className="flex items-center gap-2">
-                                                  <span className="text-sm font-medium text-primary">
+                                                  <Link
+                                                    href={`/games/${gameId}/items/${def.linked_item_definition_id}`}
+                                                    className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                                                    title={t('items.goToItemDef')}
+                                                  >
                                                     {getItemName(def.linked_item_definition_id)}
-                                                  </span>
-                                                  <code className="text-xs text-muted-foreground bg-muted/40 px-1 rounded">{def.linked_item_definition_id}</code>
-                                                  <CopyButton text={def.linked_item_definition_id} size="h-3 w-3" />
+                                                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                                  </Link>
                                                 </div>
                                               ) : (
                                                 <span className="text-sm text-muted-foreground italic">{t('items.noLinkedItem')}</span>
@@ -4563,6 +5024,22 @@ export default function GameItemsPage() {
                                           )}
                                         </div>
                                       </div>
+
+                                      {/* Instanced Per Item — only when linked item exists */}
+                                      {def.linked_item_definition_id ? (
+                                        <div className="flex items-center gap-3">
+                                          <Switch
+                                            checked={def.instanced_per_item ?? false}
+                                            onCheckedChange={(checked) => handleUpdateContainerField(def.id, { instanced_per_item: checked })}
+                                          />
+                                          <div className="space-y-0.5">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.instancedPerItem')}</p>
+                                            <p className="text-xs text-muted-foreground">{t('items.instancedPerItemDesc')}</p>
+                                          </div>
+                                        </div>
+                                      ) : <div />}
+
+                                      </div>{/* end 3-col grid */}
 
                                       {/* Metadata */}
                                       <div className="space-y-1.5">
@@ -4687,6 +5164,8 @@ export default function GameItemsPage() {
               </div>
             </div>
           )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="gacha" className="space-y-4">
@@ -5155,6 +5634,7 @@ export default function GameItemsPage() {
         open={showCreateContainer}
         gameId={gameId}
         allItems={containerAllItems}
+        containerTypeOptions={containerTypeOptions}
         onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
         onClose={() => setShowCreateContainer(false)}
       />
