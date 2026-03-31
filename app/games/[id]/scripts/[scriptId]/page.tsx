@@ -636,11 +636,11 @@ export default function ScriptEditPage() {
                         <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
                           Core ({samples.length})
                         </TabsTrigger>
-                        <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
+                        {/* <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
                           Pool ({entitiesPoolSamples.length})
-                        </TabsTrigger>
+                        </TabsTrigger> */}
                         <TabsTrigger value="turn-base" className="text-[10px] flex-1 h-5 px-1">
-                          Turn ({turnBaseSamples.length})
+                          Battle ({turnBaseSamples.length})
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
