@@ -2887,8 +2887,8 @@ export default function GameUserProgressDetailPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
+                      <TableHead>Instance ID</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-right">Max Slots</TableHead>
                       <TableHead>Temp</TableHead>
@@ -2905,19 +2905,17 @@ export default function GameUserProgressDetailPage({
                             className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`}
                             onClick={() => togglePresetRow(p.id)}
                           >
-                            <TableCell className="font-mono text-xs">
+                            <TableCell className="text-sm font-medium">
                               <span className="flex items-center gap-1">
                                 {pExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                {presetDetails[p.id]?.container.definition?.name || p.name || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              <span className="flex items-center gap-1">
                                 {p.id.slice(0, 8)}…
                                 <CopyButton text={p.id} size="h-3 w-3" />
                               </span>
-                            </TableCell>
-                            <TableCell className="text-sm font-medium">
-                              <div>{presetDetails[p.id]?.container.definition?.name || p.name || "—"}</div>
-                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground font-normal mt-0.5">
-                                {p.id.slice(0, 8)}…
-                                <CopyButton text={p.id} size="h-3 w-3" />
-                              </div>
                             </TableCell>
                             <TableCell>
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
