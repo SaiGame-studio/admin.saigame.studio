@@ -50,6 +50,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -4817,7 +4818,7 @@ function CreatePresetDefinitionSheet({
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     if (!containerType.trim()) e.containerType = t('items.containerTypeRequired')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
+    if (!maxSlots || !slots || slots < 1 || slots > 70) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -4867,9 +4868,19 @@ function CreatePresetDefinitionSheet({
             <Input id="pd-type" placeholder="e.g. deck, party" value={containerType} onChange={(e) => setContainerType(e.target.value)} />
             {errors.containerType && <p className="text-xs text-destructive">{errors.containerType}</p>}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-slots" type="number" min={1} placeholder="e.g. 20" value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
+              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
+            </div>
+            <Slider
+              id="pd-slots"
+              min={1}
+              max={70}
+              step={1}
+              value={[Number(maxSlots)]}
+              onValueChange={([v]) => setMaxSlots(String(v))}
+            />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">
@@ -4916,7 +4927,7 @@ function EditPresetDefinitionSheet({
     const e: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
+    if (!maxSlots || !slots || slots < 1 || slots > 70) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -4965,9 +4976,19 @@ function EditPresetDefinitionSheet({
             <Input value={definition.preset_type} disabled className="opacity-60" />
             <p className="text-xs text-muted-foreground">{t('items.presetTypeImmutable')}</p>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-            <Input id="epd-slots" type="number" min={1} value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
+              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
+            </div>
+            <Slider
+              id="epd-slots"
+              min={1}
+              max={70}
+              step={1}
+              value={[Number(maxSlots)]}
+              onValueChange={([v]) => setMaxSlots(String(v))}
+            />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">
