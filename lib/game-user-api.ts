@@ -384,6 +384,8 @@ export interface PlayerPresetDefinition {
 export interface PlayerPresetSlot {
   slot_index: number
   inventory_item_id: string
+  item_definition_id?: string
+  item_definition_name?: string
 }
 
 export interface PlayerPresetDetail {

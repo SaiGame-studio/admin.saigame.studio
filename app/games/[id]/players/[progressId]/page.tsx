@@ -3060,26 +3060,17 @@ export default function GameUserProgressDetailPage({
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground w-16">Slot</th>
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Item Definition</th>
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Instance</th>
+                                                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Def Link</th>
                                                   </tr>
                                                 </thead>
                                                 <tbody>
                                                   {d.slots.map((slot) => {
-                                                    const resolved = presetSlotItemNames[slot.inventory_item_id]
                                                     return (
                                                       <tr key={slot.slot_index} className="border-b last:border-0 hover:bg-muted/30">
                                                         <td className="px-3 py-1.5 font-mono tabular-nums">{slot.slot_index}</td>
                                                         <td className="px-3 py-1.5">
-                                                          {resolved ? (
-                                                            <a
-                                                              href={`/games/${gameId}/items/${resolved.definitionId}`}
-                                                              target="_blank"
-                                                              rel="noreferrer"
-                                                              className="text-primary hover:underline font-medium flex items-center gap-1 text-xs"
-                                                              title="Open item definition"
-                                                            >
-                                                              {resolved.name}
-                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
-                                                            </a>
+                                                          {slot.item_definition_id ? (
+                                                            <span className="font-medium text-xs">{slot.item_definition_name || slot.item_definition_id}</span>
                                                           ) : (
                                                             <span className="text-muted-foreground text-xs">—</span>
                                                           )}
@@ -3096,6 +3087,22 @@ export default function GameUserProgressDetailPage({
                                                             </a>
                                                             <CopyButton text={slot.inventory_item_id} size="h-3 w-3" />
                                                           </div>
+                                                        </td>
+                                                        <td className="px-3 py-1.5">
+                                                          {slot.item_definition_id ? (
+                                                            <a
+                                                              href={`/games/${gameId}/items/${slot.item_definition_id}`}
+                                                              target="_blank"
+                                                              rel="noreferrer"
+                                                              className="text-muted-foreground hover:text-primary flex items-center gap-0.5 text-xs font-mono"
+                                                              title={slot.item_definition_id}
+                                                            >
+                                                              {slot.item_definition_id.slice(0, 8)}…
+                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
+                                                            </a>
+                                                          ) : (
+                                                            <span className="text-muted-foreground text-xs">—</span>
+                                                          )}
                                                         </td>
                                                       </tr>
                                                     )
