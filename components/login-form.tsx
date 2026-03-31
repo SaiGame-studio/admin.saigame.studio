@@ -33,7 +33,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loginWasRemembered, setLoginWasRemembered] = useState(false)
   const router = useRouter()
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
 
   // Check for remembered email/username on component mount
   useEffect(() => {
