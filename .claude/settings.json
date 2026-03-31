@@ -52,7 +52,8 @@
       "Bash(find g:Projectsssadmin.saigame.studio -type f \\\\\\(-name *.md -o -name *.txt \\\\\\))",
       "Bash(grep -r \"slots > \\\\|slots >= \\\\|< 70\\\\|> 70\\\\|<= 70\\\\|>= 70\" g:Projectsssadmin.saigame.studio --include=*.ts --include=*.tsx)",
       "Bash(grep -n max= g:Projectsssadmin.saigame.studio/app/games/[id]/items/page.tsx)",
-      "Bash(grep -n \"slots\\\\|70\\\\|max\" g:Projectsssadmin.saigame.studio/app/games/[id]/items/page.tsx)"
+      "Bash(grep -n \"slots\\\\|70\\\\|max\" g:Projectsssadmin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"searchParams\\\\|sampleTab\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/scripts/[scriptId]/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"
