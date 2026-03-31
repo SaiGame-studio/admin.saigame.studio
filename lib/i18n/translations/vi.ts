@@ -321,7 +321,7 @@ export const vi = {
     navAnalytic: "Phân tích",
     navUpgrade: "Nâng cấp",
     navMailbox: "Hộp thư",
-    navScripts: "Kịch bản",
+    navScripts: "Script",
     scripts: "Kịch bản",
     compactNav: "Thu gọn",
     expandNav: "Mở rộng",
