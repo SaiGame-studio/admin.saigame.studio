@@ -110,13 +110,13 @@ export function LoginForm() {
         throw new Error("API URL is not configured")
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/auth/google/login`, {
+      const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
+        body: JSON.stringify({ id_token: credentialResponse.credential }),
       })
 
       const data = await response.json()

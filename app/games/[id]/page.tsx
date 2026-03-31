@@ -212,7 +212,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
     if (loading) {
         return (
-            <div className="container mx-auto py-6 pr-4">
+            <div className="container mx-auto py-6">
                 <div className="animate-pulse">
                     <div className="h-8 w-1/3 bg-muted/50 rounded mb-4" />
                     <div className="h-4 w-1/4 bg-muted/50 rounded mb-8" />
@@ -232,7 +232,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
     if (error || !game) {
         return (
-            <div className="container mx-auto py-6 pr-4">
+            <div className="container mx-auto py-6">
                 <Card className="border-destructive">
                     <CardHeader>
                         <CardTitle>{t('common.error')}</CardTitle>
@@ -255,7 +255,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
     }
 
     return (
-        <div className="container mx-auto py-6 pr-4">
+        <div className="container mx-auto py-6">
             <div className="mb-2">
                 <Breadcrumb>
                     <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
