@@ -688,7 +688,7 @@ export default function PaymentPage() {
               TAB 2 – Redeem Gift Code
           ============================================================ */}
           <TabsContent value="redeem" className="mt-6">
-            <section className="space-y-3">
+            <section className="space-y-3 max-w-[50%]">
               <div className="flex items-center gap-2">
                 <Gift className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-semibold">{t('payment.redeemGiftCode')}</h2>
