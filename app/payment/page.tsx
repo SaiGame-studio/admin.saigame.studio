@@ -168,18 +168,45 @@ function PaymentPageContent() {
   const { t, locale } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const activeTab = (searchParams.get("txid")
+
+  // ---------- URL-synced state (no router.replace to avoid RSC requests) ----------
+  function replaceParams(updater: (params: URLSearchParams) => void) {
+    const params = new URLSearchParams(window.location.search)
+    updater(params)
+    window.history.replaceState(null, "", `/payment?${params.toString()}`)
+  }
+
+  const initTab = searchParams.get("txid")
     ? "transactions"
-    : (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment"))
+    : (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment")
+  const [activeTab, setActiveTab] = useState(initTab)
+  const [txSubTab, setTxSubTab] = useState<"buy" | "use">(
+    (["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use"
+  )
+  const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null)
 
   function handleTabChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("tab", value)
-    if (value !== "transactions") {
-      params.delete("txid")
-      params.delete("subtab")
-    }
-    router.replace(`/payment?${params.toString()}`, { scroll: false })
+    setActiveTab(value)
+    replaceParams((params) => {
+      params.set("tab", value)
+      if (value !== "transactions") {
+        params.delete("txid")
+        params.delete("subtab")
+      }
+    })
+  }
+
+  function handleTxSubTabChange(value: string) {
+    setTxSubTab(value as "buy" | "use")
+    replaceParams((params) => params.set("subtab", value))
+  }
+
+  function setExpandedPayTxId(id: string | null) {
+    setExpandedPayTxIdState(id)
+    replaceParams((params) => {
+      if (id) params.set("txid", id)
+      else params.delete("txid")
+    })
   }
 
   const getTypeLabel = (type: string) =>
@@ -193,23 +220,6 @@ function PaymentPageContent() {
   // ---------- gift code state ----------
   const [code, setCode] = useState("")
   const [redeeming, setRedeeming] = useState(false)
-
-  // ---------- sub-tab inside transactions tab (URL-persisted) ----------
-  const txSubTab = (["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use"
-
-  function handleTxSubTabChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("subtab", value)
-    router.replace(`/payment?${params.toString()}`, { scroll: false })
-  }
-
-  const expandedPayTxId = searchParams.get("txid") ?? null
-  function setExpandedPayTxId(id: string | null) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (id) params.set("txid", id)
-    else params.delete("txid")
-    router.replace(`/payment?${params.toString()}`, { scroll: false })
-  }
   // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
   const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({})
 
