@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -192,7 +193,8 @@ export default function DirectTransferPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="flex flex-col lg:flex-row gap-8 w-full max-w-5xl items-start">
+      <div className="w-full lg:flex-1 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
@@ -320,6 +322,34 @@ export default function DirectTransferPage() {
           </CardContent>
         </Card>
       )}
+      </div>
+
+      {/* QR Payment */}
+      <div className="w-full lg:w-auto lg:sticky lg:top-8 space-y-3">
+        <Card className="p-3">
+          <p className="text-sm font-semibold text-center mb-2">MoMo</p>
+          <Image
+            src="/momo-qr.jpg"
+            alt="MoMo QR Code"
+            width={220}
+            height={220}
+            className="rounded-lg mx-auto"
+          />
+        </Card>
+        <Card className="p-3">
+          <p className="text-sm font-semibold text-center mb-2">Techcombank</p>
+          <Image
+            src="/tech-qa.jpg"
+            alt="Techcombank QR Code"
+            width={220}
+            height={220}
+            className="rounded-lg mx-auto"
+          />
+        </Card>
+        <p className="text-xs text-muted-foreground text-center">
+          Quét mã QR bằng MoMo hoặc ứng dụng ngân hàng hỗ trợ VietQR
+        </p>
+      </div>
       </div>
     </div>
   )
