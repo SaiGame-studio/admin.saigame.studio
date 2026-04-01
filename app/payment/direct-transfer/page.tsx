@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -79,6 +79,14 @@ function formatDate(iso: string) {
 // Page
 // ---------------------------------------------------------------------------
 export default function DirectTransferPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <DirectTransferPageContent />
+    </Suspense>
+  )
+}
+
+function DirectTransferPageContent() {
   const searchParams = useSearchParams()
   const packageId = searchParams.get("package_id")
   const { t } = useTranslation()

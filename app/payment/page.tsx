@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -156,6 +156,14 @@ function formatDate(iso: string) {
 // Main page
 // ---------------------------------------------------------------------------
 export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <PaymentPageContent />
+    </Suspense>
+  )
+}
+
+function PaymentPageContent() {
   const { toast } = useToast()
   const { t, locale } = useTranslation()
   const router = useRouter()
