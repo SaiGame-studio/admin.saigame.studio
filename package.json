@@ -1,6 +1,6 @@
 {
   "name": "sai-admin",
-  "version": "0.2.0",
+  "version": "0.2.27",
   "private": true,
   "scripts": {
     "predev": "node -e \"fs.rmSync('.next',{recursive:true,force:true})\"",
