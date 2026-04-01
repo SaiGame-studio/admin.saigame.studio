@@ -14,7 +14,6 @@ import Link from "next/link"
 import { getAllUsersAdmin, AdminUser } from "@/lib/admin-api"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
-import { AdminUserLimitsDialog } from "@/components/AdminUserLimitsDialog"
 
 export default function AllUsersPage() {
   const router = useRouter()
@@ -217,7 +216,6 @@ export default function AllUsersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Last Login</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -265,9 +263,6 @@ export default function AllUsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{formatTimestamp(user.created_at)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <AdminUserLimitsDialog user={user} />
                       </TableCell>
                     </TableRow>
                   ))}
