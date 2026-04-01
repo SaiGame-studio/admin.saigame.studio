@@ -494,6 +494,8 @@ export default function GameUserProgressDetailPage({
   const [gachaTxnsLoading, setGachaTxnsLoading] = useState(false)
   const [gachaTxnsError, setGachaTxnsError] = useState<string | null>(null)
   const [txnSubTab, setTxnSubTab] = useState<"gacha" | "shopping">("gacha")
+  const [expandedTxnIds, setExpandedTxnIds] = useState<Set<string>>(new Set())
+  const toggleTxnExpanded = (id: string) => setExpandedTxnIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
@@ -1755,90 +1757,129 @@ export default function GameUserProgressDetailPage({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
+                          <TableHead className="w-8"></TableHead>
+                          <TableHead>Created At</TableHead>
                           <TableHead>Pack</TableHead>
                           <TableHead>Items Granted</TableHead>
-                          <TableHead>Keys Consumed</TableHead>
-                          <TableHead>
-                            <span className="inline-flex items-center gap-1">
-                              Idempotency Key
-                              <button
-                                onClick={() => setIdempotencyHelpOpen(true)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                                title="What is an Idempotency Key?"
-                              >
-                                <HelpCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </span>
-                          </TableHead>
-                          <TableHead>Client</TableHead>
-                          <TableHead>Created At</TableHead>
+                          <TableHead>Keys</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {gachaTxns.map((txn) => (
-                          <TableRow key={txn.id}>
-                            <TableCell className="font-mono text-xs">
-                              <span className="flex items-center gap-0.5">
-                                {txn.id.slice(0, 8)}…
-                                <CopyButton text={txn.id} size="h-3 w-3" />
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {txn.pack_definition_id ? (
-                                <a
-                                  href={`/games/${gameId}/items?tab=gacha&editPack=${txn.pack_definition_id}`}
-                                  className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
-                                >
-                                  {txn.pack_name || txn.pack_definition_id.slice(0, 8) + "…"}
-                                  <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
-                                </a>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="space-y-1">
-                                {txn.items_granted.map((item, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50 capitalize">{item.category}</span>
+                        {gachaTxns.map((txn) => {
+                          const isExpanded = expandedTxnIds.has(txn.id)
+                          return (
+                            <Fragment key={txn.id}>
+                              <TableRow
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => toggleTxnExpanded(txn.id)}
+                              >
+                                <TableCell className="py-2">
+                                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap py-2">{formatISODate(txn.created_at)}</TableCell>
+                                <TableCell className="text-sm py-2">
+                                  {txn.pack_definition_id ? (
                                     <a
-                                      href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                      href={`/games/${gameId}/items?tab=gacha&editPack=${txn.pack_definition_id}`}
                                       className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
+                                      onClick={e => e.stopPropagation()}
                                     >
-                                      {item.name}
+                                      {txn.pack_name || txn.pack_definition_id.slice(0, 8) + "…"}
                                       <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
                                     </a>
-                                    <span className="text-xs text-muted-foreground">×{item.quantity}</span>
-                                    <span className="text-xs text-muted-foreground">({item.quantity_min}–{item.quantity_max})</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm py-2">
+                                  <div className="flex flex-wrap gap-1">
+                                    {txn.items_granted.map((item, idx) => (
+                                      <span key={idx} className="inline-flex items-center gap-1 text-xs">
+                                        <a
+                                          href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                          className="font-medium hover:underline text-foreground"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          {item.name}
+                                        </a>
+                                        <span className="text-muted-foreground">×{item.quantity}</span>
+                                      </span>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="space-y-1">
-                                {txn.keys_consumed.map((key, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 font-mono text-xs">
-                                    <a
-                                      href={`/games/${gameId}/items/${key.item_definition_id}`}
-                                      className="inline-flex items-center gap-0.5 text-muted-foreground hover:underline hover:text-foreground"
-                                    >
-                                      {key.item_definition_id.slice(0, 8)}…
-                                      <ArrowUpRight className="h-3 w-3" />
-                                    </a>
-                                    <span>×{key.quantity}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">{txn.idempotency_key}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              <div>{txn.client_ip}</div>
-                              <div className="text-muted-foreground/60 truncate max-w-[180px]" title={txn.user_agent}>{txn.user_agent}</div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatISODate(txn.created_at)}</TableCell>
-                          </TableRow>
-                        ))}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground py-2">
+                                  {txn.keys_consumed.length > 0 ? `${txn.keys_consumed.length} key${txn.keys_consumed.length > 1 ? "s" : ""}` : "—"}
+                                </TableCell>
+                              </TableRow>
+                              {isExpanded && (
+                                <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                  <TableCell colSpan={5} className="py-3 px-6">
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                                      <div className="col-span-2 flex items-center gap-2">
+                                        <span className="text-muted-foreground font-medium w-28">Transaction ID</span>
+                                        <span className="font-mono flex items-center gap-0.5">
+                                          {txn.id}
+                                          <CopyButton text={txn.id} size="h-3 w-3" />
+                                        </span>
+                                      </div>
+                                      <div className="col-span-2 flex items-start gap-2">
+                                        <span className="text-muted-foreground font-medium w-28 shrink-0 flex items-center gap-1">
+                                          Idempotency Key
+                                          <button onClick={() => setIdempotencyHelpOpen(true)} className="text-muted-foreground hover:text-foreground">
+                                            <HelpCircle className="h-3 w-3" />
+                                          </button>
+                                        </span>
+                                        <span className="font-mono text-muted-foreground break-all">{txn.idempotency_key}</span>
+                                      </div>
+                                      {txn.items_granted.length > 0 && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Items Detail</span>
+                                          <div className="space-y-1">
+                                            {txn.items_granted.map((item, idx) => (
+                                              <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                                <span className="px-1.5 py-0.5 rounded border bg-muted/50 capitalize">{item.category}</span>
+                                                <a href={`/games/${gameId}/items/${item.item_definition_id}`} className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground" onClick={e => e.stopPropagation()}>
+                                                  {item.name}<ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+                                                </a>
+                                                <span className="text-muted-foreground">×{item.quantity} (range {item.quantity_min}–{item.quantity_max})</span>
+                                                <span className="text-muted-foreground capitalize">{item.rarity}</span>
+                                                <span className="font-mono text-muted-foreground/70">drop:{item.drop_seed} qty:{item.qty_seed}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {txn.keys_consumed.length > 0 && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Keys Consumed</span>
+                                          <div className="space-y-1">
+                                            {txn.keys_consumed.map((key, idx) => (
+                                              <div key={idx} className="flex items-center gap-1.5 font-mono">
+                                                <a href={`/games/${gameId}/items/${key.item_definition_id}`} className="inline-flex items-center gap-0.5 text-muted-foreground hover:underline hover:text-foreground" onClick={e => e.stopPropagation()}>
+                                                  {key.item_definition_id.slice(0, 8)}…<ArrowUpRight className="h-3 w-3" />
+                                                </a>
+                                                <span>×{key.quantity}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {(txn.client_ip || txn.user_agent) && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Client</span>
+                                          <div className="text-muted-foreground space-y-0.5">
+                                            {txn.client_ip && <div>{txn.client_ip}</div>}
+                                            {txn.user_agent && <div className="text-muted-foreground/70">{txn.user_agent}</div>}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   )}
