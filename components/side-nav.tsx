@@ -29,6 +29,7 @@ import {
   Puzzle,
   Map,
   Bug,
+  Download,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -198,6 +199,12 @@ export function SideNav() {
             {!isCollapsed && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.support')}</h3>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <a href="https://github.com/SaiGame-studio/ss-unity/releases" target="_blank" rel="noopener noreferrer">
+                    <Download className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Unity Package</span>
+                  </a>
+                </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/roadmap">
                     <Map className="h-4 w-4 flex-shrink-0" />
