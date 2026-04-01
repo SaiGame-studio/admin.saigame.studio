@@ -2526,7 +2526,7 @@ export default function GameUserProgressDetailPage({
                           <TableCell>
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono text-xs">{session.id}</span>
-                              <CopyButton value={session.id} />
+                              <CopyButton text={session.id} />
                             </div>
                           </TableCell>
                           <TableCell>
