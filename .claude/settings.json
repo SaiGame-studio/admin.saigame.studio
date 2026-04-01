@@ -59,7 +59,8 @@
       "Bash(grep -r gacha_pack /g/Projects/ss/admin.saigame.studio --include=*.tsx --include=*.ts --include=*.json)",
       "Bash(grep -n \"gacha_pack_def\\\\|drop_pack\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/[itemId]/page.tsx)",
       "Bash(grep -n \"gacha_pack_ids\\\\|gachaPackInfo\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/[itemId]/page.tsx)",
-      "Bash(ls -la /g/Projects/ss/admin.saigame.studio/app/games/[id]/entities/)"
+      "Bash(ls -la /g/Projects/ss/admin.saigame.studio/app/games/[id]/entities/)",
+      "Bash(grep -l \"GachaPack\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"

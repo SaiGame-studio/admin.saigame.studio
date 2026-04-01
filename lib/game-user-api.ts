@@ -523,6 +523,80 @@ export async function getPlayerQuestHistory(
   )
 }
 
+// ─── Battle Sessions ──────────────────────────────────────────────────────────
+
+export interface BattleEnemy {
+  id: string
+  name: string
+  alive: boolean
+  hp: number
+  max_hp: number
+  attack: number
+  defense: number
+  speed: number
+  position: number
+}
+
+export interface BattlePlayerChar {
+  id: string
+  name: string
+  alive: boolean
+  hp: number
+  max_hp: number
+  mp: number
+  attack: number
+  defense: number
+}
+
+export interface BattleStartData {
+  turn: number
+  battle_over: boolean
+  victory: boolean
+  battle_log: string[]
+  enemies: BattleEnemy[]
+  player_chars: BattlePlayerChar[]
+}
+
+export interface BattleEndData {
+  victory: boolean
+  kills: number
+  turns_taken: number
+  survival_pct: number
+  summary: string
+}
+
+export interface BattleSession {
+  id: string
+  game_id: string
+  player_id: string
+  studio_id: string
+  status: string
+  started_at: string
+  expires_at: string
+  ended_at: string | null
+  start_data: BattleStartData
+  end_data: BattleEndData | null
+}
+
+export interface BattleSessionsResult {
+  limit: number
+  offset: number
+  total: number
+  sessions: BattleSession[]
+}
+
+export async function getBattleSessions(
+  gameId: string,
+  playerId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<BattleSessionsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${gameId}/players/${playerId}/battle-sessions${query ? `?${query}` : ""}`)
+}
+
 // ─── Player Equipped Items ────────────────────────────────────────────────────
 
 export interface PlayerEquippedItem {

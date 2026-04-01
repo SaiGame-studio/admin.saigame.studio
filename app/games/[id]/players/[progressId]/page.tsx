@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -445,7 +445,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "battle" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -571,6 +571,17 @@ export default function GameUserProgressDetailPage({
   const [dailyAheadDays, setDailyAheadDays] = useState(30)
   const toggleQuestRow = (id: string) =>
     setQuestExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  // Battle tab
+  const BATTLE_LIMIT = 50
+  const [battleSessions, setBattleSessions] = useState<BattleSession[]>([])
+  const [battleTotal, setBattleTotal] = useState(0)
+  const [battleOffset, setBattleOffset] = useState(0)
+  const [battleLoading, setBattleLoading] = useState(false)
+  const [battleError, setBattleError] = useState<string | null>(null)
+  const [battleExpandedRows, setBattleExpandedRows] = useState<Set<string>>(new Set())
+  const toggleBattleRow = (id: string) =>
+    setBattleExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const loadData = useCallback(async () => {
     try {
@@ -861,6 +872,21 @@ export default function GameUserProgressDetailPage({
     }
   }, [game, gameId, detail, dailyAheadDays])
 
+  const loadBattleSessions = useCallback(async () => {
+    if (!detail?.user_id) return
+    setBattleLoading(true)
+    setBattleError(null)
+    try {
+      const res = await getBattleSessions(gameId, detail.user_id, { limit: BATTLE_LIMIT, offset: battleOffset })
+      setBattleSessions(res.sessions ?? [])
+      setBattleTotal(res.total ?? 0)
+    } catch (err: any) {
+      setBattleError(err?.message ?? "Failed to load battle sessions")
+    } finally {
+      setBattleLoading(false)
+    }
+  }, [gameId, detail, battleOffset])
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
@@ -899,6 +925,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "generators") loadGenerators()
   }, [activeTab, loadGenerators])
+
+  useEffect(() => {
+    if (activeTab === "battle") loadBattleSessions()
+  }, [activeTab, loadBattleSessions, battleOffset])
 
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
@@ -2394,6 +2424,116 @@ export default function GameUserProgressDetailPage({
                 )
               })()}
             </>
+          )}
+        </TabsContent>
+
+        {/* ── Battle Sessions Tab ── */}
+        <TabsContent value="battle" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Battle Sessions</h2>
+              <p className="text-sm text-muted-foreground">
+                {battleLoading ? "Loading…" : battleTotal > 0 ? `${battleTotal} session${battleTotal !== 1 ? "s" : ""}` : "No battle sessions found"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadBattleSessions} disabled={battleLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${battleLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {battleLoading ? (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </CardContent>
+            </Card>
+          ) : battleError ? (
+            <Card className="border-destructive">
+              <CardContent className="p-4 text-sm text-destructive">{battleError}</CardContent>
+            </Card>
+          ) : battleSessions.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                <Dice6 className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No battle sessions</p>
+                <p className="text-sm mt-1">This player has not participated in any battles yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8" />
+                      <TableHead>Battle ID</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Ended</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {battleSessions.map((session) => (
+                      <Fragment key={session.id}>
+                        <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleBattleRow(session.id)}>
+                          <TableCell>
+                            {battleExpandedRows.has(session.id)
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-xs">{session.id}</span>
+                              <CopyButton value={session.id} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={session.status === "ended" ? "secondary" : "outline"} className="text-xs">
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatISODate(session.started_at)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatISODate(session.expires_at)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{session.ended_at ? formatISODate(session.ended_at) : "—"}</TableCell>
+                        </TableRow>
+                        {battleExpandedRows.has(session.id) && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="bg-muted/30 p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">start_data</p>
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                    {JSON.stringify(session.start_data, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">end_data</p>
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                    {session.end_data != null ? JSON.stringify(session.end_data, null, 2) : "null"}
+                                  </pre>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pagination */}
+          {battleTotal > BATTLE_LIMIT && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Page {Math.floor(battleOffset / BATTLE_LIMIT) + 1} of {Math.ceil(battleTotal / BATTLE_LIMIT)} — {battleTotal} sessions</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={battleOffset === 0} onClick={() => setBattleOffset(Math.max(0, battleOffset - BATTLE_LIMIT))}>Previous</Button>
+                <Button variant="outline" size="sm" disabled={battleOffset + BATTLE_LIMIT >= battleTotal} onClick={() => setBattleOffset(battleOffset + BATTLE_LIMIT)}>Next</Button>
+              </div>
+            </div>
           )}
         </TabsContent>
 

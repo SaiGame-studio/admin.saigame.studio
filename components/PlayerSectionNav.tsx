@@ -2,7 +2,7 @@
 
 import { Mail } from "lucide-react"
 
-export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "transactions"
+export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "battle" | "transactions"
 
 interface PlayerSectionNavProps {
   gameId: string
@@ -30,6 +30,7 @@ const TABS: { value: PlayerNavTab; label: string }[] = [
   { value: "equipments",   label: "Equipments"   },
   { value: "presets",      label: "Presets"      },
   { value: "quests",       label: "Quests"       },
+  { value: "battle",       label: "Battle"       },
   { value: "transactions", label: "Transactions" },
 ]
 
