@@ -17,6 +17,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { Checkbox } from "@/components/ui/checkbox"
 import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
 import { useRouter } from "next/navigation"
+import { useTranslation } from "@/lib/i18n/use-translation"
+import { LanguageSelector } from "@/components/ui/language-selector"
 
 // Storage key for remembered email/username
 const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
@@ -24,6 +26,7 @@ const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
 export function LoginForm() {
   const { login } = useAuth()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [usernameOrEmail, setUsernameOrEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -33,7 +36,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loginWasRemembered, setLoginWasRemembered] = useState(false)
   const router = useRouter()
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
 
   // Check for remembered email/username on component mount
   useEffect(() => {
@@ -87,8 +90,8 @@ export function LoginForm() {
         login(data.access_token, data.refresh_token)
 
         toast({
-          title: "Login successful",
-          description: `Welcome back, ${data.user?.username || data.user?.email || 'User'}!`,
+          title: t('login.loginSuccess'),
+          description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
         })
       } else {
         throw new Error("No access token received from server")
@@ -110,13 +113,13 @@ export function LoginForm() {
         throw new Error("API URL is not configured")
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/auth/google/login`, {
+      const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
+        body: JSON.stringify({ id_token: credentialResponse.credential }),
       })
 
       const data = await response.json()
@@ -128,8 +131,8 @@ export function LoginForm() {
       if (data.access_token) {
         login(data.access_token, data.refresh_token)
         toast({
-          title: "Login successful",
-          description: `Welcome back, ${data.user?.username || data.user?.email || 'User'}!`,
+          title: t('login.loginSuccess'),
+          description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
         })
       } else {
         throw new Error("No access token received from server")
@@ -146,11 +149,14 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full relative">
+      <div className="absolute top-3 right-3 z-10">
+        <LanguageSelector compact />
+      </div>
       <form onSubmit={handleSubmit}>
         <CardHeader className="space-y-1">
-          <div className="text-2xl font-bold">Login</div>
-          <div className="text-sm text-muted-foreground">Enter your email or username and password to sign in</div>
+          <div className="text-2xl font-bold">{t('login.signIn')}</div>
+          <div className="text-sm text-muted-foreground">{t('login.subtitle')}</div>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -159,11 +165,11 @@ export function LoginForm() {
             </Alert>
           )}
           <div className="space-y-2">
-            <Label htmlFor="usernameOrEmail">Email or Username</Label>
+            <Label htmlFor="usernameOrEmail">{t('login.emailOrUsername')}</Label>
             <Input
               id="usernameOrEmail"
               type="text"
-              placeholder="name@example.com or username"
+              placeholder={t('login.emailOrUsernamePlaceholder')}
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
               required
@@ -174,13 +180,13 @@ export function LoginForm() {
             {loginWasRemembered && (
               <p id="login-remembered" className="text-xs text-muted-foreground flex items-center">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary mr-1.5"></span>
-                Login remembered from previous session
+                {t('login.loginRemembered')}
               </p>
             )}
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('login.password')}</Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -191,12 +197,12 @@ export function LoginForm() {
                 {showPassword ? (
                   <>
                     <EyeOff className="mr-2 h-4 w-4" />
-                    Hide
+                    {t('login.hidePassword')}
                   </>
                 ) : (
                   <>
                     <Eye className="mr-2 h-4 w-4" />
-                    Show
+                    {t('login.showPassword')}
                   </>
                 )}
               </Button>
@@ -227,11 +233,11 @@ export function LoginForm() {
                 }}
               />
               <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                Remember me
+                {t('login.rememberMe')}
               </Label>
             </div>
             <Button variant="link" className="px-0 font-normal" size="sm">
-              Forgot password?
+              {t('login.forgotPassword')}
             </Button>
           </div>
         </CardContent>
@@ -240,15 +246,15 @@ export function LoginForm() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                {t('login.signingIn')}
               </>
             ) : isGoogleLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying Google account...
+                {t('login.verifyingGoogle')}
               </>
             ) : (
-              "Sign in"
+              t('login.signIn')
             )}
           </Button>
           {googleClientId && (
@@ -258,7 +264,7 @@ export function LoginForm() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-background px-2 text-muted-foreground">{t('login.orContinueWith')}</span>
                 </div>
               </div>
 
@@ -277,11 +283,8 @@ export function LoginForm() {
             </>
           )}
 
-          <div className="text-center text-sm">
-            Don't have an account?{" "}
-            <Button variant="link" className="p-0 font-normal" onClick={() => router.push("/register")}>
-              Create one
-            </Button>
+          <div className="text-center text-sm text-muted-foreground">
+            {t('login.noRegistration')}
           </div>
         </CardFooter>
       </form>

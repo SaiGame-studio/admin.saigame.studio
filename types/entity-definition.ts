@@ -96,6 +96,7 @@ export interface EntityPool {
   name: string
   description?: string
   is_active: boolean
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
   entries?: EntityPoolEntry[]
@@ -111,6 +112,7 @@ export interface UpdateEntityPoolRequest {
   name?: string
   description?: string
   is_active?: boolean
+  metadata?: Record<string, unknown>
 }
 
 export interface CreateEntityPoolEntryRequest {

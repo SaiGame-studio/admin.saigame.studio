@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -445,7 +445,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "battle" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -494,6 +494,8 @@ export default function GameUserProgressDetailPage({
   const [gachaTxnsLoading, setGachaTxnsLoading] = useState(false)
   const [gachaTxnsError, setGachaTxnsError] = useState<string | null>(null)
   const [txnSubTab, setTxnSubTab] = useState<"gacha" | "shopping">("gacha")
+  const [expandedTxnIds, setExpandedTxnIds] = useState<Set<string>>(new Set())
+  const toggleTxnExpanded = (id: string) => setExpandedTxnIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   // Containers tab
   const CONTAINERS_LIMIT = 50
@@ -571,6 +573,17 @@ export default function GameUserProgressDetailPage({
   const [dailyAheadDays, setDailyAheadDays] = useState(30)
   const toggleQuestRow = (id: string) =>
     setQuestExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  // Battle tab
+  const BATTLE_LIMIT = 50
+  const [battleSessions, setBattleSessions] = useState<BattleSession[]>([])
+  const [battleTotal, setBattleTotal] = useState(0)
+  const [battleOffset, setBattleOffset] = useState(0)
+  const [battleLoading, setBattleLoading] = useState(false)
+  const [battleError, setBattleError] = useState<string | null>(null)
+  const [battleExpandedRows, setBattleExpandedRows] = useState<Set<string>>(new Set())
+  const toggleBattleRow = (id: string) =>
+    setBattleExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const loadData = useCallback(async () => {
     try {
@@ -861,6 +874,21 @@ export default function GameUserProgressDetailPage({
     }
   }, [game, gameId, detail, dailyAheadDays])
 
+  const loadBattleSessions = useCallback(async () => {
+    if (!detail?.user_id) return
+    setBattleLoading(true)
+    setBattleError(null)
+    try {
+      const res = await getBattleSessions(gameId, detail.user_id, { limit: BATTLE_LIMIT, offset: battleOffset })
+      setBattleSessions(res.sessions ?? [])
+      setBattleTotal(res.total ?? 0)
+    } catch (err: any) {
+      setBattleError(err?.message ?? "Failed to load battle sessions")
+    } finally {
+      setBattleLoading(false)
+    }
+  }, [gameId, detail, battleOffset])
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
@@ -899,6 +927,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "generators") loadGenerators()
   }, [activeTab, loadGenerators])
+
+  useEffect(() => {
+    if (activeTab === "battle") loadBattleSessions()
+  }, [activeTab, loadBattleSessions, battleOffset])
 
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
@@ -1725,90 +1757,129 @@ export default function GameUserProgressDetailPage({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
+                          <TableHead className="w-8"></TableHead>
+                          <TableHead>Created At</TableHead>
                           <TableHead>Pack</TableHead>
                           <TableHead>Items Granted</TableHead>
-                          <TableHead>Keys Consumed</TableHead>
-                          <TableHead>
-                            <span className="inline-flex items-center gap-1">
-                              Idempotency Key
-                              <button
-                                onClick={() => setIdempotencyHelpOpen(true)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                                title="What is an Idempotency Key?"
-                              >
-                                <HelpCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </span>
-                          </TableHead>
-                          <TableHead>Client</TableHead>
-                          <TableHead>Created At</TableHead>
+                          <TableHead>Keys</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {gachaTxns.map((txn) => (
-                          <TableRow key={txn.id}>
-                            <TableCell className="font-mono text-xs">
-                              <span className="flex items-center gap-0.5">
-                                {txn.id.slice(0, 8)}…
-                                <CopyButton text={txn.id} size="h-3 w-3" />
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {txn.pack_definition_id ? (
-                                <a
-                                  href={`/games/${gameId}/items?tab=gacha&editPack=${txn.pack_definition_id}`}
-                                  className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
-                                >
-                                  {txn.pack_name || txn.pack_definition_id.slice(0, 8) + "…"}
-                                  <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
-                                </a>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="space-y-1">
-                                {txn.items_granted.map((item, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border bg-muted/50 capitalize">{item.category}</span>
+                        {gachaTxns.map((txn) => {
+                          const isExpanded = expandedTxnIds.has(txn.id)
+                          return (
+                            <Fragment key={txn.id}>
+                              <TableRow
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => toggleTxnExpanded(txn.id)}
+                              >
+                                <TableCell className="py-2">
+                                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap py-2">{formatISODate(txn.created_at)}</TableCell>
+                                <TableCell className="text-sm py-2">
+                                  {txn.pack_definition_id ? (
                                     <a
-                                      href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                      href={`/games/${gameId}/items?tab=gacha&editPack=${txn.pack_definition_id}`}
                                       className="inline-flex items-center gap-0.5 font-medium text-xs hover:underline text-foreground"
+                                      onClick={e => e.stopPropagation()}
                                     >
-                                      {item.name}
+                                      {txn.pack_name || txn.pack_definition_id.slice(0, 8) + "…"}
                                       <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
                                     </a>
-                                    <span className="text-xs text-muted-foreground">×{item.quantity}</span>
-                                    <span className="text-xs text-muted-foreground">({item.quantity_min}–{item.quantity_max})</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm py-2">
+                                  <div className="flex flex-wrap gap-1">
+                                    {txn.items_granted.map((item, idx) => (
+                                      <span key={idx} className="inline-flex items-center gap-1 text-xs">
+                                        <a
+                                          href={`/games/${gameId}/items/${item.item_definition_id}`}
+                                          className="font-medium hover:underline text-foreground"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          {item.name}
+                                        </a>
+                                        <span className="text-muted-foreground">×{item.quantity}</span>
+                                      </span>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="space-y-1">
-                                {txn.keys_consumed.map((key, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 font-mono text-xs">
-                                    <a
-                                      href={`/games/${gameId}/items/${key.item_definition_id}`}
-                                      className="inline-flex items-center gap-0.5 text-muted-foreground hover:underline hover:text-foreground"
-                                    >
-                                      {key.item_definition_id.slice(0, 8)}…
-                                      <ArrowUpRight className="h-3 w-3" />
-                                    </a>
-                                    <span>×{key.quantity}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">{txn.idempotency_key}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              <div>{txn.client_ip}</div>
-                              <div className="text-muted-foreground/60 truncate max-w-[180px]" title={txn.user_agent}>{txn.user_agent}</div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatISODate(txn.created_at)}</TableCell>
-                          </TableRow>
-                        ))}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground py-2">
+                                  {txn.keys_consumed.length > 0 ? `${txn.keys_consumed.length} key${txn.keys_consumed.length > 1 ? "s" : ""}` : "—"}
+                                </TableCell>
+                              </TableRow>
+                              {isExpanded && (
+                                <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                  <TableCell colSpan={5} className="py-3 px-6">
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                                      <div className="col-span-2 flex items-center gap-2">
+                                        <span className="text-muted-foreground font-medium w-28">Transaction ID</span>
+                                        <span className="font-mono flex items-center gap-0.5">
+                                          {txn.id}
+                                          <CopyButton text={txn.id} size="h-3 w-3" />
+                                        </span>
+                                      </div>
+                                      <div className="col-span-2 flex items-start gap-2">
+                                        <span className="text-muted-foreground font-medium w-28 shrink-0 flex items-center gap-1">
+                                          Idempotency Key
+                                          <button onClick={() => setIdempotencyHelpOpen(true)} className="text-muted-foreground hover:text-foreground">
+                                            <HelpCircle className="h-3 w-3" />
+                                          </button>
+                                        </span>
+                                        <span className="font-mono text-muted-foreground break-all">{txn.idempotency_key}</span>
+                                      </div>
+                                      {txn.items_granted.length > 0 && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Items Detail</span>
+                                          <div className="space-y-1">
+                                            {txn.items_granted.map((item, idx) => (
+                                              <div key={idx} className="flex items-center gap-2 flex-wrap">
+                                                <span className="px-1.5 py-0.5 rounded border bg-muted/50 capitalize">{item.category}</span>
+                                                <a href={`/games/${gameId}/items/${item.item_definition_id}`} className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground" onClick={e => e.stopPropagation()}>
+                                                  {item.name}<ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+                                                </a>
+                                                <span className="text-muted-foreground">×{item.quantity} (range {item.quantity_min}–{item.quantity_max})</span>
+                                                <span className="text-muted-foreground capitalize">{item.rarity}</span>
+                                                <span className="font-mono text-muted-foreground/70">drop:{item.drop_seed} qty:{item.qty_seed}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {txn.keys_consumed.length > 0 && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Keys Consumed</span>
+                                          <div className="space-y-1">
+                                            {txn.keys_consumed.map((key, idx) => (
+                                              <div key={idx} className="flex items-center gap-1.5 font-mono">
+                                                <a href={`/games/${gameId}/items/${key.item_definition_id}`} className="inline-flex items-center gap-0.5 text-muted-foreground hover:underline hover:text-foreground" onClick={e => e.stopPropagation()}>
+                                                  {key.item_definition_id.slice(0, 8)}…<ArrowUpRight className="h-3 w-3" />
+                                                </a>
+                                                <span>×{key.quantity}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {(txn.client_ip || txn.user_agent) && (
+                                        <div className="col-span-2 flex items-start gap-2">
+                                          <span className="text-muted-foreground font-medium w-28 shrink-0">Client</span>
+                                          <div className="text-muted-foreground space-y-0.5">
+                                            {txn.client_ip && <div>{txn.client_ip}</div>}
+                                            {txn.user_agent && <div className="text-muted-foreground/70">{txn.user_agent}</div>}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   )}
@@ -2397,6 +2468,116 @@ export default function GameUserProgressDetailPage({
           )}
         </TabsContent>
 
+        {/* ── Battle Sessions Tab ── */}
+        <TabsContent value="battle" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Battle Sessions</h2>
+              <p className="text-sm text-muted-foreground">
+                {battleLoading ? "Loading…" : battleTotal > 0 ? `${battleTotal} session${battleTotal !== 1 ? "s" : ""}` : "No battle sessions found"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadBattleSessions} disabled={battleLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${battleLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {battleLoading ? (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </CardContent>
+            </Card>
+          ) : battleError ? (
+            <Card className="border-destructive">
+              <CardContent className="p-4 text-sm text-destructive">{battleError}</CardContent>
+            </Card>
+          ) : battleSessions.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                <Dice6 className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No battle sessions</p>
+                <p className="text-sm mt-1">This player has not participated in any battles yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8" />
+                      <TableHead>Battle ID</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Ended</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {battleSessions.map((session) => (
+                      <Fragment key={session.id}>
+                        <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleBattleRow(session.id)}>
+                          <TableCell>
+                            {battleExpandedRows.has(session.id)
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-xs">{session.id}</span>
+                              <CopyButton text={session.id} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={session.status === "ended" ? "secondary" : "outline"} className="text-xs">
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatISODate(session.started_at)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatISODate(session.expires_at)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{session.ended_at ? formatISODate(session.ended_at) : "—"}</TableCell>
+                        </TableRow>
+                        {battleExpandedRows.has(session.id) && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="bg-muted/30 p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">start_data</p>
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                    {JSON.stringify(session.start_data, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">end_data</p>
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                    {session.end_data != null ? JSON.stringify(session.end_data, null, 2) : "null"}
+                                  </pre>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pagination */}
+          {battleTotal > BATTLE_LIMIT && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Page {Math.floor(battleOffset / BATTLE_LIMIT) + 1} of {Math.ceil(battleTotal / BATTLE_LIMIT)} — {battleTotal} sessions</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={battleOffset === 0} onClick={() => setBattleOffset(Math.max(0, battleOffset - BATTLE_LIMIT))}>Previous</Button>
+                <Button variant="outline" size="sm" disabled={battleOffset + BATTLE_LIMIT >= battleTotal} onClick={() => setBattleOffset(battleOffset + BATTLE_LIMIT)}>Next</Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="containers" className="space-y-4">
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2887,8 +3068,8 @@ export default function GameUserProgressDetailPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
+                      <TableHead>Instance ID</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-right">Max Slots</TableHead>
                       <TableHead>Temp</TableHead>
@@ -2905,19 +3086,17 @@ export default function GameUserProgressDetailPage({
                             className={`cursor-pointer hover:bg-muted/40 ${pExpanded ? "bg-muted/30" : ""}`}
                             onClick={() => togglePresetRow(p.id)}
                           >
-                            <TableCell className="font-mono text-xs">
+                            <TableCell className="text-sm font-medium">
                               <span className="flex items-center gap-1">
                                 {pExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                {presetDetails[p.id]?.container.definition?.name || p.name || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              <span className="flex items-center gap-1">
                                 {p.id.slice(0, 8)}…
                                 <CopyButton text={p.id} size="h-3 w-3" />
                               </span>
-                            </TableCell>
-                            <TableCell className="text-sm font-medium">
-                              <div>{presetDetails[p.id]?.container.definition?.name || p.name || "—"}</div>
-                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground font-normal mt-0.5">
-                                {p.id.slice(0, 8)}…
-                                <CopyButton text={p.id} size="h-3 w-3" />
-                              </div>
                             </TableCell>
                             <TableCell>
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border whitespace-nowrap capitalize bg-orange-500/10 text-orange-400 border-orange-400/30">
@@ -3060,26 +3239,17 @@ export default function GameUserProgressDetailPage({
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground w-16">Slot</th>
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Item Definition</th>
                                                     <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Instance</th>
+                                                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Def Link</th>
                                                   </tr>
                                                 </thead>
                                                 <tbody>
                                                   {d.slots.map((slot) => {
-                                                    const resolved = presetSlotItemNames[slot.inventory_item_id]
                                                     return (
                                                       <tr key={slot.slot_index} className="border-b last:border-0 hover:bg-muted/30">
                                                         <td className="px-3 py-1.5 font-mono tabular-nums">{slot.slot_index}</td>
                                                         <td className="px-3 py-1.5">
-                                                          {resolved ? (
-                                                            <a
-                                                              href={`/games/${gameId}/items/${resolved.definitionId}`}
-                                                              target="_blank"
-                                                              rel="noreferrer"
-                                                              className="text-primary hover:underline font-medium flex items-center gap-1 text-xs"
-                                                              title="Open item definition"
-                                                            >
-                                                              {resolved.name}
-                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
-                                                            </a>
+                                                          {slot.item_definition_id ? (
+                                                            <span className="font-medium text-xs">{slot.item_definition_name || slot.item_definition_id}</span>
                                                           ) : (
                                                             <span className="text-muted-foreground text-xs">—</span>
                                                           )}
@@ -3096,6 +3266,22 @@ export default function GameUserProgressDetailPage({
                                                             </a>
                                                             <CopyButton text={slot.inventory_item_id} size="h-3 w-3" />
                                                           </div>
+                                                        </td>
+                                                        <td className="px-3 py-1.5">
+                                                          {slot.item_definition_id ? (
+                                                            <a
+                                                              href={`/games/${gameId}/items/${slot.item_definition_id}`}
+                                                              target="_blank"
+                                                              rel="noreferrer"
+                                                              className="text-muted-foreground hover:text-primary flex items-center gap-0.5 text-xs font-mono"
+                                                              title={slot.item_definition_id}
+                                                            >
+                                                              {slot.item_definition_id.slice(0, 8)}…
+                                                              <ArrowUpRight className="h-3 w-3 shrink-0" />
+                                                            </a>
+                                                          ) : (
+                                                            <span className="text-muted-foreground text-xs">—</span>
+                                                          )}
                                                         </td>
                                                       </tr>
                                                     )

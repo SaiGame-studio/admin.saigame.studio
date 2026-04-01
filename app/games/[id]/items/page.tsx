@@ -50,6 +50,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -2171,6 +2172,8 @@ export default function GameItemsPage() {
   const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null)
   const [deletePackLoading, setDeletePackLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null)
+  const [gachaComboSearch, setGachaComboSearch] = useState("")
 
   // initialize tab from URL params
   useEffect(() => {
@@ -4424,22 +4427,65 @@ export default function GameItemsPage() {
                     ) : (
                       <span />
                     )}
-                    <Select
-                      value={row.item_definition_id}
-                      onValueChange={(v) => updateKeyReqRow(i, { item_definition_id: v })}
-                      disabled={formSaving}
+                    <Popover
+                      open={gachaComboOpen === `keyreq-${i}`}
+                      onOpenChange={(open) => {
+                        setGachaComboOpen(open ? `keyreq-${i}` : null)
+                        if (!open) setGachaComboSearch("")
+                      }}
+                      modal={true}
                     >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select item…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gachaAllItems.map((it) => (
-                          <SelectItem key={it.id} value={it.id} className="text-xs">
-                            {it.name}{it.item_code && <span className="text-muted-foreground"> ({it.item_code})</span>}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs w-full justify-between font-normal"
+                          disabled={formSaving}
+                        >
+                          {row.item_definition_id
+                            ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "…"}</span>
+                            : <span className="text-muted-foreground">Select item…</span>}
+                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0" align="start">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Search by name or ID…"
+                            value={gachaComboSearch}
+                            onValueChange={setGachaComboSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No item found.</CommandEmpty>
+                            <CommandGroup>
+                              {gachaAllItems
+                                .filter((it) =>
+                                  !gachaComboSearch ||
+                                  it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
+                                  it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
+                                  (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase())
+                                )
+                                .slice(0, 50)
+                                .map((it) => (
+                                  <CommandItem
+                                    key={it.id}
+                                    value={it.id}
+                                    onSelect={() => {
+                                      updateKeyReqRow(i, { item_definition_id: it.id })
+                                      setGachaComboOpen(null)
+                                      setGachaComboSearch("")
+                                    }}
+                                  >
+                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`} />
+                                    <span className="flex-1 truncate">{it.name}</span>
+                                    {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <Input
                       type="number"
                       min={1}
@@ -4516,22 +4562,65 @@ export default function GameItemsPage() {
                   const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0
                   return (
                     <div key={i} className="grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 items-center">
-                      <Select
-                        value={row.item_definition_id}
-                        onValueChange={(v) => updatePoolRow(i, { item_definition_id: v })}
-                        disabled={formSaving}
+                      <Popover
+                        open={gachaComboOpen === `pool-${i}`}
+                        onOpenChange={(open) => {
+                          setGachaComboOpen(open ? `pool-${i}` : null)
+                          if (!open) setGachaComboSearch("")
+                        }}
+                        modal={true}
                       >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Select item…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {gachaAllItems.map((it) => (
-                            <SelectItem key={it.id} value={it.id} className="text-xs">
-                              {it.name} {it.item_code && <span className="text-muted-foreground">({it.item_code})</span>}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs w-full justify-between font-normal"
+                            disabled={formSaving}
+                          >
+                            {row.item_definition_id
+                              ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "…"}</span>
+                              : <span className="text-muted-foreground">Select item…</span>}
+                            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[280px] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Search by name or ID…"
+                              value={gachaComboSearch}
+                              onValueChange={setGachaComboSearch}
+                            />
+                            <CommandList>
+                              <CommandEmpty>No item found.</CommandEmpty>
+                              <CommandGroup>
+                                {gachaAllItems
+                                  .filter((it) =>
+                                    !gachaComboSearch ||
+                                    it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
+                                    it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
+                                    (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase())
+                                  )
+                                  .slice(0, 50)
+                                  .map((it) => (
+                                    <CommandItem
+                                      key={it.id}
+                                      value={it.id}
+                                      onSelect={() => {
+                                        updatePoolRow(i, { item_definition_id: it.id })
+                                        setGachaComboOpen(null)
+                                        setGachaComboSearch("")
+                                      }}
+                                    >
+                                      <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`} />
+                                      <span className="flex-1 truncate">{it.name}</span>
+                                      {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <div className="relative">
                         <Input
                           type="text"
@@ -4817,7 +4906,7 @@ function CreatePresetDefinitionSheet({
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     if (!containerType.trim()) e.containerType = t('items.containerTypeRequired')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
+    if (!maxSlots || !slots || slots < 1 || slots > 70) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -4867,9 +4956,19 @@ function CreatePresetDefinitionSheet({
             <Input id="pd-type" placeholder="e.g. deck, party" value={containerType} onChange={(e) => setContainerType(e.target.value)} />
             {errors.containerType && <p className="text-xs text-destructive">{errors.containerType}</p>}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-slots" type="number" min={1} placeholder="e.g. 20" value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
+              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
+            </div>
+            <Slider
+              id="pd-slots"
+              min={1}
+              max={70}
+              step={1}
+              value={[Number(maxSlots)]}
+              onValueChange={([v]) => setMaxSlots(String(v))}
+            />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">
@@ -4916,7 +5015,7 @@ function EditPresetDefinitionSheet({
     const e: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
     const slots = Number(maxSlots)
-    if (!maxSlots || !slots || slots < 1) e.maxSlots = t('items.maxSlotsInvalid')
+    if (!maxSlots || !slots || slots < 1 || slots > 70) e.maxSlots = t('items.maxSlotsInvalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -4965,9 +5064,19 @@ function EditPresetDefinitionSheet({
             <Input value={definition.preset_type} disabled className="opacity-60" />
             <p className="text-xs text-muted-foreground">{t('items.presetTypeImmutable')}</p>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-            <Input id="epd-slots" type="number" min={1} value={maxSlots} onChange={(e) => setMaxSlots(e.target.value)} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
+              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
+            </div>
+            <Slider
+              id="epd-slots"
+              min={1}
+              max={70}
+              step={1}
+              value={[Number(maxSlots)]}
+              onValueChange={([v]) => setMaxSlots(String(v))}
+            />
             {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
           </div>
           <div className="space-y-1">

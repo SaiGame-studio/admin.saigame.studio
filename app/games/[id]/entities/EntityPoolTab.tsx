@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink, ChevronsUpDown, Check, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,10 +13,13 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { listEntityPools, getEntityPool, updateEntityPool, createEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
+import { listGachaPacks } from "@/lib/inventory-api"
+import type { GachaPack } from "@/types/inventory"
 import { ApiError } from "@/lib/api-client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
@@ -31,11 +35,21 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   tRef.current = t
   toastRef.current = toast
 
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const expandedId = searchParams.get("poolExpanded")
+
+  function setExpandedId(id: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (id) params.set("poolExpanded", id)
+    else params.delete("poolExpanded")
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
   const [pools, setPools] = useState<EntityPool[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState({ pool_key: "", name: "", description: "" })
   const [creating, setCreating] = useState(false)
@@ -541,6 +555,122 @@ function PoolExpandedContent({
     }
   }
 
+  // ── metadata ───────────────────────────────────────────────────
+  const [editingMetaKey, setEditingMetaKey] = useState<string | "__new__" | null>(null)
+  const [editingMetaFieldKey, setEditingMetaFieldKey] = useState("")
+  const [editingMetaFieldValue, setEditingMetaFieldValue] = useState("")
+
+  function startEditMeta(originalKey: string, currentValue: string) {
+    setEditingMetaKey(originalKey)
+    setEditingMetaFieldKey(originalKey)
+    setEditingMetaFieldValue(currentValue)
+  }
+
+  function startAddMeta() {
+    setEditingMetaKey("__new__")
+    setEditingMetaFieldKey("")
+    setEditingMetaFieldValue("")
+  }
+
+  function cancelEditMeta() {
+    setEditingMetaKey(null)
+    setEditingMetaFieldKey("")
+    setEditingMetaFieldValue("")
+  }
+
+  async function saveMeta() {
+    const key = editingMetaFieldKey.trim()
+    if (!key) return
+    const raw = editingMetaFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    const existing: Record<string, unknown> = pool.metadata ? { ...pool.metadata } : {}
+    if (editingMetaKey !== "__new__" && editingMetaKey && editingMetaKey !== key) {
+      delete existing[editingMetaKey]
+    }
+    existing[key] = val
+    setSaving(true)
+    try {
+      const updated = await updateEntityPool(gameId, pool.id, { metadata: existing })
+      onSaved(updated)
+      setDetail(prev => prev ? { ...prev, metadata: updated.metadata } : prev)
+      setEditingMetaKey(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSaveField')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteMeta(key: string) {
+    const existing: Record<string, unknown> = pool.metadata ? { ...pool.metadata } : {}
+    delete existing[key]
+    setSaving(true)
+    try {
+      const updated = await updateEntityPool(gameId, pool.id, { metadata: Object.keys(existing).length > 0 ? existing : undefined })
+      onSaved(updated)
+      setDetail(prev => prev ? { ...prev, metadata: updated.metadata } : prev)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedDeleteField')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── gacha pack / drop_pack_ids ─────────────────────────────────
+  const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
+
+  useEffect(() => {
+    listGachaPacks({ gameId }).then((res) => setGachaPacks(res.packs)).catch(() => {})
+  }, [gameId])
+
+  function getDropPackIds(): string[] {
+    const ids = pool.metadata?.drop_pack_ids
+    if (Array.isArray(ids)) return ids as string[]
+    return []
+  }
+
+  async function addDropPack(packId: string) {
+    const current = getDropPackIds()
+    if (current.includes(packId)) return
+    const existing: Record<string, unknown> = pool.metadata ? { ...pool.metadata } : {}
+    existing.drop_pack_ids = [...current, packId]
+    setSaving(true)
+    try {
+      const updated = await updateEntityPool(gameId, pool.id, { metadata: existing })
+      onSaved(updated)
+      setDetail(prev => prev ? { ...prev, metadata: updated.metadata } : prev)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSaveField')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeDropPack(packId: string) {
+    const current = getDropPackIds().filter((id) => id !== packId)
+    const existing: Record<string, unknown> = pool.metadata ? { ...pool.metadata } : {}
+    if (current.length > 0) {
+      existing.drop_pack_ids = current
+    } else {
+      delete existing.drop_pack_ids
+    }
+    setSaving(true)
+    try {
+      const updated = await updateEntityPool(gameId, pool.id, { metadata: Object.keys(existing).length > 0 ? existing : undefined })
+      onSaved(updated)
+      setDetail(prev => prev ? { ...prev, metadata: updated.metadata } : prev)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSaveField')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const entries = detail?.entries ?? []
   const totalWeight = useMemo(() => entries.reduce((sum, e) => sum + e.weight, 0), [entries])
 
@@ -607,6 +737,102 @@ function PoolExpandedContent({
           </div>
         </div>
       </dl>
+
+      {/* metadata + drop_pack_ids sub-grid */}
+      <div className="grid grid-cols-2 gap-4 items-start">
+        {/* Metadata */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldMetadata')}</dt>
+          <dd>
+            <div className="space-y-0.5">
+              {pool.metadata && Object.entries(pool.metadata).map(([k, v]) => {
+                if (k === "drop_pack_ids") {
+                  const count = Array.isArray(v) ? v.length : 0
+                  return (
+                    <div key={k} className="flex items-center gap-1.5 py-0.5 px-1 rounded">
+                      <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                      <span className="text-xs text-muted-foreground">:</span>
+                      <span className="text-xs font-mono flex-1 text-muted-foreground">{count} pack{count !== 1 ? "s" : ""}</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={k} className="group/meta">
+                    {editingMetaKey === k ? (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} />
+                        <span className="text-muted-foreground text-xs">:</span>
+                        <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
+                          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMeta} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50 cursor-pointer" onClick={() => startEditMeta(k, String(v))}>
+                        <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                        <span className="text-xs text-muted-foreground">:</span>
+                        <span className="text-xs font-mono flex-1">{String(v)}</span>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteMeta(k) }} disabled={saving}><X className="w-3 h-3" /></Button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {editingMetaKey === "__new__" ? (
+                <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                  <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} autoFocus />
+                  <span className="text-muted-foreground text-xs">:</span>
+                  <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMeta} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
+                </div>
+              ) : (
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={startAddMeta} disabled={saving || editingMetaKey !== null}>
+                  <Plus className="w-3 h-3" /> {t('entity.addField')}
+                </Button>
+              )}
+            </div>
+          </dd>
+        </div>
+
+        {/* Drop Pack IDs */}
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">Drop Pack IDs</dt>
+          <dd>
+            <div className="space-y-1">
+              {getDropPackIds().map((packId) => {
+                const pack = gachaPacks.find((p) => p.id === packId)
+                return (
+                  <div key={packId} className="flex items-center gap-1.5 py-0.5 px-1 rounded bg-muted/40">
+                    <Link href={`/games/${gameId}/items?tab=gacha`} className="text-xs font-mono flex-1 truncate hover:underline inline-flex items-center gap-1" target="_blank">
+                      {pack ? pack.name : packId}<ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                    </Link>
+                    <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeDropPack(packId)} disabled={saving}><X className="w-3 h-3" /></Button>
+                  </div>
+                )
+              })}
+              {gachaPacks.length > 0 && (
+                <Select onValueChange={addDropPack} disabled={saving}>
+                  <SelectTrigger className="h-7 text-xs mt-1">
+                    <SelectValue placeholder="Link a gacha pack…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gachaPacks.filter((p) => !getDropPackIds().includes(p.id)).map((p) => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">
+                        <span>{p.name}</span>
+                        <span className="ml-2 text-muted-foreground font-mono text-[10px]">{p.id.slice(0, 8)}…</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </dd>
+        </div>
+      </div>
 
       {/* Entries */}
       <div>

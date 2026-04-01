@@ -1,8 +1,8 @@
 "use client"
 
-import { Mail } from "lucide-react"
+import { Mail, User, Package, Archive, Zap, Shield, ScrollText, Swords, ArrowLeftRight, LayoutTemplate } from "lucide-react"
 
-export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "transactions"
+export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "battle" | "transactions"
 
 interface PlayerSectionNavProps {
   gameId: string
@@ -22,15 +22,18 @@ interface PlayerSectionNavProps {
   }
 }
 
-const TABS: { value: PlayerNavTab; label: string }[] = [
-  { value: "info",         label: "Player Info"  },
-  { value: "items",        label: "Items"        },
-  { value: "containers",   label: "Containers"   },
-  { value: "generators",   label: "Generators"   },
-  { value: "equipments",   label: "Equipments"   },
-  { value: "presets",      label: "Presets"      },
-  { value: "quests",       label: "Quests"       },
-  { value: "transactions", label: "Transactions" },
+import type { LucideIcon } from "lucide-react"
+
+const TABS: { value: PlayerNavTab; label: string; icon: LucideIcon }[] = [
+  { value: "info",         label: "Player Info",  icon: User           },
+  { value: "items",        label: "Items",        icon: Package        },
+  { value: "containers",   label: "Containers",   icon: Archive        },
+  { value: "generators",   label: "Generators",   icon: Zap            },
+  { value: "equipments",   label: "Equipments",   icon: Shield         },
+  { value: "presets",      label: "Presets",      icon: LayoutTemplate },
+  { value: "quests",       label: "Quests",       icon: ScrollText     },
+  { value: "battle",       label: "Battle",       icon: Swords         },
+  { value: "transactions", label: "Transactions", icon: ArrowLeftRight },
 ]
 
 export function PlayerSectionNav({
@@ -89,6 +92,7 @@ export function PlayerSectionNav({
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
               }`}
             >
+              <tab.icon className="h-3.5 w-3.5 mr-1.5" />
               {tab.label}
               {badge(tab.value)}
             </a>

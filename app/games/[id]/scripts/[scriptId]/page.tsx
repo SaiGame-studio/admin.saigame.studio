@@ -210,7 +210,12 @@ export default function ScriptEditPage() {
   const [samplesLoading, setSamplesLoading] = useState(true)
   const [sampleTab, setSampleTab] = useState<string>(() => {
     const tab = searchParams.get("sampleTab")
-    return tab === "pool" || tab === "turn-base" ? tab : "core"
+    if (tab === "pool" || tab === "turn-base") return tab
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`sample_tab_${scriptId}`)
+      if (saved === "pool" || saved === "turn-base") return saved
+    }
+    return "core"
   })
   const [appendMode, setAppendMode] = useState(false)
 
@@ -628,6 +633,8 @@ export default function ScriptEditPage() {
                   <>
                     <Tabs value={sampleTab} onValueChange={(v) => {
                       setSampleTab(v)
+                      if (v === "core") localStorage.removeItem(`sample_tab_${scriptId}`)
+                      else localStorage.setItem(`sample_tab_${scriptId}`, v)
                       const sp = new URLSearchParams(searchParams.toString())
                       if (v === "core") sp.delete("sampleTab"); else sp.set("sampleTab", v)
                       router.replace(`?${sp.toString()}`, { scroll: false })
@@ -636,11 +643,11 @@ export default function ScriptEditPage() {
                         <TabsTrigger value="core" className="text-[10px] flex-1 h-5 px-1">
                           Core ({samples.length})
                         </TabsTrigger>
-                        <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
+                        {/* <TabsTrigger value="pool" className="text-[10px] flex-1 h-5 px-1">
                           Pool ({entitiesPoolSamples.length})
-                        </TabsTrigger>
+                        </TabsTrigger> */}
                         <TabsTrigger value="turn-base" className="text-[10px] flex-1 h-5 px-1">
-                          Turn ({turnBaseSamples.length})
+                          Battle ({turnBaseSamples.length})
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
