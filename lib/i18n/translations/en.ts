@@ -3034,6 +3034,8 @@ export const en = {
     orContinueWith: "Or continue with",
     loginRemembered: "Login remembered from previous session",
     noRegistration: "Login with Google or use a test account. Account registration is not available.",
+    dontHaveAccount: "Don't have an account?",
+    signUp: "Sign up",
     loginSuccess: "Login successful",
     welcomeBack: "Welcome back",
     footer: "All rights reserved.",
