@@ -2992,6 +2992,8 @@ export const vi = {
     orContinueWith: "Hoặc tiếp tục với",
     loginRemembered: "Đăng nhập được ghi nhớ từ phiên trước",
     noRegistration: "Đăng nhập bằng Google hoặc dùng tài khoản test. Đăng ký tài khoản hiện không khả dụng.",
+    dontHaveAccount: "Chưa có tài khoản?",
+    signUp: "Đăng ký",
     loginSuccess: "Đăng nhập thành công",
     welcomeBack: "Chào mừng trở lại",
     footer: "Bảo lưu mọi quyền.",

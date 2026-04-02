@@ -2948,6 +2948,8 @@ export const ja = {
     orContinueWith: "または続ける",
     loginRemembered: "前回のセッションからログイン情報を記憶しています",
     noRegistration: "Googleまたはテストアカウントでログインしてください。アカウント登録は現在ご利用いただけません。",
+    dontHaveAccount: "アカウントをお持ちでないですか？",
+    signUp: "新規登録",
     loginSuccess: "ログイン成功",
     welcomeBack: "おかえりなさい",
     footer: "全著作権所有。",
