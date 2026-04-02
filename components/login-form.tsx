@@ -236,7 +236,7 @@ export function LoginForm() {
                 {t('login.rememberMe')}
               </Label>
             </div>
-            <Button variant="link" className="px-0 font-normal" size="sm" onClick={() => router.push('/forgot-password')}>
+            <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/forgot-password')}>
               {t('login.forgotPassword')}
             </Button>
           </div>
@@ -285,7 +285,7 @@ export function LoginForm() {
 
           <div className="text-center text-sm text-muted-foreground">
             {t('login.dontHaveAccount')}{" "}
-            <Button variant="link" className="px-0 font-normal" size="sm" onClick={() => router.push('/register')}>
+            <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/register')}>
               {t('login.signUp')}
             </Button>
           </div>
