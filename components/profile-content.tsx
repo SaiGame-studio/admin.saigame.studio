@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Calendar,
   Check,
@@ -15,7 +15,7 @@ import {
   UserIcon,
 } from "lucide-react"
 
-import { updateUserTimezone, formatDate } from "@/lib/api"
+import { updateUserTimezone, updateDisplayName, formatDate } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { UserProfiles } from "@/components/user-profiles"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Input } from "@/components/ui/input"
 import { CopyButton } from "@/components/CopyButton"
 
 const ALL_TIMEZONES: string[] = (() => {
@@ -53,6 +54,11 @@ export function ProfileContent() {
   const { user, isLoading, refreshUser } = useAuth()
   const { t } = useTranslation()
 
+  const [nameEditing, setNameEditing] = useState(false)
+  const [nameValue, setNameValue] = useState("")
+  const [nameSaving, setNameSaving] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
   const [copied, setCopied] = useState(false)
   const [tzEditing, setTzEditing] = useState(false)
   const [tzValue, setTzValue] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -66,6 +72,27 @@ export function ProfileContent() {
     .split(/[\s_@]/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?"
 
   const currentTz = user.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  function startNameEdit() {
+    setNameValue(user.display_name || user.username || "")
+    setNameEditing(true)
+    setTimeout(() => nameInputRef.current?.focus(), 0)
+  }
+
+  async function saveName() {
+    const trimmed = nameValue.trim()
+    if (!trimmed || trimmed === (user.display_name || user.username)) {
+      setNameEditing(false)
+      return
+    }
+    setNameSaving(true)
+    try {
+      await updateDisplayName(user.id, trimmed)
+      await refreshUser()
+      setNameEditing(false)
+    } catch {}
+    setNameSaving(false)
+  }
 
   async function saveTz() {
     setTzSaving(true)
@@ -86,7 +113,7 @@ export function ProfileContent() {
       </div>
 
       {/* ── Header card ── */}
-      <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden">
+      <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden group/name">
         <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none" />
         <div className="relative p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
           {/* Avatar */}
@@ -97,10 +124,31 @@ export function ProfileContent() {
           {/* Name / email */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-2xl font-extrabold tracking-tight truncate">
-                {user.display_name || user.username}
-              </h2>
-              {user.display_name && user.display_name !== user.username && (
+              {nameEditing ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    ref={nameInputRef}
+                    value={nameValue}
+                    onChange={e => setNameValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setNameEditing(false) }}
+                    className="h-9 w-60 text-lg font-extrabold"
+                    disabled={nameSaving}
+                  />
+                  <Button size="sm" disabled={nameSaving} onClick={saveName}>{nameSaving ? "Saving…" : "Save"}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setNameEditing(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-extrabold tracking-tight truncate">
+                    {user.display_name || user.username}
+                  </h2>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/name:opacity-100 transition-opacity"
+                    onClick={startNameEdit}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
+              {!nameEditing && user.display_name && user.display_name !== user.username && (
                 <span className="text-sm text-muted-foreground font-normal">@{user.username}</span>
               )}
             </div>
