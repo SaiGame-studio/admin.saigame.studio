@@ -32,6 +32,13 @@ export async function updateDisplayName(userId: string, displayName: string) {
 }
 
 /**
+ * Resend email verification for the current user
+ */
+export async function resendVerificationEmail() {
+  return await api.post("/api/v1/auth/resend-verification")
+}
+
+/**
  * Formats a millisecond timestamp to a readable date in the user's timezone
  */
 export function formatDate(timestamp: number): string {
