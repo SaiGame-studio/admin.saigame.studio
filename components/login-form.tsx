@@ -236,7 +236,7 @@ export function LoginForm() {
                 {t('login.rememberMe')}
               </Label>
             </div>
-            <Button variant="link" className="px-0 font-normal" size="sm">
+            <Button variant="link" className="px-0 font-normal" size="sm" onClick={() => router.push('/forgot-password')}>
               {t('login.forgotPassword')}
             </Button>
           </div>

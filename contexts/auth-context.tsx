@@ -189,9 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Redirect logic
     if (!isLoading) {
-      if (!isAuthenticated && pathname !== "/login" && pathname !== "/register") {
+      const authPages = ["/login", "/register", "/forgot-password", "/reset-password"]
+      if (!isAuthenticated && !authPages.includes(pathname)) {
         router.push("/login")
-      } else if (isAuthenticated && (pathname === "/login" || pathname === "/register")) {
+      } else if (isAuthenticated && authPages.includes(pathname)) {
         router.push("/")
       }
     }
