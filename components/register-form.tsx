@@ -181,6 +181,11 @@ export function RegisterForm() {
               Sign in
             </Button>
           </div>
+          <div className="text-center text-sm text-muted-foreground">
+            <Button variant="link" className="p-0 font-normal" size="sm" onClick={() => router.push("/forgot-password")}>
+              Forgot password?
+            </Button>
+          </div>
         </CardFooter>
       </form>
     </Card>
