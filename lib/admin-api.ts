@@ -668,3 +668,41 @@ export async function listAdminTransactions(params?: {
   const qs = query.toString()
   return api.get(`/api/v1/superadmin/payment/transactions${qs ? `?${qs}` : ""}`)
 }
+
+// ---------------------------------------------------------------------------
+// Email Blacklist
+// ---------------------------------------------------------------------------
+
+export interface EmailBlacklistEntry {
+  id: string
+  email: string
+  domain: string
+  reason: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailBlacklistResult {
+  data: EmailBlacklistEntry[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export async function listEmailBlacklist(params?: {
+  status?: string
+  page?: number
+  page_size?: number
+}): Promise<EmailBlacklistResult> {
+  const query = new URLSearchParams()
+  if (params?.status) query.set("status", params.status)
+  if (params?.page) query.set("page", String(params.page))
+  if (params?.page_size) query.set("page_size", String(params.page_size))
+  const qs = query.toString()
+  return api.get(`/api/v1/admin/email-blacklist${qs ? `?${qs}` : ""}`)
+}
+
+export async function updateEmailBlacklistStatus(id: string, status: string): Promise<void> {
+  return api.put(`/api/v1/admin/email-blacklist/${encodeURIComponent(id)}`, { status })
+}
