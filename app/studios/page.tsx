@@ -42,6 +42,7 @@ export default function StudiosPage() {
   const STUDIO_COST = 50
   const isFirstStudio = studios.length === 0
   const isActivated = user?.is_activated ?? false
+  const isVerified = user?.is_verified ?? false
 
   async function loadStudios() {
     try {
@@ -95,16 +96,16 @@ export default function StudiosPage() {
     <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm studio creation</AlertDialogTitle>
+          <AlertDialogTitle>{t('studio.confirmCreationTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Creating studio <span className="font-semibold text-foreground">&ldquo;{newStudioName}&rdquo;</span> will cost{" "}
-            <span className="font-semibold text-foreground">🪙 {STUDIO_COST} coins</span>. Do you want to proceed?
+            {t('studio.confirmCreationDesc1')} <span className="font-semibold text-foreground">&ldquo;{newStudioName}&rdquo;</span> {t('studio.confirmCreationDesc2')}{" "}
+            <span className="font-semibold text-foreground">🪙 {STUDIO_COST} coins</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={doCreateStudio}>
-            Confirm & Pay {STUDIO_COST} coins
+            {t('studio.confirmCreationPay')} {STUDIO_COST} coins
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -116,20 +117,21 @@ export default function StudiosPage() {
           <p className="">{t('studio.manageTitle')}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          {isActivated ? (
-            <div className="flex items-center gap-1.5 text-sm">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-              <span className="text-green-500 font-medium">Activated</span>
-            </div>
-          ) : (
+          {!isVerified && (
             <div className="flex items-center gap-1.5 text-sm">
               <ShieldOff className="h-3.5 w-3.5 text-yellow-500" />
-              <span className="text-yellow-500 font-medium">Not activated</span>
+              <span className="text-yellow-500 font-medium">{t('studio.emailNotVerified')}</span>
+            </div>
+          )}
+          {isVerified && !isActivated && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <ShieldOff className="h-3.5 w-3.5 text-yellow-500" />
+              <span className="text-yellow-500 font-medium">{t('studio.notActivated')}</span>
             </div>
           )}
           {maxStudios !== null && (
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="text-muted-foreground">Studios used:</span>
+              <span className="text-muted-foreground">{t('studio.studiosUsed')}</span>
               <Badge variant={atLimit ? "destructive" : "secondary"}>
                 {usedStudios} / {maxStudios}
               </Badge>
@@ -143,23 +145,23 @@ export default function StudiosPage() {
                 onChange={e => setNewStudioName(e.target.value)}
                 placeholder={t('studio.newName')}
                 className="w-48"
-                disabled={creating || atLimit || !isActivated}
+                disabled={creating || atLimit || !isActivated || !isVerified}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !creating && !atLimit && isActivated) {
+                  if (e.key === 'Enter' && !creating && !atLimit && isActivated && isVerified) {
                     handleCreateStudio();
                   }
                 }}
               />
               <Button
                 onClick={handleCreateStudio}
-                disabled={creating || atLimit || !isActivated}
+                disabled={creating || atLimit || !isActivated || !isVerified}
                 variant="default"
-                title={!isActivated ? "Please activate your account with a referral code first" : atLimit ? `Studio limit reached (${usedStudios} / ${maxStudios})` : undefined}
+                title={!isVerified ? t('studio.verifyEmailToCreate') : !isActivated ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}
               >
                 {creating ? t('common.loading') : t('studio.create')}
               </Button>
             </div>
-            {!atLimit && isActivated && (
+            {!atLimit && isActivated && isVerified && (
               <p className="text-xs text-muted-foreground">
                 {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
               </p>
@@ -171,9 +173,9 @@ export default function StudiosPage() {
       {atLimit && (
         <Alert variant="destructive" className="mb-6">
           <Lock className="h-4 w-4" />
-          <AlertTitle>Studio limit reached</AlertTitle>
+          <AlertTitle>{t('studio.studioLimitTitle')}</AlertTitle>
           <AlertDescription>
-            You have used {usedStudios} of {maxStudios} allowed studio{maxStudios !== 1 ? "s" : ""}. Please contact support to increase your limit.
+            {t('studio.studioLimitDesc1')} {usedStudios} {t('studio.studioLimitDesc2')} {maxStudios} {t('studio.studioLimitDesc3')}
           </AlertDescription>
         </Alert>
       )}
@@ -277,6 +279,7 @@ export default function StudiosPage() {
 }
 
 function ReferralCodeInput({ onActivated }: { onActivated: () => void }) {
+  const { t } = useTranslation()
   const [code, setCode] = useState("")
   const [activating, setActivating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -304,14 +307,14 @@ function ReferralCodeInput({ onActivated }: { onActivated: () => void }) {
     <div className="w-full max-w-md mt-2">
       <div className="flex items-center gap-2 mb-3">
         <div className="h-px flex-1 bg-border" />
-        <span className="text-xs text-muted-foreground uppercase tracking-wide">Have a referral code?</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-wide">{t('studio.referralHint')}</span>
         <div className="h-px flex-1 bg-border" />
       </div>
       <form onSubmit={handleActivate} className="flex gap-2">
         <div className="relative flex-1">
           <TicketPercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Enter referral code"
+            placeholder={t('studio.enterReferralCode')}
             value={code}
             onChange={(e) => { setCode(e.target.value); setError(null) }}
             className="pl-9"
@@ -319,14 +322,14 @@ function ReferralCodeInput({ onActivated }: { onActivated: () => void }) {
           />
         </div>
         <Button type="submit" disabled={activating || !code.trim() || success}>
-          {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Activate"}
+          {activating ? <Loader2 className="h-4 w-4 animate-spin" /> : t('studio.activate')}
         </Button>
       </form>
       {error && (
         <p className="text-sm text-destructive mt-2">{error}</p>
       )}
       {success && (
-        <p className="text-sm text-green-500 mt-2">Referral code activated successfully!</p>
+        <p className="text-sm text-green-500 mt-2">{t('studio.referralActivated')}</p>
       )}
     </div>
   )

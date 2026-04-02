@@ -9,13 +9,15 @@ import {
   Globe,
 
   Mail,
+  MailCheck,
   Pencil,
+  RefreshCw,
   ShieldCheck,
   ShieldOff,
   UserIcon,
 } from "lucide-react"
 
-import { updateUserTimezone, updateDisplayName, formatDate } from "@/lib/api"
+import { updateUserTimezone, updateDisplayName, resendVerificationEmail, formatDate } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { Button } from "@/components/ui/button"
@@ -59,6 +61,9 @@ export function ProfileContent() {
   const [nameSaving, setNameSaving] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
+
   const [copied, setCopied] = useState(false)
   const [tzEditing, setTzEditing] = useState(false)
   const [tzValue, setTzValue] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -72,6 +77,15 @@ export function ProfileContent() {
     .split(/[\s_@]/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?"
 
   const currentTz = user.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  async function handleResendVerification() {
+    setResendingEmail(true)
+    try {
+      await resendVerificationEmail()
+      setResendSent(true)
+    } catch {}
+    setResendingEmail(false)
+  }
 
   function startNameEdit() {
     setNameValue(user.display_name || user.username || "")
@@ -151,6 +165,11 @@ export function ProfileContent() {
               {!nameEditing && user.display_name && user.display_name !== user.username && (
                 <span className="text-sm text-muted-foreground font-normal">@{user.username}</span>
               )}
+              {user.is_active ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">Active</span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Inactive</span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -161,14 +180,22 @@ export function ProfileContent() {
                   <ShieldCheck className="h-3 w-3" /> {t('profilePage.verified')}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-500">
-                  <ShieldOff className="h-3 w-3" /> {t('profilePage.notVerified')}
-                </span>
-              )}
-              {user.is_active ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">Active</span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Inactive</span>
+                <>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-500">
+                    <ShieldOff className="h-3 w-3" /> {t('profilePage.notVerified')}
+                  </span>
+                  {resendSent ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
+                      <MailCheck className="h-3 w-3" /> Verification email sent
+                    </span>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="h-5 px-2 text-[10px] text-yellow-500 hover:text-yellow-400"
+                      disabled={resendingEmail} onClick={handleResendVerification}>
+                      <RefreshCw className={`h-3 w-3 mr-1 ${resendingEmail ? "animate-spin" : ""}`} />
+                      {resendingEmail ? "Sending…" : "Resend verification"}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
