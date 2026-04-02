@@ -25,6 +25,13 @@ export async function fetchUserProfiles() {
 }
 
 /**
+ * Updates the current user's display name
+ */
+export async function updateDisplayName(userId: string, displayName: string) {
+  return await api.patch(`/api/v1/users/${userId}/display-name`, { display_name: displayName })
+}
+
+/**
  * Formats a millisecond timestamp to a readable date in the user's timezone
  */
 export function formatDate(timestamp: number): string {
