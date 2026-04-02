@@ -20,6 +20,8 @@ import {
   Send,
   Loader2,
   CalendarDays,
+  MailX,
+  ShieldCheck,
 } from "lucide-react"
 import {
   getWorkersStatus,
@@ -32,6 +34,9 @@ import {
   getAllGamesAdmin,
   AdminStudio,
   AdminGame,
+  listEmailBlacklist,
+  updateEmailBlacklistStatus,
+  EmailBlacklistEntry,
 } from "@/lib/admin-api"
 import { toast } from "@/hooks/use-toast"
 import {
@@ -44,6 +49,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -541,10 +548,178 @@ function WorkersTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Mail Block Tab
+// ---------------------------------------------------------------------------
+
+function MailBlockTab() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const initialStatus = searchParams.get("status") || "blocked"
+  const initialPage = Number(searchParams.get("page")) || 1
+
+  const [entries, setEntries] = useState<EmailBlacklistEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(initialPage)
+  const [total, setTotal] = useState(0)
+  const [statusFilter, setStatusFilter] = useState(initialStatus)
+  const [allowingId, setAllowingId] = useState<string | null>(null)
+
+  // Sync filter state to URL
+  const updateUrl = useCallback((p: number, status: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("status", status)
+    params.set("page", String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [router, searchParams])
+  const pageSize = 20
+
+  const load = useCallback(async (p: number, status: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await listEmailBlacklist({ status: status === "all" ? undefined : status, page: p, page_size: pageSize })
+      setEntries(result.data ?? [])
+      setTotal(result.total ?? 0)
+    } catch (err) {
+      console.error("Failed to load email blacklist", err)
+      setError("Failed to load email blacklist")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load(page, statusFilter)
+  }, [load, page, statusFilter])
+
+  async function handleToggleStatus(entry: EmailBlacklistEntry) {
+    const newStatus = entry.status === "blocked" ? "allowed" : "blocked"
+    setAllowingId(entry.id)
+    try {
+      await updateEmailBlacklistStatus(entry.id, newStatus)
+      toast({ title: newStatus === "allowed" ? "Allowed" : "Blocked", description: `${entry.email} is now ${newStatus}.` })
+      setEntries((prev) => prev.map((e) => e.id === entry.id ? { ...e, status: newStatus } : e))
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setAllowingId(null)
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Email Blacklist</h2>
+          {!loading && (
+            <span className="text-xs text-muted-foreground">{total} entries</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); updateUrl(1, v) }}>
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="allowed">Allowed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => load(page, statusFilter)} disabled={loading} className="flex items-center gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
+        </Card>
+      )}
+
+      {loading && (
+        <Card>
+          <CardContent className="pt-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && (
+        <Card>
+          <CardContent className="pt-4 p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Email</th>
+                    <th className="px-4 py-2 font-medium">Domain</th>
+                    <th className="px-4 py-2 font-medium">Reason</th>
+                    <th className="px-4 py-2 font-medium">Created At</th>
+                    <th className="px-4 py-2 font-medium text-center">Allowed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        No blocked emails found.
+                      </td>
+                    </tr>
+                  )}
+                  {entries.map((entry) => (
+                    <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="px-4 py-2 font-mono text-xs">{entry.email}</td>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{entry.domain}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground max-w-[200px] truncate">{entry.reason || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">{formatISORelative(entry.created_at)}</td>
+                      <td className="px-4 py-2 text-center">
+                        <Switch
+                          checked={entry.status === "allowed"}
+                          disabled={allowingId === entry.id}
+                          onCheckedChange={() => handleToggleStatus(entry)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pagination */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => { const p = page - 1; setPage(p); updateUrl(p, statusFilter) }}>
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => { const p = page + 1; setPage(p); updateUrl(p, statusFilter) }}>
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Tabs shell
 // ---------------------------------------------------------------------------
 
-const VALID_TABS = ["workers"] as const
+const VALID_TABS = ["workers", "mailblock"] as const
 type TabValue = (typeof VALID_TABS)[number]
 
 function MonitorTabs() {
@@ -585,10 +760,17 @@ function MonitorTabs() {
             <Server className="h-4 w-4" />
             Workers
           </TabsTrigger>
+          <TabsTrigger value="mailblock" className="flex items-center gap-2">
+            <MailX className="h-4 w-4" />
+            Mail Block
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workers" className="mt-0">
           <WorkersTab />
+        </TabsContent>
+        <TabsContent value="mailblock" className="mt-0">
+          <MailBlockTab />
         </TabsContent>
       </Tabs>
     </div>
