@@ -284,7 +284,10 @@ export function LoginForm() {
           )}
 
           <div className="text-center text-sm text-muted-foreground">
-            {t('login.noRegistration')}
+            {t('login.dontHaveAccount')}{" "}
+            <Button variant="link" className="px-0 font-normal" size="sm" onClick={() => router.push('/register')}>
+              {t('login.signUp')}
+            </Button>
           </div>
         </CardFooter>
       </form>
