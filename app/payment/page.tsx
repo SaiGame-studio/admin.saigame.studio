@@ -92,6 +92,7 @@ interface PaymentMethod {
   description: string
   supports_subscription: boolean
   is_active: boolean
+  supported_currencies?: string
 }
 
 interface CoinPackage {
@@ -101,6 +102,7 @@ interface CoinPackage {
   description: string
   price_amount: number
   price_currency: string
+  prices?: Record<string, number>
   bonus_scoin: number
   total_scoin: number
   base_scoin: number
@@ -109,10 +111,37 @@ interface CoinPackage {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+const LOCALE_CURRENCY: Record<string, string> = {
+  vi: "VND",
+  ja: "JPY",
+  en: "USD",
+}
+
+function getLocalizedPrice(pkg: CoinPackage, locale: string, method?: PaymentMethod | null): { amount: number; currency: string } {
+  // Priority 1: first supported currency of the selected method that exists in prices
+  if (method?.supported_currencies && pkg.prices) {
+    const supported = method.supported_currencies.split(",").map(c => c.trim()).filter(Boolean)
+    for (const cur of supported) {
+      if (pkg.prices[cur] != null) {
+        return { amount: pkg.prices[cur], currency: cur }
+      }
+    }
+  }
+  // Priority 2: locale-based currency
+  const preferredCurrency = LOCALE_CURRENCY[locale]
+  if (preferredCurrency && pkg.prices?.[preferredCurrency] != null) {
+    return { amount: pkg.prices[preferredCurrency], currency: preferredCurrency }
+  }
+  return { amount: pkg.price_amount, currency: pkg.price_currency }
+}
+
 function formatPrice(amount: number, currency: string): string {
   const value = amount / 100
   if (currency === "VND") {
     return value.toLocaleString("vi-VN") + " ₫"
+  }
+  if (currency === "JPY") {
+    return "¥" + value.toLocaleString("ja-JP")
   }
   try {
     return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
@@ -398,10 +427,14 @@ function PaymentPageContent() {
           ? crypto.randomUUID()
           : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
 
+      const price = getLocalizedPrice(selectedPackage, locale, selectedMethod)
+
       const res = await api.post("/api/v1/payments/initiate", {
         package_key: selectedPackage.key,
         provider_key: selectedMethod.provider_key,
         idempotency_key: idempotencyKey,
+        currency: price.currency,
+        amount: price.amount / 100,
       })
       console.log("[SePay] initiate response:", res)
 
@@ -573,7 +606,7 @@ function PaymentPageContent() {
                             </div>
                             <div className="flex items-center gap-2">
                               <p className="text-base font-semibold text-primary">
-                                {formatPrice(pkg.price_amount, pkg.price_currency)}
+                                {(() => { const p = getLocalizedPrice(pkg, locale, selectedMethod); return formatPrice(p.amount, p.currency) })()}
                               </p>
                               {pkg.bonus_scoin > 0 && (
                                 <div className={`flex items-center justify-center w-14 h-14 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 ${isSelected ? "stamp-animate" : ""}`}>
@@ -692,7 +725,7 @@ function PaymentPageContent() {
                             </p>
                           </div>
                           <p className="text-sm font-semibold text-primary shrink-0">
-                            {formatPrice(selectedPackage.price_amount, selectedPackage.price_currency)}
+                            {(() => { const p = getLocalizedPrice(selectedPackage, locale, selectedMethod); return formatPrice(p.amount, p.currency) })()}
                           </p>
                         </div>
                       ) : (
