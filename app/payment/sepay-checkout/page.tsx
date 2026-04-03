@@ -391,50 +391,30 @@ function CheckoutPageContent() {
           </Card>
         )}
 
-        {/* Bank transfer details */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("sepayCheckout.manualTransfer")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {intent && (
-              <>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("sepayCheckout.bankName")}</p>
-                    <p className="font-semibold">{intent.bank_name}</p>
-                  </div>
+        {/* Transfer note */}
+        {intent && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("sepayCheckout.transferNote")}</p>
+                  <p className="font-semibold font-mono text-primary">{intent.transfer_note}</p>
                 </div>
-                <Separator />
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("sepayCheckout.accountNumber")}</p>
-                    <p className="font-semibold font-mono">{intent.bank_account}</p>
-                  </div>
-                  <CopyBtn text={intent.bank_account} />
+                <CopyBtn text={intent.transfer_note} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("sepayCheckout.amount")}</p>
+                  <p className="font-semibold text-primary text-lg">
+                    {formatPrice(intent.transfer_amount, transaction?.currency ?? "VND")}
+                  </p>
                 </div>
-                <Separator />
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("sepayCheckout.amount")}</p>
-                    <p className="font-semibold text-primary text-lg">
-                      {formatPrice(intent.transfer_amount / 100, transaction?.currency ?? "VND")}
-                    </p>
-                  </div>
-                  <CopyBtn text={String(intent.transfer_amount / 100)} />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("sepayCheckout.transferNote")}</p>
-                    <p className="font-semibold font-mono text-primary">{intent.transfer_note}</p>
-                  </div>
-                  <CopyBtn text={intent.transfer_note} />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                <CopyBtn text={String(intent.transfer_amount)} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Warning */}
         <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
