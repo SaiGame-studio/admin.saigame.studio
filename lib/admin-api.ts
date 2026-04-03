@@ -693,15 +693,21 @@ export interface EmailBlacklistResult {
 
 export async function listEmailBlacklist(params?: {
   status?: string
+  search?: string
   page?: number
   page_size?: number
 }): Promise<EmailBlacklistResult> {
   const query = new URLSearchParams()
   if (params?.status) query.set("status", params.status)
+  if (params?.search) query.set("search", params.search)
   if (params?.page) query.set("page", String(params.page))
   if (params?.page_size) query.set("page_size", String(params.page_size))
   const qs = query.toString()
   return api.get(`/api/v1/admin/email-blacklist${qs ? `?${qs}` : ""}`)
+}
+
+export async function addEmailToBlacklist(email: string, reason?: string): Promise<{ message: string }> {
+  return api.post("/api/v1/admin/email-blacklist", { email, reason: reason || "manual" })
 }
 
 export async function updateEmailBlacklistStatus(id: string, status: string): Promise<void> {
