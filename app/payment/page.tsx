@@ -138,7 +138,10 @@ function getMethodIcon(providerKey: string) {
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   completed: "default",
   pending: "secondary",
+  awaiting_payment: "secondary",
   failed: "destructive",
+  expired: "destructive",
+  credit_failed: "destructive",
 }
 
 function formatDate(iso: string) {
@@ -315,6 +318,7 @@ function PaymentPageContent() {
   const [checkingOut, setCheckingOut] = useState(false)
 
   const STORAGE_KEY_PACKAGE = "payment:lastPackageId"
+  const STORAGE_KEY_METHOD = "payment:lastMethodId"
 
   // Restore last selected package after packages are loaded
   useEffect(() => {
@@ -325,6 +329,16 @@ function PaymentPageContent() {
       if (found) setSelectedPackage(found)
     }
   }, [packages])
+
+  // Restore last selected method after methods are loaded
+  useEffect(() => {
+    if (methods.length === 0) return
+    const savedId = localStorage.getItem(STORAGE_KEY_METHOD)
+    if (savedId) {
+      const found = methods.find((m) => m.id === savedId)
+      if (found) setSelectedMethod(found)
+    }
+  }, [methods])
 
   function handleSelectPackage(pkg: CoinPackage, isSelected: boolean) {
     if (isSelected) {
@@ -379,10 +393,31 @@ function PaymentPageContent() {
     }
     setCheckingOut(true)
     try {
-      // Placeholder: checkout endpoint to be connected
+      const idempotencyKey =
+        typeof crypto?.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+
+      const res = await api.post("/api/v1/payments/initiate", {
+        package_key: selectedPackage.key,
+        provider_key: selectedMethod.provider_key,
+        idempotency_key: idempotencyKey,
+      })
+      console.log("[SePay] initiate response:", res)
+
+      const root = res?.data ?? res
+      const txId = root?.transaction?.id
+      if (!txId) throw new Error("No transaction returned")
+
+      // Store intent data for the checkout page
+      sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res))
+
+      router.push(`/payment/checkout?tx_id=${txId}`)
+    } catch (err: any) {
       toast({
-        title: t('payment.checkoutInitiated'),
-        description: `${selectedPackage.name} · ${selectedMethod.display_name}`,
+        variant: "destructive",
+        title: t('payment.checkoutFailed'),
+        description: err?.data?.error ?? err?.message ?? t('payment.checkoutFailedDesc'),
       })
     } finally {
       setCheckingOut(false)
@@ -596,7 +631,15 @@ function PaymentPageContent() {
                           className={`cursor-pointer transition-all hover:border-primary/60 ${
                             isSelected ? "border-primary ring-2 ring-primary/30" : ""
                           }`}
-                          onClick={() => setSelectedMethod(isSelected ? null : method)}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedMethod(null)
+                              localStorage.removeItem(STORAGE_KEY_METHOD)
+                            } else {
+                              setSelectedMethod(method)
+                              localStorage.setItem(STORAGE_KEY_METHOD, method.id)
+                            }
+                          }}
                         >
                           <CardContent className="flex items-center gap-4 p-4">
                             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
