@@ -36,6 +36,7 @@ import {
   AdminGame,
   listEmailBlacklist,
   updateEmailBlacklistStatus,
+  addEmailToBlacklist,
   EmailBlacklistEntry,
 } from "@/lib/admin-api"
 import { toast } from "@/hooks/use-toast"
@@ -565,21 +566,40 @@ function MailBlockTab() {
   const [total, setTotal] = useState(0)
   const [statusFilter, setStatusFilter] = useState(initialStatus)
   const [allowingId, setAllowingId] = useState<string | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [addEmail, setAddEmail] = useState("")
+  const [addReason, setAddReason] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [search, setSearch] = useState(searchParams.get("search") || "")
+  const [searchDebounced, setSearchDebounced] = useState(search)
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounced(search)
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [search])
 
   // Sync filter state to URL
-  const updateUrl = useCallback((p: number, status: string) => {
+  const updateUrl = useCallback((p: number, status: string, s?: string) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set("status", status)
     params.set("page", String(p))
+    if (s !== undefined) {
+      if (s) params.set("search", s)
+      else params.delete("search")
+    }
     router.replace(`?${params.toString()}`, { scroll: false })
   }, [router, searchParams])
   const pageSize = 20
 
-  const load = useCallback(async (p: number, status: string) => {
+  const load = useCallback(async (p: number, status: string, searchTerm?: string) => {
     setLoading(true)
     setError(null)
     try {
-      const result = await listEmailBlacklist({ status: status === "all" ? undefined : status, page: p, page_size: pageSize })
+      const result = await listEmailBlacklist({ status: status === "all" ? undefined : status, search: searchTerm || undefined, page: p, page_size: pageSize })
       setEntries(result.data ?? [])
       setTotal(result.total ?? 0)
     } catch (err) {
@@ -591,8 +611,9 @@ function MailBlockTab() {
   }, [])
 
   useEffect(() => {
-    load(page, statusFilter)
-  }, [load, page, statusFilter])
+    load(page, statusFilter, searchDebounced)
+    updateUrl(page, statusFilter, searchDebounced)
+  }, [load, page, statusFilter, searchDebounced])
 
   async function handleToggleStatus(entry: EmailBlacklistEntry) {
     const newStatus = entry.status === "blocked" ? "allowed" : "blocked"
@@ -608,6 +629,23 @@ function MailBlockTab() {
     }
   }
 
+  async function handleAddEmail() {
+    if (!addEmail.trim()) return
+    setAdding(true)
+    try {
+      await addEmailToBlacklist(addEmail.trim(), addReason.trim() || undefined)
+      toast({ title: "Added", description: `${addEmail.trim()} added to blacklist.` })
+      setAddEmail("")
+      setAddReason("")
+      setAddDialogOpen(false)
+      load(page, statusFilter, searchDebounced)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setAdding(false)
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
@@ -620,7 +658,8 @@ function MailBlockTab() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); updateUrl(1, v) }}>
+          <Input placeholder="Search email..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-[200px] h-8 text-xs" />
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
             <SelectTrigger className="w-[140px] h-8 text-xs">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
@@ -630,7 +669,38 @@ function MailBlockTab() {
               <SelectItem value="allowed">Allowed</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => load(page, statusFilter)} disabled={loading} className="flex items-center gap-2">
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="flex items-center gap-2">
+                <MailX className="h-4 w-4" />
+                Add Email
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Email to Blacklist</DialogTitle>
+                <DialogDescription>Block an email address from the system.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="blacklist-email">Email</Label>
+                  <Input id="blacklist-email" type="email" placeholder="user@example.com" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="blacklist-reason">Reason (optional)</Label>
+                  <Input id="blacklist-reason" placeholder="spam" value={addReason} onChange={(e) => setAddReason(e.target.value)} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={adding}>Cancel</Button>
+                <Button onClick={handleAddEmail} disabled={adding || !addEmail.trim()}>
+                  {adding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add to Blacklist
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" size="sm" onClick={() => load(page, statusFilter, searchDebounced)} disabled={loading} className="flex items-center gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
