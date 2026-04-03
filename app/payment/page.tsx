@@ -445,7 +445,7 @@ function PaymentPageContent() {
       // Store intent data for the checkout page
       sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res))
 
-      router.push(`/payment/checkout?tx_id=${txId}`)
+      router.push(`/payment/sepay-checkout?tx_id=${txId}`)
     } catch (err: any) {
       toast({
         variant: "destructive",
