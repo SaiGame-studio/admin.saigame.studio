@@ -555,7 +555,7 @@ function MailBlockTab() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const initialStatus = searchParams.get("status") || "blocked"
+  const initialStatus = searchParams.get("status") || "all"
   const initialPage = Number(searchParams.get("page")) || 1
 
   const [entries, setEntries] = useState<EmailBlacklistEntry[]>([])
