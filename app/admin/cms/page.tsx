@@ -5,13 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCapabilities } from "@/hooks/use-capabilities"
-import { PenSquare, ShieldAlert, Search, RefreshCw, Star, Globe, X } from "lucide-react"
+import { PenSquare, ShieldAlert, Search, RefreshCw, Star, Globe, X, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog"
 import Link from "next/link"
-import { listCmsContents, CmsContent } from "@/lib/admin-api"
+import { listCmsContents, createCmsContent, CmsContent } from "@/lib/admin-api"
+import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CategoryTab } from "./CategoryTab"
 
 const CATEGORIES = [
   { value: "all", label: "All Categories" },
@@ -73,6 +80,22 @@ function CmsPageInner() {
   const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc")
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const perPage = 20
+  const { toast } = useToast()
+
+  const [activeTab, setActiveTab] = useState(
+    ["content", "category"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "content"
+  )
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value)
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.set("tab", value)
+    router.replace(`?${sp.toString()}`, { scroll: false })
+  }, [router, searchParams])
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createTitle, setCreateTitle] = useState("")
+  const [creating, setCreating] = useState(false)
 
   // debounce search
   useEffect(() => {
@@ -131,6 +154,30 @@ function CmsPageInner() {
     setPage(1)
   }, [category, language, sortBy, sortOrder])
 
+  const handleCreate = async () => {
+    if (!createTitle.trim()) return
+    setCreating(true)
+    const title = createTitle.trim()
+    const slug = title
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d").replace(/Đ/g, "d")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+    try {
+      const created = await createCmsContent({ title, slug })
+      setCreateDialogOpen(false)
+      setCreateTitle("")
+      router.push(`/admin/cms/${created.id}?language=${created.language || "en"}`)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const hasActiveFilters = category !== "all" || language !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
 
   if (!capabilities.is_super_admin) {
@@ -163,6 +210,13 @@ function CmsPageInner() {
         </div>
       </div>
 
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="category">Category</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
         <div>
@@ -239,6 +293,10 @@ function CmsPageInner() {
           {/* Refresh */}
           <Button variant="outline" size="sm" className="h-8" onClick={load} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Add Content
           </Button>
         </div>
       </div>
@@ -339,6 +397,37 @@ function CmsPageInner() {
           </Button>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="category">
+          <CategoryTab />
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Content Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Content</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              placeholder="Page title..."
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreate() } }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={creating}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={creating || !createTitle.trim()}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

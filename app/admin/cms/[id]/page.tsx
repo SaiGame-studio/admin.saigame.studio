@@ -18,7 +18,7 @@ import {
   Link as LinkIcon, Image, Code, Quote, Minus, X, Plus,
 } from "lucide-react"
 import Link from "next/link"
-import { getCmsContent, updateCmsContent, CmsContent } from "@/lib/admin-api"
+import { getCmsContent, updateCmsContent, toggleCmsContentPublish, CmsContent } from "@/lib/admin-api"
 import CodeMirror from "@uiw/react-codemirror"
 import { markdown } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
@@ -82,10 +82,14 @@ function CmsDetailInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
 
   // Editable fields
   const [title, setTitle] = useState("")
+  const [slug, setSlug] = useState("")
+  const [contentLanguage, setContentLanguage] = useState("")
+  const [categoryPath, setCategoryPath] = useState("")
   const [description, setDescription] = useState("")
   const [body, setBody] = useState("")
   const [featured, setFeatured] = useState(false)
@@ -100,7 +104,7 @@ function CmsDetailInner() {
 
   // Editor ref
   const [editorView, setEditorView] = useState<EditorView | null>(null)
-  const editorRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLLabelElement>(null)
 
   // Track dirty state
   const [dirty, setDirty] = useState(false)
@@ -111,6 +115,9 @@ function CmsDetailInner() {
 
   const populateForm = useCallback((c: CmsContent) => {
     setTitle(c.title || "")
+    setSlug(c.slug || "")
+    setContentLanguage(c.language || "")
+    setCategoryPath(c.category_path || "")
     setDescription(c.description || "")
     setBody(c.body || "")
     setFeatured(c.featured || false)
@@ -178,7 +185,10 @@ function CmsDetailInner() {
     try {
       const updated = await updateCmsContent(id, {
         title,
+        slug,
+        language: contentLanguage,
         description,
+        category_path: categoryPath,
         featured,
         tags,
         body,
@@ -195,6 +205,21 @@ function CmsDetailInner() {
       toast({ title: "Error", description: String(err), variant: "destructive" })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTogglePublish = async () => {
+    if (!content) return
+    const action = content.status === "published" ? "unpublish" : "publish"
+    setPublishing(true)
+    try {
+      const updated = await toggleCmsContentPublish(id, action)
+      setContent((prev) => prev ? { ...prev, status: updated.status } : prev)
+      toast({ title: action === "publish" ? "Published" : "Unpublished", description: `Content is now ${updated.status}.` })
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setPublishing(false)
     }
   }
 
@@ -229,8 +254,17 @@ function CmsDetailInner() {
         <div className="flex items-center gap-2">
           {content && (
             <>
-              <Badge variant={statusBadgeVariant(content.status)}>{content.status}</Badge>
               <span className="text-xs text-muted-foreground">v{content.version_number}</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-medium ${content.status === "published" ? "text-green-600" : "text-muted-foreground"}`}>
+                  {publishing ? "..." : content.status === "published" ? "Published" : "Draft"}
+                </span>
+                <Switch
+                  checked={content.status === "published"}
+                  disabled={publishing}
+                  onCheckedChange={handleTogglePublish}
+                />
+              </div>
               <Separator orientation="vertical" className="h-4" />
             </>
           )}
@@ -257,26 +291,38 @@ function CmsDetailInner() {
 
       {!loading && !error && content && (
         <>
-          {/* Title & Description */}
-          <div className="space-y-3 mb-4">
-            <Input
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); markDirty() }}
-              placeholder="Title"
-              className="text-lg font-semibold h-10"
-            />
-            <Input
-              value={description}
-              onChange={(e) => { setDescription(e.target.value); markDirty() }}
-              placeholder="Description"
-              className="text-sm"
-            />
-          </div>
-
           {/* Main layout: 3/4 editor, 1/4 sidebar */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            {/* Left: Body editor (3/4) */}
-            <div className="lg:col-span-3 space-y-2" ref={editorRef}>
+            {/* Left: Title + Description + Body editor (3/4) */}
+            <div className="lg:col-span-3 space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Title</Label>
+                <Input
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); markDirty() }}
+                  placeholder="Title"
+                  className="text-lg font-semibold h-10"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Slug</Label>
+                <Input
+                  value={slug}
+                  onChange={(e) => { setSlug(e.target.value); markDirty() }}
+                  placeholder="slug-url"
+                  className="text-sm font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Input
+                  value={description}
+                  onChange={(e) => { setDescription(e.target.value); markDirty() }}
+                  placeholder="Description"
+                  className="text-sm"
+                />
+              </div>
+              <Label ref={editorRef} className="text-xs text-muted-foreground">Body</Label>
               {/* Toolbar */}
               <div className="flex items-center gap-1 flex-wrap border rounded-md p-1 bg-muted/30">
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="Bold" onClick={() => wrapSelection(editorView, "**", "**")}>
@@ -374,20 +420,25 @@ function CmsDetailInner() {
                   <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Info</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Slug:</span>
-                    <span className="font-mono truncate">{content.slug}</span>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="h-3 w-3" />Language</Label>
+                    <select
+                      className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
+                      value={contentLanguage}
+                      onChange={(e) => { setContentLanguage(e.target.value); markDirty() }}
+                    >
+                      <option value="vi">vi</option>
+                      <option value="en">en</option>
+                      <option value="ja">ja</option>
+                      <option value="zh">zh</option>
+                      <option value="ko">ko</option>
+                      <option value="pt">pt</option>
+                      <option value="fr">fr</option>
+                    </select>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Globe className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Language:</span>
-                    <span className="uppercase">{content.language}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Tag className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Category:</span>
-                    <span className="font-mono truncate">{content.category_path}</span>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" />Category Path</Label>
+                    <Input value={categoryPath} onChange={(e) => { setCategoryPath(e.target.value); markDirty() }} className="h-7 text-xs font-mono" />
                   </div>
                   <Separator />
                   <div className="flex items-center gap-1.5">
@@ -408,67 +459,34 @@ function CmsDetailInner() {
                   <div className="flex items-center gap-1.5">
                     <User className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Author:</span>
-                    <span className="font-mono truncate">{content.author_id.slice(0, 8)}...</span>
+                    <span className="font-mono truncate">{content.author_id?.slice(0, 8) ?? "—"}...</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Featured */}
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm flex items-center gap-1.5">
-                      <Star className="h-3.5 w-3.5" />
-                      Featured
-                    </Label>
-                    <Switch checked={featured} onCheckedChange={(v) => { setFeatured(v); markDirty() }} />
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <span className="text-muted-foreground text-xs">Tags</span>
+                    <div className="flex flex-wrap gap-1">
+                      {tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs gap-1 pr-1">
+                          {tag}
+                          <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <Input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag() } }}
+                        placeholder="Add tag..."
+                        className="h-7 text-xs"
+                      />
+                      <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={handleAddTag}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Tags */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Tags</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex flex-wrap gap-1">
-                    {tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs gap-1 pr-1">
-                        {tag}
-                        <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex gap-1">
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag() } }}
-                      placeholder="Add tag..."
-                      className="h-7 text-xs"
-                    />
-                    <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={handleAddTag}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Change Log */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Change Log</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Input
-                    value={changeLog}
-                    onChange={(e) => { setChangeLog(e.target.value); markDirty() }}
-                    placeholder="What changed..."
-                    className="h-7 text-xs"
-                  />
                 </CardContent>
               </Card>
 
@@ -524,12 +542,21 @@ function CmsDetailInner() {
                 </CardContent>
               </Card>
 
-              {/* Metadata JSON */}
+              {/* Metadata & Change Log */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Metadata</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Change Log</Label>
+                    <Input
+                      value={changeLog}
+                      onChange={(e) => { setChangeLog(e.target.value); markDirty() }}
+                      placeholder="What changed..."
+                      className="h-7 text-xs"
+                    />
+                  </div>
                   <CodeMirror
                     value={metadataJson}
                     onChange={(val) => { setMetadataJson(val); markDirty() }}

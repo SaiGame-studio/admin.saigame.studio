@@ -788,7 +788,10 @@ export async function getCmsContent(id: string, language?: string): Promise<CmsC
 
 export async function updateCmsContent(id: string, data: {
   title?: string
+  slug?: string
+  language?: string
   description?: string
+  category_path?: string
   featured?: boolean
   tags?: string[]
   body?: string
@@ -798,5 +801,62 @@ export async function updateCmsContent(id: string, data: {
   seo_keywords?: string[]
   metadata?: Record<string, unknown>
 }): Promise<CmsContent> {
-  return api.patch(`/api/v1/contents/${encodeURIComponent(id)}`, data)
+  return api.patch(`/api/v1/admin/contents/${encodeURIComponent(id)}`, data)
+}
+
+export async function createCmsContent(data: { title: string; slug?: string }): Promise<CmsContent> {
+  return api.post("/api/v1/admin/contents", data)
+}
+
+export async function toggleCmsContentPublish(id: string, action: "publish" | "unpublish"): Promise<CmsContent> {
+  return api.post(`/api/v1/admin/contents/${encodeURIComponent(id)}/publish`, { action })
+}
+
+// ---------------------------------------------------------------------------
+// CMS Content Categories
+// ---------------------------------------------------------------------------
+
+export interface ContentCategory {
+  id: string
+  parent_id: string | null
+  name: string
+  slug: string
+  description: string
+  path: string
+  depth: number
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  children: ContentCategory[]
+}
+
+export async function listCategoryTree(): Promise<ContentCategory[]> {
+  const result = await api.get("/api/v1/admin/categories")
+  return result.data ?? []
+}
+
+export async function createCategory(data: {
+  parent_id?: string | null
+  name: string
+  slug: string
+  description?: string
+  sort_order?: number
+}): Promise<ContentCategory> {
+  return api.post("/api/v1/admin/categories", data)
+}
+
+export async function updateCategory(id: string, data: {
+  parent_id?: string | null
+  name?: string
+  slug?: string
+  description?: string
+  sort_order?: number
+  is_active?: boolean
+}): Promise<ContentCategory> {
+  return api.patch(`/api/v1/admin/categories/${encodeURIComponent(id)}`, data)
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  return api.delete(`/api/v1/admin/categories/${encodeURIComponent(id)}`)
 }
