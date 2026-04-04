@@ -5,39 +5,30 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCapabilities } from "@/hooks/use-capabilities"
-import { PenSquare, ShieldAlert, Search, RefreshCw, Star, Globe, X, Plus, Loader2 } from "lucide-react"
+import { PenSquare, ShieldAlert, Search, RefreshCw, Star, X, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { listCmsContents, createCmsContent, CmsContent } from "@/lib/admin-api"
+import { listCmsContents, createCmsContent, listCategoryTree, toggleCmsContentPublish, CmsContent, ContentCategory } from "@/lib/admin-api"
 import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoryTab } from "./CategoryTab"
 
-const CATEGORIES = [
-  { value: "all", label: "All Categories" },
-  { value: "tutorial", label: "Tutorial" },
-  { value: "guide", label: "Guide" },
-  { value: "faq", label: "FAQ" },
-  { value: "documentation", label: "Documentation" },
-]
-
-const LANGUAGES = [
-  { value: "all", label: "All Languages" },
-  { value: "vi", label: "Vietnamese" },
-  { value: "en", label: "English" },
-  { value: "ja", label: "Japanese" },
-  { value: "zh", label: "Chinese" },
-  { value: "ko", label: "Korean" },
-  { value: "pt", label: "Portuguese" },
-  { value: "fr", label: "French" },
-]
+function flattenCategoryTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
+  const result: { value: string; label: string; depth: number }[] = []
+  for (const cat of cats) {
+    result.push({ value: cat.id, label: cat.name, depth })
+    if (cat.children?.length) result.push(...flattenCategoryTree(cat.children, depth + 1))
+  }
+  return result
+}
 
 const SORT_OPTIONS = [
   { value: "created_at", label: "Created At" },
@@ -70,10 +61,10 @@ function CmsPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
 
   // Filters
   const [category, setCategory] = useState(searchParams.get("category") || "all")
-  const [language, setLanguage] = useState(searchParams.get("language") || "all")
   const [searchName, setSearchName] = useState(searchParams.get("search") || "")
   const [debouncedSearch, setDebouncedSearch] = useState(searchName)
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "created_at")
@@ -81,6 +72,13 @@ function CmsPageInner() {
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const perPage = 20
   const { toast } = useToast()
+
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string; depth: number }[]>([])
+  const categoryMap = Object.fromEntries(categoryOptions.map(c => [c.value, c.label]))
+
+  useEffect(() => {
+    listCategoryTree().then(tree => setCategoryOptions(flattenCategoryTree(tree))).catch(() => {})
+  }, [])
 
   const [activeTab, setActiveTab] = useState(
     ["content", "category"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "content"
@@ -117,8 +115,7 @@ function CmsPageInner() {
     setError(null)
     try {
       const result = await listCmsContents({
-        category: category !== "all" ? category : undefined,
-        language: language !== "all" ? language : undefined,
+        category_id: category !== "all" ? category : undefined,
         search: debouncedSearch || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
@@ -134,12 +131,12 @@ function CmsPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [category, language, debouncedSearch, sortBy, sortOrder, page])
+  }, [category, debouncedSearch, sortBy, sortOrder, page])
 
   useEffect(() => {
     if (capabilities.is_super_admin) {
       load()
-      updateUrl({ category, language, search: debouncedSearch, sort_by: sortBy, sort_order: sortOrder, page })
+      updateUrl({ category, search: debouncedSearch, sort_by: sortBy, sort_order: sortOrder, page })
     }
   }, [capabilities.is_super_admin, load])
 
@@ -152,7 +149,7 @@ function CmsPageInner() {
   // reset page when filters change
   useEffect(() => {
     setPage(1)
-  }, [category, language, sortBy, sortOrder])
+  }, [category, sortBy, sortOrder])
 
   const handleCreate = async () => {
     if (!createTitle.trim()) return
@@ -178,7 +175,7 @@ function CmsPageInner() {
     }
   }
 
-  const hasActiveFilters = category !== "all" || language !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
+  const hasActiveFilters = category !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
 
   if (!capabilities.is_super_admin) {
     return (
@@ -230,7 +227,7 @@ function CmsPageInner() {
           {hasActiveFilters && (
             <button
               className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-              onClick={() => { setSearchName(""); setCategory("all"); setLanguage("all"); setSortBy("created_at"); setSortOrder("desc") }}
+              onClick={() => { setSearchName(""); setCategory("all"); setSortBy("created_at"); setSortOrder("desc") }}
             >
               Clear
             </button>
@@ -256,22 +253,15 @@ function CmsPageInner() {
           </div>
           {/* Category */}
           <select
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm capitalize"
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value} className="capitalize">{c.label}</option>
-            ))}
-          </select>
-          {/* Language */}
-          <select
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>{l.label}</option>
+            <option value="all">All Categories</option>
+            {categoryOptions.map((c) => (
+              <option key={c.value} value={c.value}>
+                {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
+              </option>
             ))}
           </select>
           {/* Sort */}
@@ -320,9 +310,7 @@ function CmsPageInner() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Language</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Tags</TableHead>
                   <TableHead>Version</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Updated At</TableHead>
@@ -343,28 +331,26 @@ function CmsPageInner() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs font-mono text-muted-foreground">{item.category_path}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.category_id ? (categoryMap[item.category_id] ?? <span className="font-mono">{item.category_id.slice(0, 8)}…</span>) : "—"}
+                      </span>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs uppercase">{item.language}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariant(item.status)} className="text-xs">
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags?.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                        ))}
-                        {item.tags?.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{item.tags.length - 3}</span>
-                        )}
-                      </div>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={item.status === "published"}
+                        disabled={togglingIds.has(item.id)}
+                        onCheckedChange={async (checked) => {
+                          setTogglingIds(prev => new Set(prev).add(item.id))
+                          try {
+                            const updated = await toggleCmsContentPublish(item.id, checked ? "publish" : "unpublish")
+                            setContents(prev => prev.map(c => c.id === item.id ? { ...c, status: updated.status } : c))
+                          } catch (err) {
+                            toast({ title: "Error", description: String(err), variant: "destructive" })
+                          } finally {
+                            setTogglingIds(prev => { const s = new Set(prev); s.delete(item.id); return s })
+                          }
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">v{item.version_number}</span>

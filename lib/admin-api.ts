@@ -724,7 +724,7 @@ export interface CmsContent {
   slug: string
   language: string
   description: string
-  category_path: string
+  category_id: string | null
   status: string
   featured: boolean
   tags: string[]
@@ -753,7 +753,7 @@ export interface CmsContentsResult {
 }
 
 export async function listCmsContents(params?: {
-  category?: string
+  category_id?: string
   subcategory?: string
   tags?: string
   featured?: boolean
@@ -765,7 +765,7 @@ export async function listCmsContents(params?: {
   per_page?: number
 }): Promise<CmsContentsResult> {
   const query = new URLSearchParams()
-  if (params?.category) query.set("category", params.category)
+  if (params?.category_id) query.set("category", params.category_id)
   if (params?.subcategory) query.set("subcategory", params.subcategory)
   if (params?.tags) query.set("tags", params.tags)
   if (params?.featured !== undefined) query.set("featured", String(params.featured))
@@ -779,11 +779,20 @@ export async function listCmsContents(params?: {
   return api.get(`/api/v1/admin/contents${qs ? `?${qs}` : ""}`)
 }
 
-export async function getCmsContent(id: string, language?: string): Promise<CmsContent> {
-  const query = new URLSearchParams()
-  if (language) query.set("language", language)
-  const qs = query.toString()
-  return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`)
+export async function getCmsContent(id: string): Promise<CmsContent> {
+  return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}`)
+}
+
+export interface ContentTranslationSummary {
+  id: string
+  language: string
+  title: string
+  status: string
+  is_root: boolean
+}
+
+export async function getContentTranslations(id: string): Promise<{ root_id: string; translations: ContentTranslationSummary[] }> {
+  return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}/translations`)
 }
 
 export async function updateCmsContent(id: string, data: {
@@ -791,7 +800,7 @@ export async function updateCmsContent(id: string, data: {
   slug?: string
   language?: string
   description?: string
-  category_path?: string
+  category_id?: string | null
   featured?: boolean
   tags?: string[]
   body?: string
@@ -810,6 +819,10 @@ export async function createCmsContent(data: { title: string; slug?: string }): 
 
 export async function toggleCmsContentPublish(id: string, action: "publish" | "unpublish"): Promise<CmsContent> {
   return api.post(`/api/v1/admin/contents/${encodeURIComponent(id)}/publish`, { action })
+}
+
+export async function autoTranslateCmsContent(id: string, targetLanguages: string[]): Promise<{ translations: ContentTranslationSummary[] }> {
+  return api.post(`/api/v1/admin/contents/${encodeURIComponent(id)}/auto-translate`, { target_languages: targetLanguages })
 }
 
 // ---------------------------------------------------------------------------

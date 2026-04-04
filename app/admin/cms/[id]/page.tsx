@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,18 +13,21 @@ import { Separator } from "@/components/ui/separator"
 import { useCapabilities } from "@/hooks/use-capabilities"
 import { useToast } from "@/hooks/use-toast"
 import {
-  ArrowLeft, Globe, Star, Clock, User, FileText, Tag, ShieldAlert,
+  ArrowLeft, Star, Clock, FileText, Tag, ShieldAlert,
   Save, Loader2, Eye, Pencil, Bold, Italic, Heading, List, ListOrdered,
   Link as LinkIcon, Image, Code, Quote, Minus, X, Plus,
 } from "lucide-react"
 import Link from "next/link"
-import { getCmsContent, updateCmsContent, toggleCmsContentPublish, CmsContent } from "@/lib/admin-api"
+import { getCmsContent, updateCmsContent, toggleCmsContentPublish, listCategoryTree, getContentTranslations, autoTranslateCmsContent, CmsContent, ContentCategory, ContentTranslationSummary } from "@/lib/admin-api"
 import CodeMirror from "@uiw/react-codemirror"
 import { markdown } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { json } from "@codemirror/lang-json"
-import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { EditorView } from "@codemirror/view"
+import { vscodeDark } from "@uiw/codemirror-theme-vscode"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const SUPPORTED_LANGS = ["en", "vi", "ja"]
 
 function statusBadgeVariant(status: string) {
   switch (status) {
@@ -71,14 +74,15 @@ function prefixLine(view: EditorView | null, prefix: string) {
 function CmsDetailInner() {
   const router = useRouter()
   const params = useParams()
-  const searchParams = useSearchParams()
   const capabilities = useCapabilities()
   const { toast } = useToast()
 
   const id = params.id as string
-  const language = searchParams.get("language") || undefined
 
   const [content, setContent] = useState<CmsContent | null>(null)
+  const [translations, setTranslations] = useState<ContentTranslationSummary[]>([])
+  const [rootId, setRootId] = useState<string | null>(null)
+  const [translating, setTranslating] = useState<string | null>(null) // lang being auto-translated
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -88,13 +92,11 @@ function CmsDetailInner() {
   // Editable fields
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
-  const [contentLanguage, setContentLanguage] = useState("")
-  const [categoryPath, setCategoryPath] = useState("")
+  const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string; depth: number }[]>([])
   const [description, setDescription] = useState("")
   const [body, setBody] = useState("")
   const [featured, setFeatured] = useState(false)
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState("")
   const [changeLog, setChangeLog] = useState("")
   const [seoTitle, setSeoTitle] = useState("")
   const [seoDescription, setSeoDescription] = useState("")
@@ -106,6 +108,18 @@ function CmsDetailInner() {
   const [editorView, setEditorView] = useState<EditorView | null>(null)
   const editorRef = useRef<HTMLLabelElement>(null)
 
+  useEffect(() => {
+    function flattenTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
+      const result: { value: string; label: string; depth: number }[] = []
+      for (const cat of cats) {
+        result.push({ value: cat.id, label: cat.name, depth })
+        if (cat.children?.length) result.push(...flattenTree(cat.children, depth + 1))
+      }
+      return result
+    }
+    listCategoryTree().then(tree => setCategoryOptions(flattenTree(tree))).catch(() => {})
+  }, [])
+
   // Track dirty state
   const [dirty, setDirty] = useState(false)
 
@@ -116,12 +130,10 @@ function CmsDetailInner() {
   const populateForm = useCallback((c: CmsContent) => {
     setTitle(c.title || "")
     setSlug(c.slug || "")
-    setContentLanguage(c.language || "")
-    setCategoryPath(c.category_path || "")
+    setCategoryId(c.category_id ?? null)
     setDescription(c.description || "")
     setBody(c.body || "")
     setFeatured(c.featured || false)
-    setTags(c.tags || [])
     setChangeLog(c.change_log || "")
     setSeoTitle(c.seo_title || "")
     setSeoDescription(c.seo_description || "")
@@ -135,7 +147,7 @@ function CmsDetailInner() {
       setLoading(true)
       setError(null)
       try {
-        const result = await getCmsContent(id, language)
+        const result = await getCmsContent(id)
         setContent(result)
         populateForm(result)
       } catch (err) {
@@ -144,22 +156,19 @@ function CmsDetailInner() {
       } finally {
         setLoading(false)
       }
+      // Translations are non-critical — load separately
+      try {
+        const transResult = await getContentTranslations(id)
+        setTranslations(transResult.translations)
+        setRootId(transResult.root_id)
+      } catch {
+        // ignore — translations endpoint may not exist for this content
+      }
     }
     if (id && capabilities.is_super_admin) load()
-  }, [id, language, capabilities.is_super_admin, populateForm])
+  }, [id, capabilities.is_super_admin, populateForm])
 
   const markDirty = () => setDirty(true)
-
-  const handleAddTag = () => {
-    const t = tagInput.trim()
-    if (t && !tags.includes(t)) { setTags([...tags, t]); markDirty() }
-    setTagInput("")
-  }
-
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
-    markDirty()
-  }
 
   const handleAddSeoKeyword = () => {
     const k = seoKeywordInput.trim()
@@ -186,11 +195,10 @@ function CmsDetailInner() {
       const updated = await updateCmsContent(id, {
         title,
         slug,
-        language: contentLanguage,
+        language: content.language,
         description,
-        category_path: categoryPath,
+        category_id: categoryId,
         featured,
-        tags,
         body,
         change_log: changeLog,
         seo_title: seoTitle,
@@ -288,6 +296,55 @@ function CmsDetailInner() {
           <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
         </Card>
       )}
+
+      {/* Language Tabs */}
+      {content && (() => {
+        const transMap = Object.fromEntries(translations.map(t => [t.language, t]))
+        return (
+          <Tabs value={content.language} className="mb-3">
+            <TabsList>
+              {SUPPORTED_LANGS.map(lang => {
+                const trans = transMap[lang]
+                const isTranslating = translating === lang
+                return (
+                  <TabsTrigger
+                    key={lang}
+                    value={lang}
+                    disabled={isTranslating}
+                    className="uppercase text-xs px-3"
+                    onClick={async () => {
+                      if (trans) {
+                        if (trans.id === id) return
+                        if (dirty && !window.confirm("You have unsaved changes. Switch language anyway?")) return
+                        router.push(`/admin/cms/${trans.id}`)
+                      } else {
+                        if (dirty && !window.confirm("You have unsaved changes. Auto-translate anyway?")) return
+                        setTranslating(lang)
+                        try {
+                          await autoTranslateCmsContent(rootId ?? id, [lang])
+                          // Reload translations to get the new entry
+                          const transResult = await getContentTranslations(rootId ?? id)
+                          setTranslations(transResult.translations)
+                          setRootId(transResult.root_id)
+                          const newTrans = transResult.translations.find(t => t.language === lang)
+                          if (newTrans) router.push(`/admin/cms/${newTrans.id}`)
+                        } catch (err) {
+                          toast({ title: "Auto-translate failed", description: String(err), variant: "destructive" })
+                        } finally {
+                          setTranslating(null)
+                        }
+                      }
+                    }}
+                  >
+                    {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : lang}
+                    {!trans && !isTranslating && <span className="ml-1 opacity-40 text-[10px]">+</span>}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </Tabs>
+        )
+      })()}
 
       {!loading && !error && content && (
         <>
@@ -421,24 +478,19 @@ function CmsDetailInner() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="h-3 w-3" />Language</Label>
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" />Category</Label>
                     <select
                       className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
-                      value={contentLanguage}
-                      onChange={(e) => { setContentLanguage(e.target.value); markDirty() }}
+                      value={categoryId ?? ""}
+                      onChange={(e) => { setCategoryId(e.target.value || null); markDirty() }}
                     >
-                      <option value="vi">vi</option>
-                      <option value="en">en</option>
-                      <option value="ja">ja</option>
-                      <option value="zh">zh</option>
-                      <option value="ko">ko</option>
-                      <option value="pt">pt</option>
-                      <option value="fr">fr</option>
+                      <option value="">— No category —</option>
+                      {categoryOptions.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
+                        </option>
+                      ))}
                     </select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" />Category Path</Label>
-                    <Input value={categoryPath} onChange={(e) => { setCategoryPath(e.target.value); markDirty() }} className="h-7 text-xs font-mono" />
                   </div>
                   <Separator />
                   <div className="flex items-center gap-1.5">
@@ -455,37 +507,6 @@ function CmsDetailInner() {
                     <Clock className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Published:</span>
                     <span>{formatDate(content.published_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Author:</span>
-                    <span className="font-mono truncate">{content.author_id?.slice(0, 8) ?? "—"}...</span>
-                  </div>
-                  <Separator />
-                  <div className="space-y-1.5">
-                    <span className="text-muted-foreground text-xs">Tags</span>
-                    <div className="flex flex-wrap gap-1">
-                      {tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs gap-1 pr-1">
-                          {tag}
-                          <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex gap-1">
-                      <Input
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag() } }}
-                        placeholder="Add tag..."
-                        className="h-7 text-xs"
-                      />
-                      <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={handleAddTag}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
