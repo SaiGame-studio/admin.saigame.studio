@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { LogOut, Menu, User } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { LogOut, Menu, User, ShieldAlert } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -15,6 +16,8 @@ import { TipsBanner } from "@/components/TipsBanner"
 
 export function TopNav() {
   const { logout, user } = useAuth()
+  const pathname = usePathname()
+  const isAdminZone = pathname?.startsWith("/admin")
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
@@ -37,6 +40,12 @@ export function TopNav() {
       </div>
       <TipsBanner />
       <div className="ml-auto flex items-center gap-2">
+        {isAdminZone && (
+          <div className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-white text-xs font-semibold select-none">
+            <ShieldAlert className="h-3 w-3 shrink-0" />
+            Admin Zone
+          </div>
+        )}
         <ThemeToggle />
         <CoinBalance />
         <Button variant="ghost" className="flex items-center gap-2 px-2 h-9" asChild>

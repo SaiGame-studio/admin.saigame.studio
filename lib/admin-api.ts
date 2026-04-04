@@ -713,3 +713,90 @@ export async function addEmailToBlacklist(email: string, reason?: string): Promi
 export async function updateEmailBlacklistStatus(id: string, status: string): Promise<void> {
   return api.put(`/api/v1/admin/email-blacklist/${encodeURIComponent(id)}`, { status })
 }
+
+// ---------------------------------------------------------------------------
+// CMS Contents
+// ---------------------------------------------------------------------------
+
+export interface CmsContent {
+  id: string
+  title: string
+  slug: string
+  language: string
+  description: string
+  category_path: string
+  status: string
+  featured: boolean
+  tags: string[]
+  body: string
+  change_log: string
+  author_id: string
+  edited_by_id: string
+  version_number: number
+  seo_title: string
+  seo_description: string
+  seo_keywords: string[]
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  published_at: string | null
+}
+
+export interface CmsContentsResult {
+  data: CmsContent[]
+  pagination: {
+    page: number
+    per_page: number
+    total: number
+    total_pages: number
+  }
+}
+
+export async function listCmsContents(params?: {
+  category?: string
+  subcategory?: string
+  tags?: string
+  featured?: boolean
+  search?: string
+  language?: string
+  sort_by?: string
+  sort_order?: string
+  page?: number
+  per_page?: number
+}): Promise<CmsContentsResult> {
+  const query = new URLSearchParams()
+  if (params?.category) query.set("category", params.category)
+  if (params?.subcategory) query.set("subcategory", params.subcategory)
+  if (params?.tags) query.set("tags", params.tags)
+  if (params?.featured !== undefined) query.set("featured", String(params.featured))
+  if (params?.search) query.set("search", params.search)
+  if (params?.language) query.set("language", params.language)
+  if (params?.sort_by) query.set("sort_by", params.sort_by)
+  if (params?.sort_order) query.set("sort_order", params.sort_order)
+  if (params?.page) query.set("page", String(params.page))
+  if (params?.per_page) query.set("per_page", String(params.per_page))
+  const qs = query.toString()
+  return api.get(`/api/v1/admin/contents${qs ? `?${qs}` : ""}`)
+}
+
+export async function getCmsContent(id: string, language?: string): Promise<CmsContent> {
+  const query = new URLSearchParams()
+  if (language) query.set("language", language)
+  const qs = query.toString()
+  return api.get(`/api/v1/admin/contents/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`)
+}
+
+export async function updateCmsContent(id: string, data: {
+  title?: string
+  description?: string
+  featured?: boolean
+  tags?: string[]
+  body?: string
+  change_log?: string
+  seo_title?: string
+  seo_description?: string
+  seo_keywords?: string[]
+  metadata?: Record<string, unknown>
+}): Promise<CmsContent> {
+  return api.patch(`/api/v1/contents/${encodeURIComponent(id)}`, data)
+}

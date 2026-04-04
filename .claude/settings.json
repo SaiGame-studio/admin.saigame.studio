@@ -63,7 +63,8 @@
       "Bash(grep -l \"GachaPack\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)"
     ],
     "additionalDirectories": [
-      "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests"
+      "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
+      "g:\\Projects\\ss\\admin.saigame.studio\\app\\admin\\cms"
     ]
   }
 }
