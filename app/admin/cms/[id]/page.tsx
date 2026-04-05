@@ -1,5 +1,6 @@
 "use client"
 
+import ReactMarkdown from "react-markdown"
 import { Suspense, useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +27,8 @@ import CodeMirror from "@uiw/react-codemirror"
 import { markdown } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
 import { EditorView } from "@codemirror/view"
-import { vscodeDark } from "@uiw/codemirror-theme-vscode"
+import { vscodeDark, vscodeLight } from "@uiw/codemirror-theme-vscode"
+import { useTheme } from "next-themes"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const SUPPORTED_LANGS = ["en", "vi", "ja"]
@@ -78,6 +80,7 @@ function CmsDetailInner() {
   const params = useParams()
   const capabilities = useCapabilities()
   const { toast } = useToast()
+  const { resolvedTheme } = useTheme()
 
   const id = params.id as string
 
@@ -485,14 +488,14 @@ function CmsDetailInner() {
               {previewMode ? (
                 <Card>
                   <CardContent className="pt-4 prose prose-sm dark:prose-invert max-w-none">
-                    <pre className="whitespace-pre-wrap text-sm">{body || "No content."}</pre>
+                    <ReactMarkdown>{body || "No content."}</ReactMarkdown>
                   </CardContent>
                 </Card>
               ) : (
                 <CodeMirror
                   value={body}
                   onChange={(val) => { setBody(val); markDirty() }}
-                  theme={vscodeDark}
+                  theme={resolvedTheme?.includes("dark") ? vscodeDark : vscodeLight}
                   extensions={[
                     markdown({ codeLanguages: languages }),
                     EditorView.lineWrapping,
