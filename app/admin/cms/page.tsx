@@ -117,6 +117,7 @@ function CmsPageInner() {
       const result = await listCmsContents({
         category_id: category !== "all" ? category : undefined,
         search: debouncedSearch || undefined,
+        language: "en",
         sort_by: sortBy,
         sort_order: sortOrder,
         page,
@@ -311,6 +312,7 @@ function CmsPageInner() {
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Translations</TableHead>
                   <TableHead>Version</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Updated At</TableHead>
@@ -351,6 +353,11 @@ function CmsPageInner() {
                           }
                         }}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {item.translations_stats
+                        ? <span className="text-xs text-muted-foreground">{item.translations_stats.published}p / {item.translations_stats.total}t</span>
+                        : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">v{item.version_number}</span>

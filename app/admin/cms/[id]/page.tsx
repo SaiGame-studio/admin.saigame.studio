@@ -10,19 +10,21 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog"
 import { useCapabilities } from "@/hooks/use-capabilities"
 import { useToast } from "@/hooks/use-toast"
 import {
   ArrowLeft, Star, Clock, FileText, Tag, ShieldAlert,
   Save, Loader2, Eye, Pencil, Bold, Italic, Heading, List, ListOrdered,
-  Link as LinkIcon, Image, Code, Quote, Minus, X, Plus,
+  Link as LinkIcon, Image, Code, Quote, Minus, X, Plus, RefreshCw,
 } from "lucide-react"
 import Link from "next/link"
 import { getCmsContent, updateCmsContent, toggleCmsContentPublish, listCategoryTree, getContentTranslations, autoTranslateCmsContent, CmsContent, ContentCategory, ContentTranslationSummary } from "@/lib/admin-api"
 import CodeMirror from "@uiw/react-codemirror"
 import { markdown } from "@codemirror/lang-markdown"
 import { languages } from "@codemirror/language-data"
-import { json } from "@codemirror/lang-json"
 import { EditorView } from "@codemirror/view"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -83,6 +85,9 @@ function CmsDetailInner() {
   const [translations, setTranslations] = useState<ContentTranslationSummary[]>([])
   const [rootId, setRootId] = useState<string | null>(null)
   const [translating, setTranslating] = useState<string | null>(null) // lang being auto-translated
+  const [syncingMeta, setSyncingMeta] = useState<Record<number, boolean>>({})
+  const [syncConfirm, setSyncConfirm] = useState<{ pairIndex: number; key: string; value: string; targets: ContentTranslationSummary[] } | null>(null)
+  const [navConfirm, setNavConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -97,12 +102,12 @@ function CmsDetailInner() {
   const [description, setDescription] = useState("")
   const [body, setBody] = useState("")
   const [featured, setFeatured] = useState(false)
-  const [changeLog, setChangeLog] = useState("")
+
   const [seoTitle, setSeoTitle] = useState("")
   const [seoDescription, setSeoDescription] = useState("")
   const [seoKeywords, setSeoKeywords] = useState<string[]>([])
   const [seoKeywordInput, setSeoKeywordInput] = useState("")
-  const [metadataJson, setMetadataJson] = useState("")
+  const [metadataPairs, setMetadataPairs] = useState<{ key: string; value: string }[]>([])
 
   // Editor ref
   const [editorView, setEditorView] = useState<EditorView | null>(null)
@@ -134,11 +139,13 @@ function CmsDetailInner() {
     setDescription(c.description || "")
     setBody(c.body || "")
     setFeatured(c.featured || false)
-    setChangeLog(c.change_log || "")
     setSeoTitle(c.seo_title || "")
     setSeoDescription(c.seo_description || "")
     setSeoKeywords(c.seo_keywords || [])
-    setMetadataJson(c.metadata ? JSON.stringify(c.metadata, null, 2) : "{}")
+    const pairs = c.metadata && typeof c.metadata === "object"
+      ? Object.entries(c.metadata).map(([key, value]) => ({ key, value: String(value) }))
+      : []
+    setMetadataPairs(pairs.length ? pairs : [])
     setDirty(false)
   }, [])
 
@@ -182,13 +189,9 @@ function CmsDetailInner() {
   }
 
   const handleSave = async () => {
-    let parsedMetadata: Record<string, unknown> = {}
-    try {
-      parsedMetadata = JSON.parse(metadataJson)
-    } catch {
-      toast({ title: "Invalid JSON", description: "Metadata must be valid JSON.", variant: "destructive" })
-      return
-    }
+    const parsedMetadata: Record<string, unknown> = Object.fromEntries(
+      metadataPairs.filter(p => p.key.trim()).map(p => [p.key.trim(), p.value])
+    )
 
     setSaving(true)
     try {
@@ -200,7 +203,6 @@ function CmsDetailInner() {
         category_id: categoryId,
         featured,
         body,
-        change_log: changeLog,
         seo_title: seoTitle,
         seo_description: seoDescription,
         seo_keywords: seoKeywords,
@@ -259,28 +261,6 @@ function CmsDetailInner() {
           <ArrowLeft className="h-4 w-4" />
           Back to CMS
         </Button>
-        <div className="flex items-center gap-2">
-          {content && (
-            <>
-              <span className="text-xs text-muted-foreground">v{content.version_number}</span>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-xs font-medium ${content.status === "published" ? "text-green-600" : "text-muted-foreground"}`}>
-                  {publishing ? "..." : content.status === "published" ? "Published" : "Draft"}
-                </span>
-                <Switch
-                  checked={content.status === "published"}
-                  disabled={publishing}
-                  onCheckedChange={handleTogglePublish}
-                />
-              </div>
-              <Separator orientation="vertical" className="h-4" />
-            </>
-          )}
-          <Button size="sm" onClick={handleSave} disabled={saving || !dirty} className="gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save
-          </Button>
-        </div>
       </div>
 
       {loading && (
@@ -301,48 +281,76 @@ function CmsDetailInner() {
       {content && (() => {
         const transMap = Object.fromEntries(translations.map(t => [t.language, t]))
         return (
-          <Tabs value={content.language} className="mb-3">
-            <TabsList>
-              {SUPPORTED_LANGS.map(lang => {
-                const trans = transMap[lang]
-                const isTranslating = translating === lang
-                return (
-                  <TabsTrigger
-                    key={lang}
-                    value={lang}
-                    disabled={isTranslating}
-                    className="uppercase text-xs px-3"
-                    onClick={async () => {
-                      if (trans) {
-                        if (trans.id === id) return
-                        if (dirty && !window.confirm("You have unsaved changes. Switch language anyway?")) return
-                        router.push(`/admin/cms/${trans.id}`)
-                      } else {
-                        if (dirty && !window.confirm("You have unsaved changes. Auto-translate anyway?")) return
-                        setTranslating(lang)
-                        try {
-                          await autoTranslateCmsContent(rootId ?? id, [lang])
-                          // Reload translations to get the new entry
-                          const transResult = await getContentTranslations(rootId ?? id)
-                          setTranslations(transResult.translations)
-                          setRootId(transResult.root_id)
-                          const newTrans = transResult.translations.find(t => t.language === lang)
-                          if (newTrans) router.push(`/admin/cms/${newTrans.id}`)
-                        } catch (err) {
-                          toast({ title: "Auto-translate failed", description: String(err), variant: "destructive" })
-                        } finally {
-                          setTranslating(null)
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <Tabs value={content.language}>
+              <TabsList>
+                {SUPPORTED_LANGS.map(lang => {
+                  const trans = transMap[lang]
+                  const isTranslating = translating === lang
+                  return (
+                    <TabsTrigger
+                      key={lang}
+                      value={lang}
+                      disabled={isTranslating}
+                      className="uppercase text-xs px-3"
+                      onClick={async () => {
+                        if (trans) {
+                          if (trans.id === id) return
+                          if (dirty) {
+                            setNavConfirm({ message: "You have unsaved changes. Switch language anyway?", onConfirm: () => router.push(`/admin/cms/${trans.id}`) })
+                            return
+                          }
+                          router.push(`/admin/cms/${trans.id}`)
+                        } else {
+                          const doTranslate = async () => {
+                            setTranslating(lang)
+                            try {
+                              await autoTranslateCmsContent(rootId ?? id, [lang])
+                              const transResult = await getContentTranslations(rootId ?? id)
+                              setTranslations(transResult.translations)
+                              setRootId(transResult.root_id)
+                              const newTrans = transResult.translations.find(t => t.language === lang)
+                              if (newTrans) router.push(`/admin/cms/${newTrans.id}`)
+                            } catch (err) {
+                              toast({ title: "Auto-translate failed", description: String(err), variant: "destructive" })
+                            } finally {
+                              setTranslating(null)
+                            }
+                          }
+                          if (dirty) {
+                            setNavConfirm({ message: "You have unsaved changes. Auto-translate anyway?", onConfirm: doTranslate })
+                            return
+                          }
+                          doTranslate()
                         }
-                      }
-                    }}
-                  >
-                    {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : lang}
-                    {!trans && !isTranslating && <span className="ml-1 opacity-40 text-[10px]">+</span>}
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </Tabs>
+                      }}
+                    >
+                      {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : lang}
+                      {!trans && !isTranslating && <span className="ml-1 opacity-40 text-[10px]">+</span>}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">v{content.version_number}</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-medium ${content.status === "published" ? "text-green-600" : "text-muted-foreground"}`}>
+                  {publishing ? "..." : content.status === "published" ? "Published" : "Draft"}
+                </span>
+                <Switch
+                  checked={content.status === "published"}
+                  disabled={publishing}
+                  onCheckedChange={handleTogglePublish}
+                />
+              </div>
+              <Separator orientation="vertical" className="h-4" />
+              <Button size="sm" onClick={handleSave} disabled={saving || !dirty} className="gap-2">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save
+              </Button>
+            </div>
+          </div>
         )
       })()}
 
@@ -566,33 +574,74 @@ function CmsDetailInner() {
               {/* Metadata & Change Log */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Metadata</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Metadata</CardTitle>
+                    {translations.filter(t => !t.is_root).length > 0 && metadataPairs.some(p => p.key.trim()) && (
+                      <Button
+                        variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2"
+                        onClick={() => {
+                          const targets = translations.filter(t => !t.is_root)
+                          setSyncConfirm({ pairIndex: -1, key: "__all__", value: "", targets })
+                        }}
+                      >
+                        <RefreshCw className="h-3 w-3" /> Sync all
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Change Log</Label>
-                    <Input
-                      value={changeLog}
-                      onChange={(e) => { setChangeLog(e.target.value); markDirty() }}
-                      placeholder="What changed..."
-                      className="h-7 text-xs"
-                    />
+                  {/* Key-value editor */}
+                  <div className="space-y-2">
+                    {metadataPairs.map((pair, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <Input
+                          value={pair.key}
+                          onChange={(e) => {
+                            const next = [...metadataPairs]
+                            next[i] = { ...next[i], key: e.target.value }
+                            setMetadataPairs(next); markDirty()
+                          }}
+                          placeholder="key"
+                          className="h-7 text-xs w-1/2"
+                        />
+                        <Input
+                          value={pair.value}
+                          onChange={(e) => {
+                            const next = [...metadataPairs]
+                            next[i] = { ...next[i], value: e.target.value }
+                            setMetadataPairs(next); markDirty()
+                          }}
+                          placeholder="value"
+                          className="h-7 text-xs flex-1"
+                        />
+                        {translations.filter(t => !t.is_root).length > 0 && pair.key.trim() && (
+                          <Button
+                            variant="ghost" size="icon" className="h-7 w-7 shrink-0" title={`Sync "${pair.key}" to all translations`}
+                            disabled={!!syncingMeta[i]}
+                            onClick={() => {
+                              const targets = translations.filter(t => !t.is_root)
+                              if (!targets.length || !pair.key.trim()) return
+                              setSyncConfirm({ pairIndex: i, key: pair.key, value: pair.value, targets })
+                            }}
+                          >
+                            {syncingMeta[i] ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                          onClick={() => { setMetadataPairs(metadataPairs.filter((_, j) => j !== i)); markDirty() }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline" size="sm" className="h-7 w-full text-xs gap-1"
+                      onClick={() => { setMetadataPairs([...metadataPairs, { key: "", value: "" }]); markDirty() }}
+                    >
+                      <Plus className="h-3 w-3" /> Add field
+                    </Button>
                   </div>
-                  <CodeMirror
-                    value={metadataJson}
-                    onChange={(val) => { setMetadataJson(val); markDirty() }}
-                    theme={vscodeDark}
-                    extensions={[json(), EditorView.lineWrapping]}
-                    basicSetup={{
-                      lineNumbers: false,
-                      foldGutter: false,
-                      highlightActiveLine: false,
-                      autocompletion: false,
-                      tabSize: 2,
-                    }}
-                    style={{ fontSize: "12px" }}
-                    className="rounded border border-zinc-700 [&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto [&_.cm-scroller]:max-h-[200px]"
-                  />
                 </CardContent>
               </Card>
             </div>
@@ -616,6 +665,74 @@ function CmsDetailInner() {
           <Pencil className="h-4 w-4" />
         </button>
       )}
+
+      {/* Nav Confirm Dialog */}
+      <Dialog open={!!navConfirm} onOpenChange={(open) => { if (!open) setNavConfirm(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unsaved changes</DialogTitle>
+            <DialogDescription>{navConfirm?.message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNavConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { navConfirm?.onConfirm(); setNavConfirm(null) }}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sync Metadata Confirm Dialog */}
+      <Dialog open={!!syncConfirm} onOpenChange={(open) => { if (!open) setSyncConfirm(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sync metadata {syncConfirm?.key === "__all__" ? "— all fields" : "field"}</DialogTitle>
+            <DialogDescription>
+              {syncConfirm?.key === "__all__" ? (
+                <>Sync <strong>all metadata fields</strong> to {syncConfirm?.targets.length} translation(s):{" "}
+                {syncConfirm?.targets.map(t => t.language.toUpperCase()).join(", ")}.<br />
+                This will overwrite their entire metadata.</>
+              ) : (
+                <>Sync field <span className="font-mono font-semibold">&ldquo;{syncConfirm?.key}&rdquo;</span> to{" "}
+                {syncConfirm?.targets.length} translation(s):{" "}
+                {syncConfirm?.targets.map(t => t.language.toUpperCase()).join(", ")}.<br />
+                This will overwrite that field in each translation.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSyncConfirm(null)}>Cancel</Button>
+            <Button
+              disabled={syncConfirm ? !!syncingMeta[syncConfirm.pairIndex] : false}
+              onClick={async () => {
+                if (!syncConfirm) return
+                const { pairIndex, key, value, targets } = syncConfirm
+                setSyncConfirm(null)
+                setSyncingMeta(prev => ({ ...prev, [pairIndex]: true }))
+                try {
+                  if (key === "__all__") {
+                    const metaObj = Object.fromEntries(metadataPairs.filter(p => p.key.trim()).map(p => [p.key.trim(), p.value]))
+                    await Promise.all(targets.map(t => updateCmsContent(t.id, { metadata: metaObj })))
+                    toast({ title: "Synced", description: `All metadata synced to ${targets.length} translation(s).` })
+                  } else {
+                    await Promise.all(targets.map(async t => {
+                      const existing = await getCmsContent(t.id)
+                      const updated = { ...((existing.metadata as Record<string, unknown>) ?? {}), [key.trim()]: value }
+                      await updateCmsContent(t.id, { metadata: updated })
+                    }))
+                    toast({ title: "Synced", description: `"${key}" synced to ${targets.length} translation(s).` })
+                  }
+                } catch (err) {
+                  toast({ title: "Sync failed", description: String(err), variant: "destructive" })
+                } finally {
+                  setSyncingMeta(prev => { const s = { ...prev }; delete s[pairIndex]; return s })
+                }
+              }}
+            >
+              {syncConfirm && syncingMeta[syncConfirm.pairIndex] ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Sync
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
