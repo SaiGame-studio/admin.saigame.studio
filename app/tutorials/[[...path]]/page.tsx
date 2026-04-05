@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import rehypeRaw from "rehype-raw"
 
@@ -142,13 +142,12 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
   const [detailLoading, setDetailLoading] = useState(false)
   const { locale } = useLanguage()
   const { t } = useTranslation()
-  const router = useRouter()
 
   const loadContent = (item: ContentItem) => {
     setSelectedContentId(item.id)
     setDetailLoading(true)
     setDetail(null)
-    router.replace(`/tutorials/${categoryPath}/${item.slug}`, { scroll: false })
+    window.history.replaceState(null, "", `/tutorials/${categoryPath}/${item.slug}`)
     api.get(`/api/v1/contents/${item.id}?language=${locale}`, { requireAuth: false })
       .then((res) => setDetail(res as ContentDetail))
       .catch(() => setDetail(null))
@@ -419,7 +418,6 @@ function TutorialsTabs() {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const params = useParams()
-  const router = useRouter()
   const { locale } = useLanguage()
   const { t } = useTranslation()
 
@@ -433,8 +431,8 @@ function TutorialsTabs() {
   const navigateTo = useCallback((path: string | null, slug?: string | null) => {
     const base = path ? `/tutorials/${path}` : "/tutorials"
     const url = slug ? `${base}/${slug}` : base
-    router.replace(url, { scroll: false })
-  }, [router])
+    window.history.replaceState(null, "", url)
+  }, [])
 
   useEffect(() => {
     api.get("/api/v1/categories", { requireAuth: false })
