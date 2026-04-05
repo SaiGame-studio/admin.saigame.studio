@@ -7,6 +7,7 @@ import {
   BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
   Route, X, Wand2, ChevronDown, ChevronRight, Hammer,
 } from "lucide-react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -133,17 +134,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
   // Auto-slug state
   const [autoSlug, setAutoSlug] = useState(true)
 
-  // Slugify function
-  const slugify = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
-      .replace(/[^a-z0-9\s-]/g, "") // Remove invalid chars
-      .trim()
-      .replace(/\s+/g, "_") // Replace spaces with underscore
-      .replace(/_+/g, "_") // Replace multiple underscores with single
-  }
+  const slugify = (text: string): string => toSlugUnderscore(text)
 
   // Reset form when sheet opens
   useEffect(() => {
