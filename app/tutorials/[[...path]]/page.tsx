@@ -22,6 +22,7 @@ import { BookOpen, ChevronRight, Download, ExternalLink, Loader2 } from "lucide-
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTheme } from "next-themes"
 
 interface Category {
   id: string
@@ -72,6 +73,7 @@ function ContentList({ categoryId }: { categoryId: string }) {
   const [loading, setLoading] = useState(true)
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ContentDetail | null>(null)
+  const { resolvedTheme } = useTheme()
   const [detailLoading, setDetailLoading] = useState(false)
   const { locale } = useLanguage()
 
@@ -157,7 +159,7 @@ function ContentList({ categoryId }: { categoryId: string }) {
             <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
           )}
           {detail.body && (
-            <div className="prose prose-sm max-w-none">
+            <div className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
                 <ReactMarkdown
                   rehypePlugins={[rehypeRaw]}
                 >{preprocessImgSize(detail.body)}</ReactMarkdown>
