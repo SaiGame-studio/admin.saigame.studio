@@ -44,15 +44,10 @@ function getCategoryName(cat: ContentCategory, locale: string): string {
 
 const INDENT_PX = 20
 
+import { toSlug } from "@/lib/utils"
+
 function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d").replace(/Đ/g, "d")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
+  return toSlug(name)
 }
 
 // ─── Flatten ─────────────────────────────────────────────────────────────────

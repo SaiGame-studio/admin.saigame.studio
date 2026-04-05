@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { toSlug } from "@/lib/utils"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -156,14 +157,7 @@ function CmsPageInner() {
     if (!createTitle.trim()) return
     setCreating(true)
     const title = createTitle.trim()
-    const slug = title
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d").replace(/Đ/g, "d")
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
+    const slug = toSlug(title)
     try {
       const created = await createCmsContent({ title, slug })
       setCreateDialogOpen(false)

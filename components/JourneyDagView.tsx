@@ -61,7 +61,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
+import { cn, toSlugUnderscore } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import {
   getJourneyDag,
@@ -488,15 +488,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
   const [deleteDef, setDeleteDef] = useState<JourneyDagNodeDefinition | null>(null)
   const [deleteSaving, setDeleteSaving] = useState(false)
 
-  const slugify = (text: string) =>
-    text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "_")
-      .replace(/_+/g, "_")
+  const slugify = (text: string) => toSlugUnderscore(text)
 
   const handleCreate = async () => {
     if (!createForm.name.trim() || !createForm.node_key.trim() || !createForm.event_type.trim()) {
