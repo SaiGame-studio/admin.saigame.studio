@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast"
 import {
   ArrowLeft, Star, Clock, FileText, Tag, ShieldAlert,
   Save, Loader2, Eye, Pencil, Bold, Italic, Heading, List, ListOrdered,
-  Link as LinkIcon, Image, Code, Quote, Minus, X, Plus, RefreshCw,
+  Link as LinkIcon, Image, Code, Quote, Minus, X, Plus, RefreshCw, Wand2,
 } from "lucide-react"
 import Link from "next/link"
 import { getCmsContent, updateCmsContent, toggleCmsContentPublish, listCategoryTree, getContentTranslations, autoTranslateCmsContent, CmsContent, ContentCategory, ContentTranslationSummary } from "@/lib/admin-api"
@@ -115,6 +115,7 @@ function CmsDetailInner() {
   // Editable fields
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
+  const [autoSlug, setAutoSlug] = useState(true)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string; depth: number }[]>([])
   const [description, setDescription] = useState("")
@@ -153,6 +154,7 @@ function CmsDetailInner() {
   const populateForm = useCallback((c: CmsContent) => {
     setTitle(c.title || "")
     setSlug(c.slug || "")
+    setAutoSlug(!c.slug)
     setCategoryId(c.category_id ?? null)
     setDescription(c.description || "")
     setBody(c.body || "")
@@ -383,7 +385,14 @@ function CmsDetailInner() {
                   <Label className="text-xs text-muted-foreground">Title</Label>
                   <Input
                     value={title}
-                    onChange={(e) => { setTitle(e.target.value); markDirty() }}
+                    onChange={(e) => {
+                      const newTitle = e.target.value
+                      setTitle(newTitle)
+                      if (autoSlug) {
+                        setSlug(newTitle.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+                      }
+                      markDirty()
+                    }}
                     placeholder="Title"
                     className="text-lg font-semibold h-10"
                   />
@@ -409,12 +418,22 @@ function CmsDetailInner() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Slug</Label>
-                <Input
-                  value={slug}
-                  onChange={(e) => { setSlug(e.target.value); markDirty() }}
-                  placeholder="slug-url"
-                  className="text-sm font-mono"
-                />
+                <div className="relative">
+                  <Input
+                    value={slug}
+                    onChange={(e) => { setAutoSlug(false); setSlug(e.target.value); markDirty() }}
+                    placeholder="slug-url"
+                    className="text-sm font-mono pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAutoSlug(!autoSlug)}
+                    className={cn("absolute right-0 top-0 h-full px-2.5 rounded-r-md border-l transition-colors", autoSlug ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground")}
+                    title={autoSlug ? "Auto-slug enabled (click to disable)" : "Auto-slug disabled (click to enable)"}
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Description</Label>
