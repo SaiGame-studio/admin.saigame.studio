@@ -63,7 +63,9 @@
       "Bash(grep -l \"GachaPack\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)",
       "Bash(grep -r \"category\\\\|categories\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)",
       "Bash(find /g/Projects/ss/admin.saigame.studio -name \"page.tsx\" -path \"*/admin/cms*\" -exec head -50 {} \\\\;)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(npm search:*)",
+      "Bash(npm info:*)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",

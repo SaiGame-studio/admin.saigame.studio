@@ -2,6 +2,21 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import ReactMarkdown from "react-markdown"
+import rehypeRaw from "rehype-raw"
+
+/** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
+function preprocessImgSize(md: string): string {
+  return md.replace(
+    /!\[([^\]]*)\]\((\S+?)\s+=(\d+)?[x×](\d+)?\)/g,
+    (_match, alt, url, w, h) => {
+      const attrs = [`src="${url}"`, `alt="${alt}"`]
+      if (w) attrs.push(`width="${w}"`)
+      if (h) attrs.push(`height="${h}"`)
+      return `<img ${attrs.join(" ")} />`
+    }
+  )
+}
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, ChevronRight, Download, ExternalLink, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -142,7 +157,11 @@ function ContentList({ categoryId }: { categoryId: string }) {
             <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
           )}
           {detail.body && (
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: detail.body }} />
+            <div className="prose prose-sm max-w-none">
+                <ReactMarkdown
+                  rehypePlugins={[rehypeRaw]}
+                >{preprocessImgSize(detail.body)}</ReactMarkdown>
+              </div>
           )}
           {Object.keys(detail.metadata ?? {}).length > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 pt-4 border-t">

@@ -1,7 +1,21 @@
 "use client"
 
 import ReactMarkdown from "react-markdown"
+import rehypeRaw from "rehype-raw"
 import { Suspense, useEffect, useState, useCallback, useRef } from "react"
+
+/** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
+function preprocessImgSize(md: string): string {
+  return md.replace(
+    /!\[([^\]]*)\]\((\S+?)\s+=(\d+)?[x×](\d+)?\)/g,
+    (_match, alt, url, w, h) => {
+      const attrs = [`src="${url}"`, `alt="${alt}"`]
+      if (w) attrs.push(`width="${w}"`)
+      if (h) attrs.push(`height="${h}"`)
+      return `<img ${attrs.join(" ")} />`
+    }
+  )
+}
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -489,7 +503,7 @@ function CmsDetailInner() {
               {previewMode ? (
                 <Card>
                   <CardContent className={cn("pt-4 prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
-                    <ReactMarkdown>{body || "No content."}</ReactMarkdown>
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>{preprocessImgSize(body || "No content.")}</ReactMarkdown>
                   </CardContent>
                 </Card>
               ) : (
