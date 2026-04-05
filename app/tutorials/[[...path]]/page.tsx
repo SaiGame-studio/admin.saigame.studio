@@ -48,6 +48,7 @@ function getCatName(cat: Category, locale: string): string {
 interface ContentItem {
   id: string
   title: string
+  slug: string
   description: string
   version_number?: number
   metadata?: Record<string, string>
@@ -68,7 +69,7 @@ interface ContentDetail {
   published_at: string
 }
 
-function ContentList({ categoryId }: { categoryId: string }) {
+function ContentList({ categoryId, categoryPath, initialContentSlug }: { categoryId: string; categoryPath: string; initialContentSlug?: string | null }) {
   const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
@@ -76,6 +77,28 @@ function ContentList({ categoryId }: { categoryId: string }) {
   const { resolvedTheme } = useTheme()
   const [detailLoading, setDetailLoading] = useState(false)
   const { locale } = useLanguage()
+  const router = useRouter()
+
+  const loadContent = (item: ContentItem) => {
+    setSelectedContentId(item.id)
+    setDetailLoading(true)
+    setDetail(null)
+    router.replace(`/tutorials/${categoryPath}/${item.slug}`, { scroll: false })
+    api.get(`/api/v1/contents/${item.id}?language=${locale}`)
+      .then((res) => setDetail(res as ContentDetail))
+      .catch(() => setDetail(null))
+      .finally(() => setDetailLoading(false))
+  }
+
+  useEffect(() => {
+    if (detail) {
+      // Delay to override Next.js metadata reset after router.replace
+      const timer = setTimeout(() => {
+        document.title = `${detail.title} | Sai Game`
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [detail])
 
   useEffect(() => {
     setLoading(true)
@@ -84,21 +107,16 @@ function ContentList({ categoryId }: { categoryId: string }) {
     api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`)
       .then((res) => {
         const data = res?.data ?? res
-        setContents(Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? []))
+        const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
+        setContents(items)
+        if (initialContentSlug) {
+          const match = items.find((i) => i.slug === initialContentSlug)
+          if (match) loadContent(match)
+        }
       })
       .catch(() => setContents([]))
       .finally(() => setLoading(false))
   }, [categoryId, locale])
-
-  const handleSelectContent = (id: string) => {
-    setSelectedContentId(id)
-    setDetailLoading(true)
-    setDetail(null)
-    api.get(`/api/v1/contents/${id}?language=${locale}`)
-      .then((res) => setDetail(res as ContentDetail))
-      .catch(() => setDetail(null))
-      .finally(() => setDetailLoading(false))
-  }
 
   if (loading) {
     return (
@@ -125,7 +143,7 @@ function ContentList({ categoryId }: { categoryId: string }) {
                 "border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors",
                 selectedContentId === item.id && "border-primary bg-accent"
               )}
-              onClick={() => handleSelectContent(item.id)}
+              onClick={() => loadContent(item)}
             >
               <h3 className="font-medium">{item.title}</h3>
               {metaEntries.length > 0 && (
@@ -233,15 +251,22 @@ function CategorySidebar({
   selectedId,
   onSelect,
   locale,
+  initialContentSlug,
 }: {
   category: Category
   selectedId: string | null
   onSelect: (cat: Category) => void
   locale: string
+  initialContentSlug?: string | null
 }) {
   const children = (category.children ?? [])
     .filter((c) => c.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
+
+  // Find the selected child's path to pass to ContentList
+  const selectedChild = selectedId
+    ? children.find((c) => c.id === selectedId) ?? findCategoryById(children, selectedId)
+    : null
 
   if (children.length === 0) {
     return (
@@ -265,14 +290,25 @@ function CategorySidebar({
         ))}
       </nav>
       <div className="flex-1 min-w-0">
-        {selectedId ? (
-          <ContentList categoryId={selectedId} />
+        {selectedId && selectedChild ? (
+          <ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} />
         ) : (
           <p className="text-muted-foreground text-sm">Select a topic from the menu.</p>
         )}
       </div>
     </div>
   )
+}
+
+function findCategoryById(categories: Category[], id: string): Category | null {
+  for (const cat of categories) {
+    if (cat.id === id) return cat
+    if (cat.children) {
+      const found = findCategoryById(cat.children, id)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 function findCategoryByPath(categories: Category[], path: string): Category | null {
@@ -302,16 +338,17 @@ function TutorialsTabs() {
   const router = useRouter()
   const { locale } = useLanguage()
 
-  const currentPath = params.path
+  const fullPath = params.path
     ? (Array.isArray(params.path) ? params.path.join("/") : params.path)
     : null
 
-  const navigateTo = useCallback((path: string | null) => {
-    if (path) {
-      router.replace(`/tutorials/${path}`, { scroll: false })
-    } else {
-      router.replace("/tutorials", { scroll: false })
-    }
+  // Will be resolved after categories load: split fullPath into categoryPath + contentSlug
+  const [contentSlug, setContentSlug] = useState<string | null>(null)
+
+  const navigateTo = useCallback((path: string | null, slug?: string | null) => {
+    const base = path ? `/tutorials/${path}` : "/tutorials"
+    const url = slug ? `${base}/${slug}` : base
+    router.replace(url, { scroll: false })
   }, [router])
 
   useEffect(() => {
@@ -322,14 +359,39 @@ function TutorialsTabs() {
           .sort((a, b) => a.sort_order - b.sort_order)
         setCategories(roots)
 
-        if (currentPath) {
-          const matched = findCategoryByPath(roots, currentPath)
-          const root = findRootForPath(roots, currentPath)
+        if (fullPath) {
+          // Try exact category match first
+          let matched = findCategoryByPath(roots, fullPath)
+          let root = findRootForPath(roots, fullPath)
+          let detectedSlug: string | null = null
+
+          if (!matched) {
+            // Last segment might be content slug
+            const lastSlash = fullPath.lastIndexOf("/")
+            if (lastSlash > 0) {
+              const catPath = fullPath.substring(0, lastSlash)
+              detectedSlug = fullPath.substring(lastSlash + 1)
+              matched = findCategoryByPath(roots, catPath)
+              root = findRootForPath(roots, catPath)
+            }
+          }
+
           if (root) setActiveTab(root.slug)
-          if (matched) setSelectedChildId(matched.id)
+          if (matched) {
+            setSelectedChildId(matched.id)
+            if (!detectedSlug) setTimeout(() => { document.title = `${getCatName(matched!, locale)} | Sai Game` }, 100)
+          }
+          if (detectedSlug) setContentSlug(detectedSlug)
         }
-        if (!currentPath || !findRootForPath(roots, currentPath)) {
-          setActiveTab(roots[0]?.slug ?? null)
+        if (!fullPath || !findRootForPath(roots, fullPath)) {
+          // Also check without last segment
+          const lastSlash = fullPath?.lastIndexOf("/") ?? -1
+          const catPath = lastSlash > 0 ? fullPath!.substring(0, lastSlash) : null
+          if (catPath && findRootForPath(roots, catPath)) {
+            // already handled above
+          } else {
+            setActiveTab(roots[0]?.slug ?? null)
+          }
         }
       })
       .catch(() => setCategories([]))
@@ -339,13 +401,16 @@ function TutorialsTabs() {
   const handleTabChange = (slug: string) => {
     setActiveTab(slug)
     setSelectedChildId(null)
+    setContentSlug(null)
     const root = categories.find((c) => c.slug === slug)
     navigateTo(root?.path ?? null)
   }
 
   const handleSelectCategory = (cat: Category) => {
     setSelectedChildId(cat.id)
+    setContentSlug(null)
     navigateTo(cat.path)
+    setTimeout(() => { document.title = `${getCatName(cat, locale)} | Sai Game` }, 100)
   }
 
   return (
@@ -396,6 +461,7 @@ function TutorialsTabs() {
                 selectedId={selectedChildId}
                 onSelect={handleSelectCategory}
                 locale={locale}
+                initialContentSlug={contentSlug}
               />
             </TabsContent>
           ))}

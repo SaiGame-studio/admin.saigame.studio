@@ -393,16 +393,9 @@ function CmsDetailInner() {
                   <select
                     className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
                     value={categoryId ?? ""}
-                    onChange={async (e) => {
-                      const newCatId = e.target.value || null
-                      setCategoryId(newCatId)
-                      try {
-                        await updateCmsContent(id, { category_id: newCatId })
-                        toast({ title: "Category updated" })
-                      } catch (err) {
-                        setCategoryId(categoryId)
-                        toast({ title: "Error", description: String(err), variant: "destructive" })
-                      }
+                    onChange={(e) => {
+                      setCategoryId(e.target.value || null)
+                      markDirty()
                     }}
                   >
                     <option value="">— No category —</option>
