@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -487,7 +488,7 @@ function CmsDetailInner() {
               {/* Editor / Preview */}
               {previewMode ? (
                 <Card>
-                  <CardContent className="pt-4 prose prose-sm dark:prose-invert max-w-none">
+                  <CardContent className={cn("pt-4 prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
                     <ReactMarkdown>{body || "No content."}</ReactMarkdown>
                   </CardContent>
                 </Card>
