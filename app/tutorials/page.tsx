@@ -42,7 +42,7 @@ function CategoryMenuItem({
           "w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2 hover:bg-accent transition-colors",
           selectedId === category.id && "bg-accent font-medium"
         )}
-        style={{ paddingLeft: `${level * 16 + 12}px` }}
+        style={{ paddingLeft: `${level * 30 + 12}px` }}
       >
         {children.length > 0 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
         {category.name}
