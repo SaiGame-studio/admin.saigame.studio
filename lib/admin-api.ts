@@ -839,6 +839,7 @@ export interface ContentCategory {
   depth: number
   sort_order: number
   is_active: boolean
+  is_public: boolean
   created_at: string
   updated_at: string
   children: ContentCategory[]
@@ -872,4 +873,8 @@ export async function updateCategory(id: string, data: {
 
 export async function deleteCategory(id: string): Promise<void> {
   return api.delete(`/api/v1/admin/categories/${encodeURIComponent(id)}`)
+}
+
+export async function toggleCategoryPublish(id: string, isPublic: boolean): Promise<ContentCategory> {
+  return api.patch(`/api/v1/admin/categories/${encodeURIComponent(id)}/publish`, { is_public: isPublic })
 }

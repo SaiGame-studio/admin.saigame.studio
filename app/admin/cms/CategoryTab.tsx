@@ -11,7 +11,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import {
   listCategoryTree, createCategory, updateCategory, deleteCategory,
-  ContentCategory,
+  toggleCategoryPublish, ContentCategory,
 } from "@/lib/admin-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,7 +60,8 @@ function flattenVisible(
   parentId: string | null = null,
 ): FlatNode[] {
   const result: FlatNode[] = []
-  for (const cat of cats) {
+  const sorted = [...cats].sort((a, b) => a.sort_order - b.sort_order)
+  for (const cat of sorted) {
     result.push({ id: cat.id, category: cat, depth, parentId })
     if (!collapsed.has(cat.id) && cat.children?.length) {
       result.push(...flattenVisible(cat.children, collapsed, depth + 1, cat.id))
@@ -128,24 +129,44 @@ function getProjection(
 interface RowProps {
   node: FlatNode
   isOverTarget: boolean
+  isProjectedParent: boolean
+  showInsertLine: boolean
+  insertDepth: number
   onEdit: (cat: ContentCategory) => void
   onDelete: (cat: ContentCategory) => void
   onAddChild: (cat: ContentCategory) => void
   onToggle: (id: string) => void
+  onTogglePublish: (cat: ContentCategory, isPublic: boolean) => void
+  togglingPublishIds: Set<string>
   collapsed: Set<string>
 }
 
-function SortableRow({ node, isOverTarget, onEdit, onDelete, onAddChild, onToggle, collapsed }: RowProps) {
+function SortableRow({ node, isOverTarget, isProjectedParent, showInsertLine, insertDepth, onEdit, onDelete, onAddChild, onToggle, onTogglePublish, togglingPublishIds, collapsed }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id })
   const hasChildren = (node.category.children?.length ?? 0) > 0
   const isCollapsed = collapsed.has(node.id)
   const canAddChild = node.category.depth < 3
 
   return (
+    <>
+    {showInsertLine && (
+      <tr className="h-0">
+        <td colSpan={7} className="p-0 border-0 relative">
+          <div
+            className="absolute top-0 h-0.5 bg-primary z-10"
+            style={{ left: `${insertDepth * INDENT_PX + 16}px`, right: 0 }}
+          />
+          <div
+            className="absolute -top-1 w-2.5 h-2.5 rounded-full bg-primary z-10"
+            style={{ left: `${insertDepth * INDENT_PX + 12}px` }}
+          />
+        </td>
+      </tr>
+    )}
     <tr
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 }}
-      className={`border-b transition-colors hover:bg-muted/40 ${isOverTarget ? "border-t-2 border-t-primary" : ""}`}
+      className={`border-b transition-colors hover:bg-muted/40 ${isProjectedParent ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : ""}`}
     >
       <td className="py-2 px-4">
         <div className="flex items-center gap-1" style={{ paddingLeft: `${node.depth * INDENT_PX}px` }}>
@@ -170,6 +191,9 @@ function SortableRow({ node, isOverTarget, onEdit, onDelete, onAddChild, onToggl
               {!node.category.is_active && (
                 <Badge variant="outline" className="text-xs ml-1 text-muted-foreground">inactive</Badge>
               )}
+              {isProjectedParent && (
+                <Badge variant="default" className="text-xs ml-1 animate-pulse">parent</Badge>
+              )}
             </div>
             <div className="flex items-center gap-0.5 text-muted-foreground/60" onPointerDown={e => e.stopPropagation()}>
               <span className="text-[11px] font-mono leading-tight">{node.category.id}</span>
@@ -183,6 +207,13 @@ function SortableRow({ node, isOverTarget, onEdit, onDelete, onAddChild, onToggl
       </td>
       <td className="py-2 px-4">
         <span className="text-xs font-mono text-muted-foreground">{node.category.slug}</span>
+      </td>
+      <td className="py-2 px-4 text-center" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+        <Switch
+          checked={node.category.is_public ?? false}
+          disabled={togglingPublishIds.has(node.id)}
+          onCheckedChange={(checked) => onTogglePublish(node.category, checked)}
+        />
       </td>
       <td className="py-2 px-4 text-center">
         <span className="text-xs text-muted-foreground">{node.category.sort_order}</span>
@@ -209,6 +240,7 @@ function SortableRow({ node, isOverTarget, onEdit, onDelete, onAddChild, onToggl
         </div>
       </td>
     </tr>
+    </>
   )
 }
 
@@ -240,6 +272,7 @@ export function CategoryTab() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ContentCategory | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [togglingPublishIds, setTogglingPublishIds] = useState<Set<string>>(new Set())
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -268,6 +301,22 @@ export function CategoryTab() {
   function handleDragMove({ delta }: DragMoveEvent) { setDeltaX(delta.x) }
   function handleDragOver({ over }: DragOverEvent) { setOverId(over ? String(over.id) : null) }
 
+  // Helper: get children of a parentId from the tree
+  function getSiblings(tree: ContentCategory[], parentId: string | null): ContentCategory[] {
+    if (parentId === null) return tree
+    const find = (cats: ContentCategory[]): ContentCategory[] | null => {
+      for (const c of cats) {
+        if (c.id === parentId) return c.children ?? []
+        if (c.children?.length) {
+          const found = find(c.children)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    return find(tree) ?? []
+  }
+
   async function handleDragEnd({ active, over }: DragEndEvent) {
     // Capture snapshot before clearing state
     const snap = activeId && overId ? getProjection(flatItems, activeId, overId, deltaX) : null
@@ -283,10 +332,50 @@ export function CategoryTab() {
 
     setMoving(true)
     try {
-      const updateData: Parameters<typeof updateCategory>[1] = { sort_order: snap.sortOrder }
-      if (parentChanged) updateData.parent_id = snap.parentId
-      await updateCategory(String(active.id), updateData)
-      toast({ title: "Category moved" })
+      const draggedId = String(active.id)
+      const oldParentId = currentNode.parentId
+      const newParentId = snap.parentId
+      const newOrder = snap.sortOrder
+
+      // Build the new sibling order for the target parent
+      const targetSiblings = getSiblings(categories, newParentId)
+        .filter(c => c.id !== draggedId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+
+      // Insert dragged item at the new position
+      targetSiblings.splice(newOrder, 0, currentNode.category)
+
+      // Update all siblings in the target parent with sequential sort_order
+      const updates: Promise<any>[] = []
+      for (let i = 0; i < targetSiblings.length; i++) {
+        const sibling = targetSiblings[i]
+        const data: Parameters<typeof updateCategory>[1] = {}
+        const needsOrderUpdate = sibling.sort_order !== i
+        const needsParentUpdate = sibling.id === draggedId && parentChanged
+
+        if (needsOrderUpdate) data.sort_order = i
+        if (needsParentUpdate) data.parent_id = newParentId
+
+        if (Object.keys(data).length > 0) {
+          updates.push(updateCategory(sibling.id, data))
+        }
+      }
+
+      // If parent changed, also reorder old parent's siblings (fill the gap)
+      if (parentChanged) {
+        const oldSiblings = getSiblings(categories, oldParentId)
+          .filter(c => c.id !== draggedId)
+          .sort((a, b) => a.sort_order - b.sort_order)
+
+        for (let i = 0; i < oldSiblings.length; i++) {
+          if (oldSiblings[i].sort_order !== i) {
+            updates.push(updateCategory(oldSiblings[i].id, { sort_order: i }))
+          }
+        }
+      }
+
+      await Promise.all(updates)
+      toast({ title: "Category moved", description: `${updates.length} item(s) updated` })
       load()
     } catch (err) {
       toast({ title: "Error", description: String(err), variant: "destructive" })
@@ -344,6 +433,24 @@ export function CategoryTab() {
     } finally { setDeleting(false) }
   }
 
+  const handleTogglePublish = async (cat: ContentCategory, isPublic: boolean) => {
+    setTogglingPublishIds(prev => new Set(prev).add(cat.id))
+    try {
+      await toggleCategoryPublish(cat.id, isPublic)
+      // Update local state recursively
+      const update = (cats: ContentCategory[]): ContentCategory[] =>
+        cats.map(c => c.id === cat.id
+          ? { ...c, is_public: isPublic }
+          : c.children?.length ? { ...c, children: update(c.children) } : c
+        )
+      setCategories(update)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setTogglingPublishIds(prev => { const s = new Set(prev); s.delete(cat.id); return s })
+    }
+  }
+
   const total = countAll(categories)
 
   return (
@@ -397,6 +504,7 @@ export function CategoryTab() {
                     <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Name</th>
                     <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Path</th>
                     <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Slug</th>
+                    <th className="py-2 px-4 text-center text-xs font-medium text-muted-foreground">Status</th>
                     <th className="py-2 px-4 text-center text-xs font-medium text-muted-foreground">Order</th>
                     <th className="py-2 px-4 text-center text-xs font-medium text-muted-foreground">Depth</th>
                     <th className="py-2 px-4 text-right text-xs font-medium text-muted-foreground">Actions</th>
@@ -409,10 +517,15 @@ export function CategoryTab() {
                         key={node.id}
                         node={node}
                         isOverTarget={node.id === overId && node.id !== activeId}
+                        isProjectedParent={!!projected && projected.parentId === node.id && node.id !== activeId}
+                        showInsertLine={!!projected && node.id === overId && node.id !== activeId}
+                        insertDepth={projected?.depth ?? 0}
                         onEdit={openEdit}
                         onDelete={setDeleteTarget}
                         onAddChild={openCreate}
                         onToggle={toggleCollapse}
+                        onTogglePublish={handleTogglePublish}
+                        togglingPublishIds={togglingPublishIds}
                         collapsed={collapsed}
                       />
                     ))}
@@ -431,16 +544,23 @@ export function CategoryTab() {
                   >
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span>{activeNode.category.name}</span>
-                    {projected && projected.depth !== activeNode.depth && (
-                      <Badge variant="secondary" className="text-xs ml-auto">depth {projected.depth}</Badge>
-                    )}
-                    {projected && projected.parentId !== activeNode.parentId && (
-                      <span className="text-xs text-primary ml-1">
-                        {projected.parentId
-                          ? `→ ${flatItems.find(i => i.id === projected.parentId)?.category.name ?? "..."}`
-                          : "→ root"}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      {projected && (
+                        <Badge variant="outline" className="text-xs font-mono">
+                          #{projected.sortOrder}
+                        </Badge>
+                      )}
+                      {projected && projected.parentId !== activeNode.parentId && (
+                        <Badge variant="secondary" className="text-xs">
+                          {projected.parentId
+                            ? `→ ${flatItems.find(i => i.id === projected.parentId)?.category.name ?? "..."}`
+                            : "→ root"}
+                        </Badge>
+                      )}
+                      {projected && projected.depth !== activeNode.depth && (
+                        <Badge variant="secondary" className="text-xs">L{projected.depth}</Badge>
+                      )}
+                    </div>
                   </div>
                 )}
               </DragOverlay>
