@@ -55,42 +55,25 @@ function ContentList({ categoryId }: { categoryId: string }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {contents.map((item) => {
         const metaEntries = Object.entries(item.metadata ?? {})
-        const metaCol1 = metaEntries.slice(0, 2)
-        const metaCol2 = metaEntries.slice(2, 4)
-        const metaCol3 = metaEntries.slice(4, 5)
 
         return (
-          <div key={item.id} className="grid grid-cols-6 gap-4 border rounded-lg p-4 items-start">
-            <div className="col-span-3">
-              <h3 className="font-medium">{item.title}</h3>
-              {item.description && (
-                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              {metaCol1.map(([key, value]) => (
-                <p key={key} className="text-sm">
-                  <span className="text-muted-foreground">{key}:</span> {value}
-                </p>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {metaCol2.map(([key, value]) => (
-                <p key={key} className="text-sm">
-                  <span className="text-muted-foreground">{key}:</span> {value}
-                </p>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {metaCol3.map(([key, value]) => (
-                <p key={key} className="text-sm">
-                  <span className="text-muted-foreground">{key}:</span> {value}
-                </p>
-              ))}
-            </div>
+          <div key={item.id} className="border rounded-lg p-4">
+            <h3 className="font-medium">{item.title}</h3>
+            {item.description && (
+              <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+            )}
+            {metaEntries.length > 0 && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t">
+                {metaEntries.map(([key, value]) => (
+                  <p key={key} className="text-sm">
+                    <span className="text-muted-foreground">{key}:</span> {value}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
