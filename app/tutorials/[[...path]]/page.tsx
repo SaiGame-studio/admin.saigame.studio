@@ -69,7 +69,7 @@ interface ContentDetail {
   published_at: string
 }
 
-function ContentList({ categoryId, categoryPath, initialContentSlug }: { categoryId: string; categoryPath: string; initialContentSlug?: string | null }) {
+function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFound }: { categoryId: string; categoryPath: string; initialContentSlug?: string | null; onSlugNotFound?: (slug: string) => void }) {
   const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
@@ -112,6 +112,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug }: { categor
         if (initialContentSlug) {
           const match = items.find((i) => i.slug === initialContentSlug)
           if (match) loadContent(match)
+          else onSlugNotFound?.(initialContentSlug)
         }
       })
       .catch(() => setContents([]))
@@ -252,12 +253,14 @@ function CategorySidebar({
   onSelect,
   locale,
   initialContentSlug,
+  onSlugNotFound,
 }: {
   category: Category
   selectedId: string | null
   onSelect: (cat: Category) => void
   locale: string
   initialContentSlug?: string | null
+  onSlugNotFound?: (slug: string) => void
 }) {
   const children = (category.children ?? [])
     .filter((c) => c.is_active)
@@ -291,13 +294,26 @@ function CategorySidebar({
       </nav>
       <div className="flex-1 min-w-0">
         {selectedId && selectedChild ? (
-          <ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} />
+          <ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} onSlugNotFound={onSlugNotFound} />
         ) : (
           <p className="text-muted-foreground text-sm">Select a topic from the menu.</p>
         )}
       </div>
     </div>
   )
+}
+
+function getAllLeafCategories(categories: Category[]): Category[] {
+  const leaves: Category[] = []
+  for (const cat of categories) {
+    const children = (cat.children ?? []).filter((c) => c.is_active)
+    if (children.length === 0) {
+      leaves.push(cat)
+    } else {
+      leaves.push(...getAllLeafCategories(children))
+    }
+  }
+  return leaves
 }
 
 function findCategoryById(categories: Category[], id: string): Category | null {
@@ -406,6 +422,29 @@ function TutorialsTabs() {
     navigateTo(root?.path ?? null)
   }
 
+  // When content slug not found in current category, search all leaf categories
+  const handleSlugNotFound = useCallback(async (slug: string) => {
+    const allLeaves = getAllLeafCategories(categories)
+    for (const leaf of allLeaves) {
+      if (leaf.id === selectedChildId) continue // already checked
+      try {
+        const res = await api.get(`/api/v1/categories/${leaf.id}/contents?language=${locale}`)
+        const data = (res as any)?.data ?? res
+        const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
+        const match = items.find((i) => i.slug === slug)
+        if (match) {
+          // Found — redirect to correct category
+          const root = findRootForPath(categories, leaf.path)
+          if (root) setActiveTab(root.slug)
+          setSelectedChildId(leaf.id)
+          setContentSlug(slug)
+          navigateTo(leaf.path, slug)
+          return
+        }
+      } catch { /* skip */ }
+    }
+  }, [categories, selectedChildId, locale, navigateTo])
+
   const handleSelectCategory = (cat: Category) => {
     setSelectedChildId(cat.id)
     setContentSlug(null)
@@ -462,6 +501,7 @@ function TutorialsTabs() {
                 onSelect={handleSelectCategory}
                 locale={locale}
                 initialContentSlug={contentSlug}
+                onSlugNotFound={handleSlugNotFound}
               />
             </TabsContent>
           ))}
