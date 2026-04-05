@@ -65,7 +65,9 @@
       "Bash(find /g/Projects/ss/admin.saigame.studio -name \"page.tsx\" -path \"*/admin/cms*\" -exec head -50 {} \\\\;)",
       "Bash(npm ls:*)",
       "Bash(npm search:*)",
-      "Bash(npm info:*)"
+      "Bash(npm info:*)",
+      "Bash(wc -l /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx /g/Projects/ss/admin.saigame.studio/app/tutorials/[[...path]]/page.tsx)",
+      "Bash(grep -n \"renderContent\\\\|<ReactMarkdown\\\\|preview\\\\|ContentList\\\\|ContentDetail\" /g/Projects/ss/admin.saigame.studio/app/tutorials/[[...path]]/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",

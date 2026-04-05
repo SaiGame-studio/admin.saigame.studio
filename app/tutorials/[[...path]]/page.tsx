@@ -18,10 +18,13 @@ function preprocessImgSize(md: string): string {
   )
 }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2 } from "lucide-react"
+import { BookOpen, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2, ThumbsUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { getToken } from "@/lib/auth-utils"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { useTheme } from "next-themes"
 
 interface Category {
@@ -69,6 +72,67 @@ interface ContentDetail {
   published_at: string
 }
 
+function UpvoteButton({ contentId, count }: { contentId: string; count?: string | number }) {
+  const [upvoteCount, setUpvoteCount] = useState(Number(count ?? 0))
+  const [loading, setLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const { t } = useTranslation()
+
+  const handleClick = () => {
+    const token = getToken()
+    if (!token) {
+      window.open("/login", "_blank")
+      return
+    }
+    setConfirmOpen(true)
+  }
+
+  const handleConfirm = async () => {
+    setConfirmOpen(false)
+    if (loading) return
+    setLoading(true)
+    try {
+      const res = await api.post(`/api/v1/contents/${contentId}/upvote`) as { upvote_count?: number }
+      if (res?.upvote_count != null) setUpvoteCount(res.upvote_count)
+      else setUpvoteCount((c) => c + 1)
+      window.dispatchEvent(new Event("wallet:refresh"))
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 cursor-pointer"
+        title="Upvote"
+      >
+        <ThumbsUp className="h-5 w-5" />
+        <span className="text-xs font-medium">{upvoteCount}</span>
+      </button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('content.confirmUpvoteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('content.confirmUpvoteDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm}>{t('content.confirmUpvoteBtn')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
 function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFound }: { categoryId: string; categoryPath: string; initialContentSlug?: string | null; onSlugNotFound?: (slug: string) => void }) {
   const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,6 +141,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
   const { resolvedTheme } = useTheme()
   const [detailLoading, setDetailLoading] = useState(false)
   const { locale } = useLanguage()
+  const { t } = useTranslation()
   const router = useRouter()
 
   const loadContent = (item: ContentItem) => {
@@ -123,13 +188,13 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">Loading...</span>
+        <span className="text-sm">{t('tutorials.loading')}</span>
       </div>
     )
   }
 
   if (contents.length === 0) {
-    return <p className="text-muted-foreground text-sm">No content available.</p>
+    return <p className="text-muted-foreground text-sm">{t('tutorials.noContent')}</p>
   }
 
   return (
@@ -154,14 +219,17 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
       {detailLoading && (
         <div className="flex items-center gap-2 text-muted-foreground mt-6">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Loading content...</span>
+          <span className="text-sm">{t('tutorials.loadingContent')}</span>
         </div>
       )}
 
       {detail && (
         <div className="mt-6 border rounded-lg p-6">
           <div className="flex items-start justify-between">
-            <h2 className="text-lg font-semibold mb-2">{detail.title}</h2>
+            <div className="flex items-center gap-3">
+              <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count} />
+              <h2 className="text-lg font-semibold">{detail.title}</h2>
+            </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
               {detail.metadata?.view_count != null && (
                 <span className="flex items-center gap-1">
@@ -188,6 +256,9 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
                 >{preprocessImgSize(detail.body)}</ReactMarkdown>
               </div>
           )}
+          <div className="flex justify-start mt-4">
+            <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count} />
+          </div>
         </div>
       )}
     </div>
@@ -266,10 +337,12 @@ function CategorySidebar({
     ? children.find((c) => c.id === selectedId) ?? findCategoryById(children, selectedId)
     : null
 
+  const { t } = useTranslation()
+
   if (children.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
-        {category.description || `${category.name} tutorials content coming soon.`}
+        {category.description || `${category.name} ${t('tutorials.comingSoon')}`}
       </p>
     )
   }
@@ -291,7 +364,7 @@ function CategorySidebar({
         {selectedId && selectedChild ? (
           <ContentList categoryId={selectedId} categoryPath={selectedChild.path} initialContentSlug={initialContentSlug} onSlugNotFound={onSlugNotFound} />
         ) : (
-          <p className="text-muted-foreground text-sm">Select a topic from the menu.</p>
+          <p className="text-muted-foreground text-sm">{t('tutorials.selectTopic')}</p>
         )}
       </div>
     </div>
@@ -348,6 +421,7 @@ function TutorialsTabs() {
   const params = useParams()
   const router = useRouter()
   const { locale } = useLanguage()
+  const { t } = useTranslation()
 
   const fullPath = params.path
     ? (Array.isArray(params.path) ? params.path.join("/") : params.path)
@@ -452,15 +526,15 @@ function TutorialsTabs() {
       <div className="flex items-center gap-3 mb-6">
         <BookOpen className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold">Learning Center</h1>
-          <p className="text-sm text-muted-foreground">Tutorials and resources to get started</p>
+          <h1 className="text-2xl font-bold">{t('tutorials.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('tutorials.subtitle')}</p>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Loading...</span>
+          <span className="text-sm">{t('tutorials.loading')}</span>
         </div>
       ) : activeTab ? (
         <Tabs
@@ -483,7 +557,7 @@ function TutorialsTabs() {
               }}
             >
               <Download className="h-4 w-4" />
-              Unity Package
+              {t('tutorials.unityPackage')}
               <ExternalLink className="h-3 w-3 opacity-50" />
             </TabsTrigger>
           </TabsList>
