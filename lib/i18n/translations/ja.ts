@@ -2999,4 +2999,19 @@ export const ja = {
     welcomeBack: "おかえりなさい",
     footer: "全著作権所有。",
   },
+  content: {
+    confirmUpvoteTitle: "アップボートの確認",
+    confirmUpvoteDesc: "このコンテンツをアップボートするには🪙 1 sCoinかかります。続行しますか？",
+    confirmUpvoteBtn: "確認して1 sCoinを支払う",
+  },
+  tutorials: {
+    title: "ラーニングセンター",
+    subtitle: "チュートリアルとリソース",
+    loading: "読み込み中...",
+    loadingContent: "コンテンツを読み込み中...",
+    noContent: "コンテンツがありません。",
+    selectTopic: "メニューからトピックを選択してください。",
+    comingSoon: "チュートリアルコンテンツは近日公開予定です。",
+    unityPackage: "Unityパッケージ",
+  },
 };

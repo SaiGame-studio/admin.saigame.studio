@@ -3043,4 +3043,19 @@ export const vi = {
     welcomeBack: "Chào mừng trở lại",
     footer: "Bảo lưu mọi quyền.",
   },
+  content: {
+    confirmUpvoteTitle: "Xác nhận Upvote",
+    confirmUpvoteDesc: "Upvote bài viết này sẽ tốn 🪙 1 sCoin. Bạn có muốn tiếp tục?",
+    confirmUpvoteBtn: "Xác nhận & Trả 1 sCoin",
+  },
+  tutorials: {
+    title: "Trung tâm học tập",
+    subtitle: "Hướng dẫn và tài nguyên để bắt đầu",
+    loading: "Đang tải...",
+    loadingContent: "Đang tải nội dung...",
+    noContent: "Chưa có nội dung.",
+    selectTopic: "Chọn một chủ đề từ menu.",
+    comingSoon: "nội dung hướng dẫn sắp ra mắt.",
+    unityPackage: "Gói Unity",
+  },
 };
