@@ -18,7 +18,15 @@ interface Category {
   depth: number
   sort_order: number
   is_active: boolean
+  languages?: Record<string, { name?: string; description?: string }>
   children?: Category[]
+}
+
+function getCatName(cat: Category, locale: string): string {
+  if (locale !== "en" && cat.languages?.[locale]?.name) {
+    return cat.languages[locale].name!
+  }
+  return cat.name
 }
 
 interface ContentItem {
@@ -86,11 +94,13 @@ function CategoryMenuItem({
   selectedId,
   onSelect,
   level = 0,
+  locale,
 }: {
   category: Category
   selectedId: string | null
   onSelect: (cat: Category) => void
   level?: number
+  locale: string
 }) {
   const children = (category.children ?? [])
     .filter((c) => c.is_active)
@@ -107,7 +117,7 @@ function CategoryMenuItem({
         style={{ paddingLeft: `${level * 30 + 12}px` }}
       >
         {children.length > 0 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
-        {category.name}
+        {getCatName(category, locale)}
       </button>
       {children.length > 0 && (
         <div>
@@ -118,6 +128,7 @@ function CategoryMenuItem({
               selectedId={selectedId}
               onSelect={onSelect}
               level={level + 1}
+              locale={locale}
             />
           ))}
         </div>
@@ -130,10 +141,12 @@ function CategorySidebar({
   category,
   selectedId,
   onSelect,
+  locale,
 }: {
   category: Category
   selectedId: string | null
   onSelect: (cat: Category) => void
+  locale: string
 }) {
   const children = (category.children ?? [])
     .filter((c) => c.is_active)
@@ -156,6 +169,7 @@ function CategorySidebar({
             category={child}
             selectedId={selectedId}
             onSelect={onSelect}
+            locale={locale}
           />
         ))}
       </nav>
@@ -195,6 +209,7 @@ function TutorialsTabs() {
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const params = useParams()
   const router = useRouter()
+  const { locale } = useLanguage()
 
   const currentPath = params.path
     ? (Array.isArray(params.path) ? params.path.join("/") : params.path)
@@ -266,7 +281,7 @@ function TutorialsTabs() {
           <TabsList className="mb-4">
             {categories.map((cat) => (
               <TabsTrigger key={cat.id} value={cat.slug} className="flex items-center gap-2">
-                {cat.name}
+                {getCatName(cat, locale)}
               </TabsTrigger>
             ))}
             <TabsTrigger
@@ -289,6 +304,7 @@ function TutorialsTabs() {
                 category={cat}
                 selectedId={selectedChildId}
                 onSelect={handleSelectCategory}
+                locale={locale}
               />
             </TabsContent>
           ))}

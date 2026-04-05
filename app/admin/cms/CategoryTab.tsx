@@ -11,7 +11,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import {
   listCategoryTree, createCategory, updateCategory, deleteCategory,
-  toggleCategoryPublish, ContentCategory,
+  toggleCategoryPublish, ContentCategory, CategoryLanguage,
 } from "@/lib/admin-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,11 +25,22 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog"
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+} from "@/components/ui/sheet"
+import {
   ChevronRight, ChevronDown, Plus, RefreshCw, Pencil, Trash2,
-  FolderTree, Loader2, FolderPlus, GripVertical,
+  FolderTree, Loader2, FolderPlus, GripVertical, Globe, X as XIcon,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { CopyButton } from "@/components/CopyButton"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
+
+function getCategoryName(cat: ContentCategory, locale: string): string {
+  if (locale !== "en" && cat.languages?.[locale]?.name) {
+    return cat.languages[locale].name
+  }
+  return cat.name
+}
 
 const INDENT_PX = 20
 
@@ -139,9 +150,10 @@ interface RowProps {
   onTogglePublish: (cat: ContentCategory, isPublic: boolean) => void
   togglingPublishIds: Set<string>
   collapsed: Set<string>
+  locale: string
 }
 
-function SortableRow({ node, isOverTarget, isProjectedParent, showInsertLine, insertDepth, onEdit, onDelete, onAddChild, onToggle, onTogglePublish, togglingPublishIds, collapsed }: RowProps) {
+function SortableRow({ node, isOverTarget, isProjectedParent, showInsertLine, insertDepth, onEdit, onDelete, onAddChild, onToggle, onTogglePublish, togglingPublishIds, collapsed, locale }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id })
   const hasChildren = (node.category.children?.length ?? 0) > 0
   const isCollapsed = collapsed.has(node.id)
@@ -187,7 +199,7 @@ function SortableRow({ node, isOverTarget, isProjectedParent, showInsertLine, in
           </button>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1">
-              <span className="text-sm font-medium">{node.category.name}</span>
+              <span className="text-sm font-medium">{getCategoryName(node.category, locale)}</span>
               {!node.category.is_active && (
                 <Badge variant="outline" className="text-xs ml-1 text-muted-foreground">inactive</Badge>
               )}
@@ -248,6 +260,7 @@ function SortableRow({ node, isOverTarget, isProjectedParent, showInsertLine, in
 
 export function CategoryTab() {
   const { toast } = useToast()
+  const { locale } = useLanguage()
   const [categories, setCategories] = useState<ContentCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -259,8 +272,8 @@ export function CategoryTab() {
   const [overId, setOverId] = useState<string | null>(null)
   const [deltaX, setDeltaX] = useState(0)
 
-  // Dialog state
-  const [dialogOpen, setDialogOpen] = useState(false)
+  // Sheet / Dialog state
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ContentCategory | null>(null)
   const [parentCat, setParentCat] = useState<ContentCategory | null>(null)
   const [formName, setFormName] = useState("")
@@ -273,6 +286,30 @@ export function CategoryTab() {
   const [deleteTarget, setDeleteTarget] = useState<ContentCategory | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [togglingPublishIds, setTogglingPublishIds] = useState<Set<string>>(new Set())
+
+  // Translation state
+  const SUPPORTED_LANGS = ["vi", "ja"]
+  const LANG_LABELS: Record<string, string> = { en: "English", vi: "Tiếng Việt", ja: "日本語" }
+  const [formLanguages, setFormLanguages] = useState<Record<string, CategoryLanguage>>({})
+
+  const updateLang = (lang: string, field: "name" | "description", value: string) => {
+    setFormLanguages(prev => ({
+      ...prev,
+      [lang]: { ...prev[lang], [field]: value },
+    }))
+  }
+
+  const addLang = (lang: string) => {
+    setFormLanguages(prev => ({ ...prev, [lang]: { name: "", description: "" } }))
+  }
+
+  const removeLang = (lang: string) => {
+    setFormLanguages(prev => {
+      const next = { ...prev }
+      delete next[lang]
+      return next
+    })
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -389,13 +426,15 @@ export function CategoryTab() {
     setEditing(null); setParentCat(parent ?? null)
     setFormName(""); setFormSlug(""); setFormDesc("")
     setFormOrder(parent ? (parent.children?.length ?? 0) : categories.length)
-    setFormActive(true); setSlugManual(false); setDialogOpen(true)
+    setFormActive(true); setSlugManual(false); setFormLanguages({}); setSheetOpen(true)
   }
 
   const openEdit = (cat: ContentCategory) => {
     setEditing(cat); setParentCat(null)
     setFormName(cat.name); setFormSlug(cat.slug); setFormDesc(cat.description ?? "")
-    setFormOrder(cat.sort_order); setFormActive(cat.is_active); setSlugManual(true); setDialogOpen(true)
+    setFormOrder(cat.sort_order); setFormActive(cat.is_active); setSlugManual(true)
+    setFormLanguages(cat.languages ? JSON.parse(JSON.stringify(cat.languages)) : {})
+    setSheetOpen(true)
   }
 
   const handleSave = async () => {
@@ -406,6 +445,7 @@ export function CategoryTab() {
         await updateCategory(editing.id, {
           name: formName.trim(), slug: formSlug.trim(),
           description: formDesc.trim() || undefined, sort_order: formOrder, is_active: formActive,
+          languages: Object.keys(formLanguages).length > 0 ? formLanguages : undefined,
         })
         toast({ title: "Category updated" })
       } else {
@@ -416,7 +456,7 @@ export function CategoryTab() {
         })
         toast({ title: "Category created" })
       }
-      setDialogOpen(false); load()
+      setSheetOpen(false); load()
     } catch (err) {
       toast({ title: "Error", description: String(err), variant: "destructive" })
     } finally { setSaving(false) }
@@ -527,6 +567,7 @@ export function CategoryTab() {
                         onTogglePublish={handleTogglePublish}
                         togglingPublishIds={togglingPublishIds}
                         collapsed={collapsed}
+                        locale={locale}
                       />
                     ))}
                   </SortableContext>
@@ -543,7 +584,7 @@ export function CategoryTab() {
                     }}
                   >
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span>{activeNode.category.name}</span>
+                    <span>{getCategoryName(activeNode.category, locale)}</span>
                     <div className="flex items-center gap-1.5 ml-auto">
                       {projected && (
                         <Badge variant="outline" className="text-xs font-mono">
@@ -569,69 +610,135 @@ export function CategoryTab() {
         </CardContent>
       </Card>
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
+      {/* Create / Edit Sheet (slides from right) */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="sm:max-w-lg w-full flex flex-col">
+          <SheetHeader>
+            <SheetTitle>
               {editing ? "Edit Category" : parentCat ? `Add Child to "${parentCat.name}"` : "Add Root Category"}
-            </DialogTitle>
+            </SheetTitle>
             {!editing && parentCat && (
-              <p className="text-sm text-muted-foreground pt-1">
+              <p className="text-sm text-muted-foreground">
                 Path prefix: <span className="font-mono text-foreground">{parentCat.path}/</span>
               </p>
             )}
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
-              <Input
-                value={formName}
-                onChange={e => { setFormName(e.target.value); if (!slugManual) setFormSlug(slugify(e.target.value)) }}
-                placeholder="e.g. Game Setup"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Slug <span className="text-destructive">*</span></Label>
-              <Input
-                value={formSlug}
-                onChange={e => { setFormSlug(e.target.value); setSlugManual(true) }}
-                placeholder="e.g. game-setup"
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">Lowercase, hyphens only (a-z, 0-9, -)</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea
-                value={formDesc}
-                onChange={e => setFormDesc(e.target.value)}
-                placeholder="Optional..."
-                rows={2}
-                className="resize-none"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sort Order</Label>
-              <Input type="number" value={formOrder} onChange={e => setFormOrder(Number(e.target.value))} className="w-28" />
-            </div>
-            {editing && (
-              <div className="flex items-center gap-2">
-                <Switch checked={formActive} onCheckedChange={setFormActive} id="cat-active" />
-                <Label htmlFor="cat-active">Active</Label>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-5 py-4">
+            {/* Basic fields */}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Name <span className="text-destructive">*</span></Label>
+                <Input
+                  value={formName}
+                  onChange={e => { setFormName(e.target.value); if (!slugManual) setFormSlug(slugify(e.target.value)) }}
+                  placeholder="e.g. Game Setup"
+                  autoFocus
+                />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label>Slug <span className="text-destructive">*</span></Label>
+                <Input
+                  value={formSlug}
+                  onChange={e => { setFormSlug(e.target.value); setSlugManual(true) }}
+                  placeholder="e.g. game-setup"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">Lowercase, hyphens only (a-z, 0-9, -)</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Description</Label>
+                <Textarea
+                  value={formDesc}
+                  onChange={e => setFormDesc(e.target.value)}
+                  placeholder="Optional..."
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sort Order</Label>
+                <Input type="number" value={formOrder} onChange={e => setFormOrder(Number(e.target.value))} className="w-28" />
+              </div>
+              {editing && (
+                <div className="flex items-center gap-2">
+                  <Switch checked={formActive} onCheckedChange={setFormActive} id="cat-active" />
+                  <Label htmlFor="cat-active">Active</Label>
+                </div>
+              )}
+            </div>
+
+            {/* Translations */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  <Globe className="h-4 w-4" /> Translations
+                </Label>
+                {(() => {
+                  const available = SUPPORTED_LANGS.filter(l => !(l in formLanguages))
+                  if (available.length === 0) return null
+                  return (
+                    <select
+                      className="h-8 text-xs border rounded px-2 bg-background"
+                      value=""
+                      onChange={e => { if (e.target.value) addLang(e.target.value) }}
+                    >
+                      <option value="">+ Add language</option>
+                      {available.map(l => (
+                        <option key={l} value={l}>{LANG_LABELS[l] ?? l}</option>
+                      ))}
+                    </select>
+                  )
+                })()}
+              </div>
+
+              {Object.keys(formLanguages).length === 0 && (
+                <p className="text-xs text-muted-foreground">No translations added yet.</p>
+              )}
+
+              {Object.entries(formLanguages).map(([lang, val]) => (
+                <Card key={lang} className="p-0">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" className="text-xs">{LANG_LABELS[lang] ?? lang} ({lang})</Badge>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeLang(lang)} title="Remove translation">
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Name</Label>
+                      <Input
+                        value={val.name}
+                        onChange={e => updateLang(lang, "name", e.target.value)}
+                        placeholder={`Name in ${LANG_LABELS[lang] ?? lang}`}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Description</Label>
+                      <Input
+                        value={val.description}
+                        onChange={e => updateLang(lang, "description", e.target.value)}
+                        placeholder={`Description in ${LANG_LABELS[lang] ?? lang}`}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
+
+          <SheetFooter className="border-t pt-4">
+            <Button variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim() || !formSlug.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editing ? "Save" : "Create"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>

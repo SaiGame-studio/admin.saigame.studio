@@ -829,6 +829,11 @@ export async function autoTranslateCmsContent(id: string, targetLanguages: strin
 // CMS Content Categories
 // ---------------------------------------------------------------------------
 
+export interface CategoryLanguage {
+  name: string
+  description: string
+}
+
 export interface ContentCategory {
   id: string
   parent_id: string | null
@@ -840,6 +845,7 @@ export interface ContentCategory {
   sort_order: number
   is_active: boolean
   is_public: boolean
+  languages?: Record<string, CategoryLanguage>
   created_at: string
   updated_at: string
   children: ContentCategory[]
@@ -867,6 +873,7 @@ export async function updateCategory(id: string, data: {
   description?: string
   sort_order?: number
   is_active?: boolean
+  languages?: Record<string, CategoryLanguage>
 }): Promise<ContentCategory> {
   return api.patch(`/api/v1/admin/categories/${encodeURIComponent(id)}`, data)
 }
