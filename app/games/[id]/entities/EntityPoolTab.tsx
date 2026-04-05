@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useCallback, useMemo, useRef, Fragment } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, RefreshCw, Trash2, Pencil, Save, Search, X, Loader2, ChevronRight, Skull, ExternalLink, ChevronsUpDown, Check, Wand2 } from "lucide-react"
@@ -55,8 +56,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   const [creating, setCreating] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
 
-  const toSlug = (name: string) =>
-    name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+  const genSlug = (name: string) => toSlugUnderscore(name)
 
   const loadPools = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -265,7 +265,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                   setCreateForm(f => ({
                     ...f,
                     name: v,
-                    ...(autoSlug ? { pool_key: toSlug(v) } : {}),
+                    ...(autoSlug ? { pool_key: genSlug(v) } : {}),
                   }))
                 }}
                 disabled={creating}
@@ -292,7 +292,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                   title={autoSlug ? t('entity.autoSlugOn') : t('entity.autoSlugOff')}
                   onClick={() => {
                     setAutoSlug(true)
-                    setCreateForm(f => ({ ...f, pool_key: toSlug(f.name) }))
+                    setCreateForm(f => ({ ...f, pool_key: genSlug(f.name) }))
                   }}
                 >
                   <Wand2 className="h-4 w-4" />

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { useParams } from "next/navigation"
 import {
   Card,
@@ -195,11 +196,8 @@ export default function GameShopsPage() {
     }
   }
 
-  function toSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
+  function genSlug(name: string): string {
+    return toSlugUnderscore(name)
   }
 
   function toDatetimeLocal(d: Date): string {
@@ -600,7 +598,7 @@ export default function GameShopsPage() {
                 onChange={(e) => {
                   const name = e.target.value
                   setField("name", name)
-                  if (autoSlug) setField("shop_key", toSlug(name))
+                  if (autoSlug) setField("shop_key", genSlug(name))
                 }}
               />
             </div>
@@ -626,7 +624,7 @@ export default function GameShopsPage() {
                   onClick={() => {
                     const next = !autoSlug
                     setAutoSlug(next)
-                    if (next) setField("shop_key", toSlug(form.name))
+                    if (next) setField("shop_key", genSlug(form.name))
                   }}
                   className={`shrink-0 h-9 w-9 rounded-md border flex items-center justify-center transition-colors ${
                     autoSlug

@@ -46,8 +46,8 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
   const items: NavItem[] = [
     { section: "detail",      href: `/games/${gameId}`,             icon: <Gamepad2 className="h-4 w-4" />,      label: t("game.navGame")       },
     { section: "players",     href: `/games/${gameId}/players`,     icon: <Users className="h-4 w-4" />,         label: t("game.users")         },
-    { section: "shops",       href: `/games/${gameId}/shops`,       icon: <ShoppingCart className="h-4 w-4" />,  label: t("game.shops")         },
     { section: "items",       href: `/games/${gameId}/items`,       icon: <Package className="h-4 w-4" />,       label: t("game.items")         },
+    { section: "shops",       href: `/games/${gameId}/shops`,       icon: <ShoppingCart className="h-4 w-4" />,  label: t("game.shops")         },
     { section: "entities",    href: `/games/${gameId}/entities`,    icon: <Skull className="h-4 w-4" />,         label: t("game.navEntities")   },
     { section: "quests",      href: `/games/${gameId}/quests`,      icon: <ScrollText className="h-4 w-4" />,    label: t("game.quests")        },
     { section: "leaderboard", href: `/games/${gameId}/leaderboard`, icon: <Trophy className="h-4 w-4" />,        label: t("game.navLeaderboard")},

@@ -83,13 +83,10 @@ function KVEditor({
   )
 }
 
+import { toSlugUnderscore } from "@/lib/utils"
+
 function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
+  return toSlugUnderscore(str)
 }
 
 function emptySlotForm() {

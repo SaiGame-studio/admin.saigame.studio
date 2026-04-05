@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Plus, RefreshCw, Hammer, ExternalLink, Dices, Save, X, ChevronRight, ChevronDown, Loader2, Check, ChevronsUpDown, Wand2, ArrowDownRight, ArrowUpRight, Pencil, Trash2, History } from "lucide-react"
@@ -977,7 +978,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         setForm({
                           ...form,
                           name: v,
-                          recipe_key: v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+                          recipe_key: toSlugUnderscore(v)
                         })
                       } else {
                         setForm({ ...form, name: v })
@@ -1008,7 +1009,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                         setAutoSlug(true)
                         setForm({
                           ...form,
-                          recipe_key: form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+                          recipe_key: toSlugUnderscore(form.name)
                         })
                       }}
                     >

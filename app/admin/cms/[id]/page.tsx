@@ -19,7 +19,7 @@ function preprocessImgSize(md: string): string {
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { cn, toSlug } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -389,7 +389,7 @@ function CmsDetailInner() {
                       const newTitle = e.target.value
                       setTitle(newTitle)
                       if (autoSlug) {
-                        setSlug(newTitle.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+                        setSlug(toSlug(newTitle))
                       }
                       markDirty()
                     }}
