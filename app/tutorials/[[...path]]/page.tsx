@@ -18,7 +18,7 @@ function preprocessImgSize(md: string): string {
   )
 }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, ChevronRight, Download, ExternalLink, Loader2 } from "lucide-react"
+import { BookOpen, ChevronRight, Download, ExternalLink, Eye, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -172,7 +172,15 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
         <div className="mt-6 border rounded-lg p-6">
           <div className="flex items-start justify-between">
             <h2 className="text-lg font-semibold mb-2">{detail.title}</h2>
-            <span className="text-xs text-muted-foreground shrink-0">v{detail.version_number}</span>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+              {detail.metadata?.view_count != null && (
+                <span className="flex items-center gap-1">
+                  <Eye className="h-3 w-3" />
+                  {detail.metadata.view_count}
+                </span>
+              )}
+              <span>v{detail.version_number}</span>
+            </div>
           </div>
           {detail.description && (
             <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
@@ -183,15 +191,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
                   rehypePlugins={[rehypeRaw]}
                 >{preprocessImgSize(detail.body)}</ReactMarkdown>
               </div>
-          )}
-          {Object.keys(detail.metadata ?? {}).length > 0 && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 pt-4 border-t">
-              {Object.entries(detail.metadata).map(([key, value]) => (
-                <p key={key} className="text-sm">
-                  <span className="text-muted-foreground">{key}:</span> {value}
-                </p>
-              ))}
-            </div>
           )}
         </div>
       )}
