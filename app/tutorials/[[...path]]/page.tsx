@@ -18,7 +18,7 @@ function preprocessImgSize(md: string): string {
   )
 }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, ChevronRight, Download, ExternalLink, Eye, Loader2 } from "lucide-react"
+import { BookOpen, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -182,6 +182,12 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               <span>v{detail.version_number}</span>
             </div>
           </div>
+          {detail.metadata?.learn_time && (
+            <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {detail.metadata.learn_time}
+            </p>
+          )}
           {detail.description && (
             <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
           )}
