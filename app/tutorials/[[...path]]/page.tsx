@@ -1,6 +1,7 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, ChevronRight, Download, ExternalLink, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -17,6 +18,82 @@ interface Category {
   sort_order: number
   is_active: boolean
   children?: Category[]
+}
+
+interface ContentItem {
+  id: string
+  title: string
+  description: string
+  metadata?: Record<string, string>
+}
+
+function ContentList({ categoryId }: { categoryId: string }) {
+  const [contents, setContents] = useState<ContentItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    api.get(`/api/v1/categories/${categoryId}/contents`)
+      .then((res) => setContents((res.data?.data ?? res.data ?? []) as ContentItem[]))
+      .catch(() => setContents([]))
+      .finally(() => setLoading(false))
+  }, [categoryId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Loading...</span>
+      </div>
+    )
+  }
+
+  if (contents.length === 0) {
+    return <p className="text-muted-foreground text-sm">No content available.</p>
+  }
+
+  return (
+    <div className="space-y-2">
+      {contents.map((item) => {
+        const metaEntries = Object.entries(item.metadata ?? {})
+        const metaCol1 = metaEntries.slice(0, 2)
+        const metaCol2 = metaEntries.slice(2, 4)
+        const metaCol3 = metaEntries.slice(4, 5)
+
+        return (
+          <div key={item.id} className="grid grid-cols-6 gap-4 border rounded-lg p-4 items-start">
+            <div className="col-span-3">
+              <h3 className="font-medium">{item.title}</h3>
+              {item.description && (
+                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              {metaCol1.map(([key, value]) => (
+                <p key={key} className="text-sm">
+                  <span className="text-muted-foreground">{key}:</span> {value}
+                </p>
+              ))}
+            </div>
+            <div className="space-y-1">
+              {metaCol2.map(([key, value]) => (
+                <p key={key} className="text-sm">
+                  <span className="text-muted-foreground">{key}:</span> {value}
+                </p>
+              ))}
+            </div>
+            <div className="space-y-1">
+              {metaCol3.map(([key, value]) => (
+                <p key={key} className="text-sm">
+                  <span className="text-muted-foreground">{key}:</span> {value}
+                </p>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function CategoryMenuItem({
@@ -99,7 +176,7 @@ function CategorySidebar({
       </nav>
       <div className="flex-1 min-w-0">
         {selectedId ? (
-          <p className="text-muted-foreground text-sm">Content coming soon.</p>
+          <ContentList categoryId={selectedId} />
         ) : (
           <p className="text-muted-foreground text-sm">Select a topic from the menu.</p>
         )}
@@ -108,10 +185,43 @@ function CategorySidebar({
   )
 }
 
+function findCategoryByPath(categories: Category[], path: string): Category | null {
+  for (const cat of categories) {
+    if (cat.path === path) return cat
+    if (cat.children) {
+      const found = findCategoryByPath(cat.children, path)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function findRootForPath(categories: Category[], path: string): Category | null {
+  for (const root of categories) {
+    if (path === root.path || path.startsWith(root.path + "/")) return root
+  }
+  return null
+}
+
 function TutorialsTabs() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const params = useParams()
+  const router = useRouter()
+
+  const currentPath = params.path
+    ? (Array.isArray(params.path) ? params.path.join("/") : params.path)
+    : null
+
+  const navigateTo = useCallback((path: string | null) => {
+    if (path) {
+      router.replace(`/tutorials/${path}`, { scroll: false })
+    } else {
+      router.replace("/tutorials", { scroll: false })
+    }
+  }, [router])
 
   useEffect(() => {
     api.get("/api/v1/categories")
@@ -120,12 +230,32 @@ function TutorialsTabs() {
           .filter((c) => c.parent_id === null && c.is_active)
           .sort((a, b) => a.sort_order - b.sort_order)
         setCategories(roots)
+
+        if (currentPath) {
+          const matched = findCategoryByPath(roots, currentPath)
+          const root = findRootForPath(roots, currentPath)
+          if (root) setActiveTab(root.slug)
+          if (matched) setSelectedChildId(matched.id)
+        }
+        if (!currentPath || !findRootForPath(roots, currentPath)) {
+          setActiveTab(roots[0]?.slug ?? null)
+        }
       })
       .catch(() => setCategories([]))
       .finally(() => setLoading(false))
   }, [])
 
-  const defaultTab = categories[0]?.slug
+  const handleTabChange = (slug: string) => {
+    setActiveTab(slug)
+    setSelectedChildId(null)
+    const root = categories.find((c) => c.slug === slug)
+    navigateTo(root?.path ?? null)
+  }
+
+  const handleSelectCategory = (cat: Category) => {
+    setSelectedChildId(cat.id)
+    navigateTo(cat.path)
+  }
 
   return (
     <div className="container mx-auto py-6">
@@ -142,11 +272,11 @@ function TutorialsTabs() {
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm">Loading...</span>
         </div>
-      ) : (
+      ) : activeTab ? (
         <Tabs
-          defaultValue={defaultTab}
+          value={activeTab}
           className="w-full"
-          onValueChange={() => setSelectedChildId(null)}
+          onValueChange={handleTabChange}
         >
           <TabsList className="mb-4">
             {categories.map((cat) => (
@@ -173,12 +303,12 @@ function TutorialsTabs() {
               <CategorySidebar
                 category={cat}
                 selectedId={selectedChildId}
-                onSelect={(c) => setSelectedChildId(c.id)}
+                onSelect={handleSelectCategory}
               />
             </TabsContent>
           ))}
         </Tabs>
-      )}
+      ) : null}
     </div>
   )
 }
