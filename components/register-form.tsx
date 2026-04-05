@@ -34,23 +34,29 @@ export function RegisterForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setIsGoogleLoading(true)
     setError(null)
     try {
+      if (!apiUrl) {
+        throw new Error("API URL is not configured")
+      }
       const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: credentialResponse.credential }),
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ id_token: credentialResponse.credential }),
       })
       const data = await response.json()
-      if (response.ok && data.token) {
-        login(data.token, data.refresh_token)
-        toast({ title: "Welcome!", description: "Signed in with Google successfully." })
-      } else {
+      if (!response.ok) {
         throw new Error(data.message || "Google sign-in failed")
+      }
+      if (data.access_token) {
+        login(data.access_token, data.refresh_token)
+        toast({ title: "Welcome!", description: `Signed in as ${data.user?.username || data.user?.email || "User"}!` })
+      } else {
+        throw new Error("No access token received from server")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed")
