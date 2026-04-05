@@ -3085,4 +3085,19 @@ export const en = {
     welcomeBack: "Welcome back",
     footer: "All rights reserved.",
   },
+  content: {
+    confirmUpvoteTitle: "Confirm Upvote",
+    confirmUpvoteDesc: "Upvoting this content will cost 🪙 1 sCoin. Do you want to proceed?",
+    confirmUpvoteBtn: "Confirm & Pay 1 sCoin",
+  },
+  tutorials: {
+    title: "Learning Center",
+    subtitle: "Tutorials and resources to get started",
+    loading: "Loading...",
+    loadingContent: "Loading content...",
+    noContent: "No content available.",
+    selectTopic: "Select a topic from the menu.",
+    comingSoon: "tutorials content coming soon.",
+    unityPackage: "Unity Package",
+  },
 };
