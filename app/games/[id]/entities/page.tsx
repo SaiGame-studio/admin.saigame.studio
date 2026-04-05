@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useCallback, useRef, Fragment } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -1469,7 +1470,7 @@ export default function EntitiesPage() {
                   const v = e.target.value
                   setField("name", v)
                   if (autoSlug) {
-                    setField("entity_key", v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""))
+                    setField("entity_key", toSlugUnderscore(v))
                   }
                 }}
               />
@@ -1499,7 +1500,7 @@ export default function EntitiesPage() {
                   title={autoSlug ? t('entity.autoSlugOn') : t('entity.autoSlugOff')}
                   onClick={() => {
                     setAutoSlug(true)
-                    setField("entity_key", form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""))
+                    setField("entity_key", toSlugUnderscore(form.name))
                   }}
                 >
                   <Wand2 className="h-4 w-4" />

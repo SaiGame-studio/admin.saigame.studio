@@ -15,3 +15,8 @@ export function toSlug(text: string): string {
 export function toSlugUnderscore(text: string): string {
   return trSlugify(text, { separator: "_" })
 }
+
+/** Slugify with `_` separator, UPPER CASE. Supports CJK, Vietnamese, etc. */
+export function toSlugUpperCase(text: string): string {
+  return trSlugify(text, { separator: "_" }).toUpperCase()
+}

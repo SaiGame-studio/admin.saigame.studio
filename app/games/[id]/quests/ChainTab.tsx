@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, RefreshCw, Trash2, Pencil, Loader2, Eye, EyeOff,
@@ -100,8 +101,8 @@ function chainTypeBadgeVariant(type: ChainType) {
   }
 }
 
-function toSlug(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+function toSlugKey(str: string) {
+  return toSlugUnderscore(str)
 }
 
 // ─── Unlock Quest IDs Picker ──────────────────────────────────────────────────
@@ -979,7 +980,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                   setChainForm((f) => ({
                     ...f,
                     display_name: name,
-                    ...(autoSlug && !editChain ? { chain_key: toSlug(name) } : {}),
+                    ...(autoSlug && !editChain ? { chain_key: toSlugKey(name) } : {}),
                   }))
                 }}
               />
@@ -1009,7 +1010,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                       const newAuto = !autoSlug
                       setAutoSlug(newAuto)
                       if (newAuto) {
-                        const slug = toSlug(chainForm.display_name)
+                        const slug = toSlugKey(chainForm.display_name)
                         setChainForm((f) => ({ ...f, chain_key: slug }))
                       }
                     }}

@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
+import { toSlug, toSlugUpperCase } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate } from "lucide-react"
@@ -939,12 +940,7 @@ function CreateItemDialog({
                 const v = e.target.value
                 setName(v)
                 if (autoSlug) {
-                  setItemCode(
-                    v.trim()
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9]+/g, "_")
-                      .replace(/^_|_$/g, "")
-                  )
+                  setItemCode(toSlugUpperCase(v))
                 }
               }}
             />
@@ -973,12 +969,7 @@ function CreateItemDialog({
                 title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
                 onClick={() => {
                   setAutoSlug(true)
-                  setItemCode(
-                    name.trim()
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9]+/g, "_")
-                      .replace(/^_|_$/g, "")
-                  )
+                  setItemCode(toSlugUpperCase(name))
                 }}
               >
                 <Wand2 className="h-4 w-4" />
@@ -1712,7 +1703,7 @@ function TagsTab({
                       setForm((f) => ({
                         ...f,
                         label,
-                        ...(autoSlug ? { tag_key: label.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "").replace(/^-+|-+$/g, "").slice(0, 20) } : {}),
+                        ...(autoSlug ? { tag_key: toSlug(label).slice(0, 20) } : {}),
                       }))
                     }}
                     required
@@ -1728,7 +1719,7 @@ function TagsTab({
                       maxLength={20}
                       onChange={(e) => {
                         setAutoSlug(false)
-                        setForm((f) => ({ ...f, tag_key: e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, "") }))
+                        setForm((f) => ({ ...f, tag_key: toSlug(e.target.value) }))
                       }}
                       required
                       className="font-mono"

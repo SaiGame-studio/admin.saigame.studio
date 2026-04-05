@@ -2056,11 +2056,11 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type LBTabValue = "boards" | "coming-soon"
+type LBTabValue = "boards" | "friends"
 
 const LB_TABS: { value: LBTabValue; labelKey: string }[] = [
   { value: "boards", labelKey: "leaderboard.boardsTab" },
-  { value: "coming-soon", labelKey: "leaderboard.comingSoonTab" },
+  { value: "friends", labelKey: "leaderboard.friendsTab" },
 ]
 
 const VALID_LB_TABS = new Set<string>(LB_TABS.map((t) => t.value))
@@ -2501,11 +2501,11 @@ function LeaderboardPageInner() {
           </Card>
         )}
 
-        {activeTab === "coming-soon" && (
+        {activeTab === "friends" && (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-center text-muted-foreground">
             <Trophy className="h-10 w-10 opacity-30" />
-            <p className="font-medium">{t('leaderboard.comingSoonTitle')}</p>
-            <p className="text-sm">{t('leaderboard.comingSoonDesc')}</p>
+            <p className="font-medium">{t('leaderboard.friendsTitle')}</p>
+            <p className="text-sm">{t('leaderboard.friendsDesc')}</p>
           </div>
         )}
       </Tabs>

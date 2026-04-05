@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
+import { toSlugUnderscore } from "@/lib/utils"
 import Link from "next/link"
 import { CopyButton } from "@/components/CopyButton"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -1131,13 +1132,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                   const name = e.target.value
                   const patch: Partial<CreateDailyQuestPoolRequest> = { display_name: name }
                   if (autoSlug && !editPool) {
-                    patch.pool_key = name
-                      .toLowerCase()
-                      .trim()
-                      .replace(/[^a-z0-9\s_-]/g, "")
-                      .replace(/[\s-]+/g, "_")
-                      .replace(/_+/g, "_")
-                      .replace(/^_|_$/g, "")
+                    patch.pool_key = toSlugUnderscore(name)
                   }
                   setPoolForm({ ...poolForm, ...patch })
                 }}
@@ -1168,13 +1163,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                       const newAuto = !autoSlug
                       setAutoSlug(newAuto)
                       if (newAuto) {
-                        const slug = poolForm.display_name
-                          .toLowerCase()
-                          .trim()
-                          .replace(/[^a-z0-9\s_-]/g, "")
-                          .replace(/[\s-]+/g, "_")
-                          .replace(/_+/g, "_")
-                          .replace(/^_|_$/g, "")
+                        const slug = toSlugUnderscore(poolForm.display_name)
                         setPoolForm({ ...poolForm, pool_key: slug })
                       }
                     }}
