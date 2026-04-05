@@ -449,11 +449,14 @@ export function CategoryTab() {
         })
         toast({ title: "Category updated" })
       } else {
-        await createCategory({
+        const created = await createCategory({
           parent_id: parentCat?.id ?? null,
           name: formName.trim(), slug: formSlug.trim(),
           description: formDesc.trim() || undefined, sort_order: formOrder,
         })
+        if (Object.keys(formLanguages).length > 0) {
+          await updateCategory(created.id, { languages: formLanguages })
+        }
         toast({ title: "Category created" })
       }
       setSheetOpen(false); load()

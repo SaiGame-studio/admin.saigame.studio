@@ -33,21 +33,52 @@ interface ContentItem {
   id: string
   title: string
   description: string
+  version_number?: number
   metadata?: Record<string, string>
+}
+
+interface ContentDetail {
+  id: string
+  title: string
+  slug: string
+  language: string
+  description: string
+  body: string
+  status: string
+  version_number: number
+  metadata: Record<string, string>
+  created_at: string
+  updated_at: string
+  published_at: string
 }
 
 function ContentList({ categoryId }: { categoryId: string }) {
   const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<ContentDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const { locale } = useLanguage()
 
   useEffect(() => {
     setLoading(true)
+    setSelectedContentId(null)
+    setDetail(null)
     api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`)
-      .then((res) => setContents((res.data?.data ?? res.data ?? []) as ContentItem[]))
+      .then((res) => setContents((res?.data ?? res ?? []) as ContentItem[]))
       .catch(() => setContents([]))
       .finally(() => setLoading(false))
   }, [categoryId, locale])
+
+  const handleSelectContent = (id: string) => {
+    setSelectedContentId(id)
+    setDetailLoading(true)
+    setDetail(null)
+    api.get(`/api/v1/contents/${id}?language=${locale}`)
+      .then((res) => setDetail(res as ContentDetail))
+      .catch(() => setDetail(null))
+      .finally(() => setDetailLoading(false))
+  }
 
   if (loading) {
     return (
@@ -63,28 +94,67 @@ function ContentList({ categoryId }: { categoryId: string }) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {contents.map((item) => {
-        const metaEntries = Object.entries(item.metadata ?? {})
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {contents.map((item) => {
+          const metaEntries = Object.entries(item.metadata ?? {})
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                "border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors",
+                selectedContentId === item.id && "border-primary bg-accent"
+              )}
+              onClick={() => handleSelectContent(item.id)}
+            >
+              <h3 className="font-medium">{item.title}</h3>
+              {item.description && (
+                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+              )}
+              {metaEntries.length > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t">
+                  {metaEntries.map(([key, value]) => (
+                    <p key={key} className="text-sm">
+                      <span className="text-muted-foreground">{key}:</span> {value}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
 
-        return (
-          <div key={item.id} className="border rounded-lg p-4">
-            <h3 className="font-medium">{item.title}</h3>
-            {item.description && (
-              <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-            )}
-            {metaEntries.length > 0 && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t">
-                {metaEntries.map(([key, value]) => (
-                  <p key={key} className="text-sm">
-                    <span className="text-muted-foreground">{key}:</span> {value}
-                  </p>
-                ))}
-              </div>
-            )}
+      {detailLoading && (
+        <div className="flex items-center gap-2 text-muted-foreground mt-6">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">Loading content...</span>
+        </div>
+      )}
+
+      {detail && (
+        <div className="mt-6 border rounded-lg p-6">
+          <div className="flex items-start justify-between">
+            <h2 className="text-lg font-semibold mb-2">{detail.title}</h2>
+            <span className="text-xs text-muted-foreground shrink-0">v{detail.version_number}</span>
           </div>
-        )
-      })}
+          {detail.description && (
+            <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
+          )}
+          {detail.body && (
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: detail.body }} />
+          )}
+          {Object.keys(detail.metadata ?? {}).length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 pt-4 border-t">
+              {Object.entries(detail.metadata).map(([key, value]) => (
+                <p key={key} className="text-sm">
+                  <span className="text-muted-foreground">{key}:</span> {value}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
