@@ -65,7 +65,10 @@ function ContentList({ categoryId }: { categoryId: string }) {
     setSelectedContentId(null)
     setDetail(null)
     api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`)
-      .then((res) => setContents((res?.data ?? res ?? []) as ContentItem[]))
+      .then((res) => {
+        const data = res?.data ?? res
+        setContents(Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? []))
+      })
       .catch(() => setContents([]))
       .finally(() => setLoading(false))
   }, [categoryId, locale])
