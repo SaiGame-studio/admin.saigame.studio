@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookOpen, ChevronRight, Download, ExternalLink, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface Category {
   id: string
@@ -30,14 +31,15 @@ interface ContentItem {
 function ContentList({ categoryId }: { categoryId: string }) {
   const [contents, setContents] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { locale } = useLanguage()
 
   useEffect(() => {
     setLoading(true)
-    api.get(`/api/v1/categories/${categoryId}/contents`)
+    api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`)
       .then((res) => setContents((res.data?.data ?? res.data ?? []) as ContentItem[]))
       .catch(() => setContents([]))
       .finally(() => setLoading(false))
-  }, [categoryId])
+  }, [categoryId, locale])
 
   if (loading) {
     return (
