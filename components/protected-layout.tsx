@@ -5,6 +5,7 @@ import type React from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { SideNav } from "@/components/side-nav"
 import { TopNav } from "@/components/top-nav"
+import { Footer } from "@/components/footer"
 import { usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
@@ -27,18 +28,14 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  // Auth pages render without layout
-  if (isAuthPage) {
-    return <>{children}</>
-  }
-
-  // Public pages and authenticated pages render with full layout (sidebar + topnav)
+  // All pages render with full layout (sidebar + topnav)
   return (
     <div className="flex min-h-screen">
       <SideNav />
-      <div className="flex flex-1 flex-col min-h-screen min-w-0">
+      <div className="flex flex-1 flex-col h-screen min-w-0">
         <TopNav />
         <main className="flex-1 overflow-auto [&_.container]:ml-0 pr-5">{children}</main>
+        <Footer />
       </div>
     </div>
   )

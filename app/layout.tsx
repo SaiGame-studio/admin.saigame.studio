@@ -63,7 +63,6 @@ export default function RootLayout({
             <AuthProvider>
               <LanguageProvider>
                 <ProtectedLayout>{children}</ProtectedLayout>
-                <Footer />
                 <Toaster />
                 <PageTitleUpdater />
               </LanguageProvider>
