@@ -360,14 +360,41 @@ function CmsDetailInner() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {/* Left: Title + Description + Body editor (3/4) */}
             <div className="lg:col-span-3 space-y-2">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Title</Label>
-                <Input
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); markDirty() }}
-                  placeholder="Title"
-                  className="text-lg font-semibold h-10"
-                />
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Title</Label>
+                  <Input
+                    value={title}
+                    onChange={(e) => { setTitle(e.target.value); markDirty() }}
+                    placeholder="Title"
+                    className="text-lg font-semibold h-10"
+                  />
+                </div>
+                <div className="w-48 space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" />Category</Label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    value={categoryId ?? ""}
+                    onChange={async (e) => {
+                      const newCatId = e.target.value || null
+                      setCategoryId(newCatId)
+                      try {
+                        await updateCmsContent(id, { category_id: newCatId })
+                        toast({ title: "Category updated" })
+                      } catch (err) {
+                        setCategoryId(categoryId)
+                        toast({ title: "Error", description: String(err), variant: "destructive" })
+                      }
+                    }}
+                  >
+                    <option value="">— No category —</option>
+                    {categoryOptions.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Slug</Label>
@@ -485,22 +512,6 @@ function CmsDetailInner() {
                   <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Info</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3" />Category</Label>
-                    <select
-                      className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
-                      value={categoryId ?? ""}
-                      onChange={(e) => { setCategoryId(e.target.value || null); markDirty() }}
-                    >
-                      <option value="">— No category —</option>
-                      {categoryOptions.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <Separator />
                   <div className="flex items-center gap-1.5">
                     <Clock className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Created:</span>
