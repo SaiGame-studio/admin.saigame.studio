@@ -108,9 +108,6 @@ function ContentList({ categoryId }: { categoryId: string }) {
               onClick={() => handleSelectContent(item.id)}
             >
               <h3 className="font-medium">{item.title}</h3>
-              {item.description && (
-                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-              )}
               {metaEntries.length > 0 && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t">
                   {metaEntries.map(([key, value]) => (

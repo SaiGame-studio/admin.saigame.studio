@@ -469,6 +469,16 @@ function CmsDetailInner() {
                   {previewMode ? <Pencil className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   {previewMode ? "Edit" : "Preview"}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={handleSave}
+                  disabled={saving || !dirty}
+                >
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </Button>
               </div>
 
               {/* Editor / Preview */}
