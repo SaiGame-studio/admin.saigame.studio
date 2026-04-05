@@ -52,7 +52,7 @@ const SIDEBAR_WIDTH_KEY = "sai-admin-sidebar-width"
 const SIDEBAR_COLLAPSED_KEY = "sai-admin-sidebar-collapsed"
 
 export function SideNav() {
-  const { logout } = useAuth()
+  const { logout, isAuthenticated } = useAuth()
   const capabilities = useCapabilities()
   const { theme, setTheme } = useTheme()
   const { t, locale } = useTranslation()
@@ -160,27 +160,29 @@ export function SideNav() {
         </div>
         <ScrollArea className="flex-1 px-3 py-2">
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/">
-                  <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/studios">
-                  <Brush className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                <Link href="/games">
-                  <Gamepad2 className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
-                </Link>
-              </Button>
-            </div>
-            {!isCollapsed && (
+            {isAuthenticated && (
+              <div className="space-y-1">
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/">
+                    <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/studios">
+                    <Brush className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/games">
+                    <Gamepad2 className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
+                  </Link>
+                </Button>
+              </div>
+            )}
+            {!isCollapsed && isAuthenticated && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
@@ -195,7 +197,6 @@ export function SideNav() {
                     <span className="whitespace-nowrap">{t('common.payment')}</span>
                   </Link>
                 </Button>
-                {/* Documentation link hidden temporarily */}
               </div>
             )}
             {!isCollapsed && (
@@ -213,12 +214,14 @@ export function SideNav() {
                     <span className="whitespace-nowrap">Unity Package</span>
                   </a>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/roadmap">
-                    <Map className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">{t('common.roadmap')}</span>
-                  </Link>
-                </Button>
+                {isAuthenticated && (
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                    <Link href="/roadmap">
+                      <Map className="h-4 w-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{t('common.roadmap')}</span>
+                    </Link>
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <a href="https://discord.gg/tr7MxpMAH4" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="h-4 w-4 flex-shrink-0" />
@@ -309,10 +312,12 @@ export function SideNav() {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
-                  <LogOut className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
-                </Button>
+                {isAuthenticated && (
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 px-2" onClick={logout}>
+                    <LogOut className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{t('common.logout')}</span>}
+                  </Button>
+                )}
               </div>
             )}
           </div>

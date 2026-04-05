@@ -16,11 +16,11 @@ export default function RegisterPage() {
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+      <div className="flex flex-1 items-center justify-center p-4 bg-muted/40">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">Create a new account</h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <h2 className="mt-6 text-3xl font-extrabold text-foreground">Create a new account</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               Register to access the Sai's Admin dashboard
             </p>
           </div>
@@ -29,7 +29,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-sm text-muted-foreground bg-gray-50 dark:bg-gray-900">
+      <footer className="py-6 text-center text-sm text-muted-foreground bg-muted/40">
         <p>© {new Date().getFullYear()} Sai's Admin. All rights reserved.</p>
       </footer>
     </div>

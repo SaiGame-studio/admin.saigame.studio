@@ -27,12 +27,12 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  // Auth pages and public pages render without sidebar layout
-  if (isAuthPage || (isPublicPage && !isAuthenticated)) {
+  // Auth pages render without layout
+  if (isAuthPage) {
     return <>{children}</>
   }
 
-  // If authenticated, render with full layout
+  // Public pages and authenticated pages render with full layout (sidebar + topnav)
   return (
     <div className="flex min-h-screen">
       <SideNav />
