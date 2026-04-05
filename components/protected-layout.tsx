@@ -12,8 +12,9 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
   const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password"].includes(pathname)
+  const isPublicPage = pathname.startsWith("/tutorials")
 
-  if (isLoading) {
+  if (isLoading && !isPublicPage) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -21,14 +22,13 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If not authenticated and not on auth page, don't render anything
-  // (the auth context will handle the redirect)
-  if (!isAuthenticated && !isAuthPage) {
+  // If not authenticated and not on auth/public page, don't render anything
+  if (!isAuthenticated && !isAuthPage && !isPublicPage) {
     return null
   }
 
-  // If on auth page, just render the page without layout
-  if (isAuthPage) {
+  // Auth pages and public pages render without sidebar layout
+  if (isAuthPage || (isPublicPage && !isAuthenticated)) {
     return <>{children}</>
   }
 

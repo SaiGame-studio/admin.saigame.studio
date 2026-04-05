@@ -84,7 +84,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     setDetailLoading(true)
     setDetail(null)
     router.replace(`/tutorials/${categoryPath}/${item.slug}`, { scroll: false })
-    api.get(`/api/v1/contents/${item.id}?language=${locale}`)
+    api.get(`/api/v1/contents/${item.id}?language=${locale}`, { requireAuth: false })
       .then((res) => setDetail(res as ContentDetail))
       .catch(() => setDetail(null))
       .finally(() => setDetailLoading(false))
@@ -104,7 +104,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     setLoading(true)
     setSelectedContentId(null)
     setDetail(null)
-    api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`)
+    api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`, { requireAuth: false })
       .then((res) => {
         const data = res?.data ?? res
         const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
@@ -136,7 +136,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {contents.map((item) => {
-          const metaEntries = Object.entries(item.metadata ?? {})
           return (
             <div
               key={item.id}
@@ -147,15 +146,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               onClick={() => loadContent(item)}
             >
               <h3 className="font-medium">{item.title}</h3>
-              {metaEntries.length > 0 && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t">
-                  {metaEntries.map(([key, value]) => (
-                    <p key={key} className="text-sm">
-                      <span className="text-muted-foreground">{key}:</span> {value}
-                    </p>
-                  ))}
-                </div>
-              )}
             </div>
           )
         })}
@@ -373,7 +363,7 @@ function TutorialsTabs() {
   }, [router])
 
   useEffect(() => {
-    api.get("/api/v1/categories")
+    api.get("/api/v1/categories", { requireAuth: false })
       .then((res) => {
         const roots = (res.data as Category[])
           .filter((c) => c.parent_id === null && c.is_active)
@@ -433,7 +423,7 @@ function TutorialsTabs() {
     for (const leaf of allLeaves) {
       if (leaf.id === selectedChildId) continue // already checked
       try {
-        const res = await api.get(`/api/v1/categories/${leaf.id}/contents?language=${locale}`)
+        const res = await api.get(`/api/v1/categories/${leaf.id}/contents?language=${locale}`, { requireAuth: false })
         const data = (res as any)?.data ?? res
         const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
         const match = items.find((i) => i.slug === slug)
