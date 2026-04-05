@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
+import { GoogleLogin } from "@react-oauth/google"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +31,33 @@ export function RegisterForm() {
   const [password, setPassword] = useState("")
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setIsGoogleLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: credentialResponse.credential }),
+      })
+      const data = await response.json()
+      if (response.ok && data.token) {
+        login(data.token, data.refresh_token)
+        toast({ title: "Welcome!", description: "Signed in with Google successfully." })
+      } else {
+        throw new Error(data.message || "Google sign-in failed")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed")
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
 
   // Update the handleSubmit function to handle the token and auto-login
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,11 +130,11 @@ export function RegisterForm() {
   return (
     <Card className="w-full">
       <form onSubmit={handleSubmit}>
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 pb-2">
           <div className="text-2xl font-bold">Create an account</div>
           <div className="text-sm text-muted-foreground">Enter your details to create a new account</div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 pb-3">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -164,17 +191,45 @@ export function RegisterForm() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+        <CardFooter className="flex flex-col space-y-3 pt-0">
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Creating account...
               </>
+            ) : isGoogleLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in with Google...
+              </>
             ) : (
               "Create account"
             )}
           </Button>
+          {googleClientId && (
+            <>
+              <div className="relative my-1">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                </div>
+              </div>
+              <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError("Google sign-in failed. Please try again.")}
+                  theme="outline"
+                  size="large"
+                  width="400"
+                  text="signup_with"
+                  shape="rectangular"
+                />
+              </div>
+            </>
+          )}
           <div className="text-center text-sm">
             Already have an account?{" "}
             <Button variant="link" className="p-0 font-normal" onClick={() => router.push("/login")}>

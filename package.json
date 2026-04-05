@@ -1,5 +1,5 @@
 {
-  "name": "sai-admin",
+  "name": "sai-game",
   "version": "0.2.29",
   "private": true,
   "scripts": {
@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/language": "^6.12.2",
+    "@codemirror/language-data": "^6.5.2",
     "@codemirror/legacy-modes": "^6.5.2",
     "@codemirror/lint": "^6.9.5",
     "@dnd-kit/core": "^6.3.1",
@@ -46,6 +48,7 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@react-oauth/google": "^0.13.4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/dagre": "^0.7.54",
     "@types/luaparse": "^0.2.13",
     "@uiw/codemirror-theme-vscode": "^4.25.8",
@@ -69,8 +72,10 @@
     "react-day-picker": "8.10.1",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.54.1",
+    "react-markdown": "^10.1.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "latest",
+    "rehype-raw": "^7.0.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",

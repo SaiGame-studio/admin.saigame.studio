@@ -190,9 +190,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Redirect logic
     if (!isLoading) {
       const authPages = ["/login", "/register", "/forgot-password", "/reset-password"]
-      if (!isAuthenticated && !authPages.includes(pathname)) {
+      const publicPrefixes = ["/tutorials"]
+      const isPublicPage = authPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p))
+      if (!isAuthenticated && !isPublicPage) {
         router.push("/login")
-      } else if (isAuthenticated && authPages.includes(pathname)) {
+      } else if (isAuthenticated && authPages.includes(pathname) && !isPublicPage) {
         router.push("/")
       }
     }

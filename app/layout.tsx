@@ -17,7 +17,10 @@ import { PageTitleUpdater } from "@/components/page-title-updater"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: SITE_NAME,
+  title: {
+    default: SITE_NAME,
+    template: `%s | Sai Game`,
+  },
   description: `${SITE_NAME} dashboard for managing Game Server`,
   generator: 'v0.dev',
   icons: {
@@ -60,7 +63,6 @@ export default function RootLayout({
             <AuthProvider>
               <LanguageProvider>
                 <ProtectedLayout>{children}</ProtectedLayout>
-                <Footer />
                 <Toaster />
                 <PageTitleUpdater />
               </LanguageProvider>

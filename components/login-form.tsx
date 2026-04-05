@@ -154,11 +154,11 @@ export function LoginForm() {
         <LanguageSelector compact />
       </div>
       <form onSubmit={handleSubmit}>
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-1 pb-2">
           <div className="text-2xl font-bold">{t('login.signIn')}</div>
           <div className="text-sm text-muted-foreground">{t('login.subtitle')}</div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 pb-3">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -241,7 +241,7 @@ export function LoginForm() {
             </Button>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
+        <CardFooter className="flex flex-col space-y-3 pt-0">
           <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading ? (
               <>
