@@ -182,6 +182,8 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
           const match = items.find((i) => i.slug === initialContentSlug)
           if (match) loadContent(match)
           else onSlugNotFound?.(initialContentSlug)
+        } else if (items.length > 0) {
+          loadContent(items[0])
         }
       })
       .catch(() => setContents([]))
