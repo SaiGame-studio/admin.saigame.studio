@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import {
@@ -56,6 +57,9 @@ export function SideNav() {
   const capabilities = useCapabilities()
   const { theme, setTheme } = useTheme()
   const { t, locale } = useTranslation()
+  const pathname = usePathname()
+
+  const isActive = (href: string) => href === "/" ? pathname === "/" : pathname.startsWith(href)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [isResizing, setIsResizing] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -162,25 +166,25 @@ export function SideNav() {
           <div className="space-y-4">
             {isAuthenticated && (
               <div className="space-y-1">
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/">
                     <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
                     {!isCollapsed && <span className="whitespace-nowrap">{t('common.dashboard')}</span>}
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/studios") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/studios">
                     <Brush className="h-4 w-4 flex-shrink-0" />
                     {!isCollapsed && <span className="whitespace-nowrap">{t('common.studios')}</span>}
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/games") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/games">
                     <Gamepad2 className="h-4 w-4 flex-shrink-0" />
                     {!isCollapsed && <span className="whitespace-nowrap">{t('common.games')}</span>}
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/roadmap") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/roadmap">
                     <Map className="h-4 w-4 flex-shrink-0" />
                     {!isCollapsed && <span className="whitespace-nowrap">{t('common.roadmap')}</span>}
@@ -191,13 +195,13 @@ export function SideNav() {
             {!isCollapsed && isAuthenticated && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.administration')}</h3>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/profile") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/profile">
                     <User className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.profile')}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/payment") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/payment">
                     <Wallet className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.payment')}</span>
@@ -208,7 +212,7 @@ export function SideNav() {
             {!isCollapsed && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.support')}</h3>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/tutorials") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/tutorials">
                     <BookOpen className="h-4 w-4 flex-shrink-0 animate-pulse" />
                     <span className="whitespace-nowrap">{t('tutorials.title')} <span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span></span>
@@ -237,43 +241,43 @@ export function SideNav() {
             {!isCollapsed && capabilities.is_super_admin && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.admin')}</h3>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/users") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/users">
                     <Users className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.allUsers')}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/studios") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/studios">
                     <Brush className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.allStudios')}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/games") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/games">
                     <Gamepad2 className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">All Games</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/payments") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/payments">
                     <ReceiptText className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.transactions')}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/plugins") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/plugins">
                     <Puzzle className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">{t('common.allPlugins') || 'Plugins'}</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/cms") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/cms">
                     <PenSquare className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">CMS</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                <Button variant={isActive("/admin/monitor") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/admin/monitor">
                     <Activity className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">Monitor</span>
