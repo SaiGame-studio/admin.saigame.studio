@@ -415,9 +415,8 @@ export default function StudioDetailsPage({ params }: { params: Promise<{ id: st
                     <CardDescription>{t('studio.gamesBelonging')}</CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={loadGames} disabled={gamesLoading}>
-                      <RefreshCw className={`h-4 w-4 mr-1.5 ${gamesLoading ? 'animate-spin' : ''}`} />
-                      {t('common.refresh')}
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={loadGames} disabled={gamesLoading}>
+                      <RefreshCw className={`h-4 w-4 ${gamesLoading ? 'animate-spin' : ''}`} />
                     </Button>
                     <Button asChild size="sm">
                       <a href={`/games/new?studio=${studio.id}`}>
