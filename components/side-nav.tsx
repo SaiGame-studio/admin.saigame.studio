@@ -210,8 +210,8 @@ export function SideNav() {
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.support')}</h3>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/tutorials">
-                    <BookOpen className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">Learning Center</span>
+                    <BookOpen className="h-4 w-4 flex-shrink-0 animate-pulse" />
+                    <span className="whitespace-nowrap">{t('tutorials.title')}</span>
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
