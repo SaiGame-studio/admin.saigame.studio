@@ -252,9 +252,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               {detail.metadata.learn_time}
             </p>
           )}
-          {detail.description && (
-            <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
-          )}
           {detail.body && (
             <div className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
                 <ReactMarkdown
