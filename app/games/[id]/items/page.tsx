@@ -204,6 +204,11 @@ function KVEditor({
 
 // ─── Gacha helpers ────────────────────────────────────────────────────────────
 
+/** snake_case → Title Case (e.g. "gacha_pack" → "Gacha Pack") */
+function prettyCategory(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function formatPct(pct: number): string {
   if (pct === 0) return "0%"
   if (pct >= 1) return pct.toFixed(2) + "%"
@@ -987,7 +992,7 @@ function CreateItemDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
-                    <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                    <SelectItem key={c} value={c}>{prettyCategory(c)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -2833,7 +2838,7 @@ export default function GameItemsPage() {
               >
                 <option value="all">{t('items.allCategories')}</option>
                 {categories.map((c) => (
-                  <option key={c} value={c} className="capitalize">{c}</option>
+                  <option key={c} value={c}>{prettyCategory(c)}</option>
                 ))}
               </select>
               {/* Rarity */}
@@ -3012,8 +3017,8 @@ export default function GameItemsPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className="capitalize text-xs w-fit mx-auto">
-                            {item.category}
+                          <Badge variant="outline" className="text-xs w-fit mx-auto">
+                            {prettyCategory(item.category)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
