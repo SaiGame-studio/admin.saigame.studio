@@ -172,11 +172,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
       .then((res) => {
         const data = res?.data ?? res
         const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
-        items.sort((a, b) => {
-          const oa = Number(a.metadata?.order ?? Infinity)
-          const ob = Number(b.metadata?.order ?? Infinity)
-          return oa - ob
-        })
+        items.sort((a, b) => a.title.localeCompare(b.title))
         setContents(items)
         if (initialContentSlug) {
           const match = items.find((i) => i.slug === initialContentSlug)
