@@ -98,8 +98,8 @@ function NewGameForm() {
 
   const selectedStudio = studioDetail ?? studios.find(s => s.id === studioId)
   const studioLimitReached = !!(selectedStudio?.limits?.max_games != null && (selectedStudio.usage?.games ?? 0) >= selectedStudio.limits.max_games)
-  // First game per studio is free; any game after that costs GAME_COST coins
-  const willCostCoins = !studioDetailLoading && (selectedStudio?.usage?.games ?? 0) >= 1
+  // Only costs coins when the studio has reached its game limit
+  const willCostCoins = !studioDetailLoading && studioLimitReached
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

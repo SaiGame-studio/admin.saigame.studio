@@ -135,7 +135,8 @@ function CmsDetailInner() {
   useEffect(() => {
     function flattenTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
       const result: { value: string; label: string; depth: number }[] = []
-      for (const cat of cats) {
+      const sorted = [...cats].sort((a, b) => a.sort_order - b.sort_order)
+      for (const cat of sorted) {
         result.push({ value: cat.id, label: cat.name, depth })
         if (cat.children?.length) result.push(...flattenTree(cat.children, depth + 1))
       }
