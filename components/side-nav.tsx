@@ -211,7 +211,7 @@ export function SideNav() {
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
                   <Link href="/tutorials">
                     <BookOpen className="h-4 w-4 flex-shrink-0 animate-pulse" />
-                    <span className="whitespace-nowrap">{t('tutorials.title')}</span>
+                    <span className="whitespace-nowrap">{t('tutorials.title')} <span className="animate-pulse text-yellow-400 text-[10px]">&#9733;</span></span>
                   </Link>
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2" asChild>
