@@ -70,7 +70,9 @@
       "Bash(grep -n \"renderContent\\\\|<ReactMarkdown\\\\|preview\\\\|ContentList\\\\|ContentDetail\" /g/Projects/ss/admin.saigame.studio/app/tutorials/[[...path]]/page.tsx)",
       "Bash(node -e \"const s = require\\('slugify'\\); console.log\\(s\\('ゲームスタジオ作成', {lower:true,strict:true}\\)\\); console.log\\(s\\('Tiếng Việt có dấu', {lower:true,strict:true}\\)\\); console.log\\(s\\('Hello World', {lower:true,strict:true}\\)\\)\")",
       "Bash(node -e \"const {slugify} = require\\('transliteration'\\); console.log\\(slugify\\('ゲームスタジオ作成'\\)\\); console.log\\(slugify\\('Tiếng Việt có dấu'\\)\\); console.log\\(slugify\\('Hello World'\\)\\); console.log\\(slugify\\('ゲームスタジオ作成', {separator:'_'}\\)\\)\")",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(grep -n \"slug\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
+      "Bash(grep -n \"setTitle\\\\|onChange.*title\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
