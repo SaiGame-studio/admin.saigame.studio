@@ -3015,6 +3015,6 @@ export const ja = {
     noContent: "コンテンツがありません。",
     selectTopic: "メニューからトピックを選択してください。",
     comingSoon: "チュートリアルコンテンツは近日公開予定です。",
-    unityPackage: "Unityパッケージ",
+    unityPackage: "Unity Package",
   },
 };

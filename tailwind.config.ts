@@ -68,6 +68,10 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		keyframes: {
+  			'page-flip': {
+  				'0%, 100%': { transform: 'rotateY(0deg)' },
+  				'50%': { transform: 'rotateY(-30deg)' }
+  			},
   			'accordion-down': {
   				from: {
   					height: '0'
@@ -86,6 +90,7 @@ const config: Config = {
   			}
   		},
   		animation: {
+  			'page-flip': 'page-flip 2s ease-in-out infinite',
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
   		}
