@@ -720,11 +720,7 @@ function CmsDetailInner() {
           className="fixed bottom-6 right-6 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-50"
           title="Jump to editor"
           onClick={() => {
-            const el = editorRef.current
-            if (el) {
-              const top = el.getBoundingClientRect().top + window.scrollY - 70
-              window.scrollTo({ top, behavior: "smooth" })
-            }
+            editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
           }}
         >
           <Pencil className="h-4 w-4" />

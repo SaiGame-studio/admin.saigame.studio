@@ -72,7 +72,8 @@
       "Bash(node -e \"const {slugify} = require\\('transliteration'\\); console.log\\(slugify\\('ゲームスタジオ作成'\\)\\); console.log\\(slugify\\('Tiếng Việt có dấu'\\)\\); console.log\\(slugify\\('Hello World'\\)\\); console.log\\(slugify\\('ゲームスタジオ作成', {separator:'_'}\\)\\)\")",
       "Bash(npm uninstall:*)",
       "Bash(grep -n \"slug\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
-      "Bash(grep -n \"setTitle\\\\|onChange.*title\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)"
+      "Bash(grep -n \"setTitle\\\\|onChange.*title\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
+      "Bash(grep -n \"editorRef\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
