@@ -234,7 +234,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count} />
-              <h2 className="text-lg font-semibold">{detail.title}</h2>
+              <h2 className="text-4xl font-bold">{detail.title}</h2>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
               {detail.metadata?.view_count != null && (
