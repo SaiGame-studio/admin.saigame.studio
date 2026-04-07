@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/sheet"
 import {
   ChevronRight, ChevronDown, Plus, RefreshCw, Pencil, Trash2,
-  FolderTree, Loader2, FolderPlus, GripVertical, Globe, X as XIcon,
+  FolderTree, Loader2, FolderPlus, GripVertical, Globe, X as XIcon, Wand2,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { CopyButton } from "@/components/CopyButton"
@@ -44,7 +44,7 @@ function getCategoryName(cat: ContentCategory, locale: string): string {
 
 const INDENT_PX = 20
 
-import { toSlug } from "@/lib/utils"
+import { toSlug, cn } from "@/lib/utils"
 
 function slugify(name: string): string {
   return toSlug(name)
@@ -636,12 +636,26 @@ export function CategoryTab() {
               </div>
               <div className="space-y-1.5">
                 <Label>Slug <span className="text-destructive">*</span></Label>
-                <Input
-                  value={formSlug}
-                  onChange={e => { setFormSlug(e.target.value); setSlugManual(true) }}
-                  placeholder="e.g. game-setup"
-                  className="font-mono text-sm"
-                />
+                <div className="relative">
+                  <Input
+                    value={formSlug}
+                    onChange={e => { setFormSlug(e.target.value); setSlugManual(true) }}
+                    placeholder="e.g. game-setup"
+                    className="font-mono text-sm pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !slugManual
+                      setSlugManual(next ? true : false)
+                      if (next === false) setFormSlug(slugify(formName))
+                    }}
+                    className={cn("absolute right-0 top-0 h-full px-2.5 rounded-r-md border-l transition-colors", !slugManual ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground")}
+                    title={!slugManual ? "Auto-slug enabled (click to disable)" : "Auto-slug disabled (click to enable)"}
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground">Lowercase, hyphens only (a-z, 0-9, -)</p>
               </div>
               <div className="space-y-1.5">
