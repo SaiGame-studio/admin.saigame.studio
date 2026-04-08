@@ -885,3 +885,29 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function toggleCategoryPublish(id: string, isPublic: boolean): Promise<ContentCategory> {
   return api.patch(`/api/v1/admin/categories/${encodeURIComponent(id)}/publish`, { is_public: isPublic })
 }
+
+// ---------------------------------------------------------------------------
+// CCU Overview
+// ---------------------------------------------------------------------------
+
+export interface CCUGameEntry {
+  game_id: string
+  game_name: string
+  studio_id: string
+  current_ccu: number
+  limit: number
+  utilization_pct: number
+  plugin_tier: string
+}
+
+export interface CCUOverviewResult {
+  total_games: number
+  total_ccu: number
+  total_capacity: number
+  total_utilization_pct: number
+  games: CCUGameEntry[]
+}
+
+export async function getCCUOverview(): Promise<CCUOverviewResult> {
+  return api.get("/api/v1/admin/ccu/overview")
+}

@@ -172,11 +172,14 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
       .then((res) => {
         const data = res?.data ?? res
         const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
+        items.sort((a, b) => a.title.localeCompare(b.title))
         setContents(items)
         if (initialContentSlug) {
           const match = items.find((i) => i.slug === initialContentSlug)
           if (match) loadContent(match)
           else onSlugNotFound?.(initialContentSlug)
+        } else if (items.length > 0) {
+          loadContent(items[0])
         }
       })
       .catch(() => setContents([]))
@@ -227,7 +230,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count} />
-              <h2 className="text-lg font-semibold">{detail.title}</h2>
+              <h2 className="text-4xl font-bold">{detail.title}</h2>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
               {detail.metadata?.view_count != null && (
@@ -244,9 +247,6 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
               <Clock className="h-3.5 w-3.5" />
               {detail.metadata.learn_time}
             </p>
-          )}
-          {detail.description && (
-            <p className="text-sm text-muted-foreground mb-3">{detail.description}</p>
           )}
           {detail.body && (
             <div className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>

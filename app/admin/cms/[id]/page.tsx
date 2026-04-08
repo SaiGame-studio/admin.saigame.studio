@@ -135,7 +135,8 @@ function CmsDetailInner() {
   useEffect(() => {
     function flattenTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
       const result: { value: string; label: string; depth: number }[] = []
-      for (const cat of cats) {
+      const sorted = [...cats].sort((a, b) => a.sort_order - b.sort_order)
+      for (const cat of sorted) {
         result.push({ value: cat.id, label: cat.name, depth })
         if (cat.children?.length) result.push(...flattenTree(cat.children, depth + 1))
       }
@@ -272,6 +273,20 @@ function CmsDetailInner() {
       </div>
     )
   }
+
+  const handleSaveRef = useRef(handleSave)
+  handleSaveRef.current = handleSave
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault()
+        handleSaveRef.current()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   return (
     <div className="container mx-auto py-6">
@@ -706,11 +721,7 @@ function CmsDetailInner() {
           className="fixed bottom-6 right-6 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-50"
           title="Jump to editor"
           onClick={() => {
-            const el = editorRef.current
-            if (el) {
-              const top = el.getBoundingClientRect().top + window.scrollY - 70
-              window.scrollTo({ top, behavior: "smooth" })
-            }
+            editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
           }}
         >
           <Pencil className="h-4 w-4" />
