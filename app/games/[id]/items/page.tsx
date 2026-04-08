@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { toSlug, toSlugUpperCase } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +44,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetTrigger,
 } from "@/components/ui/sheet"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -3826,7 +3826,74 @@ export default function GameItemsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold">{t('items.gachaPacksTitle')}</h2>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                {t('items.gachaPacksTitle')}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button className="inline-flex items-center justify-center rounded-full h-5 w-5 bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors" title={t('items.gachaAntiSpamTitle')}>
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+                    <SheetHeader>
+                      <SheetTitle className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-500" />
+                        {t('items.gachaAntiSpamTitle')}
+                      </SheetTitle>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-6 text-sm">
+                      {/* Flow */}
+                      <div>
+                        <h3 className="font-semibold text-base mb-2">{t('items.gachaAntiSpamFlow')}</h3>
+                        <div className="space-y-1 rounded-md bg-muted/50 border px-3 py-3 font-mono text-xs leading-relaxed">
+                          <p>{t('items.gachaAntiSpamFlowStep1')}</p>
+                          <p className="pl-3 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep2')}</p>
+                          <p className="pl-3 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep3')}</p>
+                          <p className="pl-3 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep4')}</p>
+                          <p className="pl-8 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep4a')}</p>
+                          <p className="pl-8 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep4b')}</p>
+                          <p className="pl-3 text-muted-foreground">→ {t('items.gachaAntiSpamFlowStep5')}</p>
+                        </div>
+                      </div>
+
+                      {/* Calc */}
+                      <div>
+                        <h3 className="font-semibold text-base mb-2">{t('items.gachaAntiSpamCalcTitle')}</h3>
+                        <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                          <li>{t('items.gachaAntiSpamCalcLine1')}</li>
+                          <li>{t('items.gachaAntiSpamCalcLine2')}</li>
+                          <li className="text-destructive font-medium">{t('items.gachaAntiSpamCalcLine3')}</li>
+                        </ul>
+                      </div>
+
+                      {/* Reset */}
+                      <div>
+                        <h3 className="font-semibold text-base mb-2">{t('items.gachaAntiSpamResetTitle')}</h3>
+                        <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                          <li>{t('items.gachaAntiSpamResetLine1')}</li>
+                          <li>{t('items.gachaAntiSpamResetLine2')}</li>
+                          <li className="font-medium text-foreground">{t('items.gachaAntiSpamResetLine3')}</li>
+                        </ul>
+                      </div>
+
+                      {/* Example */}
+                      <div>
+                        <h3 className="font-semibold text-base mb-2">{t('items.gachaAntiSpamExampleTitle')}</h3>
+                        <pre className="whitespace-pre-wrap break-words rounded-md bg-muted/50 border px-3 py-3 text-xs leading-relaxed font-mono text-foreground/80">
+{`00:00  Player opens pack #1   → count=1, set EXPIRE 60s  ✅
+00:02  Player opens pack #2   → count=2                  ✅
+...
+00:15  Player opens pack #10  → count=10                 ✅
+00:16  Player opens pack #11  → count=11 > 10            ❌ 429
+00:30  Resend old idempotency key                        ✅ cached
+01:00  Key expires, counter resets
+01:01  Player opens pack #1   → count=1, set EXPIRE 60s  ✅`}
+                        </pre>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </h2>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 {gameLimits?.max_gacha_packs != null
                   ? <>
