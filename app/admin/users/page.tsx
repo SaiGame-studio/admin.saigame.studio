@@ -1,19 +1,31 @@
 "use client"
 
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCapabilities } from "@/hooks/use-capabilities"
-import { Users, ShieldAlert, Search, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronRight, Globe, MapPin } from "lucide-react"
+import { Users, ShieldAlert, Search, RefreshCw, XCircle, Clock, ChevronDown, ChevronRight, Globe, MapPin, BadgeCheck, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import Link from "next/link"
-import { getAllUsersAdmin, AdminUser } from "@/lib/admin-api"
+import { getAllUsersAdmin, updateUserActiveStatus, AdminUser } from "@/lib/admin-api"
 import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
+
+const PAGE_SIZE = 20
 
 export default function AllUsersPage() {
   const router = useRouter()
@@ -22,15 +34,24 @@ export default function AllUsersPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+  const [page, setPage] = useState(1)
+
+  const [idFilter, setIdFilter] = useState("")
   const [emailFilter, setEmailFilter] = useState("")
   const [usernameFilter, setUsernameFilter] = useState("")
   const [displayNameFilter, setDisplayNameFilter] = useState("")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
-  const [emailSearch, setEmailSearch] = useState("")
-  const [usernameSearch, setUsernameSearch] = useState("")
-  const [displayNameSearch, setDisplayNameSearch] = useState("")
+  // Active search params (applied on submit)
+  const [searchParams, setSearchParams] = useState<{
+    id?: string
+    email?: string
+    username?: string
+    display_name?: string
+  }>({})
+
+  const [confirmDialog, setConfirmDialog] = useState<{ user: AdminUser; newStatus: boolean } | null>(null)
+  const [toggling, setToggling] = useState<string | null>(null)
 
   useEffect(() => {
     if (!capabilities.is_super_admin) {
@@ -38,13 +59,16 @@ export default function AllUsersPage() {
     }
   }, [capabilities, router])
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async (p: number, params: typeof searchParams) => {
     try {
       setLoading(true)
       const result = await getAllUsersAdmin({
-        email: emailSearch || undefined,
-        username: usernameSearch || undefined,
-        display_name: displayNameSearch || undefined,
+        page: p,
+        page_size: PAGE_SIZE,
+        id: params.id || undefined,
+        email: params.email || undefined,
+        username: params.username || undefined,
+        display_name: params.display_name || undefined,
       })
       setUsers(result.users)
       setTotalCount(result.total_count)
@@ -55,30 +79,49 @@ export default function AllUsersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (capabilities.is_super_admin) {
-      loadUsers()
+      loadUsers(page, searchParams)
     }
-  }, [capabilities.is_super_admin])
+  }, [capabilities.is_super_admin, page, searchParams, loadUsers])
+
+  const handleConfirmToggle = useCallback(async () => {
+    if (!confirmDialog) return
+    const { user, newStatus } = confirmDialog
+    setConfirmDialog(null)
+    setToggling(user.id)
+    try {
+      await updateUserActiveStatus(user.id, newStatus)
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_active: newStatus } : u))
+    } catch (err) {
+      console.error("Failed to update user status", err)
+    } finally {
+      setToggling(null)
+    }
+  }, [confirmDialog])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setEmailSearch(emailFilter)
-    setUsernameSearch(usernameFilter)
-    setDisplayNameSearch(displayNameFilter)
-    loadUsers()
+    setPage(1)
+    setSearchParams({
+      id: idFilter || undefined,
+      email: emailFilter || undefined,
+      username: usernameFilter || undefined,
+      display_name: displayNameFilter || undefined,
+    })
   }
 
+  const hasActiveFilters = !!(searchParams.id || searchParams.email || searchParams.username || searchParams.display_name)
+
   const handleClearFilters = () => {
+    setIdFilter("")
     setEmailFilter("")
     setUsernameFilter("")
     setDisplayNameFilter("")
-    setEmailSearch("")
-    setUsernameSearch("")
-    setDisplayNameSearch("")
-    loadUsers()
+    setPage(1)
+    setSearchParams({})
   }
 
   const toggleRow = (id: string) => {
@@ -89,6 +132,8 @@ export default function AllUsersPage() {
       return next
     })
   }
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   const formatGeoTimestamp = (ts: number) => {
     return new Date(ts * 1000).toLocaleString()
@@ -148,7 +193,7 @@ export default function AllUsersPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={loadUsers}
+          onClick={() => loadUsers(page, searchParams)}
           disabled={loading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -163,7 +208,15 @@ export default function AllUsersPage() {
             <CardTitle className="text-base">Search Filters</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">User ID</label>
+                <Input
+                  placeholder="Exact UUID..."
+                  value={idFilter}
+                  onChange={(e) => setIdFilter(e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email</label>
                 <Input
@@ -194,7 +247,7 @@ export default function AllUsersPage() {
                 <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>
-              {(emailSearch || usernameSearch || displayNameSearch) && (
+              {hasActiveFilters && (
                 <Button type="button" variant="outline" size="sm" onClick={handleClearFilters}>
                   Clear Filters
                 </Button>
@@ -222,7 +275,7 @@ export default function AllUsersPage() {
           ) : error ? (
             <div className="p-6 text-center text-destructive">
               <p>{error}</p>
-              <Button variant="outline" className="mt-4" onClick={loadUsers}>
+              <Button variant="outline" className="mt-4" onClick={() => loadUsers(page, searchParams)}>
                 Try Again
               </Button>
             </div>
@@ -230,7 +283,7 @@ export default function AllUsersPage() {
             <div className="p-6 text-center text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>No users found</p>
-              {(emailSearch || usernameSearch || displayNameSearch) && (
+              {hasActiveFilters && (
                 <Button variant="outline" size="sm" className="mt-4" onClick={handleClearFilters}>
                   Clear Filters
                 </Button>
@@ -292,30 +345,25 @@ export default function AllUsersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">{user.email}</div>
+                            <div className="text-sm flex items-center gap-1">
+                              {user.email}
+                              {user.is_verified ? (
+                                <BadgeCheck className="h-4 w-4 text-blue-500 flex-shrink-0" title="Email verified" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" title="Email not verified" />
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1">
-                              {user.is_active ? (
-                                <Badge variant="default" className="w-fit">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Active
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="w-fit">
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Inactive
-                                </Badge>
-                              )}
-                              {user.is_verified ? (
-                                <Badge variant="outline" className="w-fit text-xs">
-                                  Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="w-fit text-xs text-muted-foreground">
-                                  Unverified
-                                </Badge>
-                              )}
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Switch
+                                checked={user.is_active}
+                                disabled={toggling === user.id}
+                                onCheckedChange={(checked) => setConfirmDialog({ user, newStatus: checked })}
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {user.is_active ? "Active" : "Banned"}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -368,6 +416,52 @@ export default function AllUsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage(p => p - 1)}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {confirmDialog?.newStatus ? "unban" : "ban"} user <strong>{confirmDialog?.user.display_name}</strong> ({confirmDialog?.user.email})?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmToggle}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
