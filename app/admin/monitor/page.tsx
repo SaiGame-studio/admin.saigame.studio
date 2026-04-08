@@ -22,6 +22,7 @@ import {
   CalendarDays,
   MailX,
   ShieldCheck,
+  Users,
 } from "lucide-react"
 import {
   getWorkersStatus,
@@ -38,6 +39,9 @@ import {
   updateEmailBlacklistStatus,
   addEmailToBlacklist,
   EmailBlacklistEntry,
+  getCCUOverview,
+  CCUOverviewResult,
+  CCUGameEntry,
 } from "@/lib/admin-api"
 import { toast } from "@/hooks/use-toast"
 import {
@@ -443,6 +447,164 @@ function WorkerCard({ worker }: { worker: Worker }) {
 }
 
 // ---------------------------------------------------------------------------
+// CCU Tab
+// ---------------------------------------------------------------------------
+
+function CCUTab() {
+  const [data, setData] = useState<CCUOverviewResult | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await getCCUOverview()
+      setData(result)
+    } catch (err) {
+      console.error("Failed to load CCU overview", err)
+      setError("Failed to load CCU overview")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function tierColor(tier: string) {
+    switch (tier) {
+      case "legendary": return "bg-yellow-500/90 text-white"
+      case "epic": return "bg-purple-600/90 text-white"
+      case "rare": return "bg-blue-600/90 text-white"
+      case "common": return "bg-gray-500/90 text-white"
+      default: return ""
+    }
+  }
+
+  function utilizationColor(pct: number) {
+    if (pct >= 90) return "bg-red-500"
+    if (pct >= 70) return "bg-yellow-500"
+    return "bg-green-500"
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">CCU Overview</h2>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex items-center gap-2">
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Summary cards */}
+      {!loading && !error && data && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Games</p>
+              <p className="text-2xl font-bold">{data.total_games}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total CCU</p>
+              <p className="text-2xl font-bold">{data.total_ccu.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Capacity</p>
+              <p className="text-2xl font-bold">{data.total_capacity.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Utilization</p>
+              <p className="text-2xl font-bold">{data.total_utilization_pct.toFixed(1)}%</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
+        </Card>
+      )}
+
+      {loading && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}><CardContent className="pt-4"><Skeleton className="h-10 w-full" /></CardContent></Card>
+            ))}
+          </div>
+          <Card><CardContent className="pt-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </CardContent></Card>
+        </div>
+      )}
+
+      {/* Games table */}
+      {!loading && !error && data && (
+        <Card>
+          <CardContent className="pt-4 p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Game</th>
+                    <th className="px-4 py-2 font-medium">Tier</th>
+                    <th className="px-4 py-2 font-medium text-right">CCU</th>
+                    <th className="px-4 py-2 font-medium text-right">Limit</th>
+                    <th className="px-4 py-2 font-medium text-right">Utilization</th>
+                    <th className="px-4 py-2 font-medium w-[200px]"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.games.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No games found.</td>
+                    </tr>
+                  )}
+                  {data.games.map((game) => (
+                    <tr key={game.game_id} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="px-4 py-2">
+                        <div className="font-medium text-sm">{game.game_name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{game.game_id.slice(0, 8)}</div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <Badge className={`text-xs capitalize ${tierColor(game.plugin_tier)}`}>{game.plugin_tier}</Badge>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-sm">{game.current_ccu.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right font-mono text-sm text-muted-foreground">{game.limit.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right font-mono text-sm">{game.utilization_pct.toFixed(1)}%</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${utilizationColor(game.utilization_pct)}`}
+                              style={{ width: `${Math.min(100, game.utilization_pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Workers Tab
 // ---------------------------------------------------------------------------
 
@@ -789,7 +951,7 @@ function MailBlockTab() {
 // Tabs shell
 // ---------------------------------------------------------------------------
 
-const VALID_TABS = ["workers", "mailblock"] as const
+const VALID_TABS = ["ccu", "workers", "mailblock"] as const
 type TabValue = (typeof VALID_TABS)[number]
 
 function MonitorTabs() {
@@ -804,7 +966,7 @@ function MonitorTabs() {
   }, [capabilities, router])
 
   const rawTab = searchParams.get("tab")
-  const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "workers"
+  const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "ccu"
 
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -826,6 +988,10 @@ function MonitorTabs() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="ccu" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            CCU
+          </TabsTrigger>
           <TabsTrigger value="workers" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
             Workers
@@ -836,6 +1002,9 @@ function MonitorTabs() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="ccu" className="mt-0">
+          <CCUTab />
+        </TabsContent>
         <TabsContent value="workers" className="mt-0">
           <WorkersTab />
         </TabsContent>
