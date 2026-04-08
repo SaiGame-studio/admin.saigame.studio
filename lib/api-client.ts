@@ -126,10 +126,14 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     if (!response.ok) {
       const errorMessage = data?.message || data?.error || `Request failed: ${response.status}`
 
-      // Redirect to forbidden page on 403
+      // Handle 403: inactive/banned user → clear session; otherwise just throw
       if (response.status === 403) {
-        if (typeof window !== 'undefined') {
-          window.location.replace('/forbidden')
+        const msg = errorMessage.toLowerCase()
+        if (msg.includes('inactive') || msg.includes('banned') || msg.includes('deactivated') || msg.includes('disabled')) {
+          clearToken()
+          if (typeof window !== 'undefined') {
+            window.location.replace('/login')
+          }
         }
         throw new ApiError(errorMessage, 403, data)
       }
