@@ -24,15 +24,19 @@ export interface AdminUsersResult {
  * Get all users (super admin only)
  */
 export async function getAllUsersAdmin(params?: {
+  page?: number
+  page_size?: number
+  id?: string
   email?: string
   username?: string
   display_name?: string
 }): Promise<AdminUsersResult> {
-  const searchParams = new URLSearchParams({ 
-    page: "1",
-    page_size: "100" 
+  const searchParams = new URLSearchParams({
+    page: String(params?.page ?? 1),
+    page_size: String(params?.page_size ?? 20),
   })
-  
+
+  if (params?.id) searchParams.set("id", params.id)
   if (params?.email) searchParams.set("email", params.email)
   if (params?.username) searchParams.set("username", params.username)
   if (params?.display_name) searchParams.set("display_name", params.display_name)
@@ -113,6 +117,13 @@ export async function getAllGamesAdmin(params?: {
 
   const data = await api.get(`/api/v1/admin/games?${searchParams.toString()}`)
   return data
+}
+
+/**
+ * Update user active status (super admin only)
+ */
+export async function updateUserActiveStatus(userId: string, is_active: boolean): Promise<void> {
+  await api.patch(`/api/v1/admin/users/${userId}/active-status`, { is_active })
 }
 
 /**
