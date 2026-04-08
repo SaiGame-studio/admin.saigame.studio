@@ -115,6 +115,13 @@ export async function getAllGamesAdmin(params?: {
   return data
 }
 
+/**
+ * Update game active status (super admin only)
+ */
+export async function updateGameActiveStatus(gameId: string, is_active: boolean): Promise<void> {
+  await api.patch(`/api/v1/admin/games/${gameId}/active-status`, { is_active })
+}
+
 export interface UserLimits {
   max_studios?: number | null
 }
