@@ -286,11 +286,16 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div className="group">
-                        <GameNameEditable
-                            game={game}
-                            gameId={game.id}
-                            onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
-                        />
+                        <div className="flex items-center gap-2">
+                            <GameNameEditable
+                                game={game}
+                                gameId={game.id}
+                                onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
+                            />
+                            <Badge variant={game.is_active ? "default" : "destructive"} className={game.is_active ? "bg-green-600 hover:bg-green-600" : ""}>
+                                {game.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                        </div>
                         <GameDescriptionEditable
                             game={game}
                             gameId={game.id}

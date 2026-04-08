@@ -1,26 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCapabilities } from "@/hooks/use-capabilities"
 import {
   Brush,
-  CheckCircle2,
   ExternalLink,
   Gamepad2,
   RefreshCw,
   Search,
   ShieldAlert,
-  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import Link from "next/link"
-import { getAllGamesAdmin, AdminGame } from "@/lib/admin-api"
+import { getAllGamesAdmin, updateGameActiveStatus, AdminGame } from "@/lib/admin-api"
 import { formatTimestamp } from "@/lib/utils/date-utils"
 import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog"
 import { CopyButton } from "@/components/CopyButton"
@@ -35,6 +43,8 @@ export default function AllGamesPage() {
 
   const [nameFilter, setNameFilter] = useState("")
   const [nameSearch, setNameSearch] = useState("")
+  const [confirmDialog, setConfirmDialog] = useState<{ game: AdminGame; newStatus: boolean } | null>(null)
+  const [toggling, setToggling] = useState<string | null>(null)
 
   useEffect(() => {
     if (!capabilities.is_super_admin) {
@@ -62,6 +72,21 @@ export default function AllGamesPage() {
       loadGames()
     }
   }, [capabilities.is_super_admin])
+
+  const handleConfirmToggle = useCallback(async () => {
+    if (!confirmDialog) return
+    const { game, newStatus } = confirmDialog
+    setConfirmDialog(null)
+    setToggling(game.id)
+    try {
+      await updateGameActiveStatus(game.id, newStatus)
+      setGames(prev => prev.map(g => g.id === game.id ? { ...g, is_active: newStatus } : g))
+    } catch (err) {
+      console.error("Failed to update game status", err)
+    } finally {
+      setToggling(null)
+    }
+  }, [confirmDialog])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -227,17 +252,16 @@ export default function AllGamesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {game.is_active ? (
-                          <Badge variant="default" className="w-fit">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="w-fit">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Inactive
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={game.is_active}
+                            disabled={toggling === game.id}
+                            onCheckedChange={(checked) => setConfirmDialog({ game, newStatus: checked })}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {game.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{formatTimestamp(game.created_at)}</div>
@@ -261,6 +285,22 @@ export default function AllGamesPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {confirmDialog?.newStatus ? "activate" : "deactivate"} game <strong>{confirmDialog?.game.name}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmToggle}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
