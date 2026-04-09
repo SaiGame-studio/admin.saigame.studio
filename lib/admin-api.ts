@@ -698,6 +698,7 @@ export interface EmailBlacklistEntry {
   domain: string
   reason: string
   status: string
+  metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
