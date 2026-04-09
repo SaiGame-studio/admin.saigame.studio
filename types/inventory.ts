@@ -91,6 +91,7 @@ export interface GachaPack {
   studio_id: string
   game_id: string
   name: string
+  code_name?: string
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
   is_enabled: boolean
@@ -100,6 +101,7 @@ export interface GachaPack {
 
 export interface CreateGachaPackRequest {
   name: string
+  code_name?: string
   is_enabled?: boolean
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
@@ -107,6 +109,7 @@ export interface CreateGachaPackRequest {
 
 export interface UpdateGachaPackRequest {
   name?: string
+  code_name?: string
   is_enabled?: boolean
   item_pool?: GachaPoolEntry[]
   key_requirements?: KeyRequirement[]

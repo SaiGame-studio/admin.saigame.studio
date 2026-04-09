@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
-import { toSlug, toSlugUpperCase } from "@/lib/utils"
+import { toSlug, toSlugUpperCase, toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
@@ -258,6 +258,7 @@ const EMPTY_KEY_ROW = (): KeyReqRow => ({
 function emptyGachaForm() {
   return {
     name: "",
+    code_name: "",
     is_enabled: true,
     pool: [EMPTY_ROW()],
     keyReqs: [EMPTY_KEY_ROW()],
@@ -2165,6 +2166,7 @@ export default function GameItemsPage() {
   const [editingPack, setEditingPack] = useState<GachaPack | null>(null)
   const [formSaving, setFormSaving] = useState(false)
   const [gachaForm, setGachaForm] = useState(emptyGachaForm())
+  const [gachaAutoSlug, setGachaAutoSlug] = useState(true)
   const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null)
   const [deletePackLoading, setDeletePackLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -2537,6 +2539,7 @@ export default function GameItemsPage() {
   function gachaOpenCreate() {
     setEditingPack(null)
     setGachaForm(emptyGachaForm())
+    setGachaAutoSlug(true)
     setGachaSheetOpen(true)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
@@ -2545,8 +2548,10 @@ export default function GameItemsPage() {
 
   function gachaOpenEdit(pack: GachaPack) {
     setEditingPack(pack)
+    setGachaAutoSlug(false)
     setGachaForm({
       name: pack.name,
+      code_name: pack.code_name ?? "",
       is_enabled: pack.is_enabled,
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
@@ -2610,6 +2615,7 @@ export default function GameItemsPage() {
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
@@ -2619,6 +2625,7 @@ export default function GameItemsPage() {
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
@@ -3983,6 +3990,12 @@ export default function GameItemsPage() {
                               <span>ID: {pack.id}</span>
                               <CopyButton text={pack.id} size="h-3 w-3" />
                             </div>
+                            {pack.code_name && (
+                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                                <span>Code: {pack.code_name}</span>
+                                <CopyButton text={pack.code_name} size="h-3 w-3" />
+                              </div>
+                            )}
                           </div>
 
                           {/* Col 2: Keys */}
@@ -4030,15 +4043,18 @@ export default function GameItemsPage() {
                       <>
                         <Separator />
                         <CardContent className="pt-4 pb-4">
-                          <div className="flex gap-4 items-start">
-                            {/* Col 1 — Key Requirements (narrow, fixed width) */}
-                            {(pack.key_requirements ?? []).length > 0 && (
-                              <div className="w-[300px] shrink-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 {t('items.keyRequirements')}</p>
+                          <div className="grid grid-cols-5 gap-4 items-start">
+                            {/* Key Requirements — spans 2 columns */}
+                            <div className="col-span-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 {t('items.keyRequirements')}</p>
+                              {(pack.key_requirements ?? []).length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">{t('items.noKeyRequired')}</p>
+                              ) : (
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
@@ -4048,14 +4064,17 @@ export default function GameItemsPage() {
                                         const item = gachaAllItems.find((x) => x.id === kr.item_definition_id)
                                         return (
                                           <TableRow key={i}>
+                                            <TableCell className="text-xs py-2 w-8">
+                                              <Link href={`/games/${gameId}/items/${kr.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
+                                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                              </Link>
+                                            </TableCell>
                                             <TableCell className="text-xs py-2">
                                               {item ? (
-                                                <div className="space-y-0.5">
-                                                  <span className="font-medium block">{item.name}</span>
-                                                  <div className="flex items-center gap-1 flex-wrap">
-                                                    {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
-                                                    {item.rarity && <RarityBadge rarity={item.rarity} />}
-                                                  </div>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span className="font-medium">{item.name}</span>
+                                                  {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                  {item.rarity && <RarityBadge rarity={item.rarity} />}
                                                 </div>
                                               ) : (
                                                 <code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}…</code>
@@ -4068,22 +4087,26 @@ export default function GameItemsPage() {
                                     </TableBody>
                                   </Table>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
 
-                            {/* Col 2 — Drop Table (takes remaining width) */}
-                            {pack.item_pool.length > 0 && (
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 {t('items.dropTable')}</p>
+                            {/* Drop Table — spans 3 columns */}
+                            <div className="col-span-3">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 {t('items.dropTable')}</p>
+                              {pack.item_pool.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">No items in pool</p>
+                              ) : (
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
                                         <TableHead className="text-xs h-8">{t('items.dropRate')}</TableHead>
                                         <TableHead className="text-xs h-8 text-right w-24">{t('items.weight')}</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-14">{t('items.quantity')}</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">Min</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">Max</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -4095,6 +4118,11 @@ export default function GameItemsPage() {
                                           const rarity = entry.rarity ?? item?.rarity
                                           return (
                                             <TableRow key={i}>
+                                              <TableCell className="text-xs py-2 w-8">
+                                                <Link href={`/games/${gameId}/items/${entry.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
+                                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                                </Link>
+                                              </TableCell>
                                               <TableCell className="text-xs py-2">
                                                 {item ? (
                                                   <div>
@@ -4117,19 +4145,16 @@ export default function GameItemsPage() {
                                                 </div>
                                               </TableCell>
                                               <TableCell className="text-xs py-2 text-right tabular-nums text-muted-foreground">{entry.weight.toLocaleString()}</TableCell>
-                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">
-                                                {entry.quantity_min === entry.quantity_max
-                                                  ? entry.quantity_min
-                                                  : `${entry.quantity_min}–${entry.quantity_max}`}
-                                              </TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_min}</TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_max}</TableCell>
                                             </TableRow>
                                           )
                                         })}
                                     </TableBody>
                                   </Table>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </>
@@ -4456,9 +4481,47 @@ export default function GameItemsPage() {
               <Input
                 placeholder="Standard Pack"
                 value={gachaForm.name}
-                onChange={(e) => setGachaForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setGachaForm((f) => ({
+                    ...f,
+                    name: v,
+                    ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+                  }))
+                }}
                 disabled={formSaving}
               />
+            </div>
+
+            {/* Code Name */}
+            <div className="space-y-1">
+              <Label>Code Name <span className="text-muted-foreground text-xs">(optional, e.g. standard_pack)</span></Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. standard_pack"
+                  value={gachaForm.code_name}
+                  onChange={(e) => {
+                    setGachaAutoSlug(false)
+                    setGachaForm((f) => ({ ...f, code_name: e.target.value }))
+                  }}
+                  className="font-mono"
+                  disabled={formSaving}
+                />
+                <Button
+                  type="button"
+                  variant={gachaAutoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0"
+                  title={gachaAutoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+                  onClick={() => {
+                    const next = !gachaAutoSlug
+                    setGachaAutoSlug(next)
+                    if (next) setGachaForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }))
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Key Requirements */}
