@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
-import { toSlug, toSlugUpperCase } from "@/lib/utils"
+import { toSlug, toSlugUpperCase, toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
@@ -258,6 +258,7 @@ const EMPTY_KEY_ROW = (): KeyReqRow => ({
 function emptyGachaForm() {
   return {
     name: "",
+    code_name: "",
     is_enabled: true,
     pool: [EMPTY_ROW()],
     keyReqs: [EMPTY_KEY_ROW()],
@@ -2165,6 +2166,7 @@ export default function GameItemsPage() {
   const [editingPack, setEditingPack] = useState<GachaPack | null>(null)
   const [formSaving, setFormSaving] = useState(false)
   const [gachaForm, setGachaForm] = useState(emptyGachaForm())
+  const [gachaAutoSlug, setGachaAutoSlug] = useState(true)
   const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null)
   const [deletePackLoading, setDeletePackLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -2537,6 +2539,7 @@ export default function GameItemsPage() {
   function gachaOpenCreate() {
     setEditingPack(null)
     setGachaForm(emptyGachaForm())
+    setGachaAutoSlug(true)
     setGachaSheetOpen(true)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
@@ -2545,8 +2548,10 @@ export default function GameItemsPage() {
 
   function gachaOpenEdit(pack: GachaPack) {
     setEditingPack(pack)
+    setGachaAutoSlug(false)
     setGachaForm({
       name: pack.name,
+      code_name: pack.code_name ?? "",
       is_enabled: pack.is_enabled,
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
@@ -2610,6 +2615,7 @@ export default function GameItemsPage() {
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
@@ -2619,6 +2625,7 @@ export default function GameItemsPage() {
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
@@ -3983,6 +3990,12 @@ export default function GameItemsPage() {
                               <span>ID: {pack.id}</span>
                               <CopyButton text={pack.id} size="h-3 w-3" />
                             </div>
+                            {pack.code_name && (
+                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                                <span>Code: {pack.code_name}</span>
+                                <CopyButton text={pack.code_name} size="h-3 w-3" />
+                              </div>
+                            )}
                           </div>
 
                           {/* Col 2: Keys */}
@@ -4456,9 +4469,47 @@ export default function GameItemsPage() {
               <Input
                 placeholder="Standard Pack"
                 value={gachaForm.name}
-                onChange={(e) => setGachaForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setGachaForm((f) => ({
+                    ...f,
+                    name: v,
+                    ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+                  }))
+                }}
                 disabled={formSaving}
               />
+            </div>
+
+            {/* Code Name */}
+            <div className="space-y-1">
+              <Label>Code Name <span className="text-muted-foreground text-xs">(optional, e.g. standard_pack)</span></Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. standard_pack"
+                  value={gachaForm.code_name}
+                  onChange={(e) => {
+                    setGachaAutoSlug(false)
+                    setGachaForm((f) => ({ ...f, code_name: e.target.value }))
+                  }}
+                  className="font-mono"
+                  disabled={formSaving}
+                />
+                <Button
+                  type="button"
+                  variant={gachaAutoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0"
+                  title={gachaAutoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+                  onClick={() => {
+                    const next = !gachaAutoSlug
+                    setGachaAutoSlug(next)
+                    if (next) setGachaForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }))
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Key Requirements */}

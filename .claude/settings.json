@@ -73,7 +73,8 @@
       "Bash(npm uninstall:*)",
       "Bash(grep -n \"slug\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
       "Bash(grep -n \"setTitle\\\\|onChange.*title\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
-      "Bash(grep -n \"editorRef\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)"
+      "Bash(grep -n \"editorRef\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
+      "Bash(grep -n \"gacha\" lib/*.ts lib/*.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
