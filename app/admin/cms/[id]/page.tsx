@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown"
 import rehypeRaw from "rehype-raw"
+import remarkGfm from "remark-gfm"
 import { Suspense, useEffect, useState, useCallback, useRef } from "react"
 
 /** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
@@ -530,7 +531,7 @@ function CmsDetailInner() {
               {previewMode ? (
                 <Card>
                   <CardContent className={cn("pt-4 prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
-                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>{preprocessImgSize(body || "No content.")}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{preprocessImgSize(body || "No content.")}</ReactMarkdown>
                   </CardContent>
                 </Card>
               ) : (

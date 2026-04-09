@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import rehypeRaw from "rehype-raw"
+import remarkGfm from "remark-gfm"
 
 /** Pre-process markdown: convert ![alt](url =WxH) to <img> tags */
 function preprocessImgSize(md: string): string {
@@ -251,6 +252,7 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
           {detail.body && (
             <div className={cn("prose prose-sm max-w-none", resolvedTheme?.includes("dark") && "prose-invert")}>
                 <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
                 >{preprocessImgSize(detail.body)}</ReactMarkdown>
               </div>
