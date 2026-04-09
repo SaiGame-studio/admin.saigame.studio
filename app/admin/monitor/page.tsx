@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState, useCallback } from "react"
+import { Fragment, Suspense, useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +23,8 @@ import {
   MailX,
   ShieldCheck,
   Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import {
   getWorkersStatus,
@@ -734,6 +736,7 @@ function MailBlockTab() {
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [searchDebounced, setSearchDebounced] = useState(search)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   // Debounce search input
   useEffect(() => {
@@ -907,21 +910,53 @@ function MailBlockTab() {
                       </td>
                     </tr>
                   )}
-                  {entries.map((entry) => (
-                    <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="px-4 py-2 font-mono text-xs">{entry.email}</td>
-                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{entry.domain}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground max-w-[200px] truncate">{entry.reason || "—"}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground">{formatISORelative(entry.created_at)}</td>
-                      <td className="px-4 py-2 text-center">
-                        <Switch
-                          checked={entry.status === "allowed"}
-                          disabled={allowingId === entry.id}
-                          onCheckedChange={() => handleToggleStatus(entry)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {entries.map((entry) => {
+                    const isExpanded = expandedId === entry.id
+                    const hasMetadata = entry.metadata && Object.keys(entry.metadata).length > 0
+                    return (
+                      <Fragment key={entry.id}>
+                        <tr
+                          className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
+                          onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                        >
+                          <td className="px-4 py-2 font-mono text-xs">
+                            <div className="flex items-center gap-1">
+                              {isExpanded ? <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}
+                              {entry.email}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{entry.domain}</td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground max-w-[200px] truncate">{entry.reason || "—"}</td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">{formatISORelative(entry.created_at)}</td>
+                          <td className="px-4 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              checked={entry.status === "allowed"}
+                              disabled={allowingId === entry.id}
+                              onCheckedChange={() => handleToggleStatus(entry)}
+                            />
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b last:border-0 bg-muted/30">
+                            <td colSpan={5} className="px-4 py-3">
+                              {hasMetadata ? (
+                                <div className="ml-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-1 text-xs">
+                                  {Object.entries(entry.metadata).map(([key, value]) => (
+                                    <div key={key} className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">{key}:</span>
+                                      <span className="font-mono">{String(value)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="ml-4 text-xs text-muted-foreground">No metadata</span>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
