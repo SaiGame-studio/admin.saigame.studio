@@ -1841,6 +1841,7 @@ function GeneratorTab({
   generatorError,
   setGeneratorError,
   activeTab,
+  refreshKey,
   onAddGenerator,
 }: {
   studioId: string
@@ -1852,6 +1853,7 @@ function GeneratorTab({
   generatorError: string | null
   setGeneratorError: (v: string | null) => void
   activeTab: string
+  refreshKey: number
   onAddGenerator: () => void
 }) {
   const { t } = useTranslation()
@@ -1892,6 +1894,12 @@ function GeneratorTab({
     if (generatorItems.length > 0 || generatorLoading) return
     fetchGenerators()
   }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refetch when parent bumps the refresh key (e.g. after creating a new generator)
+  useEffect(() => {
+    if (refreshKey === 0 || !gameId) return
+    fetchGenerators()
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (generatorLoading) {
     return (
@@ -2126,6 +2134,7 @@ export default function GameItemsPage() {
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
   const [generatorLoading, setGeneratorLoading] = useState(false)
   const [generatorError, setGeneratorError] = useState<string | null>(null)
+  const [generatorRefreshKey, setGeneratorRefreshKey] = useState(0)
 
   // equipments tab state
   const [equipmentSlots, setEquipmentSlots] = useState<EquipmentSlot[]>([])
@@ -4178,6 +4187,7 @@ export default function GameItemsPage() {
             generatorError={generatorError}
             setGeneratorError={setGeneratorError}
             activeTab={activeTab}
+            refreshKey={generatorRefreshKey}
             onAddGenerator={() => {
               setCreateInitCategory("generator" as ItemCategory)
               setShowCreate(true)
@@ -4371,7 +4381,11 @@ export default function GameItemsPage() {
         open={showCreate}
         studioId={studioId}
         gameId={gameId}
-        onCreated={() => { fetchItems(); loadGameInfo() }}
+        onCreated={() => {
+          fetchItems()
+          loadGameInfo()
+          if (activeTab === "generators") setGeneratorRefreshKey((k) => k + 1)
+        }}
         onClose={() => setShowCreate(false)}
         categories={categories}
         rarities={rarities}
