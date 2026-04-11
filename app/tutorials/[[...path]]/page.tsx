@@ -205,16 +205,21 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {contents.map((item) => {
           return (
-            <div
+            <a
               key={item.id}
+              href={`/tutorials/${categoryPath}/${item.slug}`}
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return
+                e.preventDefault()
+                loadContent(item)
+              }}
               className={cn(
-                "border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors",
+                "border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors no-underline text-inherit block",
                 selectedContentId === item.id && "border-primary bg-accent"
               )}
-              onClick={() => loadContent(item)}
             >
               <h3 className="font-medium">{item.title}</h3>
-            </div>
+            </a>
           )
         })}
       </div>
@@ -285,17 +290,23 @@ function CategoryMenuItem({
 
   return (
     <div>
-      <button
-        onClick={() => onSelect(category)}
+      <a
+        href={`/tutorials/${category.path}`}
+        onClick={(e) => {
+          // Allow Ctrl/Cmd+click or middle-click to open in a new tab natively
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return
+          e.preventDefault()
+          onSelect(category)
+        }}
         className={cn(
-          "w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2 hover:bg-accent transition-colors",
+          "w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2 hover:bg-accent transition-colors no-underline text-inherit",
           selectedId === category.id && "bg-accent font-medium"
         )}
         style={{ paddingLeft: `${level * 30 + 12}px` }}
       >
         {children.length > 0 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
         {getCatName(category, locale)}
-      </button>
+      </a>
       {children.length > 0 && (
         <div>
           {children.map((child) => (
