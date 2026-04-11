@@ -4488,7 +4488,7 @@ export default function GameItemsPage() {
             <div className="space-y-1.5">
               <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
               <Input
-                placeholder="Standard Pack"
+                placeholder={t('items.gachaNamePlaceholder')}
                 value={gachaForm.name}
                 onChange={(e) => {
                   const v = e.target.value
@@ -4504,10 +4504,10 @@ export default function GameItemsPage() {
 
             {/* Code Name */}
             <div className="space-y-1">
-              <Label>Code Name <span className="text-muted-foreground text-xs">(optional, e.g. standard_pack)</span></Label>
+              <Label>{t('items.gachaCodeNameLabel')} <span className="text-muted-foreground text-xs">({t('items.gachaCodeNameHint')})</span></Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. standard_pack"
+                  placeholder={t('items.gachaCodeNamePlaceholder')}
                   value={gachaForm.code_name}
                   onChange={(e) => {
                     setGachaAutoSlug(false)

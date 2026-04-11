@@ -258,7 +258,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
             <div className="space-y-2">
               <Label>{t('entity.poolName')} <span className="text-destructive">*</span></Label>
               <Input
-                placeholder="e.g. Floor 3 Enemy Pool"
+                placeholder={t('entity.poolNamePlaceholder')}
                 value={createForm.name}
                 onChange={(e) => {
                   const v = e.target.value
@@ -275,7 +275,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               <Label>{t('entity.poolKey')} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. floor_3_enemies"
+                  placeholder={t('entity.poolKeyPlaceholder')}
                   value={createForm.pool_key}
                   onChange={(e) => {
                     setAutoSlug(false)
@@ -291,8 +291,11 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                   className="shrink-0"
                   title={autoSlug ? t('entity.autoSlugOn') : t('entity.autoSlugOff')}
                   onClick={() => {
-                    setAutoSlug(true)
-                    setCreateForm(f => ({ ...f, pool_key: genSlug(f.name) }))
+                    const next = !autoSlug
+                    setAutoSlug(next)
+                    if (next) {
+                      setCreateForm(f => ({ ...f, pool_key: genSlug(f.name) }))
+                    }
                   }}
                 >
                   <Wand2 className="h-4 w-4" />
@@ -302,7 +305,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
             <div className="space-y-2">
               <Label>{t('entity.fieldDescription')}</Label>
               <Textarea
-                placeholder="Optional description..."
+                placeholder={t('entity.optionalDesc')}
                 value={createForm.description}
                 onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))}
                 disabled={creating}
@@ -760,9 +763,9 @@ function PoolExpandedContent({
                   <div key={k} className="group/meta">
                     {editingMetaKey === k ? (
                       <div className="flex items-center gap-1.5 py-0.5">
-                        <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} />
+                        <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={saving} />
                         <span className="text-muted-foreground text-xs">:</span>
-                        <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                        <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={saving} />
                         <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
                           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         </Button>
@@ -781,9 +784,9 @@ function PoolExpandedContent({
               })}
               {editingMetaKey === "__new__" ? (
                 <div className="flex items-center gap-1.5 py-0.5 mt-1">
-                  <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-32 font-mono" disabled={saving} autoFocus />
+                  <Input value={editingMetaFieldKey} onChange={(e) => setEditingMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={saving} autoFocus />
                   <span className="text-muted-foreground text-xs">:</span>
-                  <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
+                  <Input value={editingMetaFieldValue} onChange={(e) => setEditingMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={saving} />
                   <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveMeta} disabled={saving}>
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   </Button>
@@ -800,7 +803,7 @@ function PoolExpandedContent({
 
         {/* Drop Pack IDs */}
         <div>
-          <dt className="text-xs font-medium text-muted-foreground mb-1">Drop Pack IDs</dt>
+          <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.dropPackIds')}</dt>
           <dd>
             <div className="space-y-1">
               {getDropPackIds().map((packId) => {
@@ -817,7 +820,7 @@ function PoolExpandedContent({
               {gachaPacks.length > 0 && (
                 <Select onValueChange={addDropPack} disabled={saving}>
                   <SelectTrigger className="h-7 text-xs mt-1">
-                    <SelectValue placeholder="Link a gacha pack…" />
+                    <SelectValue placeholder={t('entity.linkGachaPackPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {gachaPacks.filter((p) => !getDropPackIds().includes(p.id)).map((p) => (
