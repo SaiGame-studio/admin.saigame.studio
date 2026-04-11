@@ -3084,11 +3084,6 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="icon" asChild title="View">
-                              <Link href={`/games/${gameId}/items/${item.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
                             <Button variant="ghost" size="icon" asChild title="Edit">
                               <Link href={`/games/${gameId}/items/${item.id}`}>
                                 <Pencil className="h-4 w-4" />
