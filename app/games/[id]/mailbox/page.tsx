@@ -695,8 +695,8 @@ export default function MailboxPage({ params }: { params: Promise<{ id: string }
         {game && (
           <div className="flex items-center justify-between rounded-lg border px-4 py-3 bg-muted/30">
             <div>
-              <p className="text-sm font-medium">Allow player trading and mailbox</p>
-              <p className="text-xs text-muted-foreground">Enable trading between players and mailbox system</p>
+              <p className="text-sm font-medium">{t('game.allowPlayerTrading')}</p>
+              <p className="text-xs text-muted-foreground">{t('game.allowPlayerTradingDesc')}</p>
             </div>
             <Switch
               id="allow-trading"
@@ -707,9 +707,12 @@ export default function MailboxPage({ params }: { params: Promise<{ id: string }
                     settings: { ...game.settings, allow_player_trading: checked }
                   })
                   setGame(updated)
-                  toast({ title: "Settings updated", description: `Player trading and mailbox ${checked ? 'enabled' : 'disabled'}` })
+                  toast({
+                    title: t('game.settingsUpdated'),
+                    description: checked ? t('game.tradingEnabled') : t('game.tradingDisabled')
+                  })
                 } catch {
-                  toast({ title: "Error", description: "Failed to update settings", variant: "destructive" })
+                  toast({ title: t('mailbox.toastErrorTitle'), description: t('game.failedUpdateSettings'), variant: "destructive" })
                 }
               }}
             />
