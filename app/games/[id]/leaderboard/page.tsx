@@ -323,7 +323,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const [scheduleFlash, setScheduleFlash] = useState(false)
   const scheduleFlashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [scheduleOptions, setScheduleOptions] = useState<ResetScheduleOption[]>(
-    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.labelKey, description: "" }))
+    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: t(o.labelKey as any), description: "" }))
   )
   const [sourceTypeOptions, setSourceTypeOptions] = useState<ScoreSourceTypeOption[]>([])
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
@@ -345,6 +345,73 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     first_season_start_at: null,
   })
 
+  const localizeResetScheduleOption = (opt: ResetScheduleOption): ResetScheduleOption => {
+    const keyMap: Record<string, string> = {
+      never: "leaderboard.resetSchedule_never",
+      season: "leaderboard.resetSchedule_season",
+      daily: "leaderboard.resetSchedule_daily",
+      weekly: "leaderboard.resetSchedule_weekly",
+      monthly: "leaderboard.resetSchedule_monthly",
+    }
+    const key = keyMap[opt.value]
+    return key ? { ...opt, label: t(key as any) } : opt
+  }
+
+  const getResetScheduleLabel = (value: string, fallback?: string) => {
+    const keyMap: Record<string, string> = {
+      never: "leaderboard.resetSchedule_never",
+      season: "leaderboard.resetSchedule_season",
+      daily: "leaderboard.resetSchedule_daily",
+      weekly: "leaderboard.resetSchedule_weekly",
+      monthly: "leaderboard.resetSchedule_monthly",
+    }
+    const key = keyMap[value]
+    return key ? t(key as any) : (fallback ?? value)
+  }
+
+  const getScoreSourceTypeLabel = (opt: ScoreSourceTypeOption) => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.scoreSourceType_gachaPackOpenCount')
+    if (value.includes("item")) return t('leaderboard.scoreSourceType_itemCollectedCount')
+    return opt.label
+  }
+
+  const getScoreSourceTypeDesc = (opt: ScoreSourceTypeOption) => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.scoreSourceTypeDesc_gachaPackOpenCount')
+    if (value.includes("item")) return t('leaderboard.scoreSourceTypeDesc_itemCollectedCount')
+    return opt.description
+  }
+
+  const getScoreSourceRefLabel = (opt: ScoreSourceTypeOption | undefined) => {
+    if (!opt) return "score_source_ref_id"
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.refLabel_gachaPackId')
+    if (value.includes("item")) return t('leaderboard.refLabel_itemDefinitionId')
+    return opt.ref_id_label
+  }
+
+  const localizeScoreSourceTypeOption = (opt: ScoreSourceTypeOption): ScoreSourceTypeOption => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) {
+      return {
+        ...opt,
+        label: t('leaderboard.scoreSourceType_gachaPackOpenCount'),
+        description: t('leaderboard.scoreSourceTypeDesc_gachaPackOpenCount'),
+        ref_id_label: t('leaderboard.refLabel_gachaPackId'),
+      }
+    }
+    if (value.includes("item")) {
+      return {
+        ...opt,
+        label: t('leaderboard.scoreSourceType_itemCollectedCount'),
+        description: t('leaderboard.scoreSourceTypeDesc_itemCollectedCount'),
+        ref_id_label: t('leaderboard.refLabel_itemDefinitionId'),
+      }
+    }
+    return opt
+  }
+
   // Reset form + auto-slug when sheet opens
   useEffect(() => {
     if (open) {
@@ -352,13 +419,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
       setAutoSlug(true)
       getResetScheduleOptions()
         .then((opts) => {
-          setScheduleOptions(opts)
+          setScheduleOptions(opts.map(localizeResetScheduleOption))
           if (opts.length > 0) set("reset_schedule", opts[0].value)
         })
         .catch(() => { /* keep static fallback */ })
       getScoreSourceTypeOptions()
         .then((opts) => {
-          setSourceTypeOptions(opts)
+          setSourceTypeOptions(opts.map(localizeScoreSourceTypeOption))
           if (opts.length > 0) {
             const itemOpt = opts.find(o => o.value.includes("item"))
             setForm((f) => ({ ...f, score_source_type: (itemOpt ?? opts[0]).value }))
@@ -530,17 +597,17 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                     <SelectTrigger><SelectValue placeholder={t('leaderboard.selectSourceType')} /></SelectTrigger>
                     <SelectContent>
                       {sourceTypeOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        <SelectItem key={o.value} value={o.value}>{getScoreSourceTypeLabel(o)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {selectedSourceType?.description && (
-                    <p className="text-xs text-muted-foreground">{selectedSourceType.description}</p>
+                    <p className="text-xs text-muted-foreground">{getScoreSourceTypeDesc(selectedSourceType)}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="c-score_source_ref_id">
-                    {selectedSourceType?.ref_id_label ?? "score_source_ref_id"} <span className="text-destructive">*</span>
+                    {getScoreSourceRefLabel(selectedSourceType)} <span className="text-destructive">*</span>
                   </Label>
                   {form.score_source_type.includes("gacha") ? (
                     <Popover open={gachaPopoverOpen} onOpenChange={setGachaPopoverOpen}>
@@ -678,7 +745,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {scheduleOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  <SelectItem key={o.value} value={o.value}>{getResetScheduleLabel(o.value, o.label)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

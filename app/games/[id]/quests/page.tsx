@@ -718,24 +718,44 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterSearch, filterType, filterActive, sortBy, sortOrder])
 
-  // Quest type options (fetched from API, falls back to QUEST_TYPES)
-  const [questTypeOptions, setQuestTypeOptions] = useState<{ value: string; label: string; description: string }[]>(
-    QUEST_TYPES.map((qt) => ({ value: qt.value, label: t(qt.labelKey), description: t(qt.descKey) }))
-  )
+  // Quest type options:
+  // - Prefer i18n labels/descriptions for known quest types
+  // - Keep API-provided values as fallback for unknown future types
+  const [apiQuestTypes, setApiQuestTypes] = useState<{ value: string; description?: string }[]>([])
 
   useEffect(() => {
     listQuestTypes().then((data) => {
       if (data?.quest_types?.length) {
-        setQuestTypeOptions(
+        setApiQuestTypes(
           data.quest_types.map((qt) => ({
             value: qt.value,
-            label: qt.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
             description: qt.description,
           }))
         )
       }
     }).catch(() => {/* keep fallback */})
   }, [])
+
+  const questTypeOptions = useMemo(() => {
+    const knownTypeMap = new Map(
+      QUEST_TYPES.map((qt) => [qt.value, { label: t(qt.labelKey), description: t(qt.descKey) }])
+    )
+
+    const sourceTypes = apiQuestTypes.length > 0
+      ? apiQuestTypes.map((qt) => qt.value)
+      : QUEST_TYPES.map((qt) => qt.value)
+
+    return sourceTypes.map((value) => {
+      const known = knownTypeMap.get(value as QuestType)
+      const apiInfo = apiQuestTypes.find((qt) => qt.value === value)
+
+      return {
+        value,
+        label: known?.label ?? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: known?.description ?? (apiInfo?.description ?? ""),
+      }
+    })
+  }, [apiQuestTypes, t])
 
   const filteredQuests = useMemo(() => {
     let result = quests

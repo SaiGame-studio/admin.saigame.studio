@@ -3084,11 +3084,6 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="icon" asChild title="View">
-                              <Link href={`/games/${gameId}/items/${item.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
                             <Button variant="ghost" size="icon" asChild title="Edit">
                               <Link href={`/games/${gameId}/items/${item.id}`}>
                                 <Pencil className="h-4 w-4" />
@@ -4493,7 +4488,7 @@ export default function GameItemsPage() {
             <div className="space-y-1.5">
               <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
               <Input
-                placeholder="Standard Pack"
+                placeholder={t('items.gachaNamePlaceholder')}
                 value={gachaForm.name}
                 onChange={(e) => {
                   const v = e.target.value
@@ -4509,10 +4504,10 @@ export default function GameItemsPage() {
 
             {/* Code Name */}
             <div className="space-y-1">
-              <Label>Code Name <span className="text-muted-foreground text-xs">(optional, e.g. standard_pack)</span></Label>
+              <Label>{t('items.gachaCodeNameLabel')} <span className="text-muted-foreground text-xs">({t('items.gachaCodeNameHint')})</span></Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. standard_pack"
+                  placeholder={t('items.gachaCodeNamePlaceholder')}
                   value={gachaForm.code_name}
                   onChange={(e) => {
                     setGachaAutoSlug(false)

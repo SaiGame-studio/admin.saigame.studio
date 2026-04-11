@@ -597,8 +597,8 @@ export function ChainTab({ game }: { game: Game | null }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Quest Chains</h2>
-          <p className="text-sm text-muted-foreground">Manage sequential and branching quest chains. Add quests via the membership panel.</p>
+          <h2 className="text-lg font-semibold">{t('quest.chain.headerTitle')}</h2>
+          <p className="text-sm text-muted-foreground">{t('quest.chain.headerDesc')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>

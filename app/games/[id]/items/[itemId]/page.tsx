@@ -217,7 +217,7 @@ export default function ItemDefinitionDetailPage() {
       setItemTagsList((prev) => prev.filter((t) => t.tag_key !== tag.tag_key))
       toast({ title: `Tag "${tag.label}" removed` })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to remove tag", description: err?.message })
+      toast({ variant: "destructive", title: t('items.failedToRemoveTag'), description: err?.message })
     } finally {
       setTagActionLoading(null)
     }
@@ -300,7 +300,7 @@ export default function ItemDefinitionDetailPage() {
           }
         }
       } catch (err: any) {
-        setError(err?.message ?? "Failed to load item")
+        setError(err?.message ?? t('items.failedToLoadItem'))
       } finally {
         setLoading(false)
       }
@@ -327,9 +327,9 @@ export default function ItemDefinitionDetailPage() {
       setEditingField(null)
       setEditingStats(false)
       setEditingMeta(false)
-      toast({ title: "Saved" })
+      toast({ title: t('common.saved') })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Save failed", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? t('common.unknown') })
     } finally {
       setSaving(false)
     }
@@ -394,7 +394,7 @@ export default function ItemDefinitionDetailPage() {
       const res = await updateItemDefinition({ gameId }, itemId, { metadata })
       setItem(res.item)
       setEditingGenConfig(false)
-      toast({ title: "Generator config saved" })
+      toast({ title: t('items.generatorConfigSaved') })
       // Re-resolve pool names
       const gc = res.item.metadata?.generator_config as Record<string, unknown>
       const pool = Array.isArray(gc?.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
@@ -406,7 +406,7 @@ export default function ItemDefinitionDetailPage() {
           .catch(() => {})
       })
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Save failed", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? t('common.unknown') })
     } finally {
       setSavingGenConfig(false)
     }
@@ -444,10 +444,10 @@ export default function ItemDefinitionDetailPage() {
     setDeleting(true)
     try {
       await deleteItemDefinition({ gameId }, itemId)
-      toast({ title: "Item deleted" })
+      toast({ title: t('items.itemDeleted') })
       router.push(`/games/${gameId}/items`)
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Delete failed", description: err?.message ?? "Unknown error" })
+      toast({ variant: "destructive", title: t('items.failedToDelete'), description: err?.message ?? t('common.unknown') })
     } finally {
       setDeleting(false)
     }
@@ -468,7 +468,7 @@ export default function ItemDefinitionDetailPage() {
     return (
       <div className="container mx-auto py-6">
         <Card className="border-destructive">
-          <CardContent className="pt-6 text-destructive">{error ?? "Item not found"}</CardContent>
+          <CardContent className="pt-6 text-destructive">{error ?? t('items.itemNotFound')}</CardContent>
         </Card>
       </div>
     )
@@ -485,11 +485,11 @@ export default function ItemDefinitionDetailPage() {
       <div className="mb-4">
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
-            <BreadcrumbItem><BreadcrumbLink href="/games">Games</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/games">{t('common.games')}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}`}>{gameName || gameId}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}/items`}>Item Catalogue</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href={`/games/${gameId}/items`}>{t('items.itemCatalogue')}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
             <BreadcrumbItem><span>{item.name}</span></BreadcrumbItem>
           </BreadcrumbList>
@@ -523,20 +523,21 @@ export default function ItemDefinitionDetailPage() {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete "{item.name}"?</AlertDialogTitle>
+              <AlertDialogTitle>{t('items.deleteItemConfirmTitle')} "{item.name}"?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete the item definition and cannot be undone.
-                Any inventory entries referencing this item may be affected.
+                {t('items.deleteItemConfirmDesc1')}
+                {" "}
+                {t('items.deleteItemConfirmDesc2')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? t('items.deleting') : t('common.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -548,22 +549,22 @@ export default function ItemDefinitionDetailPage() {
       <Tabs value="catalogue" className="mb-2">
         <TabsList>
           <TabsTrigger value="catalogue" asChild>
-            <Link href={`/games/${gameId}/items?tab=catalogue`}>Items</Link>
+            <Link href={`/games/${gameId}/items?tab=catalogue`}>{t('items.tabItems')}</Link>
           </TabsTrigger>
           <TabsTrigger value="containers" asChild>
-            <Link href={`/games/${gameId}/items?tab=containers`}>Containers</Link>
+            <Link href={`/games/${gameId}/items?tab=containers`}>{t('items.tabContainers')}</Link>
           </TabsTrigger>
           <TabsTrigger value="gacha" asChild>
-            <Link href={`/games/${gameId}/items?tab=gacha`}>Gacha</Link>
+            <Link href={`/games/${gameId}/items?tab=gacha`}>{t('items.tabGacha')}</Link>
           </TabsTrigger>
           <TabsTrigger value="generators" asChild>
-            <Link href={`/games/${gameId}/items?tab=generators`}>Generators</Link>
+            <Link href={`/games/${gameId}/items?tab=generators`}>{t('items.tabGenerators')}</Link>
           </TabsTrigger>
           <TabsTrigger value="equipments" asChild>
-            <Link href={`/games/${gameId}/items?tab=equipments`}>Equipments</Link>
+            <Link href={`/games/${gameId}/items?tab=equipments`}>{t('items.tabEquipmentSlots')}</Link>
           </TabsTrigger>
           <TabsTrigger value="tags" asChild>
-            <Link href={`/games/${gameId}/items?tab=tags`}>Tags</Link>
+            <Link href={`/games/${gameId}/items?tab=tags`}>{t('items.tabTags')}</Link>
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -573,26 +574,26 @@ export default function ItemDefinitionDetailPage() {
         {/* ── Identity ────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Identity</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.detailIdentity')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
 
             <div className="group flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Item ID</span>
+              <span className="text-muted-foreground shrink-0">{t('items.detailItemId')}</span>
               <CopyUUID value={item.id} />
             </div>
             <div className="flex justify-between items-start gap-4">
-              <span className="text-muted-foreground shrink-0">Studio ID</span>
+              <span className="text-muted-foreground shrink-0">{t('items.detailStudioId')}</span>
               <CopyUUID value={item.studio_id} />
             </div>
             <div className="flex justify-between items-start gap-4">
-              <span className="text-muted-foreground shrink-0">Game ID</span>
+              <span className="text-muted-foreground shrink-0">{t('items.detailGameId')}</span>
               <CopyUUID value={item.game_id} />
             </div>
             {item.item_code && (
               <div className="flex justify-between items-center gap-4">
                 <span className="text-muted-foreground shrink-0 flex items-center gap-1">
-                  Item Code
+                  {t('items.itemCode')}
                   <Lock className="h-3 w-3 text-muted-foreground/60" />
                 </span>
                 <CopyUUID value={item.item_code} />
@@ -600,11 +601,11 @@ export default function ItemDefinitionDetailPage() {
             )}
 
             <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Created</span>
+              <span className="text-muted-foreground">{t('items.createdAtLabel')}</span>
               <span className="text-xs">{new Date(item.created_at).toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Updated</span>
+              <span className="text-muted-foreground">{t('items.updatedAtLabel')}</span>
               <span className="text-xs">{new Date(item.updated_at).toLocaleString()}</span>
             </div>
 
@@ -612,7 +613,7 @@ export default function ItemDefinitionDetailPage() {
             <div className="pt-2 border-t border-muted/50 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <Tag className="h-3 w-3" /> Tags
+                  <Tag className="h-3 w-3" /> {t('items.tabTags')}
                   {itemTagsList.length > 0 && (
                     <span className={`text-[11px] font-mono ${itemTagsList.length >= 20 ? "text-destructive" : "text-muted-foreground"}`}>
                       {itemTagsList.length}/20
@@ -622,18 +623,18 @@ export default function ItemDefinitionDetailPage() {
                 <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen} modal>
                   <PopoverTrigger asChild>
                     <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" disabled={tagsLoading || itemTagsList.length >= 20}>
-                      <Plus className="h-3 w-3" /> Add
+                      <Plus className="h-3 w-3" /> {t('common.add')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-0" align="end">
                     <Command shouldFilter={false}>
                       <CommandInput
-                        placeholder="Search tags…"
+                        placeholder={t('items.searchTagsPlaceholder')}
                         value={tagPickerSearch}
                         onValueChange={setTagPickerSearch}
                       />
                       <CommandList>
-                        <CommandEmpty>No tags found.</CommandEmpty>
+                        <CommandEmpty>{t('items.noTagsFound')}</CommandEmpty>
                         <CommandGroup>
                           {allTags
                             .filter((t) => {
@@ -669,7 +670,7 @@ export default function ItemDefinitionDetailPage() {
                   <Skeleton className="h-5 w-12 rounded-full" />
                 </div>
               ) : itemTagsList.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No tags assigned.</p>
+                <p className="text-xs text-muted-foreground italic">{t('items.noTagsAssigned')}</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {itemTagsList.map((tag) => (
@@ -701,13 +702,13 @@ export default function ItemDefinitionDetailPage() {
         {/* ── Properties ──────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Properties</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.detailProperties')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
 
             {/* Name */}
             <div className="group flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Name</span>
+              <span className="text-muted-foreground shrink-0">{t('items.name')}</span>
               {editingField === "name" ? (
                 <div className="flex items-center gap-1">
                   <Input
@@ -740,7 +741,7 @@ export default function ItemDefinitionDetailPage() {
 
             {/* Category */}
             <div className="group flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Category</span>
+              <span className="text-muted-foreground shrink-0">{t('items.category')}</span>
               {editingField === "category" ? (
                 <div className="flex items-center gap-1">
                   <Select value={tmpCategory} onValueChange={(v) => setTmpCategory(v as ItemCategory)} disabled={saving}>
@@ -776,7 +777,7 @@ export default function ItemDefinitionDetailPage() {
 
             {/* Rarity */}
             <div className="group flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Rarity</span>
+              <span className="text-muted-foreground shrink-0">{t('items.rarity')}</span>
               {editingField === "rarity" ? (
                 <div className="flex items-center gap-1">
                   <Select value={tmpRarity} onValueChange={(v) => setTmpRarity(v as ItemRarity)} disabled={saving}>
@@ -815,7 +816,7 @@ export default function ItemDefinitionDetailPage() {
             {/* Allow Client Write Player Properties */}
             <div className="flex justify-between items-center py-1.5">
               <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground shrink-0">Allow client write properties</span>
+                <span className="text-muted-foreground shrink-0">{t('items.allowClientWriteProps')}</span>
                 <button
                   type="button"
                   className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -825,7 +826,7 @@ export default function ItemDefinitionDetailPage() {
                     setExplanationTopic('write_props')
                     setShowExplanationPanel(true)
                   }}
-                  title="Learn more about Write Props"
+                  title={t('items.detailLearnMoreWriteProps')}
                 >
                   <span className="text-[10px] font-bold">?</span>
                 </button>
@@ -839,7 +840,7 @@ export default function ItemDefinitionDetailPage() {
                   disabled={saving}
                 />
                 <span className={item.client_writable ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
-                  {item.client_writable ? "Yes" : "No"}
+                  {item.client_writable ? t('common.yes') : t('common.no')}
                 </span>
               </div>
             </div>
@@ -847,7 +848,7 @@ export default function ItemDefinitionDetailPage() {
             {/* Allow Client Update Qty */}
             <div className="flex justify-between items-center py-1.5">
               <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground shrink-0">Allow client update qty</span>
+                <span className="text-muted-foreground shrink-0">{t('items.allowClientUpdateQty')}</span>
                 <button
                   type="button"
                   className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -857,7 +858,7 @@ export default function ItemDefinitionDetailPage() {
                     setExplanationTopic('update_qty')
                     setShowExplanationPanel(true)
                   }}
-                  title="Learn more about Update Qty"
+                  title={t('items.detailLearnMoreUpdateQty')}
                 >
                   <span className="text-[10px] font-bold">?</span>
                 </button>
@@ -871,14 +872,14 @@ export default function ItemDefinitionDetailPage() {
                   disabled={saving}
                 />
                 <span className={item.allow_client_update_qty ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
-                  {item.allow_client_update_qty ? "Yes" : "No"}
+                  {item.allow_client_update_qty ? t('common.yes') : t('common.no')}
                 </span>
               </div>
             </div>
 
             {/* Stackable — immediate toggle, no pencil confirm needed */}
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Stackable</span>
+              <span className="text-muted-foreground shrink-0">{t('items.stackable')}</span>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={item.is_stackable}
@@ -888,7 +889,7 @@ export default function ItemDefinitionDetailPage() {
                   disabled={saving}
                 />
                 <span className={item.is_stackable ? "text-green-500 text-xs font-medium" : "text-muted-foreground text-xs"}>
-                  {item.is_stackable ? "Yes" : "No"}
+                  {item.is_stackable ? t('common.yes') : t('common.no')}
                 </span>
               </div>
             </div>
@@ -896,7 +897,7 @@ export default function ItemDefinitionDetailPage() {
             {/* Max Stack */}
             {item.is_stackable && (
               <div className="group flex justify-between items-center py-1.5">
-                <span className="text-muted-foreground shrink-0">Max Stack</span>
+                <span className="text-muted-foreground shrink-0">{t('items.detailMaxStack')}</span>
                 {editingField === "max_stack_size" ? (
                   <div className="flex items-center gap-1">
                     <Input
@@ -920,7 +921,7 @@ export default function ItemDefinitionDetailPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">
-                    <span>{item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "Unlimited (∞)"}</span>
+                    <span>{item.max_stack_size != null ? item.max_stack_size.toLocaleString() : t('items.detailUnlimited')}</span>
                     <Button size="icon" variant="ghost"
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => startEdit("max_stack_size")}>
@@ -933,7 +934,7 @@ export default function ItemDefinitionDetailPage() {
 
             {/* Grid Size */}
             <div className="group flex justify-between items-center py-1.5">
-              <span className="text-muted-foreground shrink-0">Grid Size</span>
+              <span className="text-muted-foreground shrink-0">{t('items.detailGridSize')}</span>
               {editingField === "grid" ? (
                 <div className="flex items-center gap-1">
                   <Input
@@ -981,7 +982,7 @@ export default function ItemDefinitionDetailPage() {
         {/* ── Base Stats ────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Base Stats</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.baseStats')}</CardTitle>
             {!editingStats ? (
               <Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditStats}>
                 <Pencil className="h-3.5 w-3.5" />
@@ -1015,11 +1016,11 @@ export default function ItemDefinitionDetailPage() {
                 ))}
                 <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full"
                   onClick={() => setTmpStats([...tmpStats, { key: "", value: "0" }])}>
-                  <Plus className="h-3 w-3 mr-1" /> Add stat
+                  <Plus className="h-3 w-3 mr-1" /> {t('items.detailAddStat')}
                 </Button>
               </div>
             ) : Object.keys(item.base_stats ?? {}).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No base stats defined.</p>
+              <p className="text-sm text-muted-foreground">{t('items.detailNoBaseStats')}</p>
             ) : (
               <div className="space-y-2">
                 {Object.entries(item.base_stats).map(([key, value]) => (
@@ -1036,7 +1037,7 @@ export default function ItemDefinitionDetailPage() {
         {/* ── Metadata ──────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Metadata</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.metadata')}</CardTitle>
             {!editingMeta ? (
               <Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditMeta}>
                 <Pencil className="h-3.5 w-3.5" />
@@ -1060,11 +1061,11 @@ export default function ItemDefinitionDetailPage() {
                 <div className="flex items-center gap-1.5 ml-1">
                   <Link
                     href={`/games/${gameId}/items?tab=containers&q=${linkedContainerInfo.id}`}
-                    title="Go to container definitions"
+                    title={t('items.goToItemDef')}
                     className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                   >
                     <ExternalLink className="h-3 w-3 shrink-0" />
-                    <span className="font-medium">{linkedContainerInfo.name || "Unknown container"}</span>
+                    <span className="font-medium">{linkedContainerInfo.name || t('items.detailUnknownContainer')}</span>
                     <span className="font-mono text-[10px] opacity-60">{linkedContainerInfo.id.slice(0, 8)}…</span>
                   </Link>
                 </div>
@@ -1081,7 +1082,7 @@ export default function ItemDefinitionDetailPage() {
                       <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
                         <Link
                           href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
-                          title="Open recipe"
+                          title={t('items.detailOpenRecipe')}
                           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
                         >
                           <ExternalLink className="h-3 w-3 shrink-0" />
@@ -1105,7 +1106,7 @@ export default function ItemDefinitionDetailPage() {
                       <div key={rid} className="inline-flex items-center gap-1.5 text-xs">
                         <Link
                           href={`/games/${gameId}/items?tab=crafting&expanded=${rid}`}
-                          title="Open recipe"
+                          title={t('items.detailOpenRecipe')}
                           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
                         >
                           <ExternalLink className="h-3 w-3 shrink-0" />
@@ -1133,12 +1134,12 @@ export default function ItemDefinitionDetailPage() {
                               ? "bg-green-500/15 text-green-500 border border-green-500/30"
                               : "bg-red-500/15 text-red-500 border border-red-500/30"
                           }`}>
-                            {pack.is_enabled ? "Enabled" : "Disabled"}
+                            {pack.is_enabled ? t('items.enabled') : t('items.disabled')}
                           </span>
                         )}
                         <Link
                           href={`/games/${gameId}/items?tab=gacha&editPack=${packId}`}
-                          title="Open gacha pack editor"
+                          title={t('items.detailOpenGachaPackEditor')}
                           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
                         >
                           <ExternalLink className="h-3 w-3 shrink-0" />
@@ -1168,11 +1169,11 @@ export default function ItemDefinitionDetailPage() {
                 ))}
                 <Button size="sm" variant="outline" className="h-7 text-xs mt-1 w-full"
                   onClick={() => setTmpMeta([...tmpMeta, { key: "", value: "" }])}>
-                  <Plus className="h-3 w-3 mr-1" /> Add entry
+                  <Plus className="h-3 w-3 mr-1" /> {t('items.addEntry')}
                 </Button>
               </div>
             ) : Object.keys(item.metadata ?? {}).filter((k) => !RESERVED_META_KEYS.includes(k)).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No metadata defined.</p>
+              <p className="text-sm text-muted-foreground">{t('items.detailNoMetadata')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 {Object.entries(item.metadata)
@@ -1203,7 +1204,7 @@ export default function ItemDefinitionDetailPage() {
           return (
             <Card className="md:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Generator Config</CardTitle>
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorConfig')}</CardTitle>
                 {!editingGenConfig ? (
                   <Button size="icon" variant="ghost" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={startEditGenConfig}>
                     <Pencil className="h-3.5 w-3.5" />
@@ -1225,11 +1226,11 @@ export default function ItemDefinitionDetailPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Interval (s) <span className="text-destructive">*</span></Label>
+                        <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
                         <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Tick Capacity <span className="text-destructive">*</span></Label>
+                        <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
                         <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
                       </div>
                     </div>
@@ -1245,8 +1246,8 @@ export default function ItemDefinitionDetailPage() {
                         const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
                         return (
                           <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                            <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
-                            <p>Max offline = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> ticks = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
+                            <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
+                            <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
                           </div>
                         )
                       }
@@ -1256,13 +1257,13 @@ export default function ItemDefinitionDetailPage() {
                     {/* Output Pool editor */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold">Output Pool</Label>
+                        <Label className="text-xs font-semibold">{t('items.outputPool')}</Label>
                         <Button
                           type="button" variant="outline" size="sm" className="h-7 text-xs gap-1"
                           disabled={savingGenConfig}
                           onClick={() => setGenOutputPool([...genOutputPool, { item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])}
                         >
-                          <Plus className="h-3 w-3" /> Add Entry
+                          <Plus className="h-3 w-3" /> {t('items.addEntry')}
                         </Button>
                       </div>
 
@@ -1281,7 +1282,7 @@ export default function ItemDefinitionDetailPage() {
                             </div>
                             {/* Item Definition combobox */}
                             <div className="space-y-1.5">
-                              <Label className="text-xs">Item Definition <span className="text-destructive">*</span></Label>
+                              <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
                               <Popover open={genPoolOpen[idx] ?? false} onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))} modal={true}>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" role="combobox" aria-expanded={genPoolOpen[idx] ?? false} className="w-full justify-between font-normal h-9" disabled={savingGenConfig}>
@@ -1291,16 +1292,16 @@ export default function ItemDefinitionDetailPage() {
                                         {selectedItem?.item_code && <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>}
                                       </span>
                                     ) : (
-                                      <span className="text-muted-foreground">Select item…</span>
+                                      <span className="text-muted-foreground">{t('items.selectItem')}</span>
                                     )}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                   <Command shouldFilter={false}>
-                                    <CommandInput placeholder="Search by name or code…" value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
+                                    <CommandInput placeholder={t('items.searchByNameOrCode')} value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
                                     <CommandList>
-                                      <CommandEmpty>{genItemsLoading ? "Loading…" : "No item found."}</CommandEmpty>
+                                      <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
                                       <CommandGroup>
                                         {genAllItems
                                           .filter((d) => {
@@ -1326,13 +1327,13 @@ export default function ItemDefinitionDetailPage() {
                             </div>
                             {/* Numeric fields */}
                             <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">Drop Rate</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">Qty Min</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">Qty Max</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t('items.dropRate')}</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMin')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMax')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">Collect Cap</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">Initial Output</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t('items.collectCap')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
+                              <div className="space-y-1"><Label className="text-xs">{t('items.initialOutput')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
                             </div>
                           </div>
                         )
@@ -1344,34 +1345,34 @@ export default function ItemDefinitionDetailPage() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Interval</p>
+                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
                         <p className="font-semibold text-sm">{interval}s</p>
                       </div>
                       <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Tick Capacity</p>
+                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
                         <p className="font-semibold text-sm">{ticks}</p>
                       </div>
                     </div>
                     {interval > 0 && ticks > 0 && (
                       <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                        <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
-                        <p>Max offline = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                        <p>Player can collect up to <span className="font-medium text-foreground">{ticks}</span> ticks worth of output after <span className="font-medium text-foreground">{timeStr}</span> offline.</p>
+                        <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
+                        <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
+                        <p>{t('items.detailPlayerCanCollectUpTo')} <span className="font-medium text-foreground">{ticks}</span> {t('items.detailTicksWorthOfOutputAfter')} <span className="font-medium text-foreground">{timeStr}</span> {t('items.detailOfflineSuffix')}</p>
                       </div>
                     )}
                     {outputPool.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-medium">Output Pool ({outputPool.length})</p>
+                        <p className="text-xs text-muted-foreground font-medium">{t('items.outputPool')} ({outputPool.length})</p>
                         <div className="rounded border border-border overflow-hidden">
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="border-b bg-muted/40">
-                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Item Definition</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Drop Rate</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Min</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Qty Max</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Collect Cap</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">Initial Out</th>
+                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">{t('items.itemDefinition')}</th>
+                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.dropRate')}</th>
+                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMin')}</th>
+                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMax')}</th>
+                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.collectCap')}</th>
+                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.initialOutput')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1409,7 +1410,7 @@ export default function ItemDefinitionDetailPage() {
                       </div>
                     )}
                     {outputPool.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No output pool configured.</p>
+                      <p className="text-sm text-muted-foreground">{t('items.detailNoOutputPool')}</p>
                     )}
                   </div>
                 )}
