@@ -2850,6 +2850,8 @@ export const en = {
 
     // Chain Tab
     chain: {
+      headerTitle: "Quest Chains",
+      headerDesc: "Manage sequential and branching quest chains. Add quests via the membership panel.",
       // Chain types
       typeLinear: "Linear",
       typeLinearDesc: "Sequential — each quest unlocks after the previous is claimed",
@@ -2944,7 +2946,30 @@ export const en = {
       // Header
       manageDesc: "Manage daily quest pools. Each pool assigns quests to players daily based on its strategy.",
       maxAdvanceDays: "Max advance days",
+      daysUnit: "days",
       createPool: "Create Pool",
+      createDailyQuestPool: "Create Daily Quest Pool",
+      editPool: "Edit Pool",
+      displayName: "Display Name",
+      displayNameHint: "Human-readable name shown in the UI.",
+      displayNameRequired: "Display Name is required.",
+      poolKey: "Pool Key",
+      poolKeyReadonly: "Pool key cannot be changed after creation.",
+      poolKeyAutoGen: "Auto-generated from display name. Edit manually to override.",
+      poolKeyUnique: "Unique key, cannot be changed after creation.",
+      autoSlugEnabled: "Auto-slug enabled — click to disable",
+      autoSlugDisabled: "Auto-slug disabled — click to enable",
+      poolKeyRequired: "Pool Key is required.",
+      poolKeyAndDisplayNameRequired: "Pool Key and Display Name are required.",
+      optionalPoolDescription: "Optional description for this pool.",
+      assignmentStrategy: "Assignment Strategy",
+      strategyReadonly: "Strategy cannot be changed after creation.",
+      comingSoon: "Coming Soon",
+      strategyNotAvailable: "This strategy is not yet available.",
+      slotsPerDay: "Slots Per Day",
+      slotsPerDayHint: "How many quests a player sees each day.",
+      resetHourUtc: "Reset Hour (UTC)",
+      activeHint: "Pool is visible to players when active.",
 
       // Strategy names
       weightedRandom: "Weighted Random",
@@ -2980,11 +3005,31 @@ export const en = {
 
       // List / Table
       list: "List",
+      noPoolsYet: "No daily quest pools yet.",
+      createFirstPool: "Create your first pool",
+      slotsPerDayUnit: "slots/day",
+      resetAt: "Reset",
+      loadingPoolDetails: "Loading pool details...",
+      questsInPool: "Quests in Pool",
+      noQuestsYetSelectRight: "No quests yet. Select one from the right ->",
+      questActivated: "Quest activated",
+      questDeactivated: "Quest deactivated",
+      clickToSelect: "Click to select ->",
+      dragOntoDay: "Drag onto a day ->",
+      searchPlaceholder: "Search...",
+      noResults: "No results",
+      allQuestsAdded: "All quests added",
+      weight: "Weight",
+      higherMoreFrequent: "higher = more frequent",
+      order: "Order",
+      day: "Day",
+      addToPool: "Add to Pool",
       poolName: "Pool Name",
       poolNamePlaceholder: "e.g. Main Pool",
 
       // Toast messages
       failedLoadPool: "Failed to load pool details",
+      failedUpdateSettings: "Failed to update settings",
       poolUpdated: "Pool updated",
       poolCreated: "Pool created",
       failedSavePool: "Failed to save pool",
