@@ -1895,6 +1895,9 @@ export const vi = {
     qtyMax: "Số lượng tối đa",
     collectCap: "Giới hạn thu thập",
     initialOutput: "Đầu ra ban đầu",
+    collectDestination: "Địa chỉ nhận item",
+    collectDestinationMailbox: "Hòm thư (người chơi nhận từ hộp thư)",
+    collectDestinationInventory: "Túi đồ (giao thẳng vào kho)",
     // Sheet titles
     newItemDefinition: "Định nghĩa Vật phẩm mới",
     newContainerDefinition: "Định nghĩa Kho chứa mới",
