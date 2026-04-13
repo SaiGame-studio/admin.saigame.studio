@@ -155,6 +155,7 @@ export default function ItemDefinitionDetailPage() {
   const [editingGenConfig, setEditingGenConfig] = useState(false)
   const [genInterval, setGenInterval] = useState("")
   const [genTickCapacity, setGenTickCapacity] = useState("")
+  const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
   const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([])
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
   const [genItemsLoading, setGenItemsLoading] = useState(false)
@@ -349,6 +350,7 @@ export default function ItemDefinitionDetailPage() {
     const gc = (item.metadata?.generator_config ?? {}) as Record<string, unknown>
     setGenInterval(String(gc.production_interval_seconds ?? "3600"))
     setGenTickCapacity(String(gc.tick_capacity ?? "24"))
+    setGenCollectDestination((gc.collect_destination as "mailbox" | "inventory") ?? "mailbox")
     const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
     setGenOutputPool(pool.length > 0
       ? pool.map((e) => ({
@@ -380,6 +382,7 @@ export default function ItemDefinitionDetailPage() {
       metadata.generator_config = {
         production_interval_seconds: Number(genInterval) || 3600,
         tick_capacity: Number(genTickCapacity) || 24,
+        collect_destination: genCollectDestination,
         output_pool: genOutputPool
           .filter((e) => e.item_definition_id.trim())
           .map((e) => ({
@@ -515,7 +518,34 @@ export default function ItemDefinitionDetailPage() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <GameNavButtons gameId={gameId} active="items" />
-          <AlertDialog>
+        </div>
+      </div>
+
+      {/* Item sub-tabs */}
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <Tabs value="catalogue">
+          <TabsList>
+            <TabsTrigger value="catalogue" asChild>
+              <Link href={`/games/${gameId}/items?tab=catalogue`}>{t('items.tabItems')}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="containers" asChild>
+              <Link href={`/games/${gameId}/items?tab=containers`}>{t('items.tabContainers')}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="gacha" asChild>
+              <Link href={`/games/${gameId}/items?tab=gacha`}>{t('items.tabGacha')}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="generators" asChild>
+              <Link href={`/games/${gameId}/items?tab=generators`}>{t('items.tabGenerators')}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="equipments" asChild>
+              <Link href={`/games/${gameId}/items?tab=equipments`}>{t('items.tabEquipmentSlots')}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="tags" asChild>
+              <Link href={`/games/${gameId}/items?tab=tags`}>{t('items.tabTags')}</Link>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="icon" disabled={deleting}>
               <Trash2 className="h-4 w-4" />
@@ -542,32 +572,7 @@ export default function ItemDefinitionDetailPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        </div>
       </div>
-
-      {/* Item sub-tabs */}
-      <Tabs value="catalogue" className="mb-2">
-        <TabsList>
-          <TabsTrigger value="catalogue" asChild>
-            <Link href={`/games/${gameId}/items?tab=catalogue`}>{t('items.tabItems')}</Link>
-          </TabsTrigger>
-          <TabsTrigger value="containers" asChild>
-            <Link href={`/games/${gameId}/items?tab=containers`}>{t('items.tabContainers')}</Link>
-          </TabsTrigger>
-          <TabsTrigger value="gacha" asChild>
-            <Link href={`/games/${gameId}/items?tab=gacha`}>{t('items.tabGacha')}</Link>
-          </TabsTrigger>
-          <TabsTrigger value="generators" asChild>
-            <Link href={`/games/${gameId}/items?tab=generators`}>{t('items.tabGenerators')}</Link>
-          </TabsTrigger>
-          <TabsTrigger value="equipments" asChild>
-            <Link href={`/games/${gameId}/items?tab=equipments`}>{t('items.tabEquipmentSlots')}</Link>
-          </TabsTrigger>
-          <TabsTrigger value="tags" asChild>
-            <Link href={`/games/${gameId}/items?tab=tags`}>{t('items.tabTags')}</Link>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -1224,7 +1229,7 @@ export default function ItemDefinitionDetailPage() {
                 {editingGenConfig ? (
                   /* ── Edit mode ────────────────────────── */
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
                         <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
@@ -1232,6 +1237,18 @@ export default function ItemDefinitionDetailPage() {
                       <div className="space-y-1.5">
                         <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
                         <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">{t('items.collectDestination')}</Label>
+                        <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                            <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
@@ -1343,7 +1360,7 @@ export default function ItemDefinitionDetailPage() {
                 ) : (
                   /* ── View mode ────────────────────────── */
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div className="rounded-md border px-3 py-2 text-center">
                         <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
                         <p className="font-semibold text-sm">{interval}s</p>
@@ -1351,6 +1368,12 @@ export default function ItemDefinitionDetailPage() {
                       <div className="rounded-md border px-3 py-2 text-center">
                         <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
                         <p className="font-semibold text-sm">{ticks}</p>
+                      </div>
+                      <div className="rounded-md border px-3 py-2 text-center">
+                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.collectDestination')}</p>
+                        <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
+                          {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
+                        </span>
                       </div>
                     </div>
                     {interval > 0 && ticks > 0 && (

@@ -782,6 +782,7 @@ function CreateItemDialog({
   const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
   const [genInterval, setGenInterval] = useState("3600")
   const [genTickCapacity, setGenTickCapacity] = useState("24")
+  const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
 
   // All items for generator output dropdown
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
@@ -818,6 +819,7 @@ function CreateItemDialog({
     setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
     setGenInterval("3600")
     setGenTickCapacity("24")
+    setGenCollectDestination("mailbox")
     setGenAllItems([])
   }
 
@@ -868,6 +870,7 @@ function CreateItemDialog({
         metadata.generator_config = {
           production_interval_seconds: Number(genInterval) || 3600,
           tick_capacity: Number(genTickCapacity) || 24,
+          collect_destination: genCollectDestination,
           output_pool: genOutputPool
             .filter(p => p.item_definition_id.trim())
             .map(p => ({
@@ -1131,7 +1134,7 @@ function CreateItemDialog({
             <div className="space-y-4 rounded-lg border p-5">
               <Label className="text-sm font-semibold">{t('items.generatorConfig')}</Label>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
                   <Input
@@ -1153,6 +1156,18 @@ function CreateItemDialog({
                     onChange={(e) => setGenTickCapacity(e.target.value)}
                   />
                   {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gen-collect-destination">{t('items.collectDestination')}</Label>
+                  <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")}>
+                    <SelectTrigger id="gen-collect-destination">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                      <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

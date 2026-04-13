@@ -1901,6 +1901,9 @@ export const en = {
     qtyMax: "Qty Max",
     collectCap: "Collect Cap",
     initialOutput: "Initial Output",
+    collectDestination: "Collect Destination",
+    collectDestinationMailbox: "Mailbox (player claims from inbox)",
+    collectDestinationInventory: "Inventory (delivered directly)",
     // Sheet titles
     newItemDefinition: "New Item Definition",
     newContainerDefinition: "New Container Definition",

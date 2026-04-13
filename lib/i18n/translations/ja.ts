@@ -1883,6 +1883,9 @@ export const ja = {
     qtyMax: "最大数量",
     collectCap: "収集上限",
     initialOutput: "初期出力",
+    collectDestination: "配信先",
+    collectDestinationMailbox: "メールボックス（プレイヤーが受信トレイから受け取る）",
+    collectDestinationInventory: "インベントリ（直接配信）",
     // Sheet titles
     newItemDefinition: "新しいアイテム定義",
     newContainerDefinition: "新しいコンテナ定義",
