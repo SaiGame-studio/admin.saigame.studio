@@ -21,6 +21,10 @@ import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoryTab } from "./CategoryTab"
+import { locales } from "@/lib/i18n/config"
+
+const LANGUAGE_STORAGE_KEY = "admin.cms.languageFilter"
+const LANGUAGE_LABELS: Record<string, string> = { en: "English", vi: "Tiếng Việt", ja: "日本語" }
 
 function flattenCategoryTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
   const result: { value: string; label: string; depth: number }[] = []
@@ -71,6 +75,15 @@ function CmsPageInner() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchName)
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "created_at")
   const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc")
+  const [language, setLanguage] = useState<string>(() => {
+    const fromUrl = searchParams.get("language")
+    if (fromUrl && (fromUrl === "all" || (locales as readonly string[]).includes(fromUrl))) return fromUrl
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+      if (stored && (stored === "all" || (locales as readonly string[]).includes(stored))) return stored
+    }
+    return "all"
+  })
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const perPage = 20
   const { toast } = useToast()
@@ -119,7 +132,7 @@ function CmsPageInner() {
       const result = await listCmsContents({
         category_id: category !== "all" ? category : undefined,
         search: debouncedSearch || undefined,
-        language: "en",
+        language: language !== "all" ? language : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
         page,
@@ -134,14 +147,21 @@ function CmsPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [category, debouncedSearch, sortBy, sortOrder, page])
+  }, [category, debouncedSearch, language, sortBy, sortOrder, page])
 
   useEffect(() => {
     if (capabilities.is_super_admin) {
       load()
-      updateUrl({ category, search: debouncedSearch, sort_by: sortBy, sort_order: sortOrder, page })
+      updateUrl({ category, search: debouncedSearch, language, sort_by: sortBy, sort_order: sortOrder, page })
     }
   }, [capabilities.is_super_admin, load])
+
+  // persist language filter
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+    }
+  }, [language])
 
   useEffect(() => {
     if (!capabilities.is_super_admin) {
@@ -152,7 +172,7 @@ function CmsPageInner() {
   // reset page when filters change
   useEffect(() => {
     setPage(1)
-  }, [category, sortBy, sortOrder])
+  }, [category, language, sortBy, sortOrder])
 
   const handleCreate = async () => {
     if (!createTitle.trim()) return
@@ -171,7 +191,7 @@ function CmsPageInner() {
     }
   }
 
-  const hasActiveFilters = category !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
+  const hasActiveFilters = category !== "all" || language !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
 
   if (!capabilities.is_super_admin) {
     return (
@@ -223,7 +243,7 @@ function CmsPageInner() {
           {hasActiveFilters && (
             <button
               className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-              onClick={() => { setSearchName(""); setCategory("all"); setSortBy("created_at"); setSortOrder("desc") }}
+              onClick={() => { setSearchName(""); setCategory("all"); setLanguage("all"); setSortBy("created_at"); setSortOrder("desc") }}
             >
               Clear
             </button>
@@ -258,6 +278,17 @@ function CmsPageInner() {
               <option key={c.value} value={c.value}>
                 {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
               </option>
+            ))}
+          </select>
+          {/* Language */}
+          <select
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            <option value="all">All Languages</option>
+            {locales.map((lng) => (
+              <option key={lng} value={lng}>{LANGUAGE_LABELS[lng] ?? lng.toUpperCase()}</option>
             ))}
           </select>
           {/* Sort */}
