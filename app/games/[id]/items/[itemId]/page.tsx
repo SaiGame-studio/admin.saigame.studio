@@ -1433,103 +1433,128 @@ export default function ItemDefinitionDetailPage() {
                   </div>
                 ) : (
                   /* ── View mode ────────────────────────── */
-                  <div className="space-y-3">
-                    <div className="rounded-md border px-3 py-2 flex items-center justify-between">
-                      <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.collectDestination')}</p>
-                      <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
-                        {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
-                        <p className="font-semibold text-sm">{interval}s</p>
-                      </div>
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
-                        <p className="font-semibold text-sm">{ticks}</p>
-                      </div>
-                    </div>
-                    {interval > 0 && ticks > 0 && (
-                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                        <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
-                        <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                        <p>{t('items.detailPlayerCanCollectUpTo')} <span className="font-medium text-foreground">{ticks}</span> {t('items.detailTicksWorthOfOutputAfter')} <span className="font-medium text-foreground">{timeStr}</span> {t('items.detailOfflineSuffix')}</p>
-                      </div>
-                    )}
-                    {(() => {
-                      const mailboxTitle = typeof gc.mailbox_title === "string" ? gc.mailbox_title : ""
-                      const mailboxBody = typeof gc.mailbox_body === "string" ? gc.mailbox_body : ""
-                      if (gc.collect_destination !== "mailbox" || (!mailboxTitle && !mailboxBody)) return null
-                      return (
-                        <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
-                          {mailboxTitle && (
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxTitle')}</p>
-                              <p className="text-sm font-medium">{mailboxTitle}</p>
-                            </div>
-                          )}
-                          {mailboxBody && (
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxBody')}</p>
-                              <p className="text-sm whitespace-pre-wrap">{mailboxBody}</p>
-                            </div>
-                          )}
+                  <div className="space-y-5">
+                    {/* Top: Collect Destination/Mailbox (col 1) + Production Timing (col 2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Section 1: Collect Destination + Mailbox */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
+                        <div>
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
+                            {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
+                          </span>
                         </div>
-                      )
-                    })()}
-                    {outputPool.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-medium">{t('items.outputPool')} ({outputPool.length})</p>
-                        <div className="rounded border border-border overflow-hidden">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b bg-muted/40">
-                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">{t('items.itemDefinition')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.dropRate')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMin')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMax')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.collectCap')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.initialOutput')}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {outputPool.map((entry, idx) => {
-                                const defId = String(entry.item_definition_id ?? "")
-                                const resolvedName = genPoolNames[defId]
-                                return (
-                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
-                                    <td className="px-2 py-1">
-                                      <div className="flex items-center gap-1">
-                                        <Link
-                                          href={`/games/${gameId}/items/${defId}`}
-                                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
-                                          title={defId}
-                                        >
-                                          <span className="truncate max-w-[200px]">
-                                            {genPoolLoading ? "…" : resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
-                                          </span>
-                                          <ExternalLink className="h-3 w-3 shrink-0" />
-                                        </Link>
-                                        {defId && <CopyUUID value={defId} />}
-                                      </div>
-                                    </td>
-                                    <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
+                        {gc.collect_destination === "inventory" && (
+                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                        )}
+                        {(() => {
+                          const mailboxTitle = typeof gc.mailbox_title === "string" ? gc.mailbox_title : ""
+                          const mailboxBody = typeof gc.mailbox_body === "string" ? gc.mailbox_body : ""
+                          if (gc.collect_destination !== "mailbox") return null
+                          if (!mailboxTitle && !mailboxBody) {
+                            return <p className="text-xs text-muted-foreground italic">{t('items.generatorMailboxHint')}</p>
+                          }
+                          return (
+                            <div className="space-y-3 pt-1">
+                              {mailboxTitle && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxTitle')}</p>
+                                  <p className="text-sm font-medium">{mailboxTitle}</p>
+                                </div>
+                              )}
+                              {mailboxBody && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxBody')}</p>
+                                  <p className="text-sm whitespace-pre-wrap">{mailboxBody}</p>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </section>
+
+                      {/* Section 2: Production Timing */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-md border px-3 py-2 text-center">
+                            <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
+                            <p className="font-semibold text-sm">{interval}s</p>
+                          </div>
+                          <div className="rounded-md border px-3 py-2 text-center">
+                            <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
+                            <p className="font-semibold text-sm">{ticks}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {outputPool.length === 0 && (
-                      <p className="text-sm text-muted-foreground">{t('items.detailNoOutputPool')}</p>
-                    )}
+                        {interval > 0 && ticks > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span>
+                          </p>
+                        )}
+                      </section>
+                    </div>
+
+                    <Separator />
+
+                    {/* Section 3: Output Pool */}
+                    <section className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.outputPool')} {outputPool.length > 0 && <span className="text-muted-foreground">({outputPool.length})</span>}</p>
+                      {outputPool.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">{t('items.detailNoOutputPool')}</p>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {outputPool.map((entry, idx) => {
+                            const defId = String(entry.item_definition_id ?? "")
+                            const resolvedName = genPoolNames[defId]
+                            return (
+                              <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">{t('items.itemDefinition')}</Label>
+                                  <div className="flex items-center gap-1">
+                                    <Link
+                                      href={`/games/${gameId}/items/${defId}`}
+                                      className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors min-w-0"
+                                      title={defId}
+                                    >
+                                      <span className="truncate">
+                                        {genPoolLoading ? "…" : resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
+                                      </span>
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </Link>
+                                    {defId && <CopyUUID value={defId} />}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.dropRate')}</Label>
+                                    <p className="text-sm font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.collectCap')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.collect_cap ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.qtyMin')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.quantity_min ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.qtyMax')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.quantity_max ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1 col-span-2">
+                                    <Label className="text-xs">{t('items.initialOutput')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.initial_output ?? "—")}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </section>
                   </div>
                 )}
               </CardContent>
