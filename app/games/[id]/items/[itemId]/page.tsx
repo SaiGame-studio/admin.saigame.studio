@@ -624,10 +624,6 @@ export default function ItemDefinitionDetailPage() {
               <CopyUUID value={item.id} />
             </div>
             <div className="flex justify-between items-start gap-4">
-              <span className="text-muted-foreground shrink-0">{t('items.detailStudioId')}</span>
-              <CopyUUID value={item.studio_id} />
-            </div>
-            <div className="flex justify-between items-start gap-4">
               <span className="text-muted-foreground shrink-0">{t('items.detailGameId')}</span>
               <CopyUUID value={item.game_id} />
             </div>
