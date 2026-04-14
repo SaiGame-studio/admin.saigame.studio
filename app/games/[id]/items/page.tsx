@@ -2304,15 +2304,6 @@ export default function GameItemsPage() {
     router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
   }, [containerSearchDebounced]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // auto-open create dialog from query params e.g. ?create=1&category=currency
-  useEffect(() => {
-    if (searchParams.get("create") === "1") {
-      const cat = searchParams.get("category") as ItemCategory | null
-      setCreateInitCategory(cat ?? undefined)
-      setShowCreate(true)
-    }
-  }, [searchParams])
-
   // fetch categories, rarities & tags from API on mount
   useEffect(() => {
     Promise.all([fetchItemCategories(), fetchItemRarities()])
@@ -4473,6 +4464,7 @@ export default function GameItemsPage() {
           fetchItems()
           loadGameInfo()
           if (activeTab === "generators") setGeneratorRefreshKey((k) => k + 1)
+          if (activeTab === "gacha") fetchGachaData()
         }}
         onClose={() => setShowCreate(false)}
         categories={categories}
@@ -4817,13 +4809,17 @@ export default function GameItemsPage() {
               {gachaForm.keyReqs.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>
               )}
-              <Link
-                href={`/games/${gameId}/items?create=1&category=key`}
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateInitCategory("key" as ItemCategory)
+                  setShowCreate(true)
+                }}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <ExternalLink className="h-3 w-3" />
+                <Plus className="h-3 w-3" />
                 {t('items.createNewItem')}
-              </Link>
+              </button>
             </div>
 
             <Separator />
