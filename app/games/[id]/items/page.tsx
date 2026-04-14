@@ -4041,8 +4041,9 @@ export default function GameItemsPage() {
 
                           {/* Col 3: Collect destination */}
                           <div className="w-36 shrink-0 text-sm text-muted-foreground">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border bg-muted/40">
-                              {`${t('items.deliveryToLabel')}: ${pack.collect_destination === "inventory" ? t('items.collectDestinationMainInventoryShort') : t('items.collectDestinationMailboxShort')}`}
+                            <span className="inline-flex flex-col items-start px-2 py-1 rounded text-xs font-medium border bg-muted/40 leading-tight">
+                              <span className="text-muted-foreground">{t('items.deliveryToLabel')}</span>
+                              <span className="text-foreground">{pack.collect_destination === "inventory" ? t('items.collectDestinationMainInventoryShort') : t('items.collectDestinationMailboxShort')}</span>
                             </span>
                           </div>
 
