@@ -22,9 +22,11 @@ import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoryTab } from "./CategoryTab"
 import { locales } from "@/lib/i18n/config"
+import ReactCountryFlag from "react-country-flag"
 
 const LANGUAGE_STORAGE_KEY = "admin.cms.languageFilter"
 const LANGUAGE_LABELS: Record<string, string> = { en: "English", vi: "Tiếng Việt", ja: "日本語" }
+const LANGUAGE_COUNTRY: Record<string, string> = { en: "US", vi: "VN", ja: "JP" }
 
 function flattenCategoryTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
   const result: { value: string; label: string; depth: number }[] = []
@@ -371,6 +373,14 @@ function CmsPageInner() {
                         onClick={(e) => e.stopPropagation()}
                         className="flex items-center gap-2 hover:underline"
                       >
+                        {item.language && LANGUAGE_COUNTRY[item.language] && (
+                          <ReactCountryFlag
+                            countryCode={LANGUAGE_COUNTRY[item.language]}
+                            svg
+                            style={{ width: "1.25em", height: "1.25em" }}
+                            title={LANGUAGE_LABELS[item.language] ?? item.language}
+                          />
+                        )}
                         {item.featured && <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />}
                         <div>
                           <div className="font-medium text-sm">{item.title}</div>
