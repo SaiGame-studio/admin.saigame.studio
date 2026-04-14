@@ -1266,81 +1266,82 @@ export default function ItemDefinitionDetailPage() {
                 {editingGenConfig ? (
                   /* ── Edit mode ────────────────────────── */
                   <div className="space-y-5">
-                    {/* Section 1: Collect Destination + Mailbox */}
-                    <section className="space-y-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
-                      <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
-                          <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {genCollectDestination === "inventory" && (
-                        <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
-                      )}
+                    {/* Top: Collect Destination/Mailbox (col 1) + Production Timing (col 2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Section 1: Collect Destination + Mailbox */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
+                        <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                            <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {genCollectDestination === "inventory" && (
+                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                        )}
 
-                      {genCollectDestination === "mailbox" && (
-                        <div className="space-y-3 pt-1">
+                        {genCollectDestination === "mailbox" && (
+                          <div className="space-y-3 pt-1">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">{t('items.generatorMailboxTitle')}</Label>
+                              <Input
+                                value={genMailboxTitle}
+                                onChange={(e) => setGenMailboxTitle(e.target.value)}
+                                placeholder={t('items.generatorMailboxTitlePlaceholder')}
+                                disabled={savingGenConfig}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">{t('items.generatorMailboxBody')}</Label>
+                              <Textarea
+                                value={genMailboxBody}
+                                onChange={(e) => setGenMailboxBody(e.target.value)}
+                                placeholder={t('items.generatorMailboxBodyPlaceholder')}
+                                disabled={savingGenConfig}
+                                rows={3}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
+                          </div>
+                        )}
+                      </section>
+
+                      {/* Section 2: Interval + Tick Capacity */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
+                        <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
-                            <Label className="text-xs">{t('items.generatorMailboxTitle')}</Label>
-                            <Input
-                              value={genMailboxTitle}
-                              onChange={(e) => setGenMailboxTitle(e.target.value)}
-                              placeholder={t('items.generatorMailboxTitlePlaceholder')}
-                              disabled={savingGenConfig}
-                            />
+                            <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
+                            <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs">{t('items.generatorMailboxBody')}</Label>
-                            <Textarea
-                              value={genMailboxBody}
-                              onChange={(e) => setGenMailboxBody(e.target.value)}
-                              placeholder={t('items.generatorMailboxBodyPlaceholder')}
-                              disabled={savingGenConfig}
-                              rows={3}
-                            />
+                            <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
+                            <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
                           </div>
-                          <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
                         </div>
-                      )}
-                    </section>
 
-                    <Separator />
-
-                    {/* Section 2: Interval + Tick Capacity */}
-                    <section className="space-y-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
-                          <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
-                          <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const iv = parseInt(genInterval) || 0
-                        const tk = parseInt(genTickCapacity) || 0
-                        const ms = iv * tk
-                        if (iv > 0 && tk > 0) {
-                          const h = Math.floor(ms / 3600)
-                          const m = Math.floor((ms % 3600) / 60)
-                          const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
-                          return (
-                            <p className="text-xs text-muted-foreground">
-                              ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span>
-                            </p>
-                          )
-                        }
-                        return null
-                      })()}
-                    </section>
+                        {(() => {
+                          const iv = parseInt(genInterval) || 0
+                          const tk = parseInt(genTickCapacity) || 0
+                          const ms = iv * tk
+                          if (iv > 0 && tk > 0) {
+                            const h = Math.floor(ms / 3600)
+                            const m = Math.floor((ms % 3600) / 60)
+                            const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
+                            return (
+                              <p className="text-xs text-muted-foreground">
+                                ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span>
+                              </p>
+                            )
+                          }
+                          return null
+                        })()}
+                      </section>
+                    </div>
 
                     <Separator />
 
@@ -1357,77 +1358,77 @@ export default function ItemDefinitionDetailPage() {
                         </Button>
                       </div>
 
-                      {genOutputPool.map((entry, idx) => {
-                        const selectedItem = genAllItems.find((i) => i.id === entry.item_definition_id)
-                        return (
-                          <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
-                              {genOutputPool.length > 1 && (
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" disabled={savingGenConfig}
-                                  onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                            {/* Item Definition combobox */}
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
-                              <Popover open={genPoolOpen[idx] ?? false} onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))} modal={true}>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" role="combobox" aria-expanded={genPoolOpen[idx] ?? false} className="w-full justify-between font-normal h-9" disabled={savingGenConfig}>
-                                    {entry.item_definition_id ? (
-                                      <span className="truncate">
-                                        {selectedItem?.name ?? entry.item_definition_id.slice(0, 12) + "…"}
-                                        {selectedItem?.item_code && <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">{t('items.selectItem')}</span>
-                                    )}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {genOutputPool.map((entry, idx) => {
+                          const selectedItem = genAllItems.find((i) => i.id === entry.item_definition_id)
+                          return (
+                            <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                                {genOutputPool.length > 1 && (
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" disabled={savingGenConfig}
+                                    onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                  <Command shouldFilter={false}>
-                                    <CommandInput placeholder={t('items.searchByNameOrCode')} value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
-                                    <CommandList>
-                                      <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
-                                      <CommandGroup>
-                                        {genAllItems
-                                          .filter((d) => {
-                                            const q = (genPoolSearch[idx] ?? "").toLowerCase()
-                                            return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q)
-                                          })
-                                          .slice(0, 50)
-                                          .map((d) => (
-                                            <CommandItem key={d.id} value={d.id} onSelect={() => {
-                                              const pool = [...genOutputPool]; pool[idx] = { ...pool[idx], item_definition_id: d.id }; setGenOutputPool(pool)
-                                              setGenPoolOpen((prev) => ({ ...prev, [idx]: false })); setGenPoolSearch((prev) => ({ ...prev, [idx]: "" }))
-                                            }}>
-                                              <Check className={`mr-2 h-4 w-4 shrink-0 ${entry.item_definition_id === d.id ? "opacity-100" : "opacity-0"}`} />
-                                              <span className="flex-1 truncate">{d.name}</span>
-                                              {d.item_code && <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>}
-                                            </CommandItem>
-                                          ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                                )}
+                              </div>
+                              {/* Item Definition combobox */}
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
+                                <Popover open={genPoolOpen[idx] ?? false} onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))} modal={true}>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" aria-expanded={genPoolOpen[idx] ?? false} className="w-full justify-between font-normal h-9" disabled={savingGenConfig}>
+                                      {entry.item_definition_id ? (
+                                        <span className="truncate">
+                                          {selectedItem?.name ?? entry.item_definition_id.slice(0, 12) + "…"}
+                                          {selectedItem?.item_code && <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">{t('items.selectItem')}</span>
+                                      )}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                    <Command shouldFilter={false}>
+                                      <CommandInput placeholder={t('items.searchByNameOrCode')} value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
+                                      <CommandList>
+                                        <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
+                                        <CommandGroup>
+                                          {genAllItems
+                                            .filter((d) => {
+                                              const q = (genPoolSearch[idx] ?? "").toLowerCase()
+                                              return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q)
+                                            })
+                                            .slice(0, 50)
+                                            .map((d) => (
+                                              <CommandItem key={d.id} value={d.id} onSelect={() => {
+                                                const pool = [...genOutputPool]; pool[idx] = { ...pool[idx], item_definition_id: d.id }; setGenOutputPool(pool)
+                                                setGenPoolOpen((prev) => ({ ...prev, [idx]: false })); setGenPoolSearch((prev) => ({ ...prev, [idx]: "" }))
+                                              }}>
+                                                <Check className={`mr-2 h-4 w-4 shrink-0 ${entry.item_definition_id === d.id ? "opacity-100" : "opacity-0"}`} />
+                                                <span className="flex-1 truncate">{d.name}</span>
+                                                {d.item_code && <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>}
+                                              </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                              {/* Numeric fields — stacked 2-col for narrow entry width */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1"><Label className="text-xs">{t('items.dropRate')}</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.collectCap')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.qtyMin')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.qtyMax')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1 col-span-2"><Label className="text-xs">{t('items.initialOutput')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
+                              </div>
                             </div>
-                            {/* Numeric fields */}
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">{t('items.dropRate')}</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMin')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMax')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">{t('items.collectCap')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.initialOutput')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
-                            </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </section>
                   </div>
                 ) : (
