@@ -15,7 +15,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -156,6 +158,8 @@ export default function ItemDefinitionDetailPage() {
   const [genInterval, setGenInterval] = useState("")
   const [genTickCapacity, setGenTickCapacity] = useState("")
   const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
+  const [genMailboxTitle, setGenMailboxTitle] = useState("")
+  const [genMailboxBody, setGenMailboxBody] = useState("")
   const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([])
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
   const [genItemsLoading, setGenItemsLoading] = useState(false)
@@ -351,6 +355,8 @@ export default function ItemDefinitionDetailPage() {
     setGenInterval(String(gc.production_interval_seconds ?? "3600"))
     setGenTickCapacity(String(gc.tick_capacity ?? "24"))
     setGenCollectDestination((gc.collect_destination as "mailbox" | "inventory") ?? "mailbox")
+    setGenMailboxTitle(typeof gc.mailbox_title === "string" ? gc.mailbox_title : "")
+    setGenMailboxBody(typeof gc.mailbox_body === "string" ? gc.mailbox_body : "")
     const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
     setGenOutputPool(pool.length > 0
       ? pool.map((e) => ({
@@ -379,7 +385,7 @@ export default function ItemDefinitionDetailPage() {
     setSavingGenConfig(true)
     try {
       const metadata: Record<string, unknown> = { ...(item.metadata ?? {}) }
-      metadata.generator_config = {
+      const generatorConfig: Record<string, unknown> = {
         production_interval_seconds: Number(genInterval) || 3600,
         tick_capacity: Number(genTickCapacity) || 24,
         collect_destination: genCollectDestination,
@@ -394,6 +400,11 @@ export default function ItemDefinitionDetailPage() {
             initial_output: Number(e.initial_output) || 0,
           })),
       }
+      if (genCollectDestination === "mailbox") {
+        if (genMailboxTitle.trim()) generatorConfig.mailbox_title = genMailboxTitle.trim()
+        if (genMailboxBody.trim()) generatorConfig.mailbox_body = genMailboxBody.trim()
+      }
+      metadata.generator_config = generatorConfig
       const res = await updateItemDefinition({ gameId }, itemId, { metadata })
       setItem(res.item)
       setEditingGenConfig(false)
@@ -1254,18 +1265,12 @@ export default function ItemDefinitionDetailPage() {
               <CardContent className="space-y-3">
                 {editingGenConfig ? (
                   /* ── Edit mode ────────────────────────── */
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
-                        <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
-                        <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.collectDestination')}</Label>
+                  <div className="space-y-5">
+                    {/* Top: Collect Destination/Mailbox (col 1) + Production Timing (col 2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Section 1: Collect Destination + Mailbox */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
                         <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
                           <SelectTrigger className="h-9">
                             <SelectValue />
@@ -1275,32 +1280,75 @@ export default function ItemDefinitionDetailPage() {
                             <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
+                        {genCollectDestination === "inventory" && (
+                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                        )}
+
+                        {genCollectDestination === "mailbox" && (
+                          <div className="space-y-3 pt-1">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">{t('items.generatorMailboxTitle')}</Label>
+                              <Input
+                                value={genMailboxTitle}
+                                onChange={(e) => setGenMailboxTitle(e.target.value)}
+                                placeholder={t('items.generatorMailboxTitlePlaceholder')}
+                                disabled={savingGenConfig}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">{t('items.generatorMailboxBody')}</Label>
+                              <Textarea
+                                value={genMailboxBody}
+                                onChange={(e) => setGenMailboxBody(e.target.value)}
+                                placeholder={t('items.generatorMailboxBodyPlaceholder')}
+                                disabled={savingGenConfig}
+                                rows={3}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
+                          </div>
+                        )}
+                      </section>
+
+                      {/* Section 2: Interval + Tick Capacity */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
+                            <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
+                            <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
+                          </div>
+                        </div>
+
+                        {(() => {
+                          const iv = parseInt(genInterval) || 0
+                          const tk = parseInt(genTickCapacity) || 0
+                          const ms = iv * tk
+                          if (iv > 0 && tk > 0) {
+                            const h = Math.floor(ms / 3600)
+                            const m = Math.floor((ms % 3600) / 60)
+                            const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
+                            return (
+                              <p className="text-xs text-muted-foreground">
+                                ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span>
+                              </p>
+                            )
+                          }
+                          return null
+                        })()}
+                      </section>
                     </div>
 
-                    {/* Offline calc hint */}
-                    {(() => {
-                      const iv = parseInt(genInterval) || 0
-                      const tk = parseInt(genTickCapacity) || 0
-                      const ms = iv * tk
-                      if (iv > 0 && tk > 0) {
-                        const h = Math.floor(ms / 3600)
-                        const m = Math.floor((ms % 3600) / 60)
-                        const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
-                        return (
-                          <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                            <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
-                            <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
-                          </div>
-                        )
-                      }
-                      return null
-                    })()}
+                    <Separator />
 
-                    {/* Output Pool editor */}
-                    <div className="space-y-3">
+                    {/* Section 3: Output Pool editor */}
+                    <section className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold">{t('items.outputPool')}</Label>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.outputPool')}</p>
                         <Button
                           type="button" variant="outline" size="sm" className="h-7 text-xs gap-1"
                           disabled={savingGenConfig}
@@ -1310,157 +1358,203 @@ export default function ItemDefinitionDetailPage() {
                         </Button>
                       </div>
 
-                      {genOutputPool.map((entry, idx) => {
-                        const selectedItem = genAllItems.find((i) => i.id === entry.item_definition_id)
-                        return (
-                          <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
-                              {genOutputPool.length > 1 && (
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" disabled={savingGenConfig}
-                                  onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                            {/* Item Definition combobox */}
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
-                              <Popover open={genPoolOpen[idx] ?? false} onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))} modal={true}>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" role="combobox" aria-expanded={genPoolOpen[idx] ?? false} className="w-full justify-between font-normal h-9" disabled={savingGenConfig}>
-                                    {entry.item_definition_id ? (
-                                      <span className="truncate">
-                                        {selectedItem?.name ?? entry.item_definition_id.slice(0, 12) + "…"}
-                                        {selectedItem?.item_code && <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">{t('items.selectItem')}</span>
-                                    )}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {genOutputPool.map((entry, idx) => {
+                          const selectedItem = genAllItems.find((i) => i.id === entry.item_definition_id)
+                          return (
+                            <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                                {genOutputPool.length > 1 && (
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" disabled={savingGenConfig}
+                                    onClick={() => setGenOutputPool(genOutputPool.filter((_, i) => i !== idx))}>
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                  <Command shouldFilter={false}>
-                                    <CommandInput placeholder={t('items.searchByNameOrCode')} value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
-                                    <CommandList>
-                                      <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
-                                      <CommandGroup>
-                                        {genAllItems
-                                          .filter((d) => {
-                                            const q = (genPoolSearch[idx] ?? "").toLowerCase()
-                                            return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q)
-                                          })
-                                          .slice(0, 50)
-                                          .map((d) => (
-                                            <CommandItem key={d.id} value={d.id} onSelect={() => {
-                                              const pool = [...genOutputPool]; pool[idx] = { ...pool[idx], item_definition_id: d.id }; setGenOutputPool(pool)
-                                              setGenPoolOpen((prev) => ({ ...prev, [idx]: false })); setGenPoolSearch((prev) => ({ ...prev, [idx]: "" }))
-                                            }}>
-                                              <Check className={`mr-2 h-4 w-4 shrink-0 ${entry.item_definition_id === d.id ? "opacity-100" : "opacity-0"}`} />
-                                              <span className="flex-1 truncate">{d.name}</span>
-                                              {d.item_code && <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>}
-                                            </CommandItem>
-                                          ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                                )}
+                              </div>
+                              {/* Item Definition combobox */}
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">{t('items.itemDefinition')} <span className="text-destructive">*</span></Label>
+                                <Popover open={genPoolOpen[idx] ?? false} onOpenChange={(o) => setGenPoolOpen((prev) => ({ ...prev, [idx]: o }))} modal={true}>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" aria-expanded={genPoolOpen[idx] ?? false} className="w-full justify-between font-normal h-9" disabled={savingGenConfig}>
+                                      {entry.item_definition_id ? (
+                                        <span className="truncate">
+                                          {selectedItem?.name ?? entry.item_definition_id.slice(0, 12) + "…"}
+                                          {selectedItem?.item_code && <span className="ml-1.5 text-xs text-muted-foreground font-mono">({selectedItem.item_code})</span>}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">{t('items.selectItem')}</span>
+                                      )}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                    <Command shouldFilter={false}>
+                                      <CommandInput placeholder={t('items.searchByNameOrCode')} value={genPoolSearch[idx] ?? ""} onValueChange={(v) => setGenPoolSearch((prev) => ({ ...prev, [idx]: v }))} />
+                                      <CommandList>
+                                        <CommandEmpty>{genItemsLoading ? t('items.loadingDots') : t('items.noItemFound')}</CommandEmpty>
+                                        <CommandGroup>
+                                          {genAllItems
+                                            .filter((d) => {
+                                              const q = (genPoolSearch[idx] ?? "").toLowerCase()
+                                              return !q || d.name.toLowerCase().includes(q) || (d.item_code ?? "").toLowerCase().includes(q)
+                                            })
+                                            .slice(0, 50)
+                                            .map((d) => (
+                                              <CommandItem key={d.id} value={d.id} onSelect={() => {
+                                                const pool = [...genOutputPool]; pool[idx] = { ...pool[idx], item_definition_id: d.id }; setGenOutputPool(pool)
+                                                setGenPoolOpen((prev) => ({ ...prev, [idx]: false })); setGenPoolSearch((prev) => ({ ...prev, [idx]: "" }))
+                                              }}>
+                                                <Check className={`mr-2 h-4 w-4 shrink-0 ${entry.item_definition_id === d.id ? "opacity-100" : "opacity-0"}`} />
+                                                <span className="flex-1 truncate">{d.name}</span>
+                                                {d.item_code && <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>}
+                                              </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                              {/* Numeric fields — stacked 2-col for narrow entry width */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1"><Label className="text-xs">{t('items.dropRate')}</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.collectCap')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.qtyMin')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1"><Label className="text-xs">{t('items.qtyMax')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
+                                <div className="space-y-1 col-span-2"><Label className="text-xs">{t('items.initialOutput')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
+                              </div>
                             </div>
-                            {/* Numeric fields */}
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">{t('items.dropRate')}</Label><Input className="h-9 text-sm" type="number" step="0.01" min={0} max={1} value={entry.drop_rate} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], drop_rate: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMin')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_min} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_min: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.qtyMax')}</Label><Input className="h-9 text-sm" type="number" min={1} value={entry.quantity_max} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], quantity_max: e.target.value }; setGenOutputPool(p) }} /></div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1"><Label className="text-xs">{t('items.collectCap')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.collect_cap} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], collect_cap: e.target.value }; setGenOutputPool(p) }} /></div>
-                              <div className="space-y-1"><Label className="text-xs">{t('items.initialOutput')}</Label><Input className="h-9 text-sm" type="number" min={0} value={entry.initial_output} disabled={savingGenConfig} onChange={(e) => { const p = [...genOutputPool]; p[idx] = { ...p[idx], initial_output: e.target.value }; setGenOutputPool(p) }} /></div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                          )
+                        })}
+                      </div>
+                    </section>
                   </div>
                 ) : (
                   /* ── View mode ────────────────────────── */
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
-                        <p className="font-semibold text-sm">{interval}s</p>
-                      </div>
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
-                        <p className="font-semibold text-sm">{ticks}</p>
-                      </div>
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.collectDestination')}</p>
-                        <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
-                          {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
-                        </span>
-                      </div>
-                    </div>
-                    {interval > 0 && ticks > 0 && (
-                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                        <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
-                        <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                        <p>{t('items.detailPlayerCanCollectUpTo')} <span className="font-medium text-foreground">{ticks}</span> {t('items.detailTicksWorthOfOutputAfter')} <span className="font-medium text-foreground">{timeStr}</span> {t('items.detailOfflineSuffix')}</p>
-                      </div>
-                    )}
-                    {outputPool.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground font-medium">{t('items.outputPool')} ({outputPool.length})</p>
-                        <div className="rounded border border-border overflow-hidden">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b bg-muted/40">
-                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">{t('items.itemDefinition')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.dropRate')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMin')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.qtyMax')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.collectCap')}</th>
-                                <th className="text-right px-2 py-1 font-medium text-muted-foreground">{t('items.initialOutput')}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {outputPool.map((entry, idx) => {
-                                const defId = String(entry.item_definition_id ?? "")
-                                const resolvedName = genPoolNames[defId]
-                                return (
-                                  <tr key={idx} className="border-b last:border-0 hover:bg-muted/20">
-                                    <td className="px-2 py-1">
-                                      <div className="flex items-center gap-1">
-                                        <Link
-                                          href={`/games/${gameId}/items/${defId}`}
-                                          className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors"
-                                          title={defId}
-                                        >
-                                          <span className="truncate max-w-[200px]">
-                                            {genPoolLoading ? "…" : resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
-                                          </span>
-                                          <ExternalLink className="h-3 w-3 shrink-0" />
-                                        </Link>
-                                        {defId && <CopyUUID value={defId} />}
-                                      </div>
-                                    </td>
-                                    <td className="px-2 py-1 text-right font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_min ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.quantity_max ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.collect_cap ?? "—")}</td>
-                                    <td className="px-2 py-1 text-right font-mono">{String(entry.initial_output ?? "—")}</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
+                  <div className="space-y-5">
+                    {/* Top: Collect Destination/Mailbox (col 1) + Production Timing (col 2) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Section 1: Collect Destination + Mailbox */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
+                        <div>
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
+                            {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
+                          </span>
                         </div>
-                      </div>
-                    )}
-                    {outputPool.length === 0 && (
-                      <p className="text-sm text-muted-foreground">{t('items.detailNoOutputPool')}</p>
-                    )}
+                        {gc.collect_destination === "inventory" && (
+                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                        )}
+                        {(() => {
+                          const mailboxTitle = typeof gc.mailbox_title === "string" ? gc.mailbox_title : ""
+                          const mailboxBody = typeof gc.mailbox_body === "string" ? gc.mailbox_body : ""
+                          if (gc.collect_destination !== "mailbox") return null
+                          if (!mailboxTitle && !mailboxBody) {
+                            return <p className="text-xs text-muted-foreground italic">{t('items.generatorMailboxHint')}</p>
+                          }
+                          return (
+                            <div className="space-y-3 pt-1">
+                              {mailboxTitle && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxTitle')}</p>
+                                  <p className="text-sm font-medium">{mailboxTitle}</p>
+                                </div>
+                              )}
+                              {mailboxBody && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxBody')}</p>
+                                  <p className="text-sm whitespace-pre-wrap">{mailboxBody}</p>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </section>
+
+                      {/* Section 2: Production Timing */}
+                      <section className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-md border px-3 py-2 text-center">
+                            <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
+                            <p className="font-semibold text-sm">{interval}s</p>
+                          </div>
+                          <div className="rounded-md border px-3 py-2 text-center">
+                            <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
+                            <p className="font-semibold text-sm">{ticks}</p>
+                          </div>
+                        </div>
+                        {interval > 0 && ticks > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span>
+                          </p>
+                        )}
+                      </section>
+                    </div>
+
+                    <Separator />
+
+                    {/* Section 3: Output Pool */}
+                    <section className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.outputPool')} {outputPool.length > 0 && <span className="text-muted-foreground">({outputPool.length})</span>}</p>
+                      {outputPool.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">{t('items.detailNoOutputPool')}</p>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {outputPool.map((entry, idx) => {
+                            const defId = String(entry.item_definition_id ?? "")
+                            const resolvedName = genPoolNames[defId]
+                            return (
+                              <div key={idx} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">{t('items.itemDefinition')}</Label>
+                                  <div className="flex items-center gap-1">
+                                    <Link
+                                      href={`/games/${gameId}/items/${defId}`}
+                                      className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors min-w-0"
+                                      title={defId}
+                                    >
+                                      <span className="truncate">
+                                        {genPoolLoading ? "…" : resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
+                                      </span>
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                    </Link>
+                                    {defId && <CopyUUID value={defId} />}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.dropRate')}</Label>
+                                    <p className="text-sm font-mono">{entry.drop_rate != null ? `${(Number(entry.drop_rate) * 100).toFixed(1)}%` : "—"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.collectCap')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.collect_cap ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.qtyMin')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.quantity_min ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{t('items.qtyMax')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.quantity_max ?? "—")}</p>
+                                  </div>
+                                  <div className="space-y-1 col-span-2">
+                                    <Label className="text-xs">{t('items.initialOutput')}</Label>
+                                    <p className="text-sm font-mono">{String(entry.initial_output ?? "—")}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </section>
                   </div>
                 )}
               </CardContent>
