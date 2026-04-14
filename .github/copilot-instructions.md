@@ -9,6 +9,16 @@
 
 ## UI/Component Pattern Rules
 
+### 3. Mandatory I18n For New UI Text
+Whenever adding or changing any UI-facing text (labels, buttons, placeholders, tooltips, headings, empty states, toasts, badges), **always add multi-language translations in the same change**.
+
+**Requirements:**
+- Never ship hardcoded UI text in a single language.
+- Add translation keys for all supported locales immediately (currently: `en`, `vi`, `ja`).
+- Replace raw strings in components/pages with translation lookups.
+- Keep wording consistent across locales for the same feature.
+- If a translation is temporarily unavailable, use a clearly named translation key and add placeholder values for all locales in the same PR.
+
 ### 2. Reuse Existing Patterns Before Building New Ones
 Before implementing any new UI element or component, **always search the codebase for an existing similar element** and follow its established pattern exactly. Do not invent a new approach if one already exists.
 
