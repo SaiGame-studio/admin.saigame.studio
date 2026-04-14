@@ -314,10 +314,32 @@ function CmsPageInner() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {contents.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/admin/cms/${item.id}?language=${item.language}`)}>
+                {contents.map((item) => {
+                  const href = `/admin/cms/${item.id}?language=${item.language}`
+                  return (
+                  <TableRow
+                    key={item.id}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                        window.open(href, "_blank")
+                      } else {
+                        router.push(href)
+                      }
+                    }}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) {
+                        e.preventDefault()
+                        window.open(href, "_blank")
+                      }
+                    }}
+                  >
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <Link
+                        href={href}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 hover:underline"
+                      >
                         {item.featured && <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />}
                         <div>
                           <div className="font-medium text-sm">{item.title}</div>
@@ -325,7 +347,7 @@ function CmsPageInner() {
                             <div className="text-xs text-muted-foreground truncate max-w-[300px]">{item.description}</div>
                           )}
                         </div>
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
@@ -364,7 +386,8 @@ function CmsPageInner() {
                       <span className="text-xs text-muted-foreground">{formatDate(item.updated_at)}</span>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           )}
