@@ -1918,6 +1918,7 @@ export const en = {
     generatorMailboxBodyPlaceholder: "Message shown to the player in the mailbox…",
     generatorMailboxHint: "Shown to the player when generator output is delivered to their mailbox.",
     generatorInventoryHint: "Items will be sent directly into the inventory that this generator belongs to.",
+    generatorTiming: "Production Timing",
     collectDestinationInventoryHint: "Items are delivered straight into the player's Main Inventory — no action required.",
     deliveryToLabel: "Delivery to",
     // Sheet titles

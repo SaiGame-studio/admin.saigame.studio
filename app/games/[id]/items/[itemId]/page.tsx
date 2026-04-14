@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -1264,27 +1265,25 @@ export default function ItemDefinitionDetailPage() {
               <CardContent className="space-y-3">
                 {editingGenConfig ? (
                   /* ── Edit mode ────────────────────────── */
-                  <div className="space-y-4">
-                    {/* Card 1: Collect Destination + Mailbox */}
-                    <div className="space-y-3 rounded-lg border p-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.collectDestination')}</Label>
-                        <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
-                            <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {genCollectDestination === "inventory" && (
-                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
-                        )}
-                      </div>
+                  <div className="space-y-5">
+                    {/* Section 1: Collect Destination + Mailbox */}
+                    <section className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.collectDestination')}</p>
+                      <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                          <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {genCollectDestination === "inventory" && (
+                        <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                      )}
 
                       {genCollectDestination === "mailbox" && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 pt-1">
                           <div className="space-y-1.5">
                             <Label className="text-xs">{t('items.generatorMailboxTitle')}</Label>
                             <Input
@@ -1307,10 +1306,13 @@ export default function ItemDefinitionDetailPage() {
                           <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
                         </div>
                       )}
-                    </div>
+                    </section>
 
-                    {/* Card 2: Interval + Tick Capacity */}
-                    <div className="space-y-3 rounded-lg border p-4">
+                    <Separator />
+
+                    {/* Section 2: Interval + Tick Capacity */}
+                    <section className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.generatorTiming')}</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
@@ -1331,20 +1333,21 @@ export default function ItemDefinitionDetailPage() {
                           const m = Math.floor((ms % 3600) / 60)
                           const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
                           return (
-                            <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                              <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
-                              <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
-                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              ⏱ {t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span>
+                            </p>
                           )
                         }
                         return null
                       })()}
-                    </div>
+                    </section>
 
-                    {/* Card 3: Output Pool editor */}
-                    <div className="space-y-3 rounded-lg border p-4">
+                    <Separator />
+
+                    {/* Section 3: Output Pool editor */}
+                    <section className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold">{t('items.outputPool')}</Label>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('items.outputPool')}</p>
                         <Button
                           type="button" variant="outline" size="sm" className="h-7 text-xs gap-1"
                           disabled={savingGenConfig}
@@ -1425,7 +1428,7 @@ export default function ItemDefinitionDetailPage() {
                           </div>
                         )
                       })}
-                    </div>
+                    </section>
                   </div>
                 ) : (
                   /* ── View mode ────────────────────────── */

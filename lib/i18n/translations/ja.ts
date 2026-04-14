@@ -1900,6 +1900,7 @@ export const ja = {
     generatorMailboxBodyPlaceholder: "メールボックスでプレイヤーに表示されるメッセージ…",
     generatorMailboxHint: "ジェネレーターの出力がメールボックスに配信されたときにプレイヤーに表示されます。",
     generatorInventoryHint: "アイテムはこのジェネレーターが属するインベントリに直接送信されます。",
+    generatorTiming: "生産タイミング",
     collectDestinationInventoryHint: "アイテムはプレイヤーのメインインベントリに直接配信されます — 操作は不要です。",
     deliveryToLabel: "配信先",
     // Sheet titles

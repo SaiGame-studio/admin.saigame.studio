@@ -1912,6 +1912,7 @@ export const vi = {
     generatorMailboxBodyPlaceholder: "Nội dung hiển thị cho người chơi trong hòm thư…",
     generatorMailboxHint: "Hiển thị cho người chơi khi sản phẩm của máy tạo được gửi vào hòm thư.",
     generatorInventoryHint: "Vật phẩm sẽ được gửi trực tiếp vào kho đồ mà máy tạo này đang thuộc về.",
+    generatorTiming: "Thời gian sản xuất",
     collectDestinationInventoryHint: "Vật phẩm sẽ đi thẳng vào Kho đồ chính của người chơi — không cần thao tác gì thêm.",
     deliveryToLabel: "Giao đến",
     // Sheet titles
