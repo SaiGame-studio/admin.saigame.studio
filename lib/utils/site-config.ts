@@ -1,1 +1,1 @@
-export const SITE_NAME = "Sai Game" 
+export const SITE_NAME = "Sai Server" 
