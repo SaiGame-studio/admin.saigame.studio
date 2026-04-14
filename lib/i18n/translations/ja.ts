@@ -1894,6 +1894,12 @@ export const ja = {
     gachaMailboxBody: "メールボックス本文",
     gachaMailboxBodyPlaceholder: "メールボックスでプレイヤーに表示されるメッセージ…",
     gachaMailboxHint: "報酬がメールボックスに配信されたときにプレイヤーに表示されます。",
+    generatorMailboxTitle: "メールボックスタイトル",
+    generatorMailboxTitlePlaceholder: "例: ゴールドジェネレーターの報酬！",
+    generatorMailboxBody: "メールボックス本文",
+    generatorMailboxBodyPlaceholder: "メールボックスでプレイヤーに表示されるメッセージ…",
+    generatorMailboxHint: "ジェネレーターの出力がメールボックスに配信されたときにプレイヤーに表示されます。",
+    generatorInventoryHint: "アイテムはこのジェネレーターが属するインベントリに直接送信されます。",
     collectDestinationInventoryHint: "アイテムはプレイヤーのメインインベントリに直接配信されます — 操作は不要です。",
     deliveryToLabel: "配信先",
     // Sheet titles

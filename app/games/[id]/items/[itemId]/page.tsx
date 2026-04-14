@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -156,6 +157,8 @@ export default function ItemDefinitionDetailPage() {
   const [genInterval, setGenInterval] = useState("")
   const [genTickCapacity, setGenTickCapacity] = useState("")
   const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
+  const [genMailboxTitle, setGenMailboxTitle] = useState("")
+  const [genMailboxBody, setGenMailboxBody] = useState("")
   const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([])
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
   const [genItemsLoading, setGenItemsLoading] = useState(false)
@@ -351,6 +354,8 @@ export default function ItemDefinitionDetailPage() {
     setGenInterval(String(gc.production_interval_seconds ?? "3600"))
     setGenTickCapacity(String(gc.tick_capacity ?? "24"))
     setGenCollectDestination((gc.collect_destination as "mailbox" | "inventory") ?? "mailbox")
+    setGenMailboxTitle(typeof gc.mailbox_title === "string" ? gc.mailbox_title : "")
+    setGenMailboxBody(typeof gc.mailbox_body === "string" ? gc.mailbox_body : "")
     const pool = Array.isArray(gc.output_pool) ? gc.output_pool as Array<Record<string, unknown>> : []
     setGenOutputPool(pool.length > 0
       ? pool.map((e) => ({
@@ -379,7 +384,7 @@ export default function ItemDefinitionDetailPage() {
     setSavingGenConfig(true)
     try {
       const metadata: Record<string, unknown> = { ...(item.metadata ?? {}) }
-      metadata.generator_config = {
+      const generatorConfig: Record<string, unknown> = {
         production_interval_seconds: Number(genInterval) || 3600,
         tick_capacity: Number(genTickCapacity) || 24,
         collect_destination: genCollectDestination,
@@ -394,6 +399,11 @@ export default function ItemDefinitionDetailPage() {
             initial_output: Number(e.initial_output) || 0,
           })),
       }
+      if (genCollectDestination === "mailbox") {
+        if (genMailboxTitle.trim()) generatorConfig.mailbox_title = genMailboxTitle.trim()
+        if (genMailboxBody.trim()) generatorConfig.mailbox_body = genMailboxBody.trim()
+      }
+      metadata.generator_config = generatorConfig
       const res = await updateItemDefinition({ gameId }, itemId, { metadata })
       setItem(res.item)
       setEditingGenConfig(false)
@@ -1255,15 +1265,8 @@ export default function ItemDefinitionDetailPage() {
                 {editingGenConfig ? (
                   /* ── Edit mode ────────────────────────── */
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
-                        <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
-                        <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
-                      </div>
+                    {/* Card 1: Collect Destination + Mailbox */}
+                    <div className="space-y-3 rounded-lg border p-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs">{t('items.collectDestination')}</Label>
                         <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")} disabled={savingGenConfig}>
@@ -1275,30 +1278,71 @@ export default function ItemDefinitionDetailPage() {
                             <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
                           </SelectContent>
                         </Select>
+                        {genCollectDestination === "inventory" && (
+                          <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                        )}
                       </div>
+
+                      {genCollectDestination === "mailbox" && (
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">{t('items.generatorMailboxTitle')}</Label>
+                            <Input
+                              value={genMailboxTitle}
+                              onChange={(e) => setGenMailboxTitle(e.target.value)}
+                              placeholder={t('items.generatorMailboxTitlePlaceholder')}
+                              disabled={savingGenConfig}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">{t('items.generatorMailboxBody')}</Label>
+                            <Textarea
+                              value={genMailboxBody}
+                              onChange={(e) => setGenMailboxBody(e.target.value)}
+                              placeholder={t('items.generatorMailboxBodyPlaceholder')}
+                              disabled={savingGenConfig}
+                              rows={3}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Offline calc hint */}
-                    {(() => {
-                      const iv = parseInt(genInterval) || 0
-                      const tk = parseInt(genTickCapacity) || 0
-                      const ms = iv * tk
-                      if (iv > 0 && tk > 0) {
-                        const h = Math.floor(ms / 3600)
-                        const m = Math.floor((ms % 3600) / 60)
-                        const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
-                        return (
-                          <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                            <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
-                            <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
-                          </div>
-                        )
-                      }
-                      return null
-                    })()}
+                    {/* Card 2: Interval + Tick Capacity */}
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
+                          <Input type="number" min={1} value={genInterval} onChange={(e) => setGenInterval(e.target.value)} disabled={savingGenConfig} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
+                          <Input type="number" min={1} value={genTickCapacity} onChange={(e) => setGenTickCapacity(e.target.value)} disabled={savingGenConfig} />
+                        </div>
+                      </div>
 
-                    {/* Output Pool editor */}
-                    <div className="space-y-3">
+                      {(() => {
+                        const iv = parseInt(genInterval) || 0
+                        const tk = parseInt(genTickCapacity) || 0
+                        const ms = iv * tk
+                        if (iv > 0 && tk > 0) {
+                          const h = Math.floor(ms / 3600)
+                          const m = Math.floor((ms % 3600) / 60)
+                          const ts = h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`
+                          return (
+                            <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+                              <p className="font-medium text-foreground/80">⏱ {t('items.detailOfflineCalculation')}</p>
+                              <p>{t('items.detailMaxOfflineLabel')} = <span className="font-mono font-medium text-foreground">{iv}s</span> × <span className="font-mono font-medium text-foreground">{tk}</span> {t('items.detailTicksUnit')} = <span className="font-semibold text-foreground">{ms.toLocaleString()}s ({ts})</span></p>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+
+                    {/* Card 3: Output Pool editor */}
+                    <div className="space-y-3 rounded-lg border p-4">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs font-semibold">{t('items.outputPool')}</Label>
                         <Button
@@ -1386,7 +1430,13 @@ export default function ItemDefinitionDetailPage() {
                 ) : (
                   /* ── View mode ────────────────────────── */
                   <div className="space-y-3">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-md border px-3 py-2 flex items-center justify-between">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.collectDestination')}</p>
+                      <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
+                        {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-md border px-3 py-2 text-center">
                         <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.generatorIntervalShort')}</p>
                         <p className="font-semibold text-sm">{interval}s</p>
@@ -1394,12 +1444,6 @@ export default function ItemDefinitionDetailPage() {
                       <div className="rounded-md border px-3 py-2 text-center">
                         <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.tickCapacity')}</p>
                         <p className="font-semibold text-sm">{ticks}</p>
-                      </div>
-                      <div className="rounded-md border px-3 py-2 text-center">
-                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{t('items.collectDestination')}</p>
-                        <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${gc.collect_destination === "inventory" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>
-                          {gc.collect_destination === "inventory" ? "Inventory" : "Mailbox"}
-                        </span>
                       </div>
                     </div>
                     {interval > 0 && ticks > 0 && (
@@ -1409,6 +1453,27 @@ export default function ItemDefinitionDetailPage() {
                         <p>{t('items.detailPlayerCanCollectUpTo')} <span className="font-medium text-foreground">{ticks}</span> {t('items.detailTicksWorthOfOutputAfter')} <span className="font-medium text-foreground">{timeStr}</span> {t('items.detailOfflineSuffix')}</p>
                       </div>
                     )}
+                    {(() => {
+                      const mailboxTitle = typeof gc.mailbox_title === "string" ? gc.mailbox_title : ""
+                      const mailboxBody = typeof gc.mailbox_body === "string" ? gc.mailbox_body : ""
+                      if (gc.collect_destination !== "mailbox" || (!mailboxTitle && !mailboxBody)) return null
+                      return (
+                        <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1">
+                          {mailboxTitle && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxTitle')}</p>
+                              <p className="text-sm font-medium">{mailboxTitle}</p>
+                            </div>
+                          )}
+                          {mailboxBody && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('items.generatorMailboxBody')}</p>
+                              <p className="text-sm whitespace-pre-wrap">{mailboxBody}</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {outputPool.length > 0 && (
                       <div className="space-y-1.5">
                         <p className="text-xs text-muted-foreground font-medium">{t('items.outputPool')} ({outputPool.length})</p>

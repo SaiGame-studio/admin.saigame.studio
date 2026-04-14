@@ -788,6 +788,8 @@ function CreateItemDialog({
   const [genInterval, setGenInterval] = useState("3600")
   const [genTickCapacity, setGenTickCapacity] = useState("24")
   const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
+  const [genMailboxTitle, setGenMailboxTitle] = useState("")
+  const [genMailboxBody, setGenMailboxBody] = useState("")
 
   // All items for generator output dropdown
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
@@ -825,6 +827,8 @@ function CreateItemDialog({
     setGenInterval("3600")
     setGenTickCapacity("24")
     setGenCollectDestination("mailbox")
+    setGenMailboxTitle("")
+    setGenMailboxBody("")
     setGenAllItems([])
   }
 
@@ -872,7 +876,7 @@ function CreateItemDialog({
 
       // Inject generator_config into metadata
       if (category === "generator") {
-        metadata.generator_config = {
+        const generatorConfig: Record<string, unknown> = {
           production_interval_seconds: Number(genInterval) || 3600,
           tick_capacity: Number(genTickCapacity) || 24,
           collect_destination: genCollectDestination,
@@ -887,6 +891,11 @@ function CreateItemDialog({
               initial_output: Number(p.initial_output) || 0,
             })),
         }
+        if (genCollectDestination === "mailbox") {
+          if (genMailboxTitle.trim()) generatorConfig.mailbox_title = genMailboxTitle.trim()
+          if (genMailboxBody.trim()) generatorConfig.mailbox_body = genMailboxBody.trim()
+        }
+        metadata.generator_config = generatorConfig
       }
 
       const body: CreateItemRequest = {
@@ -1136,32 +1145,11 @@ function CreateItemDialog({
 
           {/* Generator Config */}
           {category === "generator" && (
-            <div className="space-y-4 rounded-lg border p-5">
+            <div className="space-y-4">
               <Label className="text-sm font-semibold">{t('items.generatorConfig')}</Label>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="gen-interval"
-                    type="number"
-                    min={1}
-                    value={genInterval}
-                    onChange={(e) => setGenInterval(e.target.value)}
-                  />
-                  {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gen-tick-capacity">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="gen-tick-capacity"
-                    type="number"
-                    min={1}
-                    value={genTickCapacity}
-                    onChange={(e) => setGenTickCapacity(e.target.value)}
-                  />
-                  {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
-                </div>
+              {/* Card 1: Collect Destination + Mailbox */}
+              <div className="space-y-4 rounded-lg border p-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="gen-collect-destination">{t('items.collectDestination')}</Label>
                   <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")}>
@@ -1173,33 +1161,88 @@ function CreateItemDialog({
                       <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
                     </SelectContent>
                   </Select>
+                  {genCollectDestination === "inventory" && (
+                    <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                  )}
                 </div>
+
+                {genCollectDestination === "mailbox" && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gen-mailbox-title">{t('items.generatorMailboxTitle')}</Label>
+                      <Input
+                        id="gen-mailbox-title"
+                        value={genMailboxTitle}
+                        onChange={(e) => setGenMailboxTitle(e.target.value)}
+                        placeholder={t('items.generatorMailboxTitlePlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gen-mailbox-body">{t('items.generatorMailboxBody')}</Label>
+                      <Textarea
+                        id="gen-mailbox-body"
+                        value={genMailboxBody}
+                        onChange={(e) => setGenMailboxBody(e.target.value)}
+                        placeholder={t('items.generatorMailboxBodyPlaceholder')}
+                        rows={3}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Offline calculation hint */}
-              {(() => {
-                const interval = parseInt(genInterval) || 0
-                const ticks = parseInt(genTickCapacity) || 0
-                const maxSeconds = interval * ticks
-                if (interval > 0 && ticks > 0) {
-                  const hours = Math.floor(maxSeconds / 3600)
-                  const mins = Math.floor((maxSeconds % 3600) / 60)
-                  const timeStr = hours > 0
-                    ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}`
-                    : `${mins}m`
-                  return (
-                    <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                      <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
-                      <p>Max offline duration = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                      <p>After being offline for up to <span className="font-medium text-foreground">{timeStr}</span>, the player can collect up to <span className="font-mono font-medium text-foreground">{ticks}</span> ticks worth of output.</p>
-                    </div>
-                  )
-                }
-                return null
-              })()}
+              {/* Card 2: Interval + Tick Capacity */}
+              <div className="space-y-4 rounded-lg border p-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="gen-interval"
+                      type="number"
+                      min={1}
+                      value={genInterval}
+                      onChange={(e) => setGenInterval(e.target.value)}
+                    />
+                    {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gen-tick-capacity">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="gen-tick-capacity"
+                      type="number"
+                      min={1}
+                      value={genTickCapacity}
+                      onChange={(e) => setGenTickCapacity(e.target.value)}
+                    />
+                    {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
+                  </div>
+                </div>
 
-              {/* Output Pool */}
-              <div className="space-y-3">
+                {(() => {
+                  const interval = parseInt(genInterval) || 0
+                  const ticks = parseInt(genTickCapacity) || 0
+                  const maxSeconds = interval * ticks
+                  if (interval > 0 && ticks > 0) {
+                    const hours = Math.floor(maxSeconds / 3600)
+                    const mins = Math.floor((maxSeconds % 3600) / 60)
+                    const timeStr = hours > 0
+                      ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}`
+                      : `${mins}m`
+                    return (
+                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+                        <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
+                        <p>Max offline duration = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
+                        <p>After being offline for up to <span className="font-medium text-foreground">{timeStr}</span>, the player can collect up to <span className="font-mono font-medium text-foreground">{ticks}</span> ticks worth of output.</p>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+
+              {/* Card 3: Output Pool */}
+              <div className="space-y-3 rounded-lg border p-5">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">{t('items.outputPool')} <span className="text-destructive">*</span></Label>
                   <Button

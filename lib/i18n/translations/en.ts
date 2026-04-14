@@ -1912,6 +1912,12 @@ export const en = {
     gachaMailboxBody: "Mailbox Body",
     gachaMailboxBodyPlaceholder: "Message shown to the player in the mailbox…",
     gachaMailboxHint: "Shown to the player when the reward is delivered to their mailbox.",
+    generatorMailboxTitle: "Mailbox Title",
+    generatorMailboxTitlePlaceholder: "e.g. Gold Generator reward!",
+    generatorMailboxBody: "Mailbox Body",
+    generatorMailboxBodyPlaceholder: "Message shown to the player in the mailbox…",
+    generatorMailboxHint: "Shown to the player when generator output is delivered to their mailbox.",
+    generatorInventoryHint: "Items will be sent directly into the inventory that this generator belongs to.",
     collectDestinationInventoryHint: "Items are delivered straight into the player's Main Inventory — no action required.",
     deliveryToLabel: "Delivery to",
     // Sheet titles
