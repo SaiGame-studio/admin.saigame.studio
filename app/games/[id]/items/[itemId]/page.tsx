@@ -509,7 +509,32 @@ export default function ItemDefinitionDetailPage() {
             <Package className={`h-6 w-6 ${c.text}`} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{item.name}</h1>
+            {editingField === "name" ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  className="h-9 text-lg font-bold w-64"
+                  value={tmpName}
+                  onChange={(e) => setTmpName(e.target.value)}
+                  disabled={saving}
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") saveField({ name: tmpName.trim() }); if (e.key === "Escape") setEditingField(null) }}
+                />
+                <Button size="sm" variant="default" className="gap-1.5" disabled={saving} onClick={() => saveField({ name: tmpName.trim() })}>
+                  <Save className="h-4 w-4" />
+                  {saving ? t('common.saving') : t('common.save')}
+                </Button>
+                <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditingField(null)}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 group/title">
+                <h1 className="text-2xl font-bold">{item.name}</h1>
+                <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover/title:opacity-100 transition-opacity" onClick={() => startEdit("name")}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-0.5">
               <RarityBadge rarity={item.rarity} />
               <Badge variant="outline" className="capitalize text-xs">{item.category}</Badge>
@@ -1215,12 +1240,13 @@ export default function ItemDefinitionDetailPage() {
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 ) : (
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={savingGenConfig} onClick={saveGenConfig}>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="default" className="gap-1.5" disabled={savingGenConfig} onClick={saveGenConfig}>
                       <Save className="h-3.5 w-3.5" />
+                      {savingGenConfig ? t('common.saving') : t('common.save')}
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={savingGenConfig} onClick={() => setEditingGenConfig(false)}>
-                      <X className="h-3.5 w-3.5" />
+                    <Button size="sm" variant="outline" disabled={savingGenConfig} onClick={() => setEditingGenConfig(false)}>
+                      {t('common.cancel')}
                     </Button>
                   </div>
                 )}

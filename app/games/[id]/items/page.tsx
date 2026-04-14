@@ -259,6 +259,7 @@ function emptyGachaForm() {
   return {
     name: "",
     code_name: "",
+    collect_destination: "mailbox" as "mailbox" | "inventory",
     is_enabled: true,
     pool: [EMPTY_ROW()],
     keyReqs: [EMPTY_KEY_ROW()],
@@ -2196,6 +2197,7 @@ export default function GameItemsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null)
   const [gachaComboSearch, setGachaComboSearch] = useState("")
+  const suppressGachaAutoOpenRef = useRef(false)
 
   // initialize tab from URL params
   useEffect(() => {
@@ -2544,6 +2546,10 @@ export default function GameItemsPage() {
 
   // auto-open edit sheet when ?editPack=<id> is in the URL (keep param so F5 re-opens)
   useEffect(() => {
+    if (suppressGachaAutoOpenRef.current) {
+      suppressGachaAutoOpenRef.current = false
+      return
+    }
     const packId = searchParams.get("editPack")
     if (!packId || gachaLoading || gachaPacks.length === 0) return
     const pack = gachaPacks.find((p) => p.id === packId)
@@ -2554,6 +2560,7 @@ export default function GameItemsPage() {
   }, [gachaPacks, gachaLoading])
 
   function gachaCloseSheet() {
+    suppressGachaAutoOpenRef.current = true
     setGachaSheetOpen(false)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
@@ -2576,6 +2583,7 @@ export default function GameItemsPage() {
     setGachaForm({
       name: pack.name,
       code_name: pack.code_name ?? "",
+      collect_destination: pack.collect_destination ?? "mailbox",
       is_enabled: pack.is_enabled,
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
@@ -2617,7 +2625,7 @@ export default function GameItemsPage() {
     setGachaForm((f) => ({ ...f, pool: f.pool.filter((_, i) => i !== index) }))
   }
 
-  async function handleGachaSave() {
+  async function handleGachaSave(closeAfterSave: boolean = true) {
     if (!gachaForm.name.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
     const item_pool: GachaPoolEntry[] = gachaForm.pool
       .filter((r) => r.item_definition_id.trim())
@@ -2640,16 +2648,19 @@ export default function GameItemsPage() {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: gachaForm.name.trim(),
           ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
         })
         setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
+        setEditingPack(res.pack)
         toast({ title: t('items.packUpdated') })
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),
           ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
@@ -2658,7 +2669,7 @@ export default function GameItemsPage() {
         toast({ title: t('items.packCreated') })
         loadGameInfo()
       }
-      gachaCloseSheet()
+      if (closeAfterSave) gachaCloseSheet()
     } catch (err: any) {
       toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? "Unknown error" })
     } finally {
@@ -4028,7 +4039,15 @@ export default function GameItemsPage() {
                             )}
                           </div>
 
-                          {/* Col 3: Items in pool */}
+                          {/* Col 3: Collect destination */}
+                          <div className="w-36 shrink-0 text-sm text-muted-foreground">
+                            <span className="inline-flex flex-col items-start px-2 py-1 rounded text-xs font-medium border bg-muted/40 leading-tight">
+                              <span className="text-muted-foreground">{t('items.deliveryToLabel')}</span>
+                              <span className="text-foreground">{pack.collect_destination === "inventory" ? t('items.collectDestinationMainInventoryShort') : t('items.collectDestinationMailboxShort')}</span>
+                            </span>
+                          </div>
+
+                          {/* Col 4: Items in pool */}
                           <div className="w-28 shrink-0 text-sm text-muted-foreground">
                             🎲 {pack.item_pool.length} {t('items.itemsUnit')}
                           </div>
@@ -4548,6 +4567,23 @@ export default function GameItemsPage() {
               </div>
             </div>
 
+            {/* Collect Destination */}
+            <div className="space-y-1.5">
+              <Label htmlFor="gacha-collect-destination">{t('items.collectDestination')}</Label>
+              <Select
+                value={gachaForm.collect_destination}
+                onValueChange={(v) => setGachaForm((f) => ({ ...f, collect_destination: v as "mailbox" | "inventory" }))}
+              >
+                <SelectTrigger id="gacha-collect-destination" disabled={formSaving}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                  <SelectItem value="inventory">{t('items.collectDestinationMainInventory')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Key Requirements */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -4840,10 +4876,23 @@ export default function GameItemsPage() {
             <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleGachaSave} disabled={formSaving}>
-              {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {editingPack ? t('items.saveChanges') : t('items.createPack')}
-            </Button>
+            {editingPack ? (
+              <>
+                <Button variant="outline" onClick={() => handleGachaSave(false)} disabled={formSaving}>
+                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  {t('items.saveAndContinue')}
+                </Button>
+                <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
+                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  {t('items.saveAndClose')}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
+                {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {t('items.createPack')}
+              </Button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
