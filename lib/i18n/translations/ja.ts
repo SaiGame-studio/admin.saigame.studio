@@ -1889,6 +1889,12 @@ export const ja = {
     collectDestinationMainInventory: "メインインベントリ",
     collectDestinationMailboxShort: "メールボックス",
     collectDestinationMainInventoryShort: "メインインベントリ",
+    gachaMailboxTitle: "メールボックスタイトル",
+    gachaMailboxTitlePlaceholder: "例: レジェンダリーチェストの報酬！",
+    gachaMailboxBody: "メールボックス本文",
+    gachaMailboxBodyPlaceholder: "メールボックスでプレイヤーに表示されるメッセージ…",
+    gachaMailboxHint: "報酬がメールボックスに配信されたときにプレイヤーに表示されます。",
+    collectDestinationInventoryHint: "アイテムはプレイヤーのメインインベントリに直接配信されます — 操作は不要です。",
     deliveryToLabel: "配信先",
     // Sheet titles
     newItemDefinition: "新しいアイテム定義",

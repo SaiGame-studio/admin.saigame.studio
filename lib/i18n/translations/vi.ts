@@ -1901,6 +1901,12 @@ export const vi = {
     collectDestinationMainInventory: "Kho đồ chính",
     collectDestinationMailboxShort: "Hòm thư",
     collectDestinationMainInventoryShort: "Kho đồ chính",
+    gachaMailboxTitle: "Tiêu đề hòm thư",
+    gachaMailboxTitlePlaceholder: "VD: Phần thưởng rương huyền thoại!",
+    gachaMailboxBody: "Nội dung hòm thư",
+    gachaMailboxBodyPlaceholder: "Nội dung hiển thị cho người chơi trong hòm thư…",
+    gachaMailboxHint: "Hiển thị cho người chơi khi phần thưởng được gửi vào hòm thư.",
+    collectDestinationInventoryHint: "Vật phẩm sẽ đi thẳng vào Kho đồ chính của người chơi — không cần thao tác gì thêm.",
     deliveryToLabel: "Giao đến",
     // Sheet titles
     newItemDefinition: "Định nghĩa Vật phẩm mới",

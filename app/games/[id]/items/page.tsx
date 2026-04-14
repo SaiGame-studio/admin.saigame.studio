@@ -7,6 +7,8 @@ import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
@@ -261,6 +263,8 @@ function emptyGachaForm() {
     code_name: "",
     collect_destination: "mailbox" as "mailbox" | "inventory",
     is_enabled: true,
+    mailbox_title: "",
+    mailbox_body: "",
     pool: [EMPTY_ROW()],
     keyReqs: [EMPTY_KEY_ROW()],
   }
@@ -2580,11 +2584,14 @@ export default function GameItemsPage() {
   function gachaOpenEdit(pack: GachaPack) {
     setEditingPack(pack)
     setGachaAutoSlug(false)
+    const meta = (pack.metadata ?? {}) as Record<string, unknown>
     setGachaForm({
       name: pack.name,
       code_name: pack.code_name ?? "",
       collect_destination: pack.collect_destination ?? "mailbox",
       is_enabled: pack.is_enabled,
+      mailbox_title: typeof meta.mailbox_title === "string" ? meta.mailbox_title : "",
+      mailbox_body: typeof meta.mailbox_body === "string" ? meta.mailbox_body : "",
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
             item_definition_id: e.item_definition_id,
@@ -2641,6 +2648,13 @@ export default function GameItemsPage() {
         item_definition_id: r.item_definition_id.trim(),
         quantity: Math.max(1, Number(r.quantity) || 1),
       }))
+    const existingMeta = (editingPack?.metadata ?? {}) as Record<string, unknown>
+    const { mailbox_title: _omitTitle, mailbox_body: _omitBody, ...restMeta } = existingMeta
+    const metadata: Record<string, unknown> = { ...restMeta }
+    if (gachaForm.collect_destination === "mailbox") {
+      if (gachaForm.mailbox_title.trim()) metadata.mailbox_title = gachaForm.mailbox_title.trim()
+      if (gachaForm.mailbox_body.trim()) metadata.mailbox_body = gachaForm.mailbox_body.trim()
+    }
     setFormSaving(true)
     try {
       const ctx = { gameId }
@@ -2652,6 +2666,7 @@ export default function GameItemsPage() {
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
+          metadata,
         })
         setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
         setEditingPack(res.pack)
@@ -2664,6 +2679,7 @@ export default function GameItemsPage() {
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
+          metadata,
         })
         setGachaPacks((prev) => [res.pack, ...prev])
         toast({ title: t('items.packCreated') })
@@ -4518,29 +4534,57 @@ export default function GameItemsPage() {
           </SheetHeader>
 
           <div className="space-y-5">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder={t('items.gachaNamePlaceholder')}
-                value={gachaForm.name}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setGachaForm((f) => ({
-                    ...f,
-                    name: v,
-                    ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
-                  }))
-                }}
-                disabled={formSaving}
-              />
+            {/* Name + Enabled */}
+            <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
+              <div className="space-y-1.5 min-w-0">
+                <Label htmlFor="gacha-name">{t('items.name')} <span className="text-destructive">*</span></Label>
+                <Input
+                  id="gacha-name"
+                  placeholder={t('items.gachaNamePlaceholder')}
+                  value={gachaForm.name}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setGachaForm((f) => ({
+                      ...f,
+                      name: v,
+                      ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+                    }))
+                  }}
+                  disabled={formSaving}
+                />
+              </div>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <label
+                      htmlFor="gacha-enabled"
+                      className="flex items-center gap-3 h-10 px-3 rounded-md border border-border bg-muted/30 cursor-pointer select-none"
+                    >
+                      <Switch
+                        id="gacha-enabled"
+                        checked={gachaForm.is_enabled}
+                        onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))}
+                        disabled={formSaving}
+                      />
+                      <span className="text-sm font-medium">{t('items.enabled')}</span>
+                    </label>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    {t('items.playersCanOpen')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             {/* Code Name */}
-            <div className="space-y-1">
-              <Label>{t('items.gachaCodeNameLabel')} <span className="text-muted-foreground text-xs">({t('items.gachaCodeNameHint')})</span></Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="gacha-code-name">
+                {t('items.gachaCodeNameLabel')}{" "}
+                <span className="text-muted-foreground text-xs font-normal">({t('items.gachaCodeNameHint')})</span>
+              </Label>
               <div className="flex gap-2">
                 <Input
+                  id="gacha-code-name"
                   placeholder={t('items.gachaCodeNamePlaceholder')}
                   value={gachaForm.code_name}
                   onChange={(e) => {
@@ -4567,6 +4611,8 @@ export default function GameItemsPage() {
               </div>
             </div>
 
+            <Separator />
+
             {/* Collect Destination */}
             <div className="space-y-1.5">
               <Label htmlFor="gacha-collect-destination">{t('items.collectDestination')}</Label>
@@ -4582,7 +4628,40 @@ export default function GameItemsPage() {
                   <SelectItem value="inventory">{t('items.collectDestinationMainInventory')}</SelectItem>
                 </SelectContent>
               </Select>
+              {gachaForm.collect_destination === "inventory" && (
+                <p className="text-xs text-muted-foreground">{t('items.collectDestinationInventoryHint')}</p>
+              )}
             </div>
+
+            {/* Mailbox message (only when destination is mailbox) */}
+            {gachaForm.collect_destination === "mailbox" && (
+              <div className="space-y-3 rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gacha-mailbox-title">{t('items.gachaMailboxTitle')}</Label>
+                  <Input
+                    id="gacha-mailbox-title"
+                    value={gachaForm.mailbox_title}
+                    onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_title: e.target.value }))}
+                    placeholder={t('items.gachaMailboxTitlePlaceholder')}
+                    disabled={formSaving}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gacha-mailbox-body">{t('items.gachaMailboxBody')}</Label>
+                  <Textarea
+                    id="gacha-mailbox-body"
+                    value={gachaForm.mailbox_body}
+                    onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_body: e.target.value }))}
+                    placeholder={t('items.gachaMailboxBodyPlaceholder')}
+                    disabled={formSaving}
+                    rows={3}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{t('items.gachaMailboxHint')}</p>
+              </div>
+            )}
+
+            <Separator />
 
             {/* Key Requirements */}
             <div className="space-y-3">
@@ -4702,18 +4781,6 @@ export default function GameItemsPage() {
                 <ExternalLink className="h-3 w-3" />
                 {t('items.createNewItem')}
               </Link>
-            </div>
-
-            {/* Enabled */}
-            <div className="flex items-center gap-3">
-              <Switch
-                id="gacha-enabled"
-                checked={gachaForm.is_enabled}
-                onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))}
-                disabled={formSaving}
-              />
-              <Label htmlFor="gacha-enabled" className="cursor-pointer">{t('items.enabled')}</Label>
-              <span className="text-xs text-muted-foreground">{t('items.playersCanOpen')}</span>
             </div>
 
             <Separator />

@@ -1907,6 +1907,12 @@ export const en = {
     collectDestinationMainInventory: "Main Inventory",
     collectDestinationMailboxShort: "Mailbox",
     collectDestinationMainInventoryShort: "Main Inventory",
+    gachaMailboxTitle: "Mailbox Title",
+    gachaMailboxTitlePlaceholder: "e.g. Legendary Chest reward!",
+    gachaMailboxBody: "Mailbox Body",
+    gachaMailboxBodyPlaceholder: "Message shown to the player in the mailbox…",
+    gachaMailboxHint: "Shown to the player when the reward is delivered to their mailbox.",
+    collectDestinationInventoryHint: "Items are delivered straight into the player's Main Inventory — no action required.",
     deliveryToLabel: "Delivery to",
     // Sheet titles
     newItemDefinition: "New Item Definition",

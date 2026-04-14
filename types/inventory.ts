@@ -96,6 +96,7 @@ export interface GachaPack {
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
   is_enabled: boolean
+  metadata?: Record<string, unknown>
   created_at?: string | number
   updated_at?: string | number
 }
@@ -107,6 +108,7 @@ export interface CreateGachaPackRequest {
   is_enabled?: boolean
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
+  metadata?: Record<string, unknown>
 }
 
 export interface UpdateGachaPackRequest {
@@ -116,6 +118,7 @@ export interface UpdateGachaPackRequest {
   is_enabled?: boolean
   item_pool?: GachaPoolEntry[]
   key_requirements?: KeyRequirement[]
+  metadata?: Record<string, unknown>
 }
 
 export interface GrantedItem {
