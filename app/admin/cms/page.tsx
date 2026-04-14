@@ -436,15 +436,18 @@ function CmsPageInner() {
       </Card>
 
       {/* Pagination */}
-      {!loading && !error && totalPages > 1 && (
+      {!error && (
         <div className="flex items-center justify-center gap-2 mt-4">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <Button variant="outline" size="sm" onClick={() => setPage(1)}>
+            First
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setPage(Math.max(1, page - 1))}>
             Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
+            Page {page} of {Math.max(totalPages, page)}
           </span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+          <Button variant="outline" size="sm" onClick={() => setPage(page + 1)}>
             Next
           </Button>
         </div>
