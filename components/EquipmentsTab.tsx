@@ -411,6 +411,7 @@ export function EquipmentsTab({
   onLoadGameInfo,
   equippedItems,
   equippedLoading,
+  onRefreshEquipped,
   readOnly,
   playerProgressId,
 }: {
@@ -427,6 +428,7 @@ export function EquipmentsTab({
   onLoadGameInfo: () => void
   equippedItems?: PlayerEquippedItem[]
   equippedLoading?: boolean
+  onRefreshEquipped?: () => void
   /** When true: hides create/edit/delete actions (used in player context) */
   readOnly?: boolean
   /** Player progress ID — when provided, equipped item names link to ?tab=items&item_iid=... */
@@ -588,8 +590,8 @@ export function EquipmentsTab({
 
   const headerActions = (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSlots} disabled={loading} title={t('common.refresh')}>
-        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { fetchSlots(); onRefreshEquipped?.() }} disabled={loading || equippedLoading} title={t('common.refresh')}>
+        <RefreshCw className={`h-4 w-4 ${(loading || equippedLoading) ? "animate-spin" : ""}`} />
       </Button>
       {!readOnly && (
         <Button size="sm" className="h-8" onClick={openCreate}>
@@ -648,7 +650,7 @@ export function EquipmentsTab({
         <TabsContent value="grid" className="mt-0">
           {(() => {
             const CARD_W = 116
-            const CARD_H_EST = equippedMap ? 100 : 80
+            const CARD_H_EST = 100
             const GAP = 12
             const COLS = 6
             const getDefaultPos = (idx: number) => ({
@@ -839,7 +841,7 @@ export function EquipmentsTab({
                               <button key={dir} style={edgeStyle} className="w-2.5 h-2.5 rounded-full bg-blue-400 hover:bg-red-400 cursor-pointer transition-colors border border-background" title={`${t('items.detachFrom')} ${neighbor}`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); detachBond(slot.slot_key, neighbor) }} />
                             )
                           })}
-                          <Card className={`cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}${equippedInSlot ? " ring-1 ring-emerald-400/60" : ""}`} style={{ height: CARD_H_EST }}>
+                          <Card className={`relative cursor-grab active:cursor-grabbing shadow-sm transition-shadow${isDragging ? " shadow-xl ring-2 ring-primary/40" : ""}${hasBond ? " ring-1 ring-blue-400/50" : ""}${equippedInSlot ? " ring-1 ring-emerald-400/60" : ""}`} style={{ height: CARD_H_EST }}>
                             <CardContent className="p-1.5">
                               <div className="flex gap-0.5">
                                 <div className="min-w-0 flex-1 space-y-1">
@@ -860,7 +862,7 @@ export function EquipmentsTab({
                                       : <span className="text-[8px] text-muted-foreground italic">{t('items.anyType')}</span>}
                                   </div>
                                   {/* Equipped item row */}
-                                  {equippedMap !== null && (
+                                  {equippedMap !== null ? (
                                     <div className={`flex items-center gap-0.5 border-t pt-0.5 mt-0.5 ${equippedLoading ? "opacity-50" : ""}`}>
                                       {equippedInSlot ? (
                                         <>
@@ -884,20 +886,26 @@ export function EquipmentsTab({
                                         <span className="text-[8px] text-muted-foreground/50 italic">empty</span>
                                       )}
                                     </div>
+                                  ) : (
+                                    <div className="flex items-center gap-0.5 border-t pt-0.5 mt-0.5">
+                                      <span className="text-[8px] text-muted-foreground/40 italic">no item</span>
+                                    </div>
                                   )}
                                 </div>
                                 {!readOnly && (
-                                <div className="flex flex-col items-center justify-between shrink-0">
+                                <div className="shrink-0">
                                   <Button variant="ghost" size="icon" className="h-4 w-4" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); openEdit(detailCache[slot.slot_key] ?? slot, e) }}>
                                     <Pencil className="h-2 w-2" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handleDelete(slot.slot_key, e) }} disabled={deleteSlotLoading && pendingDeleteSlot === slot.slot_key}>
-                                    {deleteSlotLoading && pendingDeleteSlot === slot.slot_key ? <Loader2 className="h-2 w-2 animate-spin" /> : <Trash2 className="h-2 w-2" />}
                                   </Button>
                                 </div>
                                 )}
                               </div>
                             </CardContent>
+                            {!readOnly && (
+                              <Button variant="ghost" size="icon" className="absolute bottom-0.5 right-0.5 h-4 w-4 text-destructive hover:text-destructive" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handleDelete(slot.slot_key, e) }} disabled={deleteSlotLoading && pendingDeleteSlot === slot.slot_key}>
+                                {deleteSlotLoading && pendingDeleteSlot === slot.slot_key ? <Loader2 className="h-2 w-2 animate-spin" /> : <Trash2 className="h-2 w-2" />}
+                              </Button>
+                            )}
                           </Card>
                         </div>
                       )

@@ -3499,6 +3499,17 @@ export default function GameUserProgressDetailPage({
             onLoadGameInfo={() => {}}
             equippedItems={equippedItems}
             equippedLoading={equippedLoading}
+            onRefreshEquipped={() => {
+              const userId = detail?.user_id
+              if (!userId || equippedLoading) return
+              setEquippedLoading(true)
+              import("@/lib/game-user-api").then(({ getPlayerEquipped }) =>
+                getPlayerEquipped(gameId, userId)
+                  .then((res) => setEquippedItems(res.equipped ?? []))
+                  .catch(() => {})
+                  .finally(() => setEquippedLoading(false))
+              )
+            }}
             readOnly
             playerProgressId={progressId}
           />

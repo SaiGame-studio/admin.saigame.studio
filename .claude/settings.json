@@ -76,7 +76,8 @@
       "Bash(grep -n \"editorRef\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)",
       "Bash(grep -n \"gacha\" lib/*.ts lib/*.tsx)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(grep -l \"listItemDefinitions\\\\|createItemDefinition\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)"
+      "Bash(grep -l \"listItemDefinitions\\\\|createItemDefinition\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)",
+      "Bash(grep -E \"\\\\.\\(tsx|jsx|ts|js\\)$\")"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
