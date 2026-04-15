@@ -56,6 +56,7 @@ import type { ItemDefinition, ItemCategory, ItemRarity, UpdateItemRequest, Gacha
 import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ITEMS_TABS } from "@/lib/items-tabs"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -561,24 +562,13 @@ export default function ItemDefinitionDetailPage() {
       <div className="flex items-center justify-between mb-2 gap-2">
         <Tabs value="catalogue">
           <TabsList>
-            <TabsTrigger value="catalogue" asChild>
-              <Link href={`/games/${gameId}/items?tab=catalogue`}>{t('items.tabItems')}</Link>
-            </TabsTrigger>
-            <TabsTrigger value="containers" asChild>
-              <Link href={`/games/${gameId}/items?tab=containers`}>{t('items.tabContainers')}</Link>
-            </TabsTrigger>
-            <TabsTrigger value="gacha" asChild>
-              <Link href={`/games/${gameId}/items?tab=gacha`}>{t('items.tabGacha')}</Link>
-            </TabsTrigger>
-            <TabsTrigger value="generators" asChild>
-              <Link href={`/games/${gameId}/items?tab=generators`}>{t('items.tabGenerators')}</Link>
-            </TabsTrigger>
-            <TabsTrigger value="equipments" asChild>
-              <Link href={`/games/${gameId}/items?tab=equipments`}>{t('items.tabEquipmentSlots')}</Link>
-            </TabsTrigger>
-            <TabsTrigger value="tags" asChild>
-              <Link href={`/games/${gameId}/items?tab=tags`}>{t('items.tabTags')}</Link>
-            </TabsTrigger>
+            {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
+              <TabsTrigger key={key} value={key} asChild>
+                <Link href={`/games/${gameId}/items?tab=${key}`}>
+                  <Icon className="h-3.5 w-3.5 mr-1.5" />{t(labelKey)}
+                </Link>
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
         <AlertDialog>
