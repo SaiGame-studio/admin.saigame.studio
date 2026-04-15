@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
-import { toSlug, toSlugUpperCase, toSlugUnderscore } from "@/lib/utils"
+import { toSlug, toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
@@ -963,7 +963,7 @@ function CreateItemDialog({
                 const v = e.target.value
                 setName(v)
                 if (autoSlug) {
-                  setItemCode(toSlugUpperCase(v))
+                  setItemCode(toSlugUnderscore(v))
                 }
               }}
             />
@@ -976,7 +976,7 @@ function CreateItemDialog({
             <div className="flex gap-2">
               <Input
                 id="item-code"
-                placeholder="e.g. IRON_SWORD"
+                placeholder="e.g. iron_sword"
                 value={itemCode}
                 onChange={(e) => {
                   setAutoSlug(false)
@@ -992,7 +992,7 @@ function CreateItemDialog({
                 title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
                 onClick={() => {
                   setAutoSlug(true)
-                  setItemCode(toSlugUpperCase(name))
+                  setItemCode(toSlugUnderscore(name))
                 }}
               >
                 <Wand2 className="h-4 w-4" />
