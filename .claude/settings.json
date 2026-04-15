@@ -77,7 +77,10 @@
       "Bash(grep -n \"gacha\" lib/*.ts lib/*.tsx)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(grep -l \"listItemDefinitions\\\\|createItemDefinition\" /g/Projects/ss/admin.saigame.studio/lib/*.ts)",
-      "Bash(grep -E \"\\\\.\\(tsx|jsx|ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|jsx|ts|js\\)$\")",
+      "Bash(wc -l /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/[itemId]/page.tsx)",
+      "Bash(grep -n \"Tabs\\\\|TabsList\\\\|TabsTrigger\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"activeTab\\\\|handleTabChange\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",

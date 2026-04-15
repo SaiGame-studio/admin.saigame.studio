@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ITEMS_TABS } from "@/lib/items-tabs"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetTrigger,
 } from "@/components/ui/sheet"
@@ -2870,14 +2871,11 @@ export default function GameItemsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="catalogue"><Package className="h-3.5 w-3.5 mr-1.5" />{t('items.tabItems')}</TabsTrigger>
-            <TabsTrigger value="tags"><Tag className="h-3.5 w-3.5 mr-1.5" />{t('items.tabTags')}</TabsTrigger>
-            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
-            <TabsTrigger value="containers"><Archive className="h-3.5 w-3.5 mr-1.5" />{t('items.tabContainers')}</TabsTrigger>
-            <TabsTrigger value="gacha"><Dices className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGacha')}</TabsTrigger>
-            <TabsTrigger value="generators"><Zap className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGenerators')}</TabsTrigger>
-            <TabsTrigger value="equipments"><Shield className="h-3.5 w-3.5 mr-1.5" />{t('items.tabEquipmentSlots')}</TabsTrigger>
-            <TabsTrigger value="crafting"><Hammer className="h-3.5 w-3.5 mr-1.5" />{t('items.tabCrafting')}</TabsTrigger>
+            {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
+              <TabsTrigger key={key} value={key}>
+                <Icon className="h-3.5 w-3.5 mr-1.5" />{t(labelKey)}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
         <TabsContent value="crafting" className="space-y-4">
