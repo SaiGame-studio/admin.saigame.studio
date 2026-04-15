@@ -197,8 +197,8 @@ export default function RecipeHistoryPage() {
           ...(status !== "all" ? { status } : {}),
         }
       )
-      setTransactions(data.transactions)
-      setTotal(data.total)
+      setTransactions(data.transactions ?? [])
+      setTotal(data.total ?? 0)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load history"
       setError(msg)
