@@ -80,7 +80,8 @@
       "Bash(grep -E \"\\\\.\\(tsx|jsx|ts|js\\)$\")",
       "Bash(wc -l /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/[itemId]/page.tsx)",
       "Bash(grep -n \"Tabs\\\\|TabsList\\\\|TabsTrigger\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
-      "Bash(grep -n \"activeTab\\\\|handleTabChange\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)"
+      "Bash(grep -n \"activeTab\\\\|handleTabChange\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
+      "Bash(grep -n \"preprocessImgSize\\\\|ReactMarkdown\\\\|remarkPlugins\\\\|rehypePlugins\" /g/Projects/ss/admin.saigame.studio/app/admin/cms/[id]/page.tsx)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
