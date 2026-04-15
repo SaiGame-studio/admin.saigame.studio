@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast"
 import {
   ArrowLeft, Star, Clock, FileText, Tag, ShieldAlert,
   Save, Loader2, Eye, Pencil, Bold, Italic, Heading, List, ListOrdered,
-  Link as LinkIcon, Image, Code, Quote, Minus, X, Plus, RefreshCw, Wand2,
+  Link as LinkIcon, Image, Columns2, Table2, Code, Quote, Minus, X, Plus, RefreshCw, Wand2,
 } from "lucide-react"
 import Link from "next/link"
 import { getCmsContent, updateCmsContent, toggleCmsContentPublish, listCategoryTree, getContentTranslations, autoTranslateCmsContent, CmsContent, ContentCategory, ContentTranslationSummary } from "@/lib/admin-api"
@@ -492,6 +492,12 @@ function CmsDetailInner() {
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="Image" onClick={() => insertAtCursor(editorView, "![alt](url)")}>
                   <Image className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Two images side by side (HTML)" onClick={() => insertAtCursor(editorView, "\n<div style=\"display:flex;gap:8px;align-items:flex-start\">\n  <img src=\"url1\" alt=\"alt1\" style=\"flex:1;max-width:50%;height:auto\" />\n  <img src=\"url2\" alt=\"alt2\" style=\"flex:1;max-width:50%;height:auto\" />\n</div>\n")}>
+                  <Columns2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Two images side by side (Markdown table)" onClick={() => insertAtCursor(editorView, "\n| ![alt1](url1) | ![alt2](url2) |\n| :---: | :---: |\n")}>
+                  <Table2 className="h-3.5 w-3.5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="Code" onClick={() => wrapSelection(editorView, "`", "`")}>
                   <Code className="h-3.5 w-3.5" />
