@@ -2872,11 +2872,11 @@ export default function GameItemsPage() {
           <TabsList>
             <TabsTrigger value="catalogue"><Package className="h-3.5 w-3.5 mr-1.5" />{t('items.tabItems')}</TabsTrigger>
             <TabsTrigger value="tags"><Tag className="h-3.5 w-3.5 mr-1.5" />{t('items.tabTags')}</TabsTrigger>
+            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
             <TabsTrigger value="containers"><Archive className="h-3.5 w-3.5 mr-1.5" />{t('items.tabContainers')}</TabsTrigger>
             <TabsTrigger value="gacha"><Dices className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGacha')}</TabsTrigger>
             <TabsTrigger value="generators"><Zap className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGenerators')}</TabsTrigger>
             <TabsTrigger value="equipments"><Shield className="h-3.5 w-3.5 mr-1.5" />{t('items.tabEquipmentSlots')}</TabsTrigger>
-            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
             <TabsTrigger value="crafting"><Hammer className="h-3.5 w-3.5 mr-1.5" />{t('items.tabCrafting')}</TabsTrigger>
           </TabsList>
 
