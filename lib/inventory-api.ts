@@ -444,6 +444,7 @@ export interface PresetDefinition {
   id: string
   preset_type: string
   name: string
+  code_name?: string
   max_slots: number
   metadata: Record<string, unknown>
   created_at: string
@@ -453,6 +454,7 @@ export interface PresetDefinition {
 export interface CreatePresetDefinitionRequest {
   preset_type: string
   name: string
+  code_name?: string
   max_slots: number
   metadata?: Record<string, unknown>
 }

@@ -2136,6 +2136,9 @@ export const ja = {
     newPreset: "新しいプリセット",
     noPresets: "プリセット定義がありません",
     noMatchingPresets: "一致するプリセットがありません",
+    codeName: "コード名",
+    presetCodeNameHint: "任意（例: standard_deck）",
+    presetCodeNamePlaceholder: "例: standard_deck",
     // Placeholders
     searchByName: "名前で検索…",
     searchByNameOrCode: "名前またはコードで検索…",
