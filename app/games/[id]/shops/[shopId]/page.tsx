@@ -1980,33 +1980,29 @@ function ItemForm({
         </p>
       </div>
 
-      {/* Price */}
-      <div className="space-y-1.5">
-        <Label>
-          Price <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          type="number"
-          min={1}
-          placeholder="e.g. 200"
-          value={form.price}
-          onChange={(e) => setField("price", e.target.value)}
-        />
-      </div>
-
-      {/* Currency */}
-      <div className="space-y-1.5">
-          <Label>Currency Item Def <span className="text-xs text-muted-foreground">(overrides shop)</span></Label>
+      {/* Price + Currency */}
+      <div className="flex gap-3">
+        <div className="space-y-1.5 w-2/5">
+          <Label>
+            Price <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            placeholder="e.g. 200"
+            value={form.price}
+            onChange={(e) => setField("price", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5 w-3/5">
+          <Label>Currency <span className="text-xs text-muted-foreground">(overrides shop)</span></Label>
           <div className="flex items-center gap-2">
           <Popover open={currOpen} onOpenChange={setCurrOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" role="combobox" aria-expanded={currOpen}
                 className="flex-1 justify-between font-normal h-9 text-sm">
                 {selectedCurrDef ? (
-                  <span className="flex items-center gap-2">
-                    <span>{selectedCurrDef.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{selectedCurrDef.item_code}</span>
-                  </span>
+                  <span>{selectedCurrDef.name}</span>
                 ) : form.currency_item_def_id ? (
                   <span className="font-mono text-xs text-muted-foreground">{form.currency_item_def_id.slice(0,8)}…</span>
                 ) : (
@@ -2029,7 +2025,6 @@ function ItemForm({
                       <CommandItem key={d.id} value={d.id} onSelect={() => { setField("currency_item_def_id", d.id); setCurrOpen(false); setCurrSearch("") }}>
                         <Check className={`mr-2 h-4 w-4 shrink-0 ${form.currency_item_def_id === d.id ? "opacity-100" : "opacity-0"}`} />
                         <span className="flex-1">{d.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
                         <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{d.category}</span>
                       </CommandItem>
                     ))}
@@ -2049,37 +2044,39 @@ function ItemForm({
             </Button>
           )}
           </div>
+        </div>
       </div>
 
       {/* Purchase limit */}
-      <div className="space-y-1.5">
-        <Label>Purchase Limit Type</Label>
-        <Select
-          value={form.purchase_limit_type}
-          onValueChange={(v) => setField("purchase_limit_type", v as PurchaseLimitType)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unlimited">Unlimited</SelectItem>
-            <SelectItem value="player">Per Player</SelectItem>
-            <SelectItem value="global">Global</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {showLimits && (
+      <div className={showLimits ? "grid grid-cols-2 gap-3" : ""}>
         <div className="space-y-1.5">
-          <Label>Max Purchases</Label>
-          <Input
-            type="number"
-            min={0}
-            value={form.purchase_limit}
-            onChange={(e) => setField("purchase_limit", e.target.value)}
-          />
+          <Label>Purchase Limit Type</Label>
+          <Select
+            value={form.purchase_limit_type}
+            onValueChange={(v) => setField("purchase_limit_type", v as PurchaseLimitType)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unlimited">Unlimited</SelectItem>
+              <SelectItem value="player">Per Player</SelectItem>
+              <SelectItem value="global">Global</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        {showLimits && (
+          <div className="space-y-1.5">
+            <Label>Max Purchases</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.purchase_limit}
+              onChange={(e) => setField("purchase_limit", e.target.value)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Stock + Restock Schedule */}
       <div className="grid grid-cols-2 gap-3">
