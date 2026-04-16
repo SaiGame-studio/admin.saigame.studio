@@ -2148,6 +2148,9 @@ export const vi = {
     newPreset: "Cấu hình sẵn mới",
     noPresets: "Không có định nghĩa cấu hình sẵn",
     noMatchingPresets: "Không có cấu hình sẵn phù hợp",
+    codeName: "Tên mã",
+    presetCodeNameHint: "tùy chọn, vd. standard_deck",
+    presetCodeNamePlaceholder: "vd. standard_deck",
     // Placeholders
     searchByName: "Tìm theo tên…",
     searchByNameOrCode: "Tìm theo tên hoặc mã…",

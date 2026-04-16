@@ -4390,6 +4390,7 @@ export default function GameItemsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.codeName')}</TableHead>
                       <TableHead>{t('items.presetType')}</TableHead>
                       <TableHead>{t('items.maxSlots')}</TableHead>
                       <TableHead>{t('items.metadata')}</TableHead>
@@ -4408,6 +4409,16 @@ export default function GameItemsPage() {
                             <span className="truncate max-w-[180px]">{def.id}</span>
                             <CopyButton text={def.id} />
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {def.code_name ? (
+                            <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={def.code_name}>
+                              <span className="truncate max-w-[180px]">{def.code_name}</span>
+                              <CopyButton text={def.code_name} />
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-blue-500/15 text-blue-400 border-blue-400/40 capitalize">
@@ -5192,6 +5203,8 @@ function CreatePresetDefinitionSheet({
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState("")
+  const [codeName, setCodeName] = useState("")
+  const [autoSlug, setAutoSlug] = useState(true)
   const [maxSlots, setMaxSlots] = useState("20")
   const [meta, setMeta] = useState<{ key: string; value: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -5199,6 +5212,8 @@ function CreatePresetDefinitionSheet({
   function resetForm() {
     setName("")
     setContainerType("")
+    setCodeName("")
+    setAutoSlug(true)
     setMaxSlots("20")
     setMeta([])
     setErrors({})
@@ -5220,9 +5235,11 @@ function CreatePresetDefinitionSheet({
     try {
       const metadata: Record<string, unknown> = {}
       meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+      const finalCodeName = (autoSlug ? toSlugUnderscore(name) : codeName).trim()
       const body: CreatePresetDefinitionRequest = {
         preset_type: containerType.trim(),
         name: name.trim(),
+        ...(finalCodeName ? { code_name: finalCodeName } : {}),
         max_slots: Number(maxSlots),
         metadata,
       }
@@ -5251,8 +5268,49 @@ function CreatePresetDefinitionSheet({
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
             <Label htmlFor="pd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-name" placeholder="e.g. Standard Deck" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="pd-name"
+              placeholder="e.g. Standard Deck"
+              value={name}
+              onChange={(e) => {
+                const v = e.target.value
+                setName(v)
+                if (autoSlug) setCodeName(toSlugUnderscore(v))
+              }}
+            />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pd-code-name">
+              {t('items.codeName')}{" "}
+              <span className="text-muted-foreground text-xs font-normal">({t('items.presetCodeNameHint')})</span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="pd-code-name"
+                placeholder={t('items.presetCodeNamePlaceholder')}
+                value={autoSlug ? toSlugUnderscore(name) : codeName}
+                onChange={(e) => {
+                  setAutoSlug(false)
+                  setCodeName(e.target.value)
+                }}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant={autoSlug ? "default" : "outline"}
+                size="icon"
+                className="shrink-0"
+                title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+                onClick={() => {
+                  const next = !autoSlug
+                  setAutoSlug(next)
+                  if (next) setCodeName(toSlugUnderscore(name))
+                }}
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="pd-type">{t('items.presetType')} <span className="text-destructive">*</span></Label>

@@ -2154,6 +2154,9 @@ export const en = {
     newPreset: "New Preset",
     noPresets: "No preset definitions",
     noMatchingPresets: "No matching presets",
+    codeName: "Code Name",
+    presetCodeNameHint: "optional, e.g. standard_deck",
+    presetCodeNamePlaceholder: "e.g. standard_deck",
     // Placeholders
     searchByName: "Search by name…",
     searchByNameOrCode: "Search by name or code…",
