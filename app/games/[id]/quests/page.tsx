@@ -1424,43 +1424,44 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                             </div>
                           )}
 
-                          {/* Rewards */}
-                          {q.rewards && q.rewards.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">{t('quest.rewards')} ({q.rewards.length})</p>
-                              <div className="space-y-1">
-                                {q.rewards.map((r, ri) => (
-                                  <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
-                                    {r.reward_type === "coin" && r.amount != null && (
-                                      <span className="text-xs">{r.amount} {t('quest.coins')}</span>
-                                    )}
-                                    {r.reward_type === "item" && r.item_definition_id && (() => {
-                                      const def = rowItemDefs.find(d => d.id === r.item_definition_id)
-                                      return (
-                                        <span className="flex items-center gap-1.5 text-xs">
-                                          <span className="font-medium">{def?.name ?? r.item_definition_id}</span>
-                                          {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
-                                          <span className="text-muted-foreground">
-                                            {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
+                          {/* Rewards (item rewards only — coin rewards no longer supported) */}
+                          {(() => {
+                            const itemRewards = (q.rewards ?? []).filter(r => r.reward_type === "item")
+                            if (itemRewards.length === 0) return null
+                            return (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">{t('quest.rewards')} ({itemRewards.length})</p>
+                                <div className="space-y-1">
+                                  {itemRewards.map((r, ri) => (
+                                    <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
+                                      {r.item_definition_id && (() => {
+                                        const def = rowItemDefs.find(d => d.id === r.item_definition_id)
+                                        return (
+                                          <span className="flex items-center gap-1.5 text-xs">
+                                            <span className="font-medium">{def?.name ?? r.item_definition_id}</span>
+                                            {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
+                                            <span className="text-muted-foreground">
+                                              {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
+                                            </span>
+                                            <Link
+                                              href={`/games/${gameId}/items/${r.item_definition_id}`}
+                                              target="_blank"
+                                              className="text-muted-foreground hover:text-foreground transition-colors"
+                                              onClick={(e) => e.stopPropagation()}
+                                              title={t('quest.openItemDef')}
+                                            >
+                                              <ExternalLink className="h-3 w-3" />
+                                            </Link>
                                           </span>
-                                          <Link
-                                            href={`/games/${gameId}/items/${r.item_definition_id}`}
-                                            target="_blank"
-                                            className="text-muted-foreground hover:text-foreground transition-colors"
-                                            onClick={(e) => e.stopPropagation()}
-                                            title={t('quest.openItemDef')}
-                                          >
-                                            <ExternalLink className="h-3 w-3" />
-                                          </Link>
-                                        </span>
-                                      )
-                                    })()}
-                                  </div>
-                                ))}
+                                        )
+                                      })()}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )
+                          })()}
 
                           {/* Timestamps */}
                           <div className="flex gap-6 text-xs text-muted-foreground">

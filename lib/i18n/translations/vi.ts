@@ -1431,7 +1431,7 @@ export const vi = {
     tip12: "Cách duy nhất để thêm item mới vào container là qua hộp thư.",
     tip13: "Thay đổi kích thước grid container sẽ không tính toán lại bố cục; vị trí của các item vẫn giữ nguyên.",
     tip14: "Bạn có thể tạo chuỗi quest tuyến tính kèm phân nhánh node — hoàn toàn được hỗ trợ.",
-    tip15: "Script Lua là cách bạn tùy chỉnh Sai Service, giống như mod hóa một trò chơi.",
+    tip15: "Script Lua là cách bạn tùy chỉnh Sai Server, giống như mod hóa một trò chơi.",
   },
   leaderboard: {
     resetScheduleHint_never: "Season không bao giờ reset — 1 season duy nhất, tích lũy mãi. Không ai có thể kết thúc season thủ công.",
@@ -2904,7 +2904,6 @@ export const vi = {
     openItemDef: "Mở định nghĩa vật phẩm",
     openGachaPack: "Mở gói gacha",
     managePlugins: "Quản lý plugin / nâng giới hạn",
-    coins: "xu",
 
     // Quest count
     questDefinitions: "định nghĩa nhiệm vụ",

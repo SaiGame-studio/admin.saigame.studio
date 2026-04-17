@@ -178,52 +178,30 @@ function InfoField({ label, value }: { label: string; value: React.ReactNode }) 
 
 function RewardPill({ reward, gameId, itemNames }: { reward: any; gameId: string; itemNames: Record<string, string> }) {
   const itemId = reward.item_definition_id as string | undefined
-  const rewardType = reward.reward_type as string | undefined
-  const amount = reward.amount as number | undefined
   const qty = reward.quantity as number | undefined
   const qmin = reward.quantity_min as number | undefined
   const qmax = reward.quantity_max as number | undefined
 
-  if (!itemId && rewardType) {
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-        <Coins className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-        <span className="capitalize text-muted-foreground">{rewardType}</span>
-        {amount != null && <span className="font-semibold text-foreground">+{amount.toLocaleString()}</span>}
-      </div>
-    )
-  }
-  if (itemId) {
-    const name = itemNames[itemId] ?? (reward.name ?? reward.item_name ?? reward.item_code) as string | undefined
-    return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-        <a
-          href={`/games/${gameId}/items/${itemId}`}
-          className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
-          onClick={e => e.stopPropagation()}
-        >
-          {name || itemId.slice(0, 8) + "…"}
-          <ExternalLink className="h-3 w-3 text-muted-foreground" />
-        </a>
-        <CopyButton text={itemId} size="h-3 w-3" />
-        {qty != null && <span className="text-muted-foreground">×{qty}</span>}
-        {qty == null && qmin != null && qmax != null && (
-          qmin === qmax
-            ? <span className="text-muted-foreground">×{qmin}</span>
-            : <span className="text-muted-foreground">×{qmin}–{qmax}</span>
-        )}
-      </div>
-    )
-  }
-  const entries = Object.entries(reward).filter(([, v]) => v != null && v !== "")
+  // Only item rewards are supported — ignore coin/legacy rewards.
+  if (!itemId) return null
+  const name = itemNames[itemId] ?? (reward.name ?? reward.item_name ?? reward.item_code) as string | undefined
   return (
     <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-      {entries.map(([k, v]) => (
-        <span key={k}>
-          <span className="text-muted-foreground">{k}:</span>{" "}
-          <span className="font-medium text-foreground">{String(v)}</span>
-        </span>
-      ))}
+      <a
+        href={`/games/${gameId}/items/${itemId}`}
+        className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
+        onClick={e => e.stopPropagation()}
+      >
+        {name || itemId.slice(0, 8) + "…"}
+        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+      </a>
+      <CopyButton text={itemId} size="h-3 w-3" />
+      {qty != null && <span className="text-muted-foreground">×{qty}</span>}
+      {qty == null && qmin != null && qmax != null && (
+        qmin === qmax
+          ? <span className="text-muted-foreground">×{qmin}</span>
+          : <span className="text-muted-foreground">×{qmin}–{qmax}</span>
+      )}
     </div>
   )
 }
@@ -352,14 +330,18 @@ function QuestDefinitionPanel({ quest, gameId, itemNames }: { quest: any; gameId
               <ConditionNode node={quest.conditions} gameId={gameId} itemNames={itemNames} />
             </div>
           )}
-          {Array.isArray(quest.rewards) && quest.rewards.length > 0 && (
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Rewards</p>
-              <div className="flex flex-wrap gap-2">
-                {quest.rewards.map((r: any, i: number) => <RewardPill key={i} reward={r} gameId={gameId} itemNames={itemNames} />)}
+          {(() => {
+            const itemRewards = (Array.isArray(quest.rewards) ? quest.rewards : []).filter((r: any) => r.reward_type === "item" || r.item_definition_id)
+            if (itemRewards.length === 0) return null
+            return (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Rewards</p>
+                <div className="flex flex-wrap gap-2">
+                  {itemRewards.map((r: any, i: number) => <RewardPill key={i} reward={r} gameId={gameId} itemNames={itemNames} />)}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -2506,7 +2488,7 @@ export default function GameUserProgressDetailPage({
                           <TableBody>
                             {questHistory.claims.map((claim) => {
                               const expanded = questExpandedRows.has(claim.id)
-                              const rewards = (claim.rewards_granted ?? []) as any[]
+                              const rewards = ((claim.rewards_granted ?? []) as any[]).filter(r => r.reward_type === "item" || r.item_definition_id)
                               return (
                                 <Fragment key={claim.id}>
                                   <TableRow

@@ -1437,7 +1437,7 @@ export const en = {
     tip12: "The only way to add new items to a container is through the mailbox.",
     tip13: "Resizing the grid container will not trigger a layout recalculation; item positions remain fixed.",
     tip14: "You can create a linear quest chain with node branching, that’s fully supported.",
-    tip15: "Lua scripts are how you modify Sai Service, just like modding a game.",
+    tip15: "Lua scripts are how you modify Sai Server, just like modding a game.",
   },
   leaderboard: {
     resetScheduleHint_never: "Season never resets — one permanent season that accumulates forever. Nobody can end the season manually.",
@@ -2925,7 +2925,6 @@ export const en = {
     openItemDef: "Open item definition",
     openGachaPack: "Open gacha pack",
     managePlugins: "Manage plugins / raise limits",
-    coins: "coins",
 
     // Quest count
     questDefinitions: "quest definitions",
