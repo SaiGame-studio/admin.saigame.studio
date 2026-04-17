@@ -88,7 +88,8 @@
       "Bash(grep -n \"function CreateContainerDefinitionDialog\\\\|function CreateItemDialog\\\\|function CreateEquipmentSlotSheet\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/items/page.tsx)",
       "Bash(find /g/Projects/ss/admin.saigame.studio -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"CreatePresetDefinitionRequest\\\\|createPresetDefinition\" {} \\\\;)",
       "Bash(grep -A 10 \"toSlugUnderscore\\\\|autoSlug\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/DailyTab.tsx)",
-      "Read(//c/Users/Sai/AppData/Local/Temp/claude/g--Projects-ss-admin-saigame.studio/58a2a792-2abb-434f-b234-0b075c448f25/tasks/**)"
+      "Read(//c/Users/Sai/AppData/Local/Temp/claude/g--Projects-ss-admin-saigame.studio/58a2a792-2abb-434f-b234-0b075c448f25/tasks/**)",
+      "Bash(find /g/Projects/ss/admin.saigame.studio/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"recharts\\\\|LineChart\\\\|BarChart\\\\|PieChart\" {} \\\\;)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",

@@ -68,14 +68,18 @@ export async function getAllStudiosAdmin(params?: {
   name?: string
   sort_by?: string
   sort_order?: string
+  page?: number
+  page_size?: number
 }): Promise<AdminStudiosResult> {
   const searchParams = new URLSearchParams({
     sort_by: params?.sort_by || "created_at",
     sort_order: params?.sort_order || "desc"
   })
-  
+
   if (params?.name) searchParams.set("name", params.name)
-  
+  if (params?.page) searchParams.set("page", String(params.page))
+  if (params?.page_size) searchParams.set("page_size", String(params.page_size))
+
   const data = await api.get(`/api/v1/admin/studios?${searchParams.toString()}`)
   return data
 }
@@ -104,12 +108,14 @@ export async function getAllGamesAdmin(params?: {
   studio_id?: string
   sort_by?: string
   sort_order?: string
+  page?: number
+  page_size?: number
 }): Promise<AdminGamesResult> {
   const searchParams = new URLSearchParams({
     sort_by: params?.sort_by || "created_at",
     sort_order: params?.sort_order || "desc",
-    page: "1",
-    page_size: "200",
+    page: String(params?.page ?? 1),
+    page_size: String(params?.page_size ?? 200),
   })
 
   if (params?.name) searchParams.set("name", params.name)

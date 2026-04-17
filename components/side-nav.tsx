@@ -241,22 +241,10 @@ export function SideNav() {
             {!isCollapsed && capabilities.is_super_admin && (
               <div className="space-y-1">
                 <h3 className="text-xs font-medium text-muted-foreground px-2">{t('common.admin')}</h3>
-                <Button variant={isActive("/admin/users") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/users">
-                    <Users className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">{t('common.allUsers')}</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/studios") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/studios">
-                    <Brush className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">{t('common.allStudios')}</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/games") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/games">
-                    <Gamepad2 className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">All Games</span>
+                <Button variant={isActive("/admin/monitor") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
+                  <Link href="/admin/monitor">
+                    <Activity className="h-4 w-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Monitor</span>
                   </Link>
                 </Button>
                 <Button variant={isActive("/admin/payments") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
@@ -275,12 +263,6 @@ export function SideNav() {
                   <Link href="/admin/cms">
                     <PenSquare className="h-4 w-4 flex-shrink-0" />
                     <span className="whitespace-nowrap">CMS</span>
-                  </Link>
-                </Button>
-                <Button variant={isActive("/admin/monitor") ? "secondary" : "ghost"} size="sm" className="w-full justify-start gap-2 px-2" asChild>
-                  <Link href="/admin/monitor">
-                    <Activity className="h-4 w-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap">Monitor</span>
                   </Link>
                 </Button>
               </div>
