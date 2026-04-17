@@ -340,7 +340,7 @@ export default function DashboardPage() {
           <Link href="/payment?tab=transactions"><Button variant="outline" size="sm" className="gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> {t('common.transactions')}</Button></Link>
           <Link href="/profile"><Button variant="outline" size="sm" className="gap-1.5"><Users className="h-3.5 w-3.5" /> {t('common.profile')}</Button></Link>
           {user?.capabilities?.is_super_admin && (
-            <Link href="/admin/users">
+            <Link href="/admin/monitor?tab=users">
               <Button variant="outline" size="sm" className="gap-1.5 border-destructive/50 text-destructive hover:text-destructive hover:bg-destructive/10">
                 <Zap className="h-3.5 w-3.5" /> {t('home.adminPanel')}
               </Button>
