@@ -6,8 +6,9 @@ import Link from "next/link"
 import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy, ChevronDown, ChevronRight,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy, ChevronDown, ChevronRight, Wand2,
 } from "lucide-react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -132,6 +133,7 @@ const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] }
 
 const DEFAULT_FORM: CreateQuestDefinitionRequest = {
   name: "",
+  code_name: "",
   description: "",
   quest_type: "one_time",
   conditions: { operator: "AND", clauses: [] },
@@ -696,6 +698,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   // Form state
   const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM })
+  const [autoSlug, setAutoSlug] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -805,6 +808,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const openEdit = useCallback((q: QuestDefinition) => {
     setForm({
       name: q.name,
+      code_name: q.code_name ?? "",
       description: q.description ?? "",
       quest_type: q.quest_type,
       conditions: q.conditions ?? { operator: "AND", clauses: [] },
@@ -812,6 +816,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       sort_order: q.sort_order,
       rewards: q.rewards ?? [],
     })
+    setAutoSlug(false)
     setEditQuest(q)
     // Reflect the edit target in the URL so the link can be shared
     const sp = new URLSearchParams(searchParams.toString())
@@ -839,6 +844,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   const openCreate = () => {
     setForm({ ...DEFAULT_FORM })
+    setAutoSlug(true)
     setCreateOpen(true)
   }
 
@@ -846,7 +852,12 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     if (!game) return
     setSaving(true)
     try {
-      await createQuestDefinition(game.studio_id, gameId, form)
+      const codeName = (form.code_name ?? "").trim()
+      const payload: CreateQuestDefinitionRequest = {
+        ...form,
+        ...(codeName ? { code_name: codeName } : { code_name: undefined }),
+      }
+      await createQuestDefinition(game.studio_id, gameId, payload)
       toast({ title: t('quest.questCreated'), description: form.name })
       setCreateOpen(false)
       await loadQuests(offset)
@@ -866,7 +877,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     if (!game || !editQuest) return
     setSaving(true)
     try {
-      const patch: UpdateQuestDefinitionRequest = { ...form }
+      const codeName = (form.code_name ?? "").trim()
+      const patch: UpdateQuestDefinitionRequest = {
+        ...form,
+        code_name: codeName ? codeName : undefined,
+      }
       await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
       toast({ title: t('quest.questUpdated'), description: form.name })
       setEditQuest(null)
@@ -932,9 +947,50 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         <Input
           id="qname"
           value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          onChange={(e) => {
+            const v = e.target.value
+            setForm((f) => ({
+              ...f,
+              name: v,
+              ...(autoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+            }))
+          }}
           placeholder={t('quest.questNamePlaceholder')}
         />
+      </div>
+
+      {/* Code Name */}
+      <div className="space-y-1">
+        <Label htmlFor="qcode">
+          {t('quest.codeName')}{" "}
+          <span className="text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            id="qcode"
+            value={form.code_name ?? ""}
+            placeholder={t('quest.codeNamePlaceholder')}
+            className="font-mono"
+            onChange={(e) => {
+              setAutoSlug(false)
+              setForm((f) => ({ ...f, code_name: e.target.value }))
+            }}
+          />
+          <Button
+            type="button"
+            variant={autoSlug ? "default" : "outline"}
+            size="icon"
+            className="shrink-0"
+            title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+            onClick={() => {
+              const next = !autoSlug
+              setAutoSlug(next)
+              if (next) setForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }))
+            }}
+          >
+            <Wand2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Description */}
@@ -1018,14 +1074,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   return (
     <>
-      {/* Sub-header */}
-      <div className="flex items-center justify-end">
-        <Button onClick={openCreate} disabled={loading || !game}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t('quest.newQuest')}
-        </Button>
-      </div>
-
       {/* Error */}
       {error && (
         <Alert variant="destructive">
@@ -1095,6 +1143,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
+          <Button size="sm" className="h-8" onClick={openCreate} disabled={loading || !game}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t('quest.newQuest')}
+          </Button>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
               <X className="h-3.5 w-3.5 mr-1" /> {t('quest.clear')}
@@ -1153,50 +1205,60 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                     onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-start gap-1.5">
                         {expandedQuestId === q.id
-                          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                        <span className="font-medium">{q.name}</span>
-                        <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          title={t('quest.copyQuestId')}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const text = q.id
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                              navigator.clipboard.writeText(text).catch(() => {
-                                const el = document.createElement('textarea')
-                                el.value = text
-                                el.style.position = 'fixed'
-                                el.style.opacity = '0'
-                                document.body.appendChild(el)
-                                el.focus()
-                                el.select()
-                                document.execCommand('copy')
-                                document.body.removeChild(el)
-                              })
-                            } else {
-                              const el = document.createElement('textarea')
-                              el.value = text
-                              el.style.position = 'fixed'
-                              el.style.opacity = '0'
-                              document.body.appendChild(el)
-                              el.focus()
-                              el.select()
-                              document.execCommand('copy')
-                              document.body.removeChild(el)
-                            }
-                            setCopiedQuestId(q.id)
-                            setTimeout(() => setCopiedQuestId(null), 1500)
-                          }}
-                        >
-                          {copiedQuestId === q.id
-                            ? <Check className="h-3 w-3 text-green-500" />
-                            : <Copy className="h-3 w-3" />}
-                        </button>
+                          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+                          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />}
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium truncate">{q.name}</span>
+                            <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title={t('quest.copyQuestId')}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const text = q.id
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                  navigator.clipboard.writeText(text).catch(() => {
+                                    const el = document.createElement('textarea')
+                                    el.value = text
+                                    el.style.position = 'fixed'
+                                    el.style.opacity = '0'
+                                    document.body.appendChild(el)
+                                    el.focus()
+                                    el.select()
+                                    document.execCommand('copy')
+                                    document.body.removeChild(el)
+                                  })
+                                } else {
+                                  const el = document.createElement('textarea')
+                                  el.value = text
+                                  el.style.position = 'fixed'
+                                  el.style.opacity = '0'
+                                  document.body.appendChild(el)
+                                  el.focus()
+                                  el.select()
+                                  document.execCommand('copy')
+                                  document.body.removeChild(el)
+                                }
+                                setCopiedQuestId(q.id)
+                                setTimeout(() => setCopiedQuestId(null), 1500)
+                              }}
+                            >
+                              {copiedQuestId === q.id
+                                ? <Check className="h-3 w-3 text-green-500" />
+                                : <Copy className="h-3 w-3" />}
+                            </button>
+                          </div>
+                          {q.code_name && (
+                            <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
+                              <span className="truncate max-w-[220px]">{q.code_name}</span>
+                              <CopyButton text={q.code_name} size="h-3 w-3" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1259,6 +1321,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                             <div>
                               <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
                               <p className="font-mono text-xs break-all">{q.id}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.codeName')}</p>
+                              {q.code_name ? (
+                                <p className="font-mono text-xs break-all">{q.code_name}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">—</p>
+                              )}
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground mb-0.5">{t('quest.type')}</p>

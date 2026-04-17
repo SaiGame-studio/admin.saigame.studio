@@ -156,6 +156,271 @@ function QuestProgressDisplay({ data, gameId }: { data: Record<string, unknown>;
   )
 }
 
+// ── Quest detail sub-components (expanded row) ──────────────────────────────
+function IdField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-1 text-[11px] min-w-0">
+      <span className="text-muted-foreground/70 shrink-0">{label}:</span>
+      <span className="font-mono text-foreground break-all">{value}</span>
+      <CopyButton text={value} size="h-3 w-3" />
+    </div>
+  )
+}
+
+function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="inline-flex items-center gap-1 text-[11px]">
+      <span className="text-muted-foreground/70">{label}:</span>
+      <span className="text-foreground font-medium">{value}</span>
+    </div>
+  )
+}
+
+function RewardPill({ reward, gameId, itemNames }: { reward: any; gameId: string; itemNames: Record<string, string> }) {
+  const itemId = reward.item_definition_id as string | undefined
+  const rewardType = reward.reward_type as string | undefined
+  const amount = reward.amount as number | undefined
+  const qty = reward.quantity as number | undefined
+  const qmin = reward.quantity_min as number | undefined
+  const qmax = reward.quantity_max as number | undefined
+
+  if (!itemId && rewardType) {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+        <Coins className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+        <span className="capitalize text-muted-foreground">{rewardType}</span>
+        {amount != null && <span className="font-semibold text-foreground">+{amount.toLocaleString()}</span>}
+      </div>
+    )
+  }
+  if (itemId) {
+    const name = itemNames[itemId] ?? (reward.name ?? reward.item_name ?? reward.item_code) as string | undefined
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+        <a
+          href={`/games/${gameId}/items/${itemId}`}
+          className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
+          onClick={e => e.stopPropagation()}
+        >
+          {name || itemId.slice(0, 8) + "…"}
+          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+        </a>
+        <CopyButton text={itemId} size="h-3 w-3" />
+        {qty != null && <span className="text-muted-foreground">×{qty}</span>}
+        {qty == null && qmin != null && qmax != null && (
+          qmin === qmax
+            ? <span className="text-muted-foreground">×{qmin}</span>
+            : <span className="text-muted-foreground">×{qmin}–{qmax}</span>
+        )}
+      </div>
+    )
+  }
+  const entries = Object.entries(reward).filter(([, v]) => v != null && v !== "")
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+      {entries.map(([k, v]) => (
+        <span key={k}>
+          <span className="text-muted-foreground">{k}:</span>{" "}
+          <span className="font-medium text-foreground">{String(v)}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ConditionNode({ node, gameId, itemNames }: { node: any; gameId: string; itemNames: Record<string, string> }) {
+  if (!node) return null
+  if (node.operator && Array.isArray(node.clauses)) {
+    return (
+      <div className="space-y-1.5">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          {node.operator}
+        </span>
+        <div className="space-y-1.5 pl-3 border-l border-border/60">
+          {node.clauses.map((c: any, i: number) => (
+            <ConditionNode key={i} node={c} gameId={gameId} itemNames={itemNames} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-1 text-[11px]">
+      <div className="flex flex-wrap items-center gap-2">
+        {node.clause_id && (
+          <>
+            <span className="font-mono text-muted-foreground">{node.clause_id}</span>
+            <CopyButton text={node.clause_id} size="h-3 w-3" />
+          </>
+        )}
+        {node.type && <Badge variant="outline" className="capitalize text-[10px]">{String(node.type).replace(/_/g, " ")}</Badge>}
+        {node.target != null && <InfoField label="target" value={node.target} />}
+      </div>
+      {Array.isArray(node.items) && node.items.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-1">
+          {node.items.map((it: any, i: number) => (
+            <div key={i} className="inline-flex items-center gap-1 rounded border bg-muted/40 px-1.5 py-0.5">
+              <a
+                href={`/games/${gameId}/items/${it.item_definition_id}`}
+                className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+                onClick={e => e.stopPropagation()}
+              >
+                {itemNames[it.item_definition_id] ?? (String(it.item_definition_id).slice(0, 8) + "…")}
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </a>
+              <CopyButton text={it.item_definition_id} size="h-3 w-3" />
+              <span className="text-muted-foreground">×{it.quantity}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {node.packs && node.packs.gacha_pack_id && (
+        <div className="flex items-center gap-1.5 pl-1 flex-wrap">
+          <span className="text-muted-foreground/70">pack:</span>
+          <a
+            href={`/games/${gameId}/items?tab=gacha&editPack=${node.packs.gacha_pack_id}`}
+            className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+            onClick={e => e.stopPropagation()}
+          >
+            {itemNames[node.packs.gacha_pack_id] ?? (String(node.packs.gacha_pack_id).slice(0, 8) + "…")}
+            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+          </a>
+          <CopyButton text={node.packs.gacha_pack_id} size="h-3 w-3" />
+          {node.packs.quantity != null && <span className="text-muted-foreground">×{node.packs.quantity}</span>}
+        </div>
+      )}
+      {node.details && typeof node.details === "object" && (
+        <div className="flex flex-wrap gap-x-2 gap-y-1 pl-1">
+          {Object.entries(node.details).map(([k, v]) => {
+            const sv = String(v)
+            if (typeof v === "string" && UUID_RE.test(v)) {
+              return (
+                <div key={k} className="inline-flex items-center gap-1">
+                  <span className="text-muted-foreground/70">{k}:</span>
+                  <span className="font-mono text-foreground">{sv}</span>
+                  <CopyButton text={sv} size="h-3 w-3" />
+                </div>
+              )
+            }
+            return <InfoField key={k} label={k} value={sv} />
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuestDefinitionPanel({ quest, gameId, itemNames }: { quest: any; gameId: string; itemNames: Record<string, string> }) {
+  if (!quest) return null
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Quest Definition</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        <div className="flex flex-col gap-1">
+          {quest.id && <IdField label="id" value={quest.id} />}
+          {quest.code_name && (
+            <div className="flex items-center gap-1 text-[11px] min-w-0">
+              <span className="text-muted-foreground/70 shrink-0">code_name:</span>
+              <span className="font-mono text-foreground break-all">{quest.code_name}</span>
+              <CopyButton text={quest.code_name} size="h-3 w-3" />
+            </div>
+          )}
+          {quest.game_id && <IdField label="game_id" value={quest.game_id} />}
+          {quest.name && <InfoField label="name" value={quest.name} />}
+          {quest.quest_type && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-muted-foreground/70 shrink-0">type:</span>
+              <Badge variant="outline" className="capitalize text-[10px]">{quest.quest_type}</Badge>
+            </div>
+          )}
+          {quest.is_active != null && <InfoField label="active" value={String(quest.is_active)} />}
+          {quest.is_hidden != null && <InfoField label="hidden" value={String(quest.is_hidden)} />}
+          {quest.sort_order != null && <InfoField label="sort_order" value={quest.sort_order} />}
+          {quest.created_at && <InfoField label="created" value={formatISODate(quest.created_at)} />}
+          {quest.updated_at && <InfoField label="updated" value={formatISODate(quest.updated_at)} />}
+          {quest.description && (
+            <div className="flex items-start gap-1.5 text-[11px]">
+              <span className="text-muted-foreground/70 shrink-0">description:</span>
+              <span className="text-foreground whitespace-pre-wrap">{quest.description}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          {quest.conditions && (
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Conditions</p>
+              <ConditionNode node={quest.conditions} gameId={gameId} itemNames={itemNames} />
+            </div>
+          )}
+          {Array.isArray(quest.rewards) && quest.rewards.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Rewards</p>
+              <div className="flex flex-wrap gap-2">
+                {quest.rewards.map((r: any, i: number) => <RewardPill key={i} reward={r} gameId={gameId} itemNames={itemNames} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProgressMetaPanel({ progress, gameId }: { progress: any; gameId: string }) {
+  if (!progress) return null
+  const status = progress.status as string | undefined
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Progress</p>
+      <div className="space-y-1">
+        {progress.id && <IdField label="id" value={progress.id} />}
+        {progress.game_id && <IdField label="game_id" value={progress.game_id} />}
+        {progress.user_id && <IdField label="user_id" value={progress.user_id} />}
+        {progress.quest_definition_id && <IdField label="quest_definition_id" value={progress.quest_definition_id} />}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {status && (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${
+            status === "claimed" || status === "completed"
+              ? "bg-green-500/10 text-green-500 border-green-500/30"
+              : status === "failed"
+              ? "bg-red-500/10 text-red-400 border-red-400/30"
+              : "bg-blue-500/10 text-blue-400 border-blue-400/30"
+          }`}>{status}</span>
+        )}
+        {progress.version != null && <InfoField label="version" value={progress.version} />}
+        {progress.created_at && <InfoField label="created" value={formatISODate(progress.created_at)} />}
+        {progress.updated_at && <InfoField label="updated" value={formatISODate(progress.updated_at)} />}
+        {progress.completed_at && <InfoField label="completed" value={formatISODate(progress.completed_at)} />}
+        {progress.claimed_at && <InfoField label="claimed" value={formatISODate(progress.claimed_at)} />}
+        {progress.reset_at && <InfoField label="reset" value={formatISODate(progress.reset_at)} />}
+      </div>
+    </div>
+  )
+}
+
+function ClaimMetaPanel({ claim }: { claim: any }) {
+  if (!claim) return null
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Claim</p>
+      <div className="space-y-1">
+        {claim.id && <IdField label="id" value={claim.id} />}
+        {claim.progress_id && <IdField label="progress_id" value={claim.progress_id} />}
+        {claim.quest_definition_id && <IdField label="quest_definition_id" value={claim.quest_definition_id} />}
+        {claim.idempotency_key && <IdField label="idempotency_key" value={claim.idempotency_key} />}
+        {claim.game_id && <IdField label="game_id" value={claim.game_id} />}
+        {claim.user_id && <IdField label="user_id" value={claim.user_id} />}
+      </div>
+      {claim.claimed_at && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <InfoField label="claimed_at" value={formatISODate(claim.claimed_at)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Live Generator Estimate component ───────────────────────────────────────
 function GeneratorLiveEstimate({
   interval,
@@ -814,12 +1079,47 @@ export default function GameUserProgressDetailPage({
     setQuestExpandedRows(new Set())
     try {
       const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT })
-      setQuestHistory(res)
-      // Collect item_definition_id from rewards_granted and fetch their names
+      setQuestHistory({
+        ...res,
+        claims: res.claims ?? [],
+        starts: res.starts ?? [],
+        claims_total: res.claims_total ?? 0,
+        starts_total: res.starts_total ?? 0,
+      })
+      // Collect item_definition_ids to resolve names from: granted rewards,
+      // quest-defined rewards, and items referenced inside quest conditions.
       const itemIds = new Set<string>()
+      const collectFromRewards = (rewards: any) => {
+        if (!Array.isArray(rewards)) return
+        for (const r of rewards) {
+          if (r?.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        }
+      }
+      const collectFromConditions = (node: any) => {
+        if (!node) return
+        if (node.operator && Array.isArray(node.clauses)) {
+          for (const c of node.clauses) collectFromConditions(c)
+          return
+        }
+        if (Array.isArray(node.items)) {
+          for (const it of node.items) {
+            if (it?.item_definition_id && typeof it.item_definition_id === "string") itemIds.add(it.item_definition_id)
+          }
+        }
+      }
       for (const claim of res.claims ?? []) {
-        for (const r of (claim.rewards_granted ?? []) as any[]) {
-          if (r.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        collectFromRewards((claim as any).rewards_granted)
+        const qd = (claim as any).quest_definition
+        if (qd) {
+          collectFromRewards(qd.rewards)
+          collectFromConditions(qd.conditions)
+        }
+      }
+      for (const start of res.starts ?? []) {
+        const q = (start as any).quest
+        if (q) {
+          collectFromRewards(q.rewards)
+          collectFromConditions(q.conditions)
         }
       }
       if (itemIds.size > 0) {
@@ -2215,7 +2515,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(claim.id)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       <a
@@ -2249,63 +2551,23 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${claim.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={4} className="py-3">
-                                        {rewards.length === 0 ? (
-                                          <p className="text-xs text-muted-foreground">No rewards recorded.</p>
-                                        ) : (
-                                          <div>
-                                            <p className="text-xs font-medium text-muted-foreground mb-2">Rewards Granted</p>
-                                            <div className="flex flex-wrap gap-2">
-                                              {rewards.map((r: any, i: number) => {
-                                                const itemId = r.item_definition_id as string | undefined
-                                                const name = (r.name ?? r.item_name ?? r.item_code ?? (itemId ? questItemNames[itemId] : undefined)) as string | undefined
-                                                const qty = r.quantity as number | undefined
-                                                const category = r.category as string | undefined
-                                                const rewardType = r.reward_type as string | undefined
-                                                const amount = r.amount as number | undefined
-                                                // Coin / currency reward
-                                                if (!itemId && rewardType) {
-                                                  return (
-                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                      <Coins className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-                                                      <span className="capitalize text-muted-foreground">{rewardType}</span>
-                                                      {amount != null && <span className="font-semibold text-foreground">+{amount.toLocaleString()}</span>}
-                                                    </div>
-                                                  )
-                                                }
-                                                // Item reward
-                                                if (itemId) {
-                                                  return (
-                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                      {category && (
-                                                        <span className="capitalize text-muted-foreground">{category}</span>
-                                                      )}
-                                                      <a
-                                                        href={`/games/${gameId}/items/${itemId}`}
-                                                        className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
-                                                      >
-                                                        {name || itemId.slice(0, 8) + "…"}
-                                                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                                                      </a>
-                                                      {qty != null && <span className="text-muted-foreground">×{qty}</span>}
-                                                    </div>
-                                                  )
-                                                }
-                                                // Generic reward — render key/value pairs
-                                                const entries = Object.entries(r).filter(([, v]) => v != null && v !== "")
-                                                return (
-                                                  <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                    {entries.map(([k, v]) => (
-                                                      <span key={k}>
-                                                        <span className="text-muted-foreground">{k}:</span>{" "}
-                                                        <span className="font-medium text-foreground">{String(v)}</span>
-                                                      </span>
-                                                    ))}
-                                                  </div>
-                                                )
-                                              })}
-                                            </div>
+                                        <div className="space-y-3">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <ClaimMetaPanel claim={claim} />
+                                            {rewards.length > 0 ? (
+                                              <div className="space-y-2">
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase">Rewards Granted</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {rewards.map((r: any, i: number) => (
+                                                    <RewardPill key={i} reward={r} gameId={gameId} itemNames={questItemNames} />
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            ) : <div />}
                                           </div>
-                                        )}
+                                          <hr className="border-border/60" />
+                                          <QuestDefinitionPanel quest={(claim as any).quest_definition} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -2323,7 +2585,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(rowId)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {start.quest?.id ? (
@@ -2353,11 +2617,15 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={4} className="py-3">
-                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
-                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground">No progress data.</p>
-                                        )}
+                                        <div className="space-y-3">
+                                          <ProgressMetaPanel progress={start.progress} gameId={gameId} />
+                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (
+                                            <div>
+                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                            </div>
+                                          )}
+                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -2417,7 +2685,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(rowId)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {start.quest?.id ? (
@@ -2445,11 +2715,15 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={2} className="py-3">
-                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
-                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground">No progress data.</p>
-                                        )}
+                                        <div className="space-y-3">
+                                          <ProgressMetaPanel progress={start.progress} gameId={gameId} />
+                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (
+                                            <div>
+                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                            </div>
+                                          )}
+                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}

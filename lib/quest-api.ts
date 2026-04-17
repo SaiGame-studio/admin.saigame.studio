@@ -72,6 +72,7 @@ export interface QuestDefinition {
   studio_id: string
   game_id: string
   name: string
+  code_name?: string
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
@@ -89,6 +90,7 @@ export interface ListQuestDefinitionsResponse {
 
 export interface CreateQuestDefinitionRequest {
   name: string
+  code_name?: string
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
@@ -99,6 +101,7 @@ export interface CreateQuestDefinitionRequest {
 
 export interface UpdateQuestDefinitionRequest {
   name?: string
+  code_name?: string
   description?: string
   quest_type?: QuestType
   conditions?: QuestConditionGroup

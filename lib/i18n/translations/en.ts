@@ -2831,6 +2831,9 @@ export const en = {
 
     // Form labels
     name: "Name",
+    codeName: "Code Name",
+    codeNameHint: "optional, e.g. daily_login",
+    codeNamePlaceholder: "e.g. daily_login",
     description: "Description",
     questType: "Quest Type",
     sortOrder: "Sort Order",

@@ -2810,6 +2810,9 @@ export const vi = {
 
     // Form labels
     name: "Tên",
+    codeName: "Mã định danh",
+    codeNameHint: "tùy chọn, vd: daily_login",
+    codeNamePlaceholder: "vd: daily_login",
     description: "Mô tả",
     questType: "Loại nhiệm vụ",
     sortOrder: "Thứ tự sắp xếp",
