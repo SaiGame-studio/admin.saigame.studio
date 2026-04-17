@@ -1689,14 +1689,29 @@ function tsToDateStr(ts: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
+function tsToHourStr(ts: number): string {
+  const ms = ts < 1e12 ? ts * 1000 : ts
+  const d = new Date(ms)
+  return `${String(d.getHours()).padStart(2, "0")}:00`
+}
+
 const growthChartConfig = {
   users: { label: "Users", color: "hsl(221, 83%, 53%)" },
   studios: { label: "Studios", color: "hsl(160, 60%, 45%)" },
   games: { label: "Games", color: "hsl(30, 80%, 55%)" },
 } satisfies ChartConfig
 
+const TIME_RANGES = [
+  { label: "Today", value: "1", days: 1 },
+  { label: "7 days", value: "7", days: 7 },
+  { label: "30 days", value: "30", days: 30 },
+  { label: "90 days", value: "90", days: 90 },
+  { label: "All", value: "all", days: 0 },
+] as const
+
 function GrowthChartTab() {
   const PAGE_SIZE = 500
+  const [timeRange, setTimeRange] = useState<string>("30")
 
   const [users, setUsers] = useState<AdminUser[]>([])
   const [userTotal, setUserTotal] = useState(0)
@@ -1843,7 +1858,8 @@ function GrowthChartTab() {
     return () => { cancelled = true }
   }, [initialLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const chartData = useMemo(() => {
+  // Daily chart data (for 7d / 30d / 90d / all)
+  const dailyChartData = useMemo(() => {
     const dateMap = new Map<string, { users: number; studios: number; games: number }>()
 
     for (const u of users) {
@@ -1870,14 +1886,104 @@ function GrowthChartTab() {
 
     const sorted = [...dateMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))
 
-    let cumU = 0, cumS = 0, cumG = 0
+    let cumU = userTotal - users.length
+    let cumS = studioTotal - studios.length
+    let cumG = gameTotal - games.length
     return sorted.map(([date, counts]) => {
       cumU += counts.users
       cumS += counts.studios
       cumG += counts.games
       return { date, users: cumU, studios: cumS, games: cumG }
     })
+  }, [users, studios, games, userTotal, studioTotal, gameTotal])
+
+  // Hourly chart data (for today)
+  const hourlyChartData = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const hourMap = new Map<string, { users: number; studios: number; games: number }>()
+
+    // Init all 24 hours
+    for (let h = 0; h < 24; h++) {
+      hourMap.set(`${String(h).padStart(2, "0")}:00`, { users: 0, studios: 0, games: 0 })
+    }
+
+    for (const u of users) {
+      if (!u.created_at) continue
+      if (tsToDateStr(u.created_at) !== todayStr) continue
+      const hour = tsToHourStr(u.created_at)
+      const entry = hourMap.get(hour)!
+      entry.users++
+    }
+    for (const s of studios) {
+      if (!s.created_at) continue
+      if (tsToDateStr(s.created_at) !== todayStr) continue
+      const hour = tsToHourStr(s.created_at)
+      const entry = hourMap.get(hour)!
+      entry.studios++
+    }
+    for (const g of games) {
+      if (!g.created_at) continue
+      if (tsToDateStr(g.created_at) !== todayStr) continue
+      const hour = tsToHourStr(g.created_at)
+      const entry = hourMap.get(hour)!
+      entry.games++
+    }
+
+    const sorted = [...hourMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+
+    let cumU = 0, cumS = 0, cumG = 0
+    return sorted.map(([hour, counts]) => {
+      cumU += counts.users
+      cumS += counts.studios
+      cumG += counts.games
+      return { date: hour, users: cumU, studios: cumS, games: cumG }
+    })
   }, [users, studios, games])
+
+  const filteredChartData = useMemo(() => {
+    if (timeRange === "1") return hourlyChartData
+    if (timeRange === "all") return dailyChartData
+
+    const days = TIME_RANGES.find(r => r.value === timeRange)?.days ?? 30
+    const today = new Date()
+    const cutoff = new Date()
+    cutoff.setDate(today.getDate() - days)
+
+    // Build a lookup from dailyChartData
+    const dataByDate = new Map(dailyChartData.map(d => [d.date, d]))
+
+    // Generate all dates in range
+    const result: typeof dailyChartData = []
+    const cursor = new Date(cutoff)
+    while (cursor <= today) {
+      const dateStr = cursor.toISOString().slice(0, 10)
+      const existing = dataByDate.get(dateStr)
+      if (existing) {
+        result.push(existing)
+      } else {
+        // Find the last known cumulative values
+        const prev = result.length > 0 ? result[result.length - 1] : null
+        // Or find from full data: the latest entry before this date
+        let users = prev?.users ?? 0
+        let studios = prev?.studios ?? 0
+        let games = prev?.games ?? 0
+        if (!prev) {
+          // Find the last entry before cutoff from full data
+          for (let i = dailyChartData.length - 1; i >= 0; i--) {
+            if (dailyChartData[i].date < dateStr) {
+              users = dailyChartData[i].users
+              studios = dailyChartData[i].studios
+              games = dailyChartData[i].games
+              break
+            }
+          }
+        }
+        result.push({ date: dateStr, users, studios, games })
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    return result
+  }, [dailyChartData, hourlyChartData, timeRange])
 
   const hasMoreUsers = users.length < userTotal
   const hasMoreStudios = studios.length < studioTotal
@@ -1898,12 +2004,29 @@ function GrowthChartTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Growth Overview</h2>
-        {hasMore && (
-          <Button variant="outline" size="sm" onClick={handleLoadAll} disabled={anyLoading} className="flex items-center gap-2">
-            {anyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Load More Data
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-md border bg-muted p-0.5">
+            {TIME_RANGES.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => setTimeRange(r.value)}
+                className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
+                  timeRange === r.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {hasMore && (
+            <Button variant="outline" size="sm" onClick={handleLoadAll} disabled={anyLoading} className="flex items-center gap-2">
+              {anyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Load More
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -1913,21 +2036,27 @@ function GrowthChartTab() {
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Users</p>
               <p className="text-2xl font-bold">{userTotal.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Loaded: {users.length.toLocaleString()}</p>
+              {filteredChartData.length > 0 && timeRange !== "all" && (
+                <p className="text-xs text-green-500">+{(filteredChartData[filteredChartData.length - 1].users - filteredChartData[0].users).toLocaleString()} in period</p>
+              )}
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Studios</p>
               <p className="text-2xl font-bold">{studioTotal.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Loaded: {studios.length.toLocaleString()}</p>
+              {filteredChartData.length > 0 && timeRange !== "all" && (
+                <p className="text-xs text-green-500">+{(filteredChartData[filteredChartData.length - 1].studios - filteredChartData[0].studios).toLocaleString()} in period</p>
+              )}
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Games</p>
               <p className="text-2xl font-bold">{gameTotal.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Loaded: {games.length.toLocaleString()}</p>
+              {filteredChartData.length > 0 && timeRange !== "all" && (
+                <p className="text-xs text-green-500">+{(filteredChartData[filteredChartData.length - 1].games - filteredChartData[0].games).toLocaleString()} in period</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1947,25 +2076,24 @@ function GrowthChartTab() {
         </Card>
       )}
 
-      {!initialLoading && !error && chartData.length > 0 && (
+      {!initialLoading && !error && filteredChartData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Cumulative Growth by Day</CardTitle>
             <CardDescription>
-              Total users, studios, and games over time
-              {hasMore && " — click \"Load More Data\" to extend the chart"}
+              {timeRange === "all" ? "All time" : `Last ${TIME_RANGES.find(r => r.value === timeRange)?.label.toLowerCase()}`} — total users, studios, and games
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={growthChartConfig} className="h-[400px] w-full">
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+              <LineChart data={filteredChartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(v) => v.slice(5)}
+                  tickFormatter={(v) => timeRange === "1" ? v : v.slice(5)}
                 />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -1979,7 +2107,7 @@ function GrowthChartTab() {
         </Card>
       )}
 
-      {!initialLoading && !error && chartData.length === 0 && (
+      {!initialLoading && !error && filteredChartData.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">No data available yet.</CardContent>
         </Card>
@@ -2052,7 +2180,7 @@ function MonitorTabs() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="w-auto inline-flex mb-4">
           <TabsTrigger value="ccu" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             CCU
