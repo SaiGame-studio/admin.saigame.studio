@@ -53,13 +53,10 @@ export function isConditionLeaf(
 
 // ─── Rewards ──────────────────────────────────────────────────────────────────
 
-export type RewardType = 'coin' | 'item' | string
+export type RewardType = 'item'
 
 export interface QuestReward {
   reward_type: RewardType
-  /** Used when reward_type = coin */
-  amount?: number
-  /** Used when reward_type = item */
   item_definition_id?: string
   quantity_min?: number
   quantity_max?: number
@@ -72,6 +69,7 @@ export interface QuestDefinition {
   studio_id: string
   game_id: string
   name: string
+  code_name?: string
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
@@ -89,6 +87,7 @@ export interface ListQuestDefinitionsResponse {
 
 export interface CreateQuestDefinitionRequest {
   name: string
+  code_name?: string
   description?: string
   quest_type: QuestType
   conditions: QuestConditionGroup
@@ -99,6 +98,7 @@ export interface CreateQuestDefinitionRequest {
 
 export interface UpdateQuestDefinitionRequest {
   name?: string
+  code_name?: string
   description?: string
   quest_type?: QuestType
   conditions?: QuestConditionGroup
