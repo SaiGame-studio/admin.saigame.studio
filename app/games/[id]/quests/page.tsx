@@ -69,7 +69,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api"
-import type { GachaPack, ItemDefinition } from "@/types/inventory"
+import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
@@ -100,6 +100,22 @@ import type { Game } from "@/types/game"
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
 type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest"
+
+// Module-level cache so the same items?limit=200 request is only fired once per gameId
+// across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
+const itemDefsCache = new Map<string, Promise<Paginated<ItemDefinition>>>()
+function getItemDefsCached(gameId: string, limit = 200): Promise<Paginated<ItemDefinition>> {
+  const key = `${gameId}:${limit}`
+  let p = itemDefsCache.get(key)
+  if (!p) {
+    p = listItemDefinitions({ gameId }, { limit }).catch((e) => {
+      itemDefsCache.delete(key)
+      throw e
+    })
+    itemDefsCache.set(key, p)
+  }
+  return p
+}
 
 const TABS: { value: TabValue; labelKey: string }[] = [
   { value: "definitions", labelKey: "quest.tabDefinitions" },
@@ -201,7 +217,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
   useEffect(() => {
     if (!gameId) return
     setItemDefsLoading(true)
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setItemDefs(res.items ?? []))
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
@@ -527,7 +543,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
   useEffect(() => {
     if (!gameId) return
     setItemDefsLoading(true)
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setItemDefs(res.items ?? []))
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
@@ -674,7 +690,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   useEffect(() => {
     if (!gameId) return
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setRowItemDefs(res.items ?? []))
       .catch(() => setRowItemDefs([]))
   }, [gameId])
@@ -1047,26 +1063,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         gameId={gameId}
       />
 
-      {/* Sort Order */}
-      <div className="space-y-1">
-        <Label htmlFor="qsort">{t('quest.sortOrder')}</Label>
-        <Input
-          id="qsort"
-          type="number"
-          value={form.sort_order ?? 0}
-          onChange={(e) => setForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}
-        />
-      </div>
-
-      {/* Active toggle */}
-      <div className="flex items-center gap-2">
-        <Switch
-          id="qactive"
-          checked={form.is_active ?? true}
-          onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
-        />
-        <Label htmlFor="qactive">{t('quest.active')}</Label>
-      </div>
 
       {/* Rewards */}
       <RewardEditor
@@ -1437,14 +1433,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6">
-            <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
-            </SheetClose>
-            <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {t('common.submit')}
-            </Button>
+          <SheetFooter className="mt-6 sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="qactive-create"
+                checked={form.is_active ?? true}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+              />
+              <Label htmlFor="qactive-create">{t('quest.active')}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <SheetClose asChild>
+                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+              </SheetClose>
+              <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {t('common.submit')}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -1474,14 +1480,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             )}
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6">
-            <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
-            </SheetClose>
-            <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {t('common.save')}
-            </Button>
+          <SheetFooter className="mt-6 sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="qactive-edit"
+                checked={form.is_active ?? true}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+              />
+              <Label htmlFor="qactive-edit">{t('quest.active')}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <SheetClose asChild>
+                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+              </SheetClose>
+              <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
