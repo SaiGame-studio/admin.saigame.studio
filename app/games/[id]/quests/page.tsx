@@ -6,7 +6,7 @@ import Link from "next/link"
 import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy, ChevronDown, ChevronRight, Wand2,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2,
 } from "lucide-react"
 import { toSlugUnderscore } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -666,7 +666,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null)
   const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null)
 
   // Item definitions for expanded row display
@@ -1189,6 +1188,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('quest.name')}</TableHead>
+                  <TableHead>{t('quest.codeName')}</TableHead>
                   <TableHead>{t('quest.type')}</TableHead>
                   <TableHead>{t('quest.conditions')}</TableHead>
                   <TableHead>{t('quest.rewards')}</TableHead>
@@ -1209,57 +1209,18 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                         {expandedQuestId === q.id
                           ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
                           : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />}
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium truncate">{q.name}</span>
-                            <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
-                            <button
-                              type="button"
-                              className="text-muted-foreground hover:text-foreground transition-colors"
-                              title={t('quest.copyQuestId')}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const text = q.id
-                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                  navigator.clipboard.writeText(text).catch(() => {
-                                    const el = document.createElement('textarea')
-                                    el.value = text
-                                    el.style.position = 'fixed'
-                                    el.style.opacity = '0'
-                                    document.body.appendChild(el)
-                                    el.focus()
-                                    el.select()
-                                    document.execCommand('copy')
-                                    document.body.removeChild(el)
-                                  })
-                                } else {
-                                  const el = document.createElement('textarea')
-                                  el.value = text
-                                  el.style.position = 'fixed'
-                                  el.style.opacity = '0'
-                                  document.body.appendChild(el)
-                                  el.focus()
-                                  el.select()
-                                  document.execCommand('copy')
-                                  document.body.removeChild(el)
-                                }
-                                setCopiedQuestId(q.id)
-                                setTimeout(() => setCopiedQuestId(null), 1500)
-                              }}
-                            >
-                              {copiedQuestId === q.id
-                                ? <Check className="h-3 w-3 text-green-500" />
-                                : <Copy className="h-3 w-3" />}
-                            </button>
-                          </div>
-                          {q.code_name && (
-                            <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
-                              <span className="truncate max-w-[220px]">{q.code_name}</span>
-                              <CopyButton text={q.code_name} size="h-3 w-3" />
-                            </div>
-                          )}
-                        </div>
+                        <span className="font-medium truncate">{q.name}</span>
                       </div>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {q.code_name ? (
+                        <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
+                          <span className="truncate max-w-[220px]">{q.code_name}</span>
+                          <CopyButton text={q.code_name} size="h-3 w-3" />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={questTypeBadgeVariant(q.quest_type)}>
@@ -1314,43 +1275,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                   {/* Expanded detail row */}
                   {expandedQuestId === q.id && (
                     <TableRow className="bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={7} className="p-0">
+                      <TableCell colSpan={8} className="p-0">
                         <div className="px-6 py-4 space-y-4 border-t border-dashed">
-                          {/* Row 1: Basic info */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          {/* Row 1: Quest ID + Description */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
-                              <p className="font-mono text-xs break-all">{q.id}</p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-mono text-xs break-all">{q.id}</p>
+                                <CopyButton text={q.id} size="h-3 w-3" />
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.codeName')}</p>
-                              {q.code_name ? (
-                                <p className="font-mono text-xs break-all">{q.code_name}</p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">—</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.type')}</p>
-                              <Badge variant={questTypeBadgeVariant(q.quest_type)}>{q.quest_type}</Badge>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.sortOrder')}</p>
-                              <p>{q.sort_order}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.active')}</p>
-                              <Badge variant={q.is_active ? "default" : "secondary"}>{q.is_active ? t('common.yes') : t('common.no')}</Badge>
-                            </div>
+                            {q.description && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
+                                <p className="text-sm">{q.description}</p>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Description */}
-                          {q.description && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
-                              <p className="text-sm">{q.description}</p>
-                            </div>
-                          )}
 
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (
