@@ -849,12 +849,16 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   const handleCreate = async () => {
     if (!game) return
+    const codeName = (form.code_name ?? "").trim()
+    if (!codeName) {
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') })
+      return
+    }
     setSaving(true)
     try {
-      const codeName = (form.code_name ?? "").trim()
       const payload: CreateQuestDefinitionRequest = {
         ...form,
-        ...(codeName ? { code_name: codeName } : { code_name: undefined }),
+        code_name: codeName,
       }
       await createQuestDefinition(game.studio_id, gameId, payload)
       toast({ title: t('quest.questCreated'), description: form.name })
@@ -874,12 +878,16 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   const handleEdit = async () => {
     if (!game || !editQuest) return
+    const codeName = (form.code_name ?? "").trim()
+    if (!codeName) {
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') })
+      return
+    }
     setSaving(true)
     try {
-      const codeName = (form.code_name ?? "").trim()
       const patch: UpdateQuestDefinitionRequest = {
         ...form,
-        code_name: codeName ? codeName : undefined,
+        code_name: codeName,
       }
       await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
       toast({ title: t('quest.questUpdated'), description: form.name })
@@ -961,7 +969,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       {/* Code Name */}
       <div className="space-y-1">
         <Label htmlFor="qcode">
-          {t('quest.codeName')}{" "}
+          {t('quest.codeName')} <span className="text-red-500">*</span>{" "}
           <span className="text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
         </Label>
         <div className="flex gap-2">
@@ -1433,7 +1441,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             <SheetClose asChild>
               <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
             </SheetClose>
-            <Button onClick={handleCreate} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+            <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               {t('common.submit')}
             </Button>
@@ -1470,7 +1478,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             <SheetClose asChild>
               <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
             </SheetClose>
-            <Button onClick={handleEdit} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+            <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               {t('common.save')}
             </Button>
