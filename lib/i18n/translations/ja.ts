@@ -2799,7 +2799,8 @@ export const ja = {
     // Form labels
     name: "名前",
     codeName: "コード名",
-    codeNameHint: "任意、例: daily_login",
+    codeNameHint: "例: daily_login",
+    codeNameRequired: "コード名は必須です。",
     codeNamePlaceholder: "例: daily_login",
     description: "説明",
     questType: "クエストタイプ",
