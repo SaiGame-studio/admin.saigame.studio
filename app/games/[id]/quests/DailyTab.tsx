@@ -761,9 +761,12 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
         </div>
         <div className="flex items-center gap-2">
           {game && onGameUpdate && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5">
-              <span className="whitespace-nowrap">{t('quest.daily.maxAdvanceDays')}</span>
-              <DailyQuestMaxAdvanceDays game={game} onUpdate={onGameUpdate} compact />
+            <div className="flex flex-col gap-0.5 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5">
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap">{t('quest.daily.maxAdvanceDays')}</span>
+                <DailyQuestMaxAdvanceDays game={game} onUpdate={onGameUpdate} compact />
+              </div>
+              <p className="text-[10px] text-muted-foreground/80 whitespace-nowrap">{t('game.dailyQuestAdvanceDaysDesc')}</p>
             </div>
           )}
           {subTab === "list" && (
@@ -1066,7 +1069,7 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                                       {isWeekly && <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                                       <div className="flex-1 min-w-0">
                                         <p className="truncate text-xs font-medium leading-snug">{q.name}</p>
-                                        {q.description && <p className="truncate text-[10px] text-muted-foreground">{q.description}</p>}
+                                        {q.quest_type && <p className="truncate text-[10px] text-muted-foreground">{q.quest_type}</p>}
                                       </div>
                                       {!isWeekly && (
                                         isSelected
