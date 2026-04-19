@@ -892,6 +892,14 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     }
   }
 
+  const closeEdit = useCallback(() => {
+    setEditQuest(null)
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.delete("editQuestId")
+    const qs = sp.toString()
+    router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [gameId, router, searchParams])
+
   const handleEdit = async () => {
     if (!game || !editQuest) return
     const codeName = (form.code_name ?? "").trim()
@@ -907,7 +915,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       }
       await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
       toast({ title: t('quest.questUpdated'), description: form.name })
-      setEditQuest(null)
+      closeEdit()
       await loadQuests(offset)
     } catch (e) {
       toast({
@@ -1459,14 +1467,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       <Sheet
         open={!!editQuest}
         onOpenChange={(o) => {
-          if (!o) {
-            setEditQuest(null)
-            // Remove editQuestId from URL when the sheet is closed
-            const sp = new URLSearchParams(searchParams.toString())
-            sp.delete("editQuestId")
-            const qs = sp.toString()
-            router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
-          }
+          if (!o) closeEdit()
         }}
       >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
