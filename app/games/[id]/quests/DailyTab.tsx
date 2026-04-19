@@ -1029,7 +1029,9 @@ export function DailyTab({ game, onGameUpdate }: { game: Game | null; onGameUpda
                               const inPoolIds = new Set(expandedQuests.map((q) => q.quest_definition_id))
                               const filtered = dailyQuestDefs.filter((q) => {
                                 const matchSearch = !addQuestSearch || q.name.toLowerCase().includes(addQuestSearch.toLowerCase())
-                                const notInPool = !inPoolIds.has(q.id)
+                                // In weekly_schedule, each day is its own sub-pool and quests can be reused across days,
+                                // so don't hide quests already added somewhere in the week.
+                                const notInPool = isWeekly || !inPoolIds.has(q.id)
                                 return matchSearch && notInPool
                               })
                               if (filtered.length === 0) {
