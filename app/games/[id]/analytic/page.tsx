@@ -82,8 +82,8 @@ import { useTranslation } from "@/lib/i18n/use-translation"
 type TabValue = "journey" | "event-types"
 
 const TABS: { value: TabValue; labelKey: string }[] = [
-  { value: "journey", labelKey: "analytic.tabJourney" },
   { value: "event-types", labelKey: "analytic.tabEventTypes" },
+  { value: "journey", labelKey: "analytic.tabJourney" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
