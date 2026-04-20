@@ -2804,6 +2804,46 @@ export const en = {
     tabDaily: "Daily",
     tabBattlePass: "Battle Pass",
     tabWorldQuest: "World Quest",
+    tabSettings: "Settings",
+
+    // Per-quest reward delivery override
+    delivery: {
+      sectionTitle: "Reward delivery",
+      overrideToggle: "Override game setting",
+      followingGame: "following game default",
+      modeMailbox: "Mailbox",
+      modeDirect: "Direct",
+      mailboxTitle: "Mail title",
+      mailboxBody: "Mail body",
+      defaultFromSystem: "System default",
+      defaultFromGame: "Game default",
+      hintFollowing: "This quest follows the game setting. Toggle on to customize delivery just for this quest.",
+      unsaved: "Unsaved changes",
+      saved: "Quest delivery updated",
+      failedSave: "Failed to update quest delivery",
+    },
+
+    // Settings tab
+    settings: {
+      rewardDeliveryTitle: "Reward Delivery",
+      rewardDeliveryDesc: "Default delivery method for all quest rewards in this game. Individual quests can override this in Quest Builder.",
+      modeMailboxLabel: "Send to mailbox",
+      modeMailboxDesc: "Rewards are placed in the player's mailbox. The player opens the message to claim them. Safe even when the player is offline or their inventory is full.",
+      modeDirectLabel: "Deliver directly",
+      modeDirectDesc: "Rewards are added straight to the player's inventory and coin wallet without an intermediate message.",
+      recommended: "recommended",
+      mailboxContentTitle: "Default mailbox message",
+      mailboxContentDesc: "Applied to every mailbox-delivered quest reward unless the quest overrides it. Leave blank to use the system default.",
+      mailboxTitle: "Title",
+      mailboxBody: "Body",
+      savedMailbox: "Default delivery set to mailbox",
+      savedDirect: "Default delivery set to direct",
+      textSaved: "Default mailbox message saved",
+      failedUpdate: "Failed to update quest settings",
+      saving: "Saving…",
+      unsavedChanges: "Unsaved changes",
+      overrideHint: "Game Settings win by default. A quest only overrides these values when its metadata contains override_game_delivery = true.",
+    },
 
     // Quest types
     typeOneTime: "One-Time",

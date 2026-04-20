@@ -2783,6 +2783,46 @@ export const vi = {
     tabDaily: "Hàng ngày",
     tabBattlePass: "Battle Pass",
     tabWorldQuest: "Nhiệm vụ thế giới",
+    tabSettings: "Cài đặt",
+
+    // Per-quest reward delivery override
+    delivery: {
+      sectionTitle: "Cách trao thưởng",
+      overrideToggle: "Ghi đè cài đặt game",
+      followingGame: "đang theo mặc định game",
+      modeMailbox: "Hộp thư",
+      modeDirect: "Trao thẳng",
+      mailboxTitle: "Tiêu đề thư",
+      mailboxBody: "Nội dung thư",
+      defaultFromSystem: "Mặc định hệ thống",
+      defaultFromGame: "Mặc định của game",
+      hintFollowing: "Quest này đang theo cài đặt game. Bật ghi đè để tuỳ chỉnh riêng cho quest.",
+      unsaved: "Có thay đổi chưa lưu",
+      saved: "Đã cập nhật cách trao thưởng",
+      failedSave: "Không thể cập nhật cách trao thưởng",
+    },
+
+    // Settings tab
+    settings: {
+      rewardDeliveryTitle: "Cách trao thưởng",
+      rewardDeliveryDesc: "Cài đặt mặc định cho toàn bộ quest trong game. Từng quest có thể ghi đè trong Quest Builder.",
+      modeMailboxLabel: "Gửi vào hộp thư",
+      modeMailboxDesc: "Phần thưởng được bỏ vào hộp thư, người chơi mở thư để nhận. An toàn kể cả khi player offline hoặc túi đồ đầy.",
+      modeDirectLabel: "Trao thẳng cho người chơi",
+      modeDirectDesc: "Phần thưởng chảy thẳng vào inventory và ví coin, không qua hộp thư.",
+      recommended: "khuyên dùng",
+      mailboxContentTitle: "Nội dung thư mặc định",
+      mailboxContentDesc: "Dùng cho mọi quest trao thưởng qua hộp thư, trừ khi quest tự ghi đè. Bỏ trống để hệ thống tự sinh.",
+      mailboxTitle: "Tiêu đề thư",
+      mailboxBody: "Nội dung thư",
+      savedMailbox: "Đã đặt mặc định: Hộp thư",
+      savedDirect: "Đã đặt mặc định: Trao thẳng",
+      textSaved: "Đã lưu nội dung thư mặc định",
+      failedUpdate: "Không thể cập nhật cài đặt quest",
+      saving: "Đang lưu…",
+      unsavedChanges: "Có thay đổi chưa lưu",
+      overrideHint: "Cài đặt game luôn thắng. Quest chỉ ghi đè khi metadata của quest có override_game_delivery = true.",
+    },
 
     // Quest types
     typeOneTime: "Một lần",

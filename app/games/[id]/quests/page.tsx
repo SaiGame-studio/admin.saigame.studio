@@ -95,11 +95,13 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { DailyTab } from "./DailyTab"
 import { ChainTab } from "./ChainTab"
+import { SettingsTab } from "./SettingsTab"
+import { QuestDeliveryOverride } from "./QuestDeliveryOverride"
 import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest"
+type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest" | "settings"
 
 // Module-level cache so the same items?limit=200 request is only fired once per gameId
 // across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
@@ -123,6 +125,7 @@ const TABS: { value: TabValue; labelKey: string }[] = [
   { value: "daily", labelKey: "quest.tabDaily" },
   { value: "battle-pass", labelKey: "quest.tabBattlePass" },
   { value: "world-quest", labelKey: "quest.tabWorldQuest" },
+  { value: "settings", labelKey: "quest.tabSettings" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -1306,6 +1309,9 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                             )}
                           </div>
 
+                          {/* Two-column layout: [Conditions + Rewards] | [Reward Delivery] */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                          <div className="space-y-4">
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (
                             <div>
@@ -1416,6 +1422,22 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                               </div>
                             )
                           })()}
+
+                          </div>
+
+                          {/* Right column: Reward delivery override */}
+                          {game && (
+                            <div>
+                              <QuestDeliveryOverride
+                                quest={q}
+                                game={game}
+                                onUpdated={(updated) =>
+                                  setQuests((prev) => prev.map((qd) => (qd.id === updated.id ? updated : qd)))
+                                }
+                              />
+                            </div>
+                          )}
+                          </div>
 
                           {/* Timestamps */}
                           <div className="flex gap-6 text-xs text-muted-foreground">
@@ -1699,6 +1721,10 @@ function QuestsPageInner() {
 
         <TabsContent value="world-quest" className="mt-6">
           <ComingSoon title="World Quest" />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-6">
+          <SettingsTab game={game} onGameUpdate={setGame} />
         </TabsContent>
       </Tabs>
       </div>

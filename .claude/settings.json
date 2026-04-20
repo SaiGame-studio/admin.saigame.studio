@@ -89,7 +89,9 @@
       "Bash(find /g/Projects/ss/admin.saigame.studio -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"CreatePresetDefinitionRequest\\\\|createPresetDefinition\" {} \\\\;)",
       "Bash(grep -A 10 \"toSlugUnderscore\\\\|autoSlug\" /g/Projects/ss/admin.saigame.studio/app/games/[id]/quests/DailyTab.tsx)",
       "Read(//c/Users/Sai/AppData/Local/Temp/claude/g--Projects-ss-admin-saigame.studio/58a2a792-2abb-434f-b234-0b075c448f25/tasks/**)",
-      "Bash(find /g/Projects/ss/admin.saigame.studio/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"recharts\\\\|LineChart\\\\|BarChart\\\\|PieChart\" {} \\\\;)"
+      "Bash(find /g/Projects/ss/admin.saigame.studio/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"recharts\\\\|LineChart\\\\|BarChart\\\\|PieChart\" {} \\\\;)",
+      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\('TextSelect' in l\\)\")",
+      "Bash(npx --no-install tsc --noEmit -p tsconfig.json)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",

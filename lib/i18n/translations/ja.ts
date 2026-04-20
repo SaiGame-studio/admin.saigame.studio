@@ -2771,6 +2771,46 @@ export const ja = {
     tabDaily: "デイリー",
     tabBattlePass: "バトルパス",
     tabWorldQuest: "ワールドクエスト",
+    tabSettings: "設定",
+
+    // Per-quest reward delivery override
+    delivery: {
+      sectionTitle: "報酬の受け渡し",
+      overrideToggle: "ゲーム設定を上書き",
+      followingGame: "ゲーム既定値に従う",
+      modeMailbox: "メールボックス",
+      modeDirect: "直接渡し",
+      mailboxTitle: "メールタイトル",
+      mailboxBody: "メール本文",
+      defaultFromSystem: "システム既定値",
+      defaultFromGame: "ゲーム既定値",
+      hintFollowing: "このクエストはゲーム設定に従っています。上書きをオンにするとこのクエスト専用の設定が使えます。",
+      unsaved: "未保存の変更があります",
+      saved: "クエストの受け渡し設定を更新しました",
+      failedSave: "クエスト設定の更新に失敗しました",
+    },
+
+    // Settings tab
+    settings: {
+      rewardDeliveryTitle: "報酬の受け渡し方法",
+      rewardDeliveryDesc: "このゲーム内のすべてのクエスト報酬に対するデフォルトの受け渡し方法。各クエストは Quest Builder で個別に上書きできます。",
+      modeMailboxLabel: "メールボックスで送る",
+      modeMailboxDesc: "報酬をプレイヤーのメールボックスに入れ、メッセージを開いて受け取る方式。オフライン時やインベントリが満杯でも安全です。",
+      modeDirectLabel: "直接渡す",
+      modeDirectDesc: "報酬をインベントリとコインウォレットに直接加算します。メッセージを経由しません。",
+      recommended: "推奨",
+      mailboxContentTitle: "デフォルトのメール本文",
+      mailboxContentDesc: "クエストが個別に上書きしない限り、メールボックス配信に適用されます。空欄の場合はシステム既定値を使用します。",
+      mailboxTitle: "タイトル",
+      mailboxBody: "本文",
+      savedMailbox: "デフォルトをメールボックスに設定しました",
+      savedDirect: "デフォルトを直接渡しに設定しました",
+      textSaved: "デフォルトのメール内容を保存しました",
+      failedUpdate: "クエスト設定の更新に失敗しました",
+      saving: "保存中…",
+      unsavedChanges: "未保存の変更があります",
+      overrideHint: "ゲーム設定が優先されます。クエスト側の metadata に override_game_delivery = true がある場合のみ上書きされます。",
+    },
 
     // Quest types
     typeOneTime: "一回限り",
