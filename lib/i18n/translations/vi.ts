@@ -2788,6 +2788,9 @@ export const vi = {
     // Per-quest reward delivery override
     delivery: {
       sectionTitle: "Cách trao thưởng",
+      column: "Trao thưởng",
+      defaultLabel: "Mặc định",
+      overridesGame: "Ghi đè cài đặt game",
       overrideToggle: "Ghi đè cài đặt game",
       followingGame: "đang theo mặc định game",
       modeMailbox: "Hộp thư",

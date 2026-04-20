@@ -2776,6 +2776,9 @@ export const ja = {
     // Per-quest reward delivery override
     delivery: {
       sectionTitle: "報酬の受け渡し",
+      column: "受け渡し",
+      defaultLabel: "既定",
+      overridesGame: "ゲーム設定を上書き",
       overrideToggle: "ゲーム設定を上書き",
       followingGame: "ゲーム既定値に従う",
       modeMailbox: "メールボックス",

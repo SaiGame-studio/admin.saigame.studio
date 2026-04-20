@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
   ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2,
+  Mail, Zap,
 } from "lucide-react"
 import { toSlugUnderscore } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -1207,6 +1208,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                   <TableHead>{t('quest.type')}</TableHead>
                   <TableHead>{t('quest.conditions')}</TableHead>
                   <TableHead>{t('quest.rewards')}</TableHead>
+                  <TableHead>{t('quest.delivery.column')}</TableHead>
 
                   <TableHead>{t('quest.active')}</TableHead>
                   <TableHead className="text-right">{t('quest.actions')}</TableHead>
@@ -1258,6 +1260,33 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                     </TableCell>
                     <TableCell className="text-sm">
                       {q.rewards?.length ?? 0}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {q.metadata?.override_game_delivery === true ? (
+                        q.metadata?.reward_delivery === "direct" ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400"
+                            title={t('quest.delivery.overridesGame')}
+                          >
+                            <Zap className="h-3 w-3" />
+                            {t('quest.delivery.modeDirect')}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400"
+                            title={t('quest.delivery.overridesGame')}
+                          >
+                            <Mail className="h-3 w-3" />
+                            {t('quest.delivery.modeMailbox')}
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          {t('quest.delivery.defaultLabel')}
+                        </Badge>
+                      )}
                     </TableCell>
 
                     <TableCell onClick={(e) => e.stopPropagation()}>
