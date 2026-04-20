@@ -76,6 +76,7 @@ export interface QuestDefinition {
   is_active: boolean
   sort_order: number
   rewards: QuestReward[]
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -94,6 +95,7 @@ export interface CreateQuestDefinitionRequest {
   is_active?: boolean
   sort_order?: number
   rewards?: QuestReward[]
+  metadata?: Record<string, unknown>
 }
 
 export interface UpdateQuestDefinitionRequest {
@@ -105,6 +107,7 @@ export interface UpdateQuestDefinitionRequest {
   is_active?: boolean
   sort_order?: number
   rewards?: QuestReward[]
+  metadata?: Record<string, unknown>
 }
 
 // ─── Quest Types ─────────────────────────────────────────────────────────────

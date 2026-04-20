@@ -47,6 +47,9 @@ export interface Game {
     allow_player_trading?: boolean
     allow_tracing_player_event?: boolean
     leaderboard_tracing?: boolean
+    quest_reward_delivery?: "mailbox" | "direct" | ""
+    quest_mailbox_title?: string
+    quest_mailbox_body?: string
     [key: string]: any
   }
   is_active: boolean
