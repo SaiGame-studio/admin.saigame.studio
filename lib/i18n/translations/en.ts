@@ -2809,6 +2809,9 @@ export const en = {
     // Per-quest reward delivery override
     delivery: {
       sectionTitle: "Reward delivery",
+      column: "Delivery",
+      defaultLabel: "Default",
+      overridesGame: "Overrides game setting",
       overrideToggle: "Override game setting",
       followingGame: "following game default",
       modeMailbox: "Mailbox",
