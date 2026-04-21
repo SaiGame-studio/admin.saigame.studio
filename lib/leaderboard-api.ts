@@ -25,7 +25,6 @@ export interface LeaderboardBoard {
   is_active: boolean
   score_source_type: string
   score_source_ref_id: string
-  max_score_delta: number | null
   created_at: string
   updated_at: string
 }
@@ -55,10 +54,10 @@ export interface CreateBoardPayload {
   score_mode: ScoreMode
   sort_direction: SortDirection
   reset_schedule: ResetSchedule
-  score_source_type: string
-  score_source_ref_id: string
-  max_score_delta?: number | null
+  score_source_type?: string | null
+  score_source_ref_id?: string | null
   first_season_start_at?: string | null
+  first_season_name?: string | null
 }
 
 export async function createBoard(
@@ -104,7 +103,6 @@ export interface UpdateBoardPayload {
   name?: string
   description?: string
   is_active?: boolean
-  max_score_delta?: number | null
 }
 
 export async function updateBoard(

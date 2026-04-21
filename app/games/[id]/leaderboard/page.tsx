@@ -127,6 +127,28 @@ const RESET_SCHEDULE_OPTIONS: { value: ResetSchedule; labelKey: string }[] = [
   { value: "monthly", labelKey: "leaderboard.resetSchedule_monthly" },
 ]
 
+interface BoardPreset {
+  value: string
+  labelKey: string
+  name: string
+  seasonName: string
+  score_mode: ScoreMode
+  sort_direction: SortDirection
+  reset_schedule: ResetSchedule
+  score_source_type: "gacha_pack_open_count" | "item_collected_count" | ""
+}
+
+const BOARD_PRESETS: BoardPreset[] = [
+  { value: "daily_gacha_opens",       labelKey: "leaderboard.preset_dailyGachaOpens",       name: "Daily Gacha Opens",        seasonName: "Day {n}",   score_mode: "sum", sort_direction: "DESC", reset_schedule: "daily",   score_source_type: "gacha_pack_open_count" },
+  { value: "weekly_gacha_opens",      labelKey: "leaderboard.preset_weeklyGachaOpens",      name: "Weekly Gacha Opens",       seasonName: "Week {n}",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "weekly",  score_source_type: "gacha_pack_open_count" },
+  { value: "monthly_item_collection", labelKey: "leaderboard.preset_monthlyItemCollection", name: "Monthly Item Collection",  seasonName: "Month {n}", score_mode: "sum", sort_direction: "DESC", reset_schedule: "monthly", score_source_type: "item_collected_count" },
+  { value: "alltime_gacha_opens",     labelKey: "leaderboard.preset_alltimeGachaOpens",     name: "All-time Gacha Opens",     seasonName: "All-time",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "never",   score_source_type: "gacha_pack_open_count" },
+  { value: "alltime_item_collection", labelKey: "leaderboard.preset_alltimeItemCollection", name: "All-time Item Collection", seasonName: "All-time",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "never",   score_source_type: "item_collected_count" },
+]
+
+const PRESET_CUSTOM_VALUE = "__custom__"
+const MAX_BOARD_KEY_LEN = 64
+
 function resetScheduleBadge(schedule: ResetSchedule) {
   switch (schedule) {
     case "daily":   return "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700"
@@ -341,9 +363,10 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     reset_schedule: "never",
     score_source_type: "",
     score_source_ref_id: "",
-    max_score_delta: null,
     first_season_start_at: null,
+    first_season_name: "",
   })
+  const [presetValue, setPresetValue] = useState<string>(PRESET_CUSTOM_VALUE)
 
   const localizeResetScheduleOption = (opt: ResetScheduleOption): ResetScheduleOption => {
     const keyMap: Record<string, string> = {
@@ -415,8 +438,9 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   // Reset form + auto-slug when sheet opens
   useEffect(() => {
     if (open) {
-      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", score_source_type: "", score_source_ref_id: "", max_score_delta: null, first_season_start_at: null })
+      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", score_source_type: "", score_source_ref_id: "", first_season_start_at: null, first_season_name: "" })
       setAutoSlug(true)
+      setPresetValue(PRESET_CUSTOM_VALUE)
       getResetScheduleOptions()
         .then((opts) => {
           setScheduleOptions(opts.map(localizeResetScheduleOption))
@@ -425,10 +449,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
         .catch(() => { /* keep static fallback */ })
       getScoreSourceTypeOptions()
         .then((opts) => {
-          setSourceTypeOptions(opts.map(localizeScoreSourceTypeOption))
-          if (opts.length > 0) {
-            const itemOpt = opts.find(o => o.value.includes("item"))
-            setForm((f) => ({ ...f, score_source_type: (itemOpt ?? opts[0]).value }))
+          const localizedOpts = opts.map(localizeScoreSourceTypeOption)
+          setSourceTypeOptions(localizedOpts)
+          if (localizedOpts.length > 0) {
+            setForm((f) => ({
+              ...f,
+              score_source_type: f.score_source_type || localizedOpts[0].value,
+            }))
           }
         })
         .catch(() => { /* non-blocking */ })
@@ -460,23 +487,32 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyInvalid') })
       return
     }
-    if (!form.score_source_type) {
+    if (form.board_key.length > MAX_BOARD_KEY_LEN) {
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyTooLong') })
+      return
+    }
+    const srcType = (form.score_source_type ?? "").trim()
+    const srcRef = (form.score_source_ref_id ?? "").trim()
+    if (!srcType) {
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.scoreSourceTypeRequired') })
       return
     }
-    if (!form.score_source_ref_id.trim()) {
-      const refLabel = sourceTypeOptions.find(o => o.value === form.score_source_type)?.ref_id_label ?? "score_source_ref_id"
+    if (srcType && !srcRef) {
+      const refLabel = sourceTypeOptions.find(o => o.value === srcType)?.ref_id_label ?? "score_source_ref_id"
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: `${refLabel} ${t('leaderboard.scoreSourceRefRequired')}` })
       return
     }
     setSaving(true)
     try {
+      const trimmedSeasonName = (form.first_season_name ?? "").trim()
       const payload: CreateBoardPayload = {
         ...form,
         board_key: form.board_key.trim(),
         name: form.name.trim(),
-        max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
         first_season_start_at: form.first_season_start_at ?? null,
+        first_season_name: trimmedSeasonName ? trimmedSeasonName : null,
+        score_source_type: srcType,
+        score_source_ref_id: srcRef,
       }
       const board = await createBoard(studioId, gameId, payload)
       toast({ title: t('leaderboard.boardCreated'), description: `"${board.name}" ${t('leaderboard.boardCreatedDesc')}` })
@@ -491,6 +527,25 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     }
   }
 
+  const applyPreset = (presetVal: string) => {
+    setPresetValue(presetVal)
+    if (presetVal === PRESET_CUSTOM_VALUE) return
+    const p = BOARD_PRESETS.find(x => x.value === presetVal)
+    if (!p) return
+    const hasSourceOpt = sourceTypeOptions.some(o => o.value === p.score_source_type)
+    setForm((f) => ({
+      ...f,
+      name: p.name,
+      board_key: autoSlug ? slugify(p.name) : f.board_key,
+      first_season_name: p.seasonName,
+      score_mode: p.score_mode,
+      sort_direction: p.sort_direction,
+      reset_schedule: p.reset_schedule,
+      score_source_type: hasSourceOpt ? p.score_source_type : "",
+      score_source_ref_id: hasSourceOpt ? f.score_source_ref_id : "",
+    }))
+  }
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -498,6 +553,21 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           <SheetTitle>{t('leaderboard.createBoardTitle')}</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-1.5">
+            <Label>{t('leaderboard.presetLabel')}</Label>
+            <Select value={presetValue} onValueChange={applyPreset}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('leaderboard.presetPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PRESET_CUSTOM_VALUE}>{t('leaderboard.preset_custom')}</SelectItem>
+                {BOARD_PRESETS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{t(p.labelKey as any)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('leaderboard.presetHint')}</p>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-name">{t('leaderboard.nameLabel')} <span className="text-destructive">*</span></Label>
             <Input
@@ -521,6 +591,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                 id="c-board_key"
                 placeholder={t('leaderboard.boardKeyPlaceholder')}
                 value={form.board_key}
+                maxLength={MAX_BOARD_KEY_LEN}
                 onChange={(e) => {
                   setAutoSlug(false)
                   set("board_key", e.target.value.toLowerCase())
@@ -585,31 +656,36 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           </div>
           {sourceTypeOptions.length > 0 && (() => {
             const selectedSourceType = sourceTypeOptions.find(o => o.value === form.score_source_type)
+            const hasSource = !!form.score_source_type
             return (
               <div className="space-y-3 rounded-md border p-3 bg-muted/20">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('leaderboard.scoreSourceSection')}</p>
                 <div className="space-y-1.5">
-                  <Label>{t('leaderboard.scoreSourceTypeLabel')} <span className="text-destructive">*</span></Label>
+                  <Label>{t('leaderboard.scoreSourceTypeLabel')}</Label>
                   <Select
                     value={form.score_source_type}
-                    onValueChange={(v) => set("score_source_type", v)}
+                    onValueChange={(v) => {
+                      setForm((f) => ({ ...f, score_source_type: v, score_source_ref_id: "" }))
+                    }}
                   >
-                    <SelectTrigger><SelectValue placeholder={t('leaderboard.selectSourceType')} /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {sourceTypeOptions.map((o) => (
                         <SelectItem key={o.value} value={o.value}>{getScoreSourceTypeLabel(o)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedSourceType?.description && (
-                    <p className="text-xs text-muted-foreground">{getScoreSourceTypeDesc(selectedSourceType)}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {hasSource && selectedSourceType?.description
+                      ? getScoreSourceTypeDesc(selectedSourceType)
+                      : t('leaderboard.scoreSourceTypeRequired')}
+                  </p>
                 </div>
+                {hasSource && (
                 <div className="space-y-1.5">
                   <Label htmlFor="c-score_source_ref_id">
                     {getScoreSourceRefLabel(selectedSourceType)} <span className="text-destructive">*</span>
                   </Label>
-                  {form.score_source_type.includes("gacha") ? (
+                  {(form.score_source_type ?? "").includes("gacha") ? (
                     <Popover open={gachaPopoverOpen} onOpenChange={setGachaPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -663,7 +739,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  ) : form.score_source_type.includes("item") ? (
+                  ) : (form.score_source_type ?? "").includes("item") ? (
                     <Popover open={itemPopoverOpen} onOpenChange={setItemPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -722,12 +798,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                     <Input
                       id="c-score_source_ref_id"
                       placeholder={`${t('leaderboard.enterRefId')} ${selectedSourceType?.ref_id_label ?? "ref ID"}...`}
-                      value={form.score_source_ref_id}
+                      value={form.score_source_ref_id ?? ""}
                       onChange={(e) => set("score_source_ref_id", e.target.value.trim())}
                       className="font-mono"
                     />
                   )}
                 </div>
+                )}
               </div>
             )
           })()}
@@ -750,26 +827,14 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               </SelectContent>
             </Select>
             <div
-              className={`flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs transition-all duration-500 ${
+              className={`rounded-md px-2.5 py-2 text-xs transition-all duration-500 ${
                 scheduleFlash
                   ? "bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300"
                   : "bg-muted/40 border border-transparent text-muted-foreground"
               }`}
             >
-              <Info className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 transition-colors duration-500 ${scheduleFlash ? "text-blue-500" : "text-muted-foreground/60"}`} />
-              <span>{t(`leaderboard.resetScheduleHint_${form.reset_schedule}` as any)}</span>
+              {t(`leaderboard.resetScheduleHint_${form.reset_schedule}` as any)}
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="c-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
-            <Input
-              id="c-max_score_delta"
-              type="number"
-              placeholder={t('leaderboard.maxScoreDeltaPlaceholder')}
-              value={form.max_score_delta ?? ""}
-              onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
-            />
-            <p className="text-xs text-muted-foreground">{t('leaderboard.maxScoreDeltaHint')}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-first_season_start_at">{t('leaderboard.firstSeasonStartLabel')}</Label>
@@ -779,6 +844,16 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               placeholder={t('leaderboard.firstSeasonStartPlaceholder')}
             />
             <p className="text-xs text-muted-foreground">{t('leaderboard.firstSeasonStartHint')}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-first_season_name">{t('leaderboard.firstSeasonNameLabel')}</Label>
+            <Input
+              id="c-first_season_name"
+              placeholder={t('leaderboard.firstSeasonNamePlaceholder')}
+              value={form.first_season_name ?? ""}
+              onChange={(e) => set("first_season_name", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('leaderboard.firstSeasonNameHint')}</p>
           </div>
           <SheetFooter className="gap-2 pt-2">
             <SheetClose asChild>
@@ -813,7 +888,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
     name: "",
     description: "",
     is_active: true,
-    max_score_delta: null,
   })
 
   useEffect(() => {
@@ -822,7 +896,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
         name: board.name,
         description: board.description,
         is_active: board.is_active,
-        max_score_delta: board.max_score_delta,
       })
     }
   }, [board])
@@ -840,10 +913,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
     }
     setSaving(true)
     try {
-      const payload: UpdateBoardPayload = {
-        ...form,
-        max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
-      }
+      const payload: UpdateBoardPayload = { ...form }
       const updated = await updateBoard(studioId, gameId, board.id, payload)
       toast({ title: t('leaderboard.boardUpdated'), description: `"${updated.name}" ${t('leaderboard.boardUpdatedDesc')}` })
       onUpdated(updated)
@@ -880,16 +950,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
               value={form.description ?? ""}
               onChange={(e) => set("description", e.target.value)}
               rows={2}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="e-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
-            <Input
-              id="e-max_score_delta"
-              type="number"
-              placeholder={t('leaderboard.leaveEmptyNoLimit')}
-              value={form.max_score_delta ?? ""}
-              onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
@@ -1620,10 +1680,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.resetScheduleInfoLabel')}</p>
                   <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.maxScoreDeltaInfoLabel')}</p>
-                  <p className="text-sm">{board.max_score_delta != null ? board.max_score_delta.toLocaleString() : t('leaderboard.unlimitedLabel')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceLabel')}</p>
