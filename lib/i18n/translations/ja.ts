@@ -1593,7 +1593,7 @@ export const ja = {
     prevBtn: "前へ",
     nextBtn: "次へ",
     // Board Row
-    seasonActive: "シーズン有効",
+    hasSeason: "シーズンあり",
     viewCurrentSeasonEntries: "現在のシーズンエントリーを表示",
     viewCurrentSeasonData: "現在のシーズンデータを表示",
     viewCurrentSeasonRawData: "現在のシーズンの生データを表示",

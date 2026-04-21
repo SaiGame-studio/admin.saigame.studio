@@ -1605,7 +1605,7 @@ export const vi = {
     prevBtn: "Trước",
     nextBtn: "Tiếp",
     // Board Row
-    seasonActive: "Mùa đang hoạt động",
+    hasSeason: "Có mùa",
     viewCurrentSeasonEntries: "Xem mục mùa hiện tại",
     viewCurrentSeasonData: "Xem dữ liệu mùa hiện tại",
     viewCurrentSeasonRawData: "Xem dữ liệu raw của mùa hiện tại",

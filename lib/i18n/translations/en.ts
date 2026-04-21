@@ -1611,7 +1611,7 @@ export const en = {
     prevBtn: "Prev",
     nextBtn: "Next",
     // Board Row
-    seasonActive: "Season Active",
+    hasSeason: "Has Season",
     viewCurrentSeasonEntries: "View current season entries",
     viewCurrentSeasonData: "View current season data",
     viewCurrentSeasonRawData: "View current season raw data",

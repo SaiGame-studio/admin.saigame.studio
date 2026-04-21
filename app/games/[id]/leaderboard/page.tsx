@@ -2035,7 +2035,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
         </TableCell>
         <TableCell>
           {hasSeason
-            ? <Badge variant="default" className="text-xs bg-green-600">{t('leaderboard.seasonActive')}</Badge>
+            ? <Badge variant="default" className="text-xs bg-green-600">{t('leaderboard.hasSeason')}</Badge>
             : <span className="text-xs text-muted-foreground">—</span>}
         </TableCell>
         <TableCell>
