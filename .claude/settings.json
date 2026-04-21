@@ -91,7 +91,11 @@
       "Read(//c/Users/Sai/AppData/Local/Temp/claude/g--Projects-ss-admin-saigame.studio/58a2a792-2abb-434f-b234-0b075c448f25/tasks/**)",
       "Bash(find /g/Projects/ss/admin.saigame.studio/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"recharts\\\\|LineChart\\\\|BarChart\\\\|PieChart\" {} \\\\;)",
       "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\('TextSelect' in l\\)\")",
-      "Bash(npx --no-install tsc --noEmit -p tsconfig.json)"
+      "Bash(npx --no-install tsc --noEmit -p tsconfig.json)",
+      "Bash(git stash *)",
+      "Bash(awk '/^  leaderboard: \\\\{/,/^  \\\\},/' lib/i18n/translations/vi.ts)",
+      "Bash(awk '/^  leaderboard: \\\\{/,/^  \\\\},/' lib/i18n/translations/en.ts)",
+      "Bash(awk '/^  leaderboard: \\\\{/,/^  \\\\},/' lib/i18n/translations/ja.ts)"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
