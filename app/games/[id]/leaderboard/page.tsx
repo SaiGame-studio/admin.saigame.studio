@@ -1126,16 +1126,22 @@ interface LeaderboardEntriesSheetProps {
 function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
   const { t } = useTranslation()
   const [data, setData] = useState<CurrentSeasonRaw | null>(null)
+  const [rawData, setRawData] = useState<SeasonRawEvents | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [rawLoadError, setRawLoadError] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rawLoading, setRawLoading] = useState(false)
   const [refreshingTab, setRefreshingTab] = useState<"rank" | "raw" | null>(null)
   const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
   const [sourceRefName, setSourceRefName] = useState<string | null>(null)
+  const [expandedRawRows, setExpandedRawRows] = useState<Set<string>>(new Set())
+  const toggleRawRow = (id: string) =>
+    setExpandedRawRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
   const loadCurrentSeasonData = useCallback(async (tab: "rank" | "raw" | null = null) => {
     if (!board || !board.season_id) return
-    if (tab) setRefreshingTab(tab)
-    else setLoading(true)
+    if (tab === "rank") setRefreshingTab("rank")
+    else if (!tab) setLoading(true)
     setLoadError(false)
     try {
       const result = await getCurrentSeasonRaw(gameId, board.season_id)
@@ -1148,18 +1154,38 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
     } catch {
       setLoadError(true)
     } finally {
-      if (tab) setRefreshingTab(null)
-      else setLoading(false)
+      if (tab === "rank") setRefreshingTab(null)
+      else if (!tab) setLoading(false)
     }
   }, [board, studioId, gameId])
+
+  const loadCurrentSeasonRawData = useCallback(async (tab: "raw" | null = null) => {
+    if (!board || !board.season_id) return
+    if (tab) setRefreshingTab(tab)
+    else setRawLoading(true)
+    setRawLoadError(false)
+    try {
+      const result = await getSeasonRawEvents(gameId, board.season_id)
+      setRawData(result)
+    } catch {
+      setRawLoadError(true)
+    } finally {
+      if (tab) setRefreshingTab(null)
+      else setRawLoading(false)
+    }
+  }, [board, gameId])
 
   useEffect(() => {
     if (!board) return
     setData(null)
+    setRawData(null)
     setLoadError(false)
+    setRawLoadError(false)
     setIdentities({})
     setSourceRefName(null)
+    setExpandedRawRows(new Set())
     loadCurrentSeasonData()
+    loadCurrentSeasonRawData()
     if (board.score_source_ref_id) {
       if (board.score_source_type?.includes("gacha")) {
         getGachaPack({ gameId: board.game_id }, board.score_source_ref_id)
@@ -1171,11 +1197,13 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
           .catch(() => {})
       }
     }
-  }, [board, loadCurrentSeasonData])
+  }, [board, loadCurrentSeasonData, loadCurrentSeasonRawData])
 
   const entries = data?.entries ?? []
   const rankEntries = [...entries].sort((a, b) => a.rank - b.rank)
+  const rawEntries = rawData?.entries ?? []
   const emptyMessage = loadError ? t('leaderboard.noActiveSeasonOrFailed') : t('leaderboard.noEntriesYet')
+  const rawEmptyMessage = rawLoadError ? t('leaderboard.failedLoadSessionRaw') : t('leaderboard.noRawEventsFound')
 
   return (
     <Sheet open={!!board} onOpenChange={(v) => !v && onClose()}>
@@ -1197,83 +1225,102 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
               {/* Season & board details */}
               {data ? (
                 <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
-                      <p className="font-medium">{data.season.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
-                      <p className="font-medium">{data.season.season_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
-                      <p className="font-mono">{formatDate(data.season.started_at)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
-                      <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
-                    </div>
-                    {data.season.planned_end_at && (
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
-                        <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
+                    {board?.id && (
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.boardIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{board.id}</p>
+                          <CopyButton text={board.id} size="h-3 w-3" />
+                        </div>
                       </div>
                     )}
                     <div>
-                      <p className="text-muted-foreground">{t('leaderboard.totalEntriesLabel')}</p>
-                      <p className="font-medium">{data.total}</p>
+                      <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-mono break-all">{board?.board_key}</p>
+                        {board?.board_key && <CopyButton text={board.board_key} size="h-3 w-3" />}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">{t('leaderboard.scoreModeInfoLabel')}</p>
+                      <Badge variant="outline" className="text-xs capitalize">{board?.score_mode}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">{t('leaderboard.sortLabel')}</p>
+                      <Badge variant="outline" className="text-xs">{board?.sort_direction}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">{t('leaderboard.resetScheduleInfoLabel')}</p>
+                      <Badge variant="outline" className={`text-xs capitalize border ${board ? resetScheduleBadge(board.reset_schedule) : ""}`}>{board?.reset_schedule}</Badge>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceInfoLabel')}</p>
+                      {board?.score_source_ref_id ? (
+                        board.score_source_type?.includes("gacha") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items?tab=gacha&editPack=${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Archive className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : board.score_source_type?.includes("item") ? (
+                          <Link
+                            href={`/games/${board.game_id}/items/${board.score_source_ref_id}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Package className="h-3 w-3 shrink-0" />
+                            <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                          </Link>
+                        ) : (
+                          <p className="font-mono break-all">{board.score_source_ref_id}</p>
+                        )
+                      ) : (
+                        <p className="italic text-muted-foreground">—</p>
+                      )}
                     </div>
                   </div>
                   <div className="pt-1 border-t space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
-                        <p className="font-mono">{board?.board_key}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.scoreModeInfoLabel')}</p>
-                        <Badge variant="outline" className="text-xs capitalize">{board?.score_mode}</Badge>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.sortLabel')}</p>
-                        <Badge variant="outline" className="text-xs">{board?.sort_direction}</Badge>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.resetScheduleInfoLabel')}</p>
-                        <Badge variant="outline" className={`text-xs capitalize border ${board ? resetScheduleBadge(board.reset_schedule) : ""}`}>{board?.reset_schedule}</Badge>
-                      </div>
                       <div className="col-span-2">
-                        <p className="text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceInfoLabel')}</p>
-                        {board?.score_source_ref_id ? (
-                          board.score_source_type?.includes("gacha") ? (
-                            <Link
-                              href={`/games/${board.game_id}/items?tab=gacha&editPack=${board.score_source_ref_id}`}
-                              target="_blank"
-                              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <Archive className="h-3 w-3 shrink-0" />
-                              <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
-                              <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
-                            </Link>
-                          ) : board.score_source_type?.includes("item") ? (
-                            <Link
-                              href={`/games/${board.game_id}/items/${board.score_source_ref_id}`}
-                              target="_blank"
-                              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <Package className="h-3 w-3 shrink-0" />
-                              <span className="font-medium">{sourceRefName ?? board.score_source_ref_id}</span>
-                              <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
-                            </Link>
-                          ) : (
-                            <p className="font-mono break-all">{board.score_source_ref_id}</p>
-                          )
-                        ) : (
-                          <p className="italic text-muted-foreground">—</p>
-                        )}
+                        <p className="text-muted-foreground">{t('leaderboard.seasonIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{data.season.id}</p>
+                          <CopyButton text={data.season.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{data.season.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
+                        <p className="font-medium">{data.season.season_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
+                        <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
+                        <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                      </div>
+                      {data.season.planned_end_at && (
+                        <div>
+                          <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
+                          <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.totalEntriesLabel')}</p>
+                        <p className="font-medium">{data.total}</p>
                       </div>
                     </div>
                   </div>
@@ -1363,49 +1410,106 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
                         variant="ghost"
                         className="h-6 w-6"
                         title={`${t('leaderboard.refreshTitle')} ${t('leaderboard.rawDataLabel')}`}
-                        onClick={() => loadCurrentSeasonData("raw")}
-                        disabled={loading || refreshingTab === "raw"}
+                        onClick={() => loadCurrentSeasonRawData("raw")}
+                        disabled={rawLoading || refreshingTab === "raw"}
                       >
                         <RefreshCw className={`h-3.5 w-3.5 ${refreshingTab === "raw" ? "animate-spin" : ""}`} />
                       </Button>
                     </div>
                   </div>
-                  <div className="rounded-md border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="h-8 text-xs">{t('leaderboard.userIdLabel')}</TableHead>
-                          <TableHead className="h-8 text-xs text-right">{t('leaderboard.scoreLabel')}</TableHead>
-                          <TableHead className="h-8 text-xs text-center">{t('leaderboard.rankLabel')}</TableHead>
-                          <TableHead className="h-8 text-xs">{t('leaderboard.updatedLabel')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entries.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
-                              {emptyMessage}
-                            </TableCell>
+                  {rawLoading && rawEntries.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 rounded-md border">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : rawEntries.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground rounded-md border">
+                      {rawLoadError ? <Info className="h-8 w-8 opacity-40" /> : <Archive className="h-8 w-8 opacity-30" />}
+                      <p className="text-sm">{rawEmptyMessage}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="h-8 w-6" />
+                            <TableHead className="h-8 text-xs text-right">{t('leaderboard.deltaLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.createdAtLabel')}</TableHead>
                           </TableRow>
-                        ) : entries.map((entry) => (
-                          <TableRow key={`raw-${entry.user_id}`}>
-                            <TableCell className="text-xs py-2">
-                              {entry.display_name?.trim() && (
-                                <p className="font-medium">{entry.display_name}</p>
-                              )}
-                              <div className="flex items-center gap-1">
-                                <p className="font-mono text-[10px] break-all text-muted-foreground">{entry.user_id}</p>
-                                <CopyButton text={entry.user_id} size="h-3 w-3" />
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs py-2 text-right font-mono">{entry.score.toLocaleString()}</TableCell>
-                            <TableCell className="text-xs py-2 text-center font-medium">#{entry.rank}</TableCell>
-                            <TableCell className="text-xs py-2 font-mono text-muted-foreground whitespace-nowrap">{formatDate(entry.updated_at)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {rawEntries.map((entry) => {
+                            const isExpanded = expandedRawRows.has(entry.id)
+                            return (
+                              <Fragment key={`raw-${entry.id}`}>
+                                <TableRow
+                                  className="text-xs cursor-pointer hover:bg-muted/40"
+                                  onClick={() => toggleRawRow(entry.id)}
+                                >
+                                  <TableCell className="py-2 pl-3 pr-1 w-6">
+                                    {isExpanded
+                                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-right font-mono font-medium">
+                                    <span className={entry.delta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500"}>
+                                      {entry.delta >= 0 ? "+" : ""}{entry.delta.toLocaleString()}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-2 text-xs">
+                                    {entry.display_name?.trim() ? (
+                                      <span className="font-medium">{entry.display_name}</span>
+                                    ) : (
+                                      <span className="font-mono text-[10px] text-muted-foreground">{entry.user_id.slice(0, 8)}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2 font-mono text-muted-foreground whitespace-nowrap">{formatDate(entry.created_at)}</TableCell>
+                                </TableRow>
+                                {isExpanded && (
+                                  <TableRow className="bg-muted/10 hover:bg-muted/10">
+                                    <TableCell />
+                                    <TableCell colSpan={3} className="py-3 pr-4">
+                                      <div className="space-y-1.5 text-[10px]">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.rawRecordIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.id}</span>
+                                          <CopyButton text={entry.id} size="h-3 w-3" />
+                                        </div>
+                                        {entry.display_name?.trim() && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.playerLabel')}</span>
+                                            <span className="font-medium">{entry.display_name}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.userIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.user_id}</span>
+                                          <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceEventIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.source_event_id ?? "—"}</span>
+                                          {entry.source_event_id && <CopyButton text={entry.source_event_id} size="h-3 w-3" />}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceSystemLabel')}</span>
+                                          <span className="font-mono">{entry.source_system}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.processedAtLabel')}</span>
+                                          <span className="font-mono">{entry.processed_at ? formatDate(entry.processed_at) : "—"}</span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Fragment>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
               {data && data.total > entries.length && (
@@ -1531,36 +1635,72 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
             </div>
           ) : (
             <>
-              {/* Season info */}
+              {/* Board & Season info */}
               {seasonInfo ? (
                 <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
-                      <p className="font-medium">{seasonInfo.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
-                      <p className="font-medium">{seasonInfo.season_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
-                      <p className="font-mono">{formatDate(seasonInfo.started_at)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
-                      <p className="font-mono">{seasonInfo.ended_at ? formatDate(seasonInfo.ended_at) : "—"}</p>
-                    </div>
-                    {plannedEndAt ? (
-                      <div>
-                        <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
-                        <p className="font-mono">{formatDate(plannedEndAt)}</p>
+                    {target?.board.id && (
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.boardIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{target.board.id}</p>
+                          <CopyButton text={target.board.id} size="h-3 w-3" />
+                        </div>
                       </div>
-                    ) : null}
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.totalArchivedLabel')}</p>
-                      <p className="font-medium">{totalItems}</p>
+                    )}
+                    {target?.board.board_key && (
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{target.board.board_key}</p>
+                          <CopyButton text={target.board.board_key} size="h-3 w-3" />
+                        </div>
+                      </div>
+                    )}
+                    {target?.board.name && (
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{target.board.name}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-1 border-t space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.seasonIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{seasonInfo.id}</p>
+                          <CopyButton text={seasonInfo.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{seasonInfo.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
+                        <p className="font-medium">{seasonInfo.season_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
+                        <p className="font-mono">{formatDate(seasonInfo.started_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
+                        <p className="font-mono">{seasonInfo.ended_at ? formatDate(seasonInfo.ended_at) : "—"}</p>
+                      </div>
+                      {plannedEndAt ? (
+                        <div>
+                          <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
+                          <p className="font-mono">{formatDate(plannedEndAt)}</p>
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.totalArchivedLabel')}</p>
+                        <p className="font-medium">{totalItems}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
