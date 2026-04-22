@@ -297,6 +297,8 @@ export const en = {
     clearFilter: "Clear Filter"
   },
   game: {
+    desktopRecommendedTitle: "Desktop recommended",
+    desktopRecommendedDesc: "For the best experience managing your game, please use a desktop or widescreen view. Some tables and editors are designed for wider screens.",
     shops: "Shops",
     quests: "Quests",
     leaderboards: "Leaderboards",
@@ -3355,6 +3357,13 @@ export const en = {
     loginSuccess: "Login successful",
     welcomeBack: "Welcome back",
     footer: "All rights reserved.",
+  },
+  googleLoginSuccess: {
+    badge: "Google",
+    title: "Google sign-in successful",
+    subtitle: "Your Google account has been verified successfully.",
+    returnToGameTitle: "Please return to the game to continue",
+    returnToGameDescription: "You can close this tab and go back to the game window. The game will automatically receive your login information.",
   },
   content: {
     confirmUpvoteTitle: "Confirm Upvote",

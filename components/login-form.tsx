@@ -37,6 +37,19 @@ export function LoginForm() {
   const [loginWasRemembered, setLoginWasRemembered] = useState(false)
   const router = useRouter()
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
+  const [googleBtnWidth, setGoogleBtnWidth] = useState("300px")
+
+  useEffect(() => {
+    const updateWidth = () => {
+      const vw = window.innerWidth
+      if (vw < 360) setGoogleBtnWidth("260px")
+      else if (vw < 400) setGoogleBtnWidth("280px")
+      else setGoogleBtnWidth("350px")
+    }
+    updateWidth()
+    window.addEventListener("resize", updateWidth)
+    return () => window.removeEventListener("resize", updateWidth)
+  }, [])
 
   // Check for remembered email/username on component mount
   useEffect(() => {
@@ -185,24 +198,24 @@ export function LoginForm() {
             )}
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <Label htmlFor="password">{t('login.password')}</Label>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 text-xs"
+                className="h-8 text-xs shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
                   <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    {t('login.hidePassword')}
+                    <EyeOff className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{t('login.hidePassword')}</span>
                   </>
                 ) : (
                   <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    {t('login.showPassword')}
+                    <Eye className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{t('login.showPassword')}</span>
                   </>
                 )}
               </Button>
@@ -219,7 +232,7 @@ export function LoginForm() {
               />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between gap-2 pt-2 flex-wrap">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="remember"
@@ -236,7 +249,7 @@ export function LoginForm() {
                 {t('login.rememberMe')}
               </Label>
             </div>
-            <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/forgot-password')}>
+            <Button type="button" variant="link" className="px-0 font-normal h-auto" size="sm" formNoValidate onClick={() => router.push('/forgot-password')}>
               {t('login.forgotPassword')}
             </Button>
           </div>
@@ -268,14 +281,14 @@ export function LoginForm() {
                 </div>
               </div>
 
-              <div className="flex justify-center w-full">
+              <div className="flex justify-center w-full overflow-hidden">
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
                   useOneTap
                   theme="outline"
                   size="large"
-                  width="350px"
+                  width={googleBtnWidth}
                   text="signin_with"
                   shape="rectangular"
                 />

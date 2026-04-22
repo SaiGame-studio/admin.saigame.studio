@@ -297,6 +297,8 @@ export const vi = {
     clearFilter: "Xóa bộ lọc"
   },
   game: {
+    desktopRecommendedTitle: "Nên dùng máy tính",
+    desktopRecommendedDesc: "Để có trải nghiệm tốt nhất khi quản lý game, hãy sử dụng máy tính hoặc màn hình rộng. Một số bảng dữ liệu và trình chỉnh sửa được thiết kế cho màn hình lớn.",
     shops: "Cửa hàng",
     quests: "Nhiệm vụ",
     leaderboards: "Bảng xếp hạng",
@@ -3313,6 +3315,13 @@ export const vi = {
     loginSuccess: "Đăng nhập thành công",
     welcomeBack: "Chào mừng trở lại",
     footer: "Bảo lưu mọi quyền.",
+  },
+  googleLoginSuccess: {
+    badge: "Google",
+    title: "Đăng nhập Google thành công",
+    subtitle: "Bạn đã xác thực tài khoản Google thành công.",
+    returnToGameTitle: "Vui lòng quay lại game để tiếp tục",
+    returnToGameDescription: "Bạn có thể đóng tab này và trở về cửa sổ game. Game sẽ tự động nhận thông tin đăng nhập của bạn.",
   },
   content: {
     confirmUpvoteTitle: "Xác nhận Upvote",

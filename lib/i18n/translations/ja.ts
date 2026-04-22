@@ -297,6 +297,8 @@ export const ja = {
     clearFilter: "フィルタークリア"
   },
   game: {
+    desktopRecommendedTitle: "デスクトップ推奨",
+    desktopRecommendedDesc: "ゲームを管理する最適な体験のために、デスクトップまたはワイドスクリーンでの表示をお勧めします。一部のテーブルや編集機能は広い画面向けに設計されています。",
     shops: "ショップ",
     quests: "クエスト",
     leaderboards: "リーダーボード",
@@ -3301,6 +3303,13 @@ export const ja = {
     loginSuccess: "ログイン成功",
     welcomeBack: "おかえりなさい",
     footer: "全著作権所有。",
+  },
+  googleLoginSuccess: {
+    badge: "Google",
+    title: "Googleログインに成功しました",
+    subtitle: "Googleアカウントの認証が完了しました。",
+    returnToGameTitle: "ゲームに戻って続行してください",
+    returnToGameDescription: "このタブを閉じてゲーム画面に戻ることができます。ゲームが自動的にログイン情報を受け取ります。",
   },
   content: {
     confirmUpvoteTitle: "アップボートの確認",

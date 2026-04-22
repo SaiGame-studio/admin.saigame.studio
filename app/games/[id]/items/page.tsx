@@ -2803,7 +2803,7 @@ export default function GameItemsPage() {
   const currentPage = Math.floor(offset / LIMIT) + 1
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb>
@@ -2824,16 +2824,16 @@ export default function GameItemsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
+      <div className="flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center md:gap-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="outline" size="icon" className="shrink-0" onClick={() => router.push(`/games/${gameId}`)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold tracking-tight break-words sm:text-2xl lg:text-3xl">
               {t('items.itemCatalogue')}
             </h1>
-            <p className="text-muted-foreground flex items-center gap-2">
+            <p className="text-muted-foreground flex items-center gap-2 flex-wrap text-sm">
               {maxItems != null
                 ? (() => {
                     const used = itemUsage ?? total
@@ -2841,7 +2841,7 @@ export default function GameItemsPage() {
                     <span className={used >= maxItems ? "text-destructive font-medium" : ""}>
                       {used.toLocaleString()} / {maxItems.toLocaleString()} {t('items.itemsUnit')}
                     </span>
-                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                    <span className="inline-block h-1.5 w-20 shrink-0 rounded-full bg-muted overflow-hidden align-middle sm:w-24">
                       <span
                         className={`block h-full rounded-full transition-all ${
                           used >= maxItems ? "bg-destructive" : used / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
@@ -2851,7 +2851,7 @@ export default function GameItemsPage() {
                     </span>
                     <Link
                       href={`/games/${gameId}/plugins`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0"
                       title="Manage plugins / raise limits"
                     >
                       <Hammer className="h-3.5 w-3.5" />
@@ -2870,13 +2870,15 @@ export default function GameItemsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList>
-            {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
-              <TabsTrigger key={key} value={key}>
-                <Icon className="h-3.5 w-3.5 mr-1.5" />{t(labelKey)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
+            <TabsList className="w-auto inline-flex">
+              {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
+                <TabsTrigger key={key} value={key} className="whitespace-nowrap">
+                  <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />{t(labelKey)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
         <TabsContent value="crafting" className="space-y-4">
           <CraftingTab gameId={gameId} studioId={studioId} />
@@ -3175,11 +3177,11 @@ export default function GameItemsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 mt-4 text-sm text-muted-foreground flex-wrap">
               <span>
                 Page {currentPage} of {totalPages} — {total} items
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -3203,10 +3205,12 @@ export default function GameItemsPage() {
 
         <TabsContent value="containers" className="space-y-4">
           <Tabs value={containerSubTab} onValueChange={handleContainerSubTabChange} className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="definitions">{t('items.subTabDefinitions')}</TabsTrigger>
-              <TabsTrigger value="slot-guide">{t('items.subTabSlotGuide')}</TabsTrigger>
-            </TabsList>
+            <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
+              <TabsList className="w-auto inline-flex">
+                <TabsTrigger value="definitions" className="whitespace-nowrap">{t('items.subTabDefinitions')}</TabsTrigger>
+                <TabsTrigger value="slot-guide" className="whitespace-nowrap">{t('items.subTabSlotGuide')}</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="slot-guide" className="space-y-6">
               <Card>
