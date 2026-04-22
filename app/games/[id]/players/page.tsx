@@ -74,7 +74,7 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
   };
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {game && (
         <div className="mb-2">
           <Breadcrumb>
@@ -95,16 +95,16 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" asChild>
+      <div className="flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center md:gap-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="outline" size="icon" asChild className="shrink-0">
             <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold tracking-tight break-words sm:text-2xl lg:text-3xl">
               {t('gameUsers.players')}{game ? ` - ${game.name}` : ""}
             </h1>
-            <p className="text-muted-foreground flex items-center gap-2">
+            <p className="text-muted-foreground flex items-center gap-2 flex-wrap text-sm">
               {game?.limits?.max_player_profiles != null
                 ? (() => {
                     const used = totalCount
@@ -115,7 +115,7 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
                         <span className={used >= max ? "text-destructive font-medium" : ""}>
                           {used.toLocaleString()} / {max.toLocaleString()} {t('gameUsers.playersLower')}
                         </span>
-                        <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                        <span className="inline-block h-1.5 w-20 shrink-0 rounded-full bg-muted overflow-hidden align-middle sm:w-24">
                           <span
                             className={`block h-full rounded-full transition-all ${
                               used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
@@ -125,7 +125,7 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
                         </span>
                         <Link
                           href={`/games/${gameId}/plugins`}
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0"
                           title="Manage plugins / raise limits"
                         >
                           <Hammer className="h-3.5 w-3.5" />
@@ -188,14 +188,14 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
         </Card>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <p className="text-sm text-muted-foreground shrink-0">
+          <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
               {progressList.length} / {totalCount} {t('gameUsers.playersFound')}
               {searchQuery && ` ${t('gameUsers.forQuery')} "${searchQuery}"`}
             </p>
-            <form onSubmit={handleSearch} className="flex items-center gap-1">
-              <div className="relative grid">
-                <span className="invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border" aria-hidden>
+            <form onSubmit={handleSearch} className="flex items-center gap-1 w-full sm:w-auto">
+              <div className="relative grid flex-1 sm:flex-none">
+                <span className="invisible col-start-1 row-start-1 pl-8 pr-3 h-8 text-sm whitespace-pre pointer-events-none select-none border hidden sm:block" aria-hidden>
                   {t('gameUsers.searchPlaceholder')}
                 </span>
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -206,11 +206,11 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
                   className="col-start-1 row-start-1 pl-8 h-8 w-full text-sm"
                 />
               </div>
-              <Button type="submit" variant="default" size="icon" className="h-8 w-8">
+              <Button type="submit" variant="default" size="icon" className="h-8 w-8 shrink-0">
                 <Search className="h-3.5 w-3.5" />
               </Button>
               {searchQuery && (
-                <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={handleClearSearch}>
+                <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={handleClearSearch}>
                   ×
                 </Button>
               )}
@@ -218,7 +218,7 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 shrink-0"
                 onClick={() => loadData(searchQuery || undefined)}
                 disabled={loading}
               >
@@ -232,18 +232,18 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
             return (
             <Card key={item.id}>
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      {identity?.display_name || item.user_display_name || t('gameUsers.unknown')}
+                      <User className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{identity?.display_name || item.user_display_name || t('gameUsers.unknown')}</span>
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">{identity?.masked_email || "***@saigame.studio"}</p>
-                    <p className="text-xs text-muted-foreground">{t('gameUsers.gamer')}: {identity?.gamer_name || "-"}</p>
-                    <p className="text-xs text-muted-foreground font-mono flex items-center">{t('gameUsers.userId')}: {item.user_id}<CopyButton text={item.user_id} /></p>
-                    <p className="text-xs text-muted-foreground font-mono flex items-center">{t('gameUsers.progressId')}: {item.id}<CopyButton text={item.id} /></p>
+                    <p className="text-xs text-muted-foreground truncate">{identity?.masked_email || "***@saigame.studio"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{t('gameUsers.gamer')}: {identity?.gamer_name || "-"}</p>
+                    <p className="text-xs text-muted-foreground font-mono flex items-center min-w-0"><span className="truncate">{t('gameUsers.userId')}: {item.user_id}</span><CopyButton text={item.user_id} /></p>
+                    <p className="text-xs text-muted-foreground font-mono flex items-center min-w-0"><span className="truncate">{t('gameUsers.progressId')}: {item.id}</span><CopyButton text={item.id} /></p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {item.banned_at && <Badge variant="destructive">{t('gameUsers.banned')}</Badge>}
                     <Badge variant="secondary">v{item.version}</Badge>
                   </div>
@@ -268,12 +268,12 @@ export default function GameUserProfilesPage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
 
-                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <span>{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
-                    <span>{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
+                <div className="text-xs text-muted-foreground pt-2 border-t flex justify-between items-center gap-3 flex-wrap">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="truncate">{t('gameUsers.joined')}: {formatTimestamp(item.user_created_at)}</span>
+                    <span className="truncate">{t('gameUsers.updated')}: {formatTimestamp(item.updated_at)}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button asChild variant="outline" size="icon" title={t('gameUsers.sendMail')}>
                       <Link href={`/games/${gameId}/mailbox?userId=${item.id}`}>
                         <Mail className="h-4 w-4" />
