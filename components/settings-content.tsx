@@ -25,8 +25,8 @@ export function SettingsContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="space-y-0.5 min-w-0">
               <Label className="text-base">{t('settings.interfaceLanguage')}</Label>
               <div className="text-sm text-muted-foreground">
                 {t('settings.current')}: {locale === 'en' ? 'English' : 'Tiếng Việt'}
@@ -49,8 +49,8 @@ export function SettingsContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="space-y-0.5 min-w-0">
               <Label className="text-base">{t('settings.themeMode')}</Label>
               <div className="text-sm text-muted-foreground">
                 {t('settings.themeModeDesc')}

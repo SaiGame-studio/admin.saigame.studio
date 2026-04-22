@@ -127,17 +127,17 @@ export default function GamesPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('games.title')}</h1>
-          <p className="">{t('games.subtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('games.title')}</h1>
+          <p className="text-sm sm:text-base">{t('games.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild variant="default">
+        <div className="flex gap-2 flex-wrap">
+          <Button asChild variant="default" className="flex-1 sm:flex-none">
             <Link href="/games/new">{t('games.createGame')}</Link>
           </Button>
-          <Button onClick={refreshGames} variant="outline" disabled={loading}>
+          <Button onClick={refreshGames} variant="outline" disabled={loading} className="flex-1 sm:flex-none">
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             {t('games.refresh')}
           </Button>
@@ -145,7 +145,7 @@ export default function GamesPage() {
       </div>
 
       {/* Status Filter */}
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-2 flex-wrap sm:gap-4">
         <span className="text-sm font-medium">{t('games.filterByStatus')}:</span>
         <Popover>
           <PopoverTrigger asChild>
@@ -261,42 +261,42 @@ export default function GamesPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filteredGames.map((game) => (
             <Card key={game.id} className="overflow-hidden">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
-                <div className="flex flex-col space-y-2">
-                  <CardTitle className="text-xl">
-                    <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                      {game.name}
-                      <ExternalLink className="w-4 h-4 " />
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3 space-y-0">
+                <div className="flex flex-col space-y-2 min-w-0 flex-1">
+                  <CardTitle className="text-lg sm:text-xl">
+                    <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary max-w-full">
+                      <span className="truncate">{game.name}</span>
+                      <ExternalLink className="w-4 h-4 shrink-0" />
                     </Link>
                   </CardTitle>
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm ">{t('games.status')}:</span>
                       <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
                     </div>
                     {game.tier && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm ">{t('games.tier')}:</span>
                         <span className="text-sm ">{game.tier}</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="shrink-0">
                   <Link href={`/games/${game.id}`}>{t('games.viewDetails')}</Link>
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-col gap-1 text-sm ">
-                  <span>{t('games.studio')}: {game.studio?.name && game.studio?.id ? (
-                    <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
-                      {game.studio.name}
-                      <ExternalLink className="w-3 h-3 " />
+                <div className="flex flex-col gap-1 text-sm min-w-0">
+                  <span className="truncate">{t('games.studio')}: {game.studio?.name && game.studio?.id ? (
+                    <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
+                      <span className="truncate">{game.studio.name}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
                     </Link>
                   ) : studioNames[game.studio_id] ? (
-                    <Link href={`/studios/${studioNames[game.studio_id].id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold">
-                      {studioNames[game.studio_id].name}
-                      <ExternalLink className="w-3 h-3 " />
+                    <Link href={`/studios/${studioNames[game.studio_id].id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
+                      <span className="truncate">{studioNames[game.studio_id].name}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
                     </Link>
                   ) : game.studio_id ? (
                     <span className="font-semibold text-muted-foreground">...</span>

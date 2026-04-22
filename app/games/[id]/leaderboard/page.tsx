@@ -2051,7 +2051,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                       disabled={!hasActiveSeasonNow}
                       onClick={onViewEntries}
                     >
-                      <BarChart2 className="h-3.5 w-3.5" />
+                      <span className="text-sm leading-none">👑</span>
                     </Button>
                   </span>
                 </TooltipTrigger>

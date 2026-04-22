@@ -52,7 +52,7 @@ const COLLAPSED_WIDTH = 80
 const SIDEBAR_WIDTH_KEY = "sai-admin-sidebar-width"
 const SIDEBAR_COLLAPSED_KEY = "sai-admin-sidebar-collapsed"
 
-export function SideNav() {
+export function SideNav({ mobile = false }: { mobile?: boolean } = {}) {
   const { logout, isAuthenticated } = useAuth()
   const capabilities = useCapabilities()
   const { theme, setTheme } = useTheme()
@@ -62,7 +62,8 @@ export function SideNav() {
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname.startsWith(href)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [isResizing, setIsResizing] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsedState, setIsCollapsed] = useState(false)
+  const isCollapsed = mobile ? false : isCollapsedState
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   // Load saved width and collapsed state on mount
@@ -127,15 +128,23 @@ export function SideNav() {
   return (
     <div
         ref={sidebarRef}
-        className="hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col mr-[20px]"
-        style={{ 
-          width: `${sidebarWidth}px`,
-          height: "100vh",
-          minHeight: "100vh",
-          maxHeight: "100vh",
-          position: "sticky",
-          top: 0,
-        }}
+        className={
+          mobile
+            ? "flex flex-col h-full w-full bg-muted/40 dark:bg-background"
+            : "hidden border-r bg-muted/40 lg:flex dark:bg-background flex-col mr-[20px]"
+        }
+        style={
+          mobile
+            ? undefined
+            : {
+                width: `${sidebarWidth}px`,
+                height: "100vh",
+                minHeight: "100vh",
+                maxHeight: "100vh",
+                position: "sticky",
+                top: 0,
+              }
+        }
       >
         <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px]">
           {!isCollapsed && (
@@ -149,18 +158,20 @@ export function SideNav() {
               <Image src="/logo.png" alt="Logo" width={24} height={24} className="flex-shrink-0" style={{ width: 24, height: 24 }} />
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={toggleCollapse}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
+          {!mobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleCollapse}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+          )}
         </div>
         <ScrollArea className="flex-1 px-3 py-2">
           <div className="space-y-4">
@@ -308,7 +319,7 @@ export function SideNav() {
         </ScrollArea>
 
         {/* Resize handle */}
-        {!isCollapsed && (
+        {!mobile && !isCollapsed && (
           <div
             className="absolute top-0 right-0 w-1 h-full cursor-ew-resize bg-transparent hover:bg-primary/10 active:bg-primary/20 transition-colors"
             onMouseDown={() => setIsResizing(true)}
