@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Redirect logic
     if (!isLoading) {
-      const authPages = ["/login", "/register", "/forgot-password", "/reset-password"]
+      const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/google-login-success"]
       const publicPrefixes = ["/tutorials"]
       const isPublicPage = authPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p))
       if (!isAuthenticated && !isPublicPage) {

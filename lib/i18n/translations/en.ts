@@ -3358,6 +3358,13 @@ export const en = {
     welcomeBack: "Welcome back",
     footer: "All rights reserved.",
   },
+  googleLoginSuccess: {
+    badge: "Google",
+    title: "Google sign-in successful",
+    subtitle: "Your Google account has been verified successfully.",
+    returnToGameTitle: "Please return to the game to continue",
+    returnToGameDescription: "You can close this tab and go back to the game window. The game will automatically receive your login information.",
+  },
   content: {
     confirmUpvoteTitle: "Confirm Upvote",
     confirmUpvoteDesc: "Upvoting this content will cost 🪙 1 sCoin. Do you want to proceed?",

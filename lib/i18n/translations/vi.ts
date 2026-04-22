@@ -3316,6 +3316,13 @@ export const vi = {
     welcomeBack: "Chào mừng trở lại",
     footer: "Bảo lưu mọi quyền.",
   },
+  googleLoginSuccess: {
+    badge: "Google",
+    title: "Đăng nhập Google thành công",
+    subtitle: "Bạn đã xác thực tài khoản Google thành công.",
+    returnToGameTitle: "Vui lòng quay lại game để tiếp tục",
+    returnToGameDescription: "Bạn có thể đóng tab này và trở về cửa sổ game. Game sẽ tự động nhận thông tin đăng nhập của bạn.",
+  },
   content: {
     confirmUpvoteTitle: "Xác nhận Upvote",
     confirmUpvoteDesc: "Upvote bài viết này sẽ tốn 🪙 1 sCoin. Bạn có muốn tiếp tục?",
