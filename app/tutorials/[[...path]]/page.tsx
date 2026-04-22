@@ -232,11 +232,11 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
       )}
 
       {detail && (
-        <div className="mt-6 border rounded-lg p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
+        <div className="mt-6 border rounded-lg p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <UpvoteButton contentId={detail.id} count={detail.metadata?.upvote_count} />
-              <h2 className="text-4xl font-bold">{detail.title}</h2>
+              <h2 className="text-2xl font-bold break-words min-w-0 sm:text-3xl lg:text-4xl">{detail.title}</h2>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
               {detail.metadata?.view_count != null && (
@@ -360,8 +360,8 @@ function CategorySidebar({
   }
 
   return (
-    <div className="flex gap-6">
-      <nav className="w-56 flex-shrink-0 space-y-1 border-r pr-4">
+    <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+      <nav className="space-y-1 border-b pb-4 md:w-56 md:flex-shrink-0 md:border-b-0 md:border-r md:pb-0 md:pr-4">
         {children.map((child) => (
           <CategoryMenuItem
             key={child.id}
@@ -533,11 +533,11 @@ function TutorialsTabs() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <BookOpen className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">{t('tutorials.title')}</h1>
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+      <div className="flex items-center gap-3 mb-4 sm:mb-6">
+        <BookOpen className="h-6 w-6 text-primary shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold sm:text-2xl truncate">{t('tutorials.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('tutorials.subtitle')}</p>
         </div>
       </div>
@@ -553,25 +553,27 @@ function TutorialsTabs() {
           className="w-full"
           onValueChange={handleTabChange}
         >
-          <TabsList className="mb-4">
-            {categories.map((cat) => (
-              <TabsTrigger key={cat.id} value={cat.slug} className="flex items-center gap-2">
-                {getCatName(cat, locale)}
+          <div className="-mx-4 px-4 overflow-x-auto mb-4 sm:mx-0 sm:px-0">
+            <TabsList className="w-auto inline-flex">
+              {categories.map((cat) => (
+                <TabsTrigger key={cat.id} value={cat.slug} className="flex items-center gap-2 whitespace-nowrap">
+                  {getCatName(cat, locale)}
+                </TabsTrigger>
+              ))}
+              <TabsTrigger
+                value="_download"
+                className="flex items-center gap-2 whitespace-nowrap"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.open("https://github.com/SaiGame-studio/ss-unity/releases", "_blank")
+                }}
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                {t('tutorials.unityPackage')}
+                <ExternalLink className="h-3 w-3 opacity-50 shrink-0" />
               </TabsTrigger>
-            ))}
-            <TabsTrigger
-              value="_download"
-              className="flex items-center gap-2"
-              onClick={(e) => {
-                e.preventDefault()
-                window.open("https://github.com/SaiGame-studio/ss-unity/releases", "_blank")
-              }}
-            >
-              <Download className="h-4 w-4" />
-              {t('tutorials.unityPackage')}
-              <ExternalLink className="h-3 w-3 opacity-50" />
-            </TabsTrigger>
-          </TabsList>
+            </TabsList>
+          </div>
 
           {categories.map((cat) => (
             <TabsContent key={cat.id} value={cat.slug} className="mt-0">
