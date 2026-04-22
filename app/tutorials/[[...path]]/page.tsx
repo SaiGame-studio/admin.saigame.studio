@@ -19,7 +19,7 @@ function preprocessImgSize(md: string): string {
   )
 }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BookOpen, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2, ThumbsUp } from "lucide-react"
+import { BookOpen, ChevronDown, ChevronRight, Clock, Download, ExternalLink, Eye, Loader2, ThumbsUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api-client"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -271,6 +271,14 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
   )
 }
 
+function isCategoryDescendantSelected(category: Category, selectedId: string): boolean {
+  for (const child of category.children ?? []) {
+    if (child.id === selectedId) return true
+    if (isCategoryDescendantSelected(child, selectedId)) return true
+  }
+  return false
+}
+
 function CategoryMenuItem({
   category,
   selectedId,
@@ -288,6 +296,18 @@ function CategoryMenuItem({
     .filter((c) => c.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
 
+  const hasChildren = children.length > 0
+
+  const descendantSelected = hasChildren && selectedId
+    ? isCategoryDescendantSelected(category, selectedId)
+    : false
+
+  const [isOpen, setIsOpen] = useState(() => descendantSelected)
+
+  useEffect(() => {
+    if (descendantSelected) setIsOpen(true)
+  }, [descendantSelected])
+
   return (
     <div>
       <a
@@ -296,7 +316,11 @@ function CategoryMenuItem({
           // Allow Ctrl/Cmd+click or middle-click to open in a new tab natively
           if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return
           e.preventDefault()
-          onSelect(category)
+          if (hasChildren) {
+            setIsOpen((prev) => !prev)
+          } else {
+            onSelect(category)
+          }
         }}
         className={cn(
           "w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2 hover:bg-accent transition-colors no-underline text-inherit",
@@ -304,10 +328,19 @@ function CategoryMenuItem({
         )}
         style={{ paddingLeft: `${level * 30 + 12}px` }}
       >
-        {children.length > 0 && <ChevronRight className="h-3 w-3 flex-shrink-0" />}
+        {hasChildren && (
+          isOpen
+            ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
+            : <ChevronRight className="h-3 w-3 flex-shrink-0" />
+        )}
         {getCatName(category, locale)}
+        {hasChildren && (
+          <span className="ml-auto text-xs text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 leading-none">
+            {children.length}
+          </span>
+        )}
       </a>
-      {children.length > 0 && (
+      {hasChildren && isOpen && (
         <div>
           {children.map((child) => (
             <CategoryMenuItem
