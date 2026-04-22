@@ -27,20 +27,20 @@ function ProfileTabs() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-fit grid-cols-3 mb-4">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Profile
+        <TabsList className="grid w-full grid-cols-3 mb-4 sm:w-fit">
+          <TabsTrigger value="profile" className="flex items-center gap-1.5 sm:gap-2">
+            <User className="h-4 w-4 shrink-0" />
+            <span className="truncate">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="referral" className="flex items-center gap-2">
-            <TicketPercent className="h-4 w-4" />
-            Referral Codes
+          <TabsTrigger value="referral" className="flex items-center gap-1.5 sm:gap-2">
+            <TicketPercent className="h-4 w-4 shrink-0" />
+            <span className="truncate">Referral Codes</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            {t('common.settings')}
+          <TabsTrigger value="settings" className="flex items-center gap-1.5 sm:gap-2">
+            <Settings className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('common.settings')}</span>
           </TabsTrigger>
         </TabsList>
 

@@ -20,30 +20,30 @@ export function TopNav() {
   const isAdminZone = pathname?.startsWith("/admin")
 
   return (
-    <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
+    <header className="sticky top-0 z-50 flex h-14 items-center gap-2 border-b bg-background px-3 sm:gap-3 sm:px-4 lg:h-[60px] lg:gap-4 lg:px-6">
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="lg:hidden">
+          <Button variant="outline" size="icon" className="shrink-0 lg:hidden">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle navigation menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[240px] sm:w-[300px]">
-          <SideNav />
+        <SheetContent side="left" className="w-[240px] sm:w-[300px] p-0">
+          <SideNav mobile />
         </SheetContent>
       </Sheet>
-      <div className="flex items-center gap-2 lg:hidden">
-        <Image src="/logo.png" alt="Logo" width={24} height={24} style={{ width: 24, height: 24 }} />
-        <Link href="/" className="font-semibold">
+      <div className="flex min-w-0 items-center gap-2 lg:hidden">
+        <Image src="/logo.png" alt="Logo" width={24} height={24} className="shrink-0" style={{ width: 24, height: 24 }} />
+        <Link href="/" className="hidden truncate whitespace-nowrap font-semibold sm:inline-block">
           Sai's Admin
         </Link>
       </div>
       <TipsBanner />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         {isAdminZone && (
-          <div className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-white text-xs font-semibold select-none">
+          <div className="flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-1 text-white text-[10px] font-semibold select-none sm:px-3 sm:text-xs">
             <ShieldAlert className="h-3 w-3 shrink-0" />
-            Admin Zone
+            <span className="hidden sm:inline">Admin Zone</span>
           </div>
         )}
         <ThemeToggle />
@@ -60,7 +60,7 @@ export function TopNav() {
         {isAuthenticated && (
           <>
             <CoinBalance />
-            <Button variant="ghost" className="flex items-center gap-2 px-2 h-9" asChild>
+            <Button variant="ghost" className="flex items-center gap-2 px-1.5 h-9 sm:px-2" asChild>
               <Link href="/profile">
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="text-xs">
@@ -72,7 +72,7 @@ export function TopNav() {
                 </span>
               </Link>
             </Button>
-            <Button variant="outline" size="icon" onClick={logout}>
+            <Button variant="outline" size="icon" onClick={logout} className="shrink-0">
               <LogOut className="h-5 w-5" />
               <span className="sr-only">Logout</span>
             </Button>

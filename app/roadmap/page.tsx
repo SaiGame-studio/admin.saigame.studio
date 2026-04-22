@@ -173,23 +173,23 @@ export default function RoadmapPage() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-6 sm:mb-10">
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0 sm:w-10 sm:h-10">
             <Map className="h-5 w-5 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('roadmap.page.title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('roadmap.page.title')}</h1>
         </div>
-        <p className="text-muted-foreground ml-[52px]">
+        <p className="text-sm text-muted-foreground sm:text-base sm:ml-[52px]">
           {t('roadmap.page.subtitle')}
         </p>
-        <p className="text-xs text-muted-foreground mt-1 ml-[52px]">{t('roadmap.page.lastUpdated')}</p>
+        <p className="text-xs text-muted-foreground mt-1 sm:ml-[52px]">{t('roadmap.page.lastUpdated')}</p>
       </div>
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 sm:mb-10">
         {phases.map((phase) => {
           const cfg = statusConfig[phase.status]
           return (
@@ -211,11 +211,11 @@ export default function RoadmapPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
         {/* Left Column: Platform Roadmap */}
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8 min-w-0">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight mb-2">{t('roadmap.page.devPlanTitle')}</h2>
+            <h2 className="text-xl font-bold tracking-tight mb-2 sm:text-2xl">{t('roadmap.page.devPlanTitle')}</h2>
             <p className="text-sm text-muted-foreground mb-6">{t('roadmap.page.devPlanSubtitle')}</p>
           </div>
           
@@ -234,7 +234,7 @@ export default function RoadmapPage() {
                       <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background/60 text-primary mt-0.5 flex-shrink-0">
                         {phaseIcons[phase.number - 1]}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             {t(`roadmap.page.phase${phase.number}`)}
@@ -243,9 +243,9 @@ export default function RoadmapPage() {
                             {phase.statusLabel}
                           </span>
                         </div>
-                        <CardTitle className="text-lg mt-0.5 flex items-center justify-between">
-                          {phase.title}
-                          <ChevronDown className={`h-5 w-5 text-muted-foreground/50 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : ''} group-hover:text-primary`} />
+                        <CardTitle className="text-base mt-0.5 flex items-center justify-between gap-2 sm:text-lg">
+                          <span className="break-words min-w-0">{phase.title}</span>
+                          <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground/50 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : ''} group-hover:text-primary`} />
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">{phase.theme}</p>
                         {phase.footnote && !isCollapsed && (
@@ -268,18 +268,20 @@ export default function RoadmapPage() {
                             {phase.completed.map((item) => (
                               <div
                                 key={item.name}
-                                className="flex items-start gap-3 p-2.5 rounded-md bg-muted/50 border-l-2 border-primary/50"
+                                className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 border-l-2 border-primary/50 sm:gap-3"
                               >
                                 <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <span className="text-sm font-medium text-foreground">{item.name}</span>
+                                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                                    <span className="text-sm font-medium text-foreground break-words">{item.name}</span>
+                                    {item.completed && (
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{item.completed}</span>
+                                    )}
+                                  </div>
                                   {item.description && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5 break-words">{item.description}</p>
                                   )}
                                 </div>
-                                {item.completed && (
-                                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{item.completed}</span>
-                                )}
                               </div>
                             ))}
                           </div>
@@ -300,7 +302,7 @@ export default function RoadmapPage() {
                                 className="flex items-center gap-2 p-2.5 rounded-md bg-muted/30 border border-border"
                               >
                                 <Circle className="h-3 w-3 text-muted-foreground/40 flex-shrink-0" />
-                                <span className="text-sm flex-1 text-foreground">{item.name}</span>
+                                <span className="text-sm flex-1 min-w-0 text-foreground break-words">{item.name}</span>
                                 {item.group && (
                                   <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium flex-shrink-0 ${groupBadgeClass}`}>
                                     {item.group}
@@ -343,13 +345,13 @@ export default function RoadmapPage() {
         </div>
 
         {/* Right Column: Feature Requests */}
-        <div className="sticky top-8">
+        <div className="min-w-0 lg:sticky lg:top-8">
           <FeatureRequestList />
         </div>
       </div>
 
       {/* Discord CTA */}
-      <div className="mt-12 rounded-xl border border-border bg-muted/30 p-6 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+      <div className="mt-8 rounded-xl border border-border bg-muted/30 p-4 flex flex-col items-center gap-4 text-center sm:mt-12 sm:p-6 sm:flex-row sm:text-left">
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 flex-shrink-0">
           <MessageCircle className="h-6 w-6 text-primary" />
         </div>
