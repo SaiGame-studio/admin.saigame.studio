@@ -297,6 +297,8 @@ export const vi = {
     clearFilter: "Xóa bộ lọc"
   },
   game: {
+    desktopRecommendedTitle: "Nên dùng máy tính",
+    desktopRecommendedDesc: "Để có trải nghiệm tốt nhất khi quản lý game, hãy sử dụng máy tính hoặc màn hình rộng. Một số bảng dữ liệu và trình chỉnh sửa được thiết kế cho màn hình lớn.",
     shops: "Cửa hàng",
     quests: "Nhiệm vụ",
     leaderboards: "Bảng xếp hạng",

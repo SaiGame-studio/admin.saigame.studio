@@ -297,6 +297,8 @@ export const ja = {
     clearFilter: "フィルタークリア"
   },
   game: {
+    desktopRecommendedTitle: "デスクトップ推奨",
+    desktopRecommendedDesc: "ゲームを管理する最適な体験のために、デスクトップまたはワイドスクリーンでの表示をお勧めします。一部のテーブルや編集機能は広い画面向けに設計されています。",
     shops: "ショップ",
     quests: "クエスト",
     leaderboards: "リーダーボード",

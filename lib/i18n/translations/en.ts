@@ -297,6 +297,8 @@ export const en = {
     clearFilter: "Clear Filter"
   },
   game: {
+    desktopRecommendedTitle: "Desktop recommended",
+    desktopRecommendedDesc: "For the best experience managing your game, please use a desktop or widescreen view. Some tables and editors are designed for wider screens.",
     shops: "Shops",
     quests: "Quests",
     leaderboards: "Leaderboards",

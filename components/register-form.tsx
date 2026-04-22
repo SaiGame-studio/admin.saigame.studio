@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 import { GoogleLogin } from "@react-oauth/google"
 
@@ -35,6 +35,19 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  const [googleBtnWidth, setGoogleBtnWidth] = useState("300")
+
+  useEffect(() => {
+    const updateWidth = () => {
+      const vw = window.innerWidth
+      if (vw < 360) setGoogleBtnWidth("260")
+      else if (vw < 400) setGoogleBtnWidth("280")
+      else setGoogleBtnWidth("400")
+    }
+    updateWidth()
+    window.addEventListener("resize", updateWidth)
+    return () => window.removeEventListener("resize", updateWidth)
+  }, [])
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setIsGoogleLoading(true)
@@ -223,13 +236,13 @@ export function RegisterForm() {
                   <span className="bg-card px-2 text-muted-foreground">or</span>
                 </div>
               </div>
-              <div className="flex justify-center w-full">
+              <div className="flex justify-center w-full overflow-hidden">
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={() => setError("Google sign-in failed. Please try again.")}
                   theme="outline"
                   size="large"
-                  width="400"
+                  width={googleBtnWidth}
                   text="signup_with"
                   shape="rectangular"
                 />
