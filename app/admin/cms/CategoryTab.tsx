@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCenter, DragStartEvent, DragEndEvent, DragMoveEvent, DragOverEvent,
@@ -80,6 +80,17 @@ function countAll(cats: ContentCategory[]): number {
   let n = 0
   for (const c of cats) { n++; if (c.children?.length) n += countAll(c.children) }
   return n
+}
+
+function collectParentIds(cats: ContentCategory[]): string[] {
+  const ids: string[] = []
+  for (const c of cats) {
+    if (c.children?.length) {
+      ids.push(c.id)
+      ids.push(...collectParentIds(c.children))
+    }
+  }
+  return ids
 }
 
 // ─── Projection ──────────────────────────────────────────────────────────────
@@ -308,9 +319,18 @@ export function CategoryTab() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
+  const initialCollapseDone = useRef(false)
+
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    try { setCategories(await listCategoryTree()) }
+    try {
+      const tree = await listCategoryTree()
+      setCategories(tree)
+      if (!initialCollapseDone.current) {
+        setCollapsed(new Set(collectParentIds(tree)))
+        initialCollapseDone.current = true
+      }
+    }
     catch { setError("Failed to load categories") }
     finally { setLoading(false) }
   }, [])
