@@ -328,15 +328,16 @@ function CategoryMenuItem({
         )}
         style={{ paddingLeft: `${level * 30 + 12}px` }}
       >
-        {hasChildren && (
-          isOpen
-            ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
-            : <ChevronRight className="h-3 w-3 flex-shrink-0" />
-        )}
         {getCatName(category, locale)}
         {hasChildren && (
-          <span className="ml-auto text-xs text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 leading-none">
-            {children.length}
+          <span className="ml-auto flex items-center gap-1">
+            <span className="text-xs text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 leading-none">
+              {children.length}
+            </span>
+            {isOpen
+              ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
+              : <ChevronRight className="h-3 w-3 flex-shrink-0" />
+            }
           </span>
         )}
       </a>
