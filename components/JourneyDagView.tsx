@@ -78,6 +78,7 @@ import {
   type JourneyNodeStats,
 } from "@/lib/journey-api"
 import { listEventTypes } from "@/lib/event-type-api"
+import { CopyButton } from "@/components/CopyButton"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
 // ─── EventType Combobox ──────────────────────────────────────────────────────
@@ -1000,8 +1001,8 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     [setRfNodes, setUsedDefIds, scheduleSave],
   )
 
-  const loadDag = useCallback(async () => {
-    setDagLoading(true)
+  const loadDag = useCallback(async (silent = false) => {
+    if (!silent) setDagLoading(true)
     setDagError(null)
     try {
       const dag = await getJourneyDag(gameId, journeyId)
@@ -1027,7 +1028,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     } catch {
       setDagError(tRef.current("analytic.journeyDag.failedLoadDag"))
     } finally {
-      setDagLoading(false)
+      if (!silent) setDagLoading(false)
     }
   }, [gameId, journeyId, setRfNodes, setRfEdges])
 
@@ -1195,6 +1196,12 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     <NodeStatsContext.Provider value={nodeStatsMap}>
     <NodeDashboardStatsContext.Provider value={dashboardStatsMap}>
     <div className="space-y-2">
+      {/* Journey ID */}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span>ID:</span>
+        <code className="text-xs bg-muted px-1 py-0.5 rounded">{journeyId}</code>
+        <CopyButton text={journeyId} />
+      </div>
       {/* Toolbar */}
       <div className="flex items-center gap-2">
         <p className="text-sm text-muted-foreground">{description || t("analytic.journeyDag.noDescription")}</p>
@@ -1267,6 +1274,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
               deleteKeyCode={["Delete", "Backspace"]}
               fitView
               fitViewOptions={{ padding: 0.25 }}
+              minZoom={0.01}
               proOptions={{ hideAttribution: true }}
               onDragOver={onDragOver}
               onDrop={onDrop}
@@ -1289,7 +1297,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 variant="outline"
                 size="icon"
                 className="h-7 w-7 bg-background/80 backdrop-blur-sm"
-                onClick={() => { loadDag(); loadDefs() }}
+                onClick={() => { loadDag(true); loadDefs(); loadStats(); loadDashboard() }}
                 title={t("analytic.journeyDag.refreshDag")}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
