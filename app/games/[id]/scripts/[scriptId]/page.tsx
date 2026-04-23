@@ -162,6 +162,8 @@ export default function ScriptEditPage() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
   const [savingName, setSavingName] = useState(false)
+  const [editingDescription, setEditingDescription] = useState(false)
+  const [descInput, setDescInput] = useState("")
   const [samplesCollapsed, setSamplesCollapsed] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("scripts_samples_collapsed") === "true"
@@ -337,13 +339,17 @@ export default function ScriptEditPage() {
   }, [])
 
   async function handleSaveInfo() {
+    const next = descInput.trim()
+    if (next === description) { setEditingDescription(false); return }
     setSavingInfo(true)
     try {
       const updated = await updateScript(gameId, scriptId, {
-        description,
+        description: next,
         is_active: isActive,
       })
       setScript(updated)
+      setDescription(next)
+      setEditingDescription(false)
       toast({ title: t('scripts.toastInfoSaved') })
     } catch (err: unknown) {
       toast({ variant: "destructive", title: t('scripts.toastFailedSaveInfo'), description: err instanceof Error ? err.message : undefined })
@@ -481,25 +487,46 @@ export default function ScriptEditPage() {
 
       {/* ── Info bar ─────────────────────────────────────────────────────── */}
       <div className="px-6 py-3 shrink-0 bg-muted/20 border-b flex items-end gap-4 flex-wrap">
-        <div className="flex-1 min-w-[200px] space-y-1">
+        <div className="flex-1 min-w-[200px] space-y-1 group">
           <Label htmlFor="edit-desc" className="text-xs text-muted-foreground">{t('scripts.labelDescription')}</Label>
-          <Input
-            id="edit-desc"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder={t('scripts.placeholderDescription')}
-            className="h-8 text-sm"
-            disabled={loading}
-          />
+          {editingDescription ? (
+            <div className="flex items-center gap-1.5">
+              <Input
+                id="edit-desc"
+                value={descInput}
+                onChange={e => setDescInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") handleSaveInfo()
+                  if (e.key === "Escape") setEditingDescription(false)
+                }}
+                placeholder={t('scripts.placeholderDescription')}
+                className="h-8 text-sm"
+                disabled={savingInfo}
+                autoFocus
+              />
+              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={handleSaveInfo} disabled={savingInfo}>
+                {savingInfo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingDescription(false)} disabled={savingInfo}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 h-8">
+              <span className={`text-sm truncate ${description ? "" : "italic text-muted-foreground/60"}`}>
+                {description || t('scripts.placeholderDescription')}
+              </span>
+              <Button
+                size="icon" variant="ghost"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => { setDescInput(description); setEditingDescription(true) }}
+                disabled={loading}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleSaveInfo} disabled={loading || savingInfo}>
-              {savingInfo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{t('scripts.tooltipSaveInfo')}</TooltipContent>
-        </Tooltip>
         <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" title={t('scripts.tooltipRefresh')} onClick={loadData} disabled={loading}>
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
