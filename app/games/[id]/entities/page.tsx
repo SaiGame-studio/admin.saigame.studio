@@ -148,7 +148,6 @@ interface FormState {
   entity_type: EntityType
   name: string
   description: string
-  icon_url: string
   rarity: EntityRarity | ""
   stats: string       // JSON string
   abilities: string   // JSON string
@@ -160,7 +159,6 @@ const emptyForm = (): FormState => ({
   entity_type: "enemy",
   name: "",
   description: "",
-  icon_url: "",
   rarity: "",
   stats: "",
   abilities: "",
@@ -173,7 +171,6 @@ function entityToForm(e: EntityDefinition): FormState {
     entity_type: e.entity_type,
     name: e.name,
     description: e.description ?? "",
-    icon_url: e.icon_url ?? "",
     rarity: e.rarity ?? "",
     stats: e.stats ? JSON.stringify(e.stats, null, 2) : "",
     abilities: e.abilities ? JSON.stringify(e.abilities, null, 2) : "",
@@ -335,7 +332,6 @@ function EntityInlineEditForm({
         entity_type: form.entity_type,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        icon_url: form.icon_url.trim() || undefined,
         rarity: (form.rarity || undefined) as EntityRarity | undefined,
         stats: tryParseJson(form.stats),
         abilities: tryParseJson(form.abilities) as any,
@@ -652,27 +648,6 @@ function EntityInlineEditForm({
                 <>
                   <span className="text-sm">{entity.description || <span className="text-muted-foreground text-xs">—</span>}</span>
                   <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
-            </dd>
-          </div>
-
-          {/* icon_url */}
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldIconUrl')}</dt>
-            <dd className="group flex items-center gap-1.5">
-              {isEditing("icon_url") ? (
-                <>
-                  {form.icon_url && <img src={form.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" />}
-                  <Input value={form.icon_url} onChange={(e) => setField("icon_url", e.target.value)} className="h-7 text-sm flex-1" placeholder="https://..." disabled={saving} />
-                  {saveCancel}
-                </>
-              ) : (
-                <>
-                  {entity.icon_url
-                    ? <div className="flex items-center gap-2"><img src={entity.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" /><span className="text-xs font-mono text-muted-foreground break-all">{entity.icon_url}</span></div>
-                    : <span className="text-muted-foreground text-xs">—</span>}
-                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("icon_url")}><Pencil className="w-3.5 h-3.5" /></Button>
                 </>
               )}
             </dd>
@@ -1170,7 +1145,6 @@ export default function EntitiesPage() {
         entity_type: form.entity_type,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        icon_url: form.icon_url.trim() || undefined,
         rarity: form.rarity || undefined,
         stats: tryParseJson(form.stats),
         abilities: tryParseJson(form.abilities) as any,
@@ -1369,12 +1343,7 @@ export default function EntitiesPage() {
                               <TableCell>
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                               </TableCell>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  {entity.icon_url && <img src={entity.icon_url} alt="" className="h-6 w-6 rounded border bg-muted shrink-0" />}
-                                  {entity.name}
-                                </div>
-                              </TableCell>
+                              <TableCell className="font-medium">{entity.name}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1.5 font-mono text-xs">
                                   {entity.entity_key}
@@ -1562,17 +1531,6 @@ export default function EntitiesPage() {
                 onChange={(e) => setField("description", e.target.value.slice(0, 500))}
               />
               <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
-            </div>
-
-            {/* icon_url */}
-            <div className="space-y-1.5">
-              <Label htmlFor="icon_url">{t('entity.fieldIconUrl')}</Label>
-              <Input
-                id="icon_url"
-                placeholder={t('entity.iconUrlPlaceholder')}
-                value={form.icon_url}
-                onChange={(e) => setField("icon_url", e.target.value)}
-              />
             </div>
 
             {/* stats */}
