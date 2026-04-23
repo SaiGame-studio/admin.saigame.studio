@@ -114,7 +114,7 @@ function randomAbilityId() {
 
 function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
   if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
-  const c = ENTITY_RARITY_COLORS[rarity]
+  const c = ENTITY_RARITY_COLORS[rarity] ?? { text: 'text-muted-foreground', border: 'border-muted', bg: 'bg-muted/30' }
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}
@@ -159,7 +159,7 @@ const emptyForm = (): FormState => ({
   entity_type: "enemy",
   name: "",
   description: "",
-  rarity: "",
+  rarity: "common",
   stats: "",
   abilities: "",
   metadata: "",
