@@ -309,7 +309,7 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
               type="button"
               onClick={(e) => { e.stopPropagation(); setEventsOpen((v) => !v) }}
               className="absolute -top-2.5 -right-2.5 z-10 flex items-center gap-0.5 bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-white dark:border-background"
-              title={`${sessionEvents!.length} event${sessionEvents!.length !== 1 ? "s" : ""} in this session`}
+              title={t("analytic.journeyDag.eventsInThisSession").replace("{count}", String(sessionEvents!.length))}
             >
               <Zap className="h-3 w-3" />
               {sessionEvents!.length}
@@ -1164,7 +1164,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
       setSessionEventsMap(map)
       setSessionEventsTotal(res.total ?? events.length)
     } catch (err: any) {
-      setSessionEventsError(err?.message ?? "Failed to load session events")
+      setSessionEventsError(err?.message ?? tRef.current("analytic.journeyDag.failedLoadSessionEvents"))
       setSessionEventsMap(new Map())
       setSessionEventsTotal(null)
     } finally {
@@ -1298,13 +1298,13 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
       {/* Journey ID + Session inspector (same row) */}
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2 text-xs">
         <div className="flex items-center gap-1.5 text-muted-foreground h-8">
-          <span>Journey ID:</span>
+          <span>{t("analytic.journeyDag.journeyId")}</span>
           <code className="text-xs bg-muted px-1 py-0.5 rounded">{journeyId}</code>
           <CopyButton text={journeyId} />
         </div>
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Label className="text-xs font-medium">Session ID:</Label>
+            <Label className="text-xs font-medium">{t("analytic.journeyDag.sessionId")}</Label>
             <Input
               value={sessionIdInput}
               onChange={(e) => setSessionIdInput(e.target.value)}
@@ -1314,7 +1314,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
                   setActiveSessionId(sessionIdInput.trim() || null)
                 }
               }}
-              placeholder="session UUID"
+              placeholder={t("analytic.journeyDag.sessionUuidPlaceholder")}
               className="h-8 text-xs font-mono w-[360px] max-w-full"
             />
             <Button
@@ -1324,7 +1324,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
               onClick={() => setActiveSessionId(sessionIdInput.trim() || null)}
               disabled={sessionEventsLoading || !sessionIdInput.trim()}
             >
-              {sessionEventsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Load"}
+              {sessionEventsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("analytic.journeyDag.load")}
             </Button>
             {activeSessionId && (
               <Button
@@ -1333,7 +1333,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
                 className="h-8 text-xs"
                 onClick={() => { setSessionIdInput(""); setActiveSessionId(null) }}
               >
-                <X className="h-3.5 w-3.5 mr-1" /> Clear
+                <X className="h-3.5 w-3.5 mr-1" /> {t("analytic.journeyDag.clear")}
               </Button>
             )}
           </div>
@@ -1341,10 +1341,12 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, i
             <span className="text-[11px] text-destructive">{sessionEventsError}</span>
           ) : activeSessionId && sessionEventsTotal != null ? (
             <span className="text-[11px] text-muted-foreground">
-              {sessionEventsTotal} event{sessionEventsTotal !== 1 ? "s" : ""} matched on {sessionEventsMap.size} event type{sessionEventsMap.size !== 1 ? "s" : ""}
+              {t("analytic.journeyDag.eventsMatchedOnTypes")
+                .replace("{count}", String(sessionEventsTotal))
+                .replace("{types}", String(sessionEventsMap.size))}
             </span>
           ) : (
-            <span className="text-[11px] text-muted-foreground">Paste a session UUID to highlight events on the DAG.</span>
+            <span className="text-[11px] text-muted-foreground">{t("analytic.journeyDag.pasteSessionToHighlight")}</span>
           )}
         </div>
         <div className="ml-auto self-end flex items-center h-8">
