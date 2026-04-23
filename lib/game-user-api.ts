@@ -597,6 +597,71 @@ export async function getBattleSessions(
   return api.get(`/api/v1/games/${gameId}/players/${playerId}/battle-sessions${query ? `?${query}` : ""}`)
 }
 
+// ─── Journey Sessions ─────────────────────────────────────────────────────────
+
+export interface JourneySession {
+  session_id: string
+  started_at: string
+  ended_at: string | null
+  event_count: number
+}
+
+export interface JourneySessionsResult {
+  game_id: string
+  user_id: string
+  from: string | null
+  to: string | null
+  limit: number
+  offset: number
+  total: number
+  sessions: JourneySession[]
+}
+
+export async function getJourneySessions(
+  gameId: string,
+  userId: string,
+  params?: { limit?: number; offset?: number; from?: string; to?: string },
+): Promise<JourneySessionsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  if (params?.from)           qs.set("from",   params.from)
+  if (params?.to)             qs.set("to",     params.to)
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${gameId}/players/${userId}/sessions${query ? `?${query}` : ""}`)
+}
+
+export interface JourneyEvent {
+  id: string
+  game_id: string
+  user_id: string
+  event_type: string
+  event_data: Record<string, unknown> | null
+  session_id: string
+  occurred_at: string
+}
+
+export interface JourneyEventsResult {
+  game_id: string
+  session_id: string
+  limit: number
+  offset: number
+  total: number
+  events: JourneyEvent[]
+}
+
+export async function getJourneySessionEvents(
+  gameId: string,
+  sessionId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<JourneyEventsResult> {
+  const qs = new URLSearchParams()
+  if (params?.limit  != null) qs.set("limit",  String(params.limit))
+  if (params?.offset != null) qs.set("offset", String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${gameId}/sessions/${sessionId}/events${query ? `?${query}` : ""}`)
+}
+
 // ─── Player Equipped Items ────────────────────────────────────────────────────
 
 export interface PlayerEquippedItem {

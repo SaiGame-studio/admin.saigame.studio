@@ -11,6 +11,7 @@ import {
   MarkerType,
   Handle,
   Position,
+  SelectionMode,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -78,6 +79,8 @@ import {
   type JourneyNodeStats,
 } from "@/lib/journey-api"
 import { listEventTypes } from "@/lib/event-type-api"
+import { getJourneySessionEvents, type JourneyEvent } from "@/lib/game-user-api"
+import { CopyButton } from "@/components/CopyButton"
 import { useTranslation } from "@/lib/i18n/use-translation"
 
 // ─── EventType Combobox ──────────────────────────────────────────────────────
@@ -210,6 +213,9 @@ const NodeStatsContext = React.createContext<Map<string, { playerCount: number; 
 /** Maps journey-node ID → dashboard stats (total_reached, currently_at, drop_off_rate) */
 const NodeDashboardStatsContext = React.createContext<Map<string, JourneyNodeStats>>(new Map())
 
+/** Maps event_type → events from the inspected session (in occurred_at ASC order) */
+const SessionEventsContext = React.createContext<Map<string, JourneyEvent[]>>(new Map())
+
 // ─── Node action context ─────────────────────────────────────────────────────
 
 const DagNodeActionsContext = React.createContext<{
@@ -242,11 +248,15 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
   const { onEdit, onDelete, onChangeType } = useContext(DagNodeActionsContext)
   const statsMap = useContext(NodeStatsContext)
   const dashboardStatsMap = useContext(NodeDashboardStatsContext)
+  const sessionEventsMap = useContext(SessionEventsContext)
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
   const stats = statsMap.get(data.eventType)
   const dashboardStats = dashboardStatsMap.get(id)
+  const sessionEvents = sessionEventsMap.get(data.eventType)
+  const sessionHit = !!sessionEvents && sessionEvents.length > 0
   const [copied, setCopied] = useState(false)
+  const [eventsOpen, setEventsOpen] = useState(false)
 
   const handleCopyEventType = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -282,6 +292,8 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         "group rounded-lg border bg-card text-card-foreground shadow-sm px-3 py-2 select-none relative",
         isStart && "border-green-500 ring-1 ring-green-500",
         isEnd && "border-orange-400 ring-1 ring-orange-400",
+        sessionHit && !isStart && !isEnd && "border-sky-500 ring-2 ring-sky-400/70",
+        sessionHit && (isStart || isEnd) && "ring-2 ring-sky-400/70",
       )}
       style={{ width: NODE_W, minHeight: NODE_H }}
     >
@@ -290,6 +302,44 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         position={Position.Left}
         className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background"
       />
+      {sessionHit && (
+        <Popover open={eventsOpen} onOpenChange={setEventsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEventsOpen((v) => !v) }}
+              className="absolute -top-2.5 -right-2.5 z-10 flex items-center gap-0.5 bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-white dark:border-background"
+              title={`${sessionEvents!.length} event${sessionEvents!.length !== 1 ? "s" : ""} in this session`}
+            >
+              <Zap className="h-3 w-3" />
+              {sessionEvents!.length}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[320px] p-0" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b">
+              <p className="text-sm font-medium leading-tight">{data.name}</p>
+              <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{data.eventType}</p>
+            </div>
+            <div className="max-h-[320px] overflow-auto p-2 space-y-1.5">
+              {sessionEvents!.map((ev, idx) => (
+                <div key={ev.id} className="rounded border bg-muted/30 p-2">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                    <span>#{idx + 1}</span>
+                    <span>{new Date(ev.occurred_at).toLocaleString()}</span>
+                  </div>
+                  {ev.event_data && Object.keys(ev.event_data).length > 0 ? (
+                    <pre className="text-[10px] font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                      {JSON.stringify(ev.event_data, null, 2)}
+                    </pre>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
       {stats && (
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 whitespace-nowrap">
           <div
@@ -671,7 +721,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                         {def.event_type}
                       </Badge>
                     </div>
-                    <div className="flex gap-0.5 shrink-0">
+                    <div className="flex flex-col gap-0.5 shrink-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -881,9 +931,11 @@ interface Props {
   journeyId: string
   description?: string
   maxNodeDefinitions?: number
+  /** Optional initial session ID to inspect (events will be fetched and highlighted on DAG). */
+  initialSessionId?: string
 }
 
-function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
+function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, initialSessionId }: Props) {
   const { t } = useTranslation()
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { toast } = useToast()
@@ -916,6 +968,14 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   const [dashboardStatsMap, setDashboardStatsMap] = useState<Map<string, JourneyNodeStats>>(new Map())
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardRefreshedAt, setDashboardRefreshedAt] = useState<string | null>(null)
+
+  // Session inspection (given a session_id, fetch its events and map by event_type)
+  const [sessionIdInput, setSessionIdInput] = useState(initialSessionId ?? "")
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(initialSessionId ?? null)
+  const [sessionEventsMap, setSessionEventsMap] = useState<Map<string, JourneyEvent[]>>(new Map())
+  const [sessionEventsLoading, setSessionEventsLoading] = useState(false)
+  const [sessionEventsError, setSessionEventsError] = useState<string | null>(null)
+  const [sessionEventsTotal, setSessionEventsTotal] = useState<number | null>(null)
 
   // Refs updated inline each render — lets the debounced callback read fresh state
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1000,8 +1060,8 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     [setRfNodes, setUsedDefIds, scheduleSave],
   )
 
-  const loadDag = useCallback(async () => {
-    setDagLoading(true)
+  const loadDag = useCallback(async (silent = false) => {
+    if (!silent) setDagLoading(true)
     setDagError(null)
     try {
       const dag = await getJourneyDag(gameId, journeyId)
@@ -1027,7 +1087,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     } catch {
       setDagError(tRef.current("analytic.journeyDag.failedLoadDag"))
     } finally {
-      setDagLoading(false)
+      if (!silent) setDagLoading(false)
     }
   }, [gameId, journeyId, setRfNodes, setRfEdges])
 
@@ -1086,6 +1146,42 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   useEffect(() => { loadDag(); loadDefs() }, [loadDag, loadDefs])
   useEffect(() => { loadStats() }, [loadStats])
   useEffect(() => { loadDashboard() }, [loadDashboard])
+
+  const loadSessionEvents = useCallback(async (sessionId: string) => {
+    setSessionEventsLoading(true)
+    setSessionEventsError(null)
+    try {
+      const res = await getJourneySessionEvents(gameId, sessionId, { limit: 500, offset: 0 })
+      const events = (res.events ?? [])
+        .slice()
+        .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime())
+      const map = new Map<string, JourneyEvent[]>()
+      for (const ev of events) {
+        const arr = map.get(ev.event_type) ?? []
+        arr.push(ev)
+        map.set(ev.event_type, arr)
+      }
+      setSessionEventsMap(map)
+      setSessionEventsTotal(res.total ?? events.length)
+    } catch (err: any) {
+      setSessionEventsError(err?.message ?? "Failed to load session events")
+      setSessionEventsMap(new Map())
+      setSessionEventsTotal(null)
+    } finally {
+      setSessionEventsLoading(false)
+    }
+  }, [gameId])
+
+  // Auto-fetch when activeSessionId changes
+  useEffect(() => {
+    if (activeSessionId) {
+      loadSessionEvents(activeSessionId)
+    } else {
+      setSessionEventsMap(new Map())
+      setSessionEventsTotal(null)
+      setSessionEventsError(null)
+    }
+  }, [activeSessionId, loadSessionEvents])
 
   const addNodeToDag = useCallback(
     (def: JourneyDagNodeDefinition, x: number, y: number) => {
@@ -1194,11 +1290,64 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     <DagNodeActionsContext.Provider value={nodeActions}>
     <NodeStatsContext.Provider value={nodeStatsMap}>
     <NodeDashboardStatsContext.Provider value={dashboardStatsMap}>
+    <SessionEventsContext.Provider value={sessionEventsMap}>
     <div className="space-y-2">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <p className="text-sm text-muted-foreground">{description || t("analytic.journeyDag.noDescription")}</p>
-        <div className="ml-auto flex items-center gap-2">
+      {/* Journey description */}
+      <p className="text-sm text-muted-foreground">{description || t("analytic.journeyDag.noDescription")}</p>
+
+      {/* Journey ID + Session inspector (same row) */}
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground h-8">
+          <span>Journey ID:</span>
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">{journeyId}</code>
+          <CopyButton text={journeyId} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-xs font-medium">Session ID:</Label>
+            <Input
+              value={sessionIdInput}
+              onChange={(e) => setSessionIdInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  setActiveSessionId(sessionIdInput.trim() || null)
+                }
+              }}
+              placeholder="session UUID"
+              className="h-8 text-xs font-mono w-[360px] max-w-full"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setActiveSessionId(sessionIdInput.trim() || null)}
+              disabled={sessionEventsLoading || !sessionIdInput.trim()}
+            >
+              {sessionEventsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Load"}
+            </Button>
+            {activeSessionId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setSessionIdInput(""); setActiveSessionId(null) }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+          {sessionEventsError ? (
+            <span className="text-[11px] text-destructive">{sessionEventsError}</span>
+          ) : activeSessionId && sessionEventsTotal != null ? (
+            <span className="text-[11px] text-muted-foreground">
+              {sessionEventsTotal} event{sessionEventsTotal !== 1 ? "s" : ""} matched on {sessionEventsMap.size} event type{sessionEventsMap.size !== 1 ? "s" : ""}
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">Paste a session UUID to highlight events on the DAG.</span>
+          )}
+        </div>
+        <div className="ml-auto self-end flex items-center h-8">
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
@@ -1265,8 +1414,13 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
               nodeTypes={nodeTypes}
               onConnect={onConnect}
               deleteKeyCode={["Delete", "Backspace"]}
+              selectionOnDrag
+              panOnDrag={[1, 2]}
+              selectionMode={SelectionMode.Partial}
+              multiSelectionKeyCode={["Meta", "Control"]}
               fitView
               fitViewOptions={{ padding: 0.25 }}
+              minZoom={0.01}
               proOptions={{ hideAttribution: true }}
               onDragOver={onDragOver}
               onDrop={onDrop}
@@ -1289,7 +1443,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 variant="outline"
                 size="icon"
                 className="h-7 w-7 bg-background/80 backdrop-blur-sm"
-                onClick={() => { loadDag(); loadDefs() }}
+                onClick={() => { loadDag(true); loadDefs(); loadStats(); loadDashboard() }}
                 title={t("analytic.journeyDag.refreshDag")}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -1331,6 +1485,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
 
     </div>
     </div>
+    </SessionEventsContext.Provider>
     </NodeDashboardStatsContext.Provider>
     </NodeStatsContext.Provider>
     </DagNodeActionsContext.Provider>
@@ -1339,10 +1494,16 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
 
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function JourneyDagView({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
+export function JourneyDagView({ gameId, journeyId, description, maxNodeDefinitions, initialSessionId }: Props) {
   return (
     <ReactFlowProvider>
-      <JourneyDagInner gameId={gameId} journeyId={journeyId} description={description} maxNodeDefinitions={maxNodeDefinitions} />
+      <JourneyDagInner
+        gameId={gameId}
+        journeyId={journeyId}
+        description={description}
+        maxNodeDefinitions={maxNodeDefinitions}
+        initialSessionId={initialSessionId}
+      />
     </ReactFlowProvider>
   )
 }
