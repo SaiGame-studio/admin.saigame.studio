@@ -944,11 +944,14 @@ export default function AnalyticPage() {
   const rawJourneyParam = searchParams.get("journey")
   const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null)
 
-  // When session_id is present but no journey is expanded, auto-open the first journey
+  // When session_id is present but no journey is expanded, auto-open the first journey — only once
+  const autoOpenedForSessionRef = useRef(false)
   useEffect(() => {
-    if (!expandedJourneyId && searchParams.get("session_id") && journeys.length > 0) {
-      setExpandedJourneyIdState(journeys[0].id)
-    }
+    if (autoOpenedForSessionRef.current) return
+    if (!searchParams.get("session_id")) return
+    if (expandedJourneyId || journeys.length === 0) return
+    autoOpenedForSessionRef.current = true
+    setExpandedJourneyIdState(journeys[0].id)
   }, [expandedJourneyId, journeys, searchParams])
 
   const setExpandedJourneyId = useCallback((id: string | null) => {
