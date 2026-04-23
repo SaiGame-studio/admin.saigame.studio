@@ -1,3 +1,16 @@
+## Language Rules
+
+### 0. English-Only Code & Comments
+All code, comments, variable names, function names, commit messages, and documentation **must be written in English only**.
+
+**Requirements:**
+- Never write comments, inline notes, or log messages in Vietnamese or any language other than English.
+- Never use non-English characters in identifiers, string literals (except translation files), or file names.
+- The **only** exception is translation/i18n resource files (e.g., `locales/vi/*.json`, `messages/vi.json`), where non-English content is expected and required.
+- If asked a question in Vietnamese, respond but always produce code and comments in English.
+
+---
+
 ## Automation Test Rules
 
 ### 1. Compliance Reporting & Verification
