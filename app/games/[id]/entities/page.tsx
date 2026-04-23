@@ -774,7 +774,7 @@ function EntityInlineEditForm({
                     </div>
                   )
                 })}
-                {gachaPacks.length > 0 && (
+                {gachaPacks.length > 0 ? (
                   <Select onValueChange={addDropPack} disabled={saving}>
                     <SelectTrigger className="h-7 text-xs mt-1">
                       <SelectValue placeholder="Link a gacha pack…" />
@@ -788,6 +788,13 @@ function EntityInlineEditForm({
                       ))}
                     </SelectContent>
                   </Select>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic mt-1">
+                    {t('entity.noGachaPacksInGame')}{" "}
+                    <Link href={`/games/${gameId}/items?tab=gacha`} target="_blank" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      {t('entity.createGachaPack')}<ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </p>
                 )}
               </div>
             </dd>

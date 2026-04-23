@@ -97,7 +97,11 @@
       "Bash(awk '/^  leaderboard: \\\\{/,/^  \\\\},/' lib/i18n/translations/en.ts)",
       "Bash(awk '/^  leaderboard: \\\\{/,/^  \\\\},/' lib/i18n/translations/ja.ts)",
       "Bash(awk 'NR==1198{print; next} NR>=1199 && NR<=1330 {next} {print}' \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/analytic/page.tsx\")",
-      "Bash(mv \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/analytic/page.tsx.new\" \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/analytic/page.tsx\")"
+      "Bash(mv \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/analytic/page.tsx.new\" \"g:/Projects/ss/admin.saigame.studio/app/games/[id]/analytic/page.tsx\")",
+      "Bash(grep -nE '\"[A-Z][a-z]+\\([ \\\\t][A-Z]?[a-z]+\\){0,5}[\\\\.\\\\?\\\\!]?\"' \"g:/Projects/ss/admin.saigame.studio/components/JourneyDagView.tsx\")",
+      "Bash(grep -nE '>[A-Z][a-zA-Z ]{2,}<' \"g:/Projects/ss/admin.saigame.studio/components/JourneyDagView.tsx\")",
+      "Bash(grep -nE '\\(\"[A-Z][a-z][^\"]{2,}\"|>[A-Z][a-zA-Z ]{3,}<\\)' \"g:/Projects/ss/admin.saigame.studio/components/JourneyDagView.tsx\")",
+      "Bash(grep -nE '\\(>\"[^\"]+\"|placeholder=\"[^\"]+|title=`[^`]+`|\"[A-Z][a-z][^\"]+\"\\)' \"g:/Projects/ss/admin.saigame.studio/components/JourneyDagView.tsx\")"
     ],
     "additionalDirectories": [
       "g:\\Projects\\ss\\admin.saigame.studio\\app\\games\\[id]\\quests",
