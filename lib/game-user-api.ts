@@ -643,7 +643,6 @@ export interface JourneyEvent {
 
 export interface JourneyEventsResult {
   game_id: string
-  user_id: string
   session_id: string
   limit: number
   offset: number
@@ -653,7 +652,6 @@ export interface JourneyEventsResult {
 
 export async function getJourneySessionEvents(
   gameId: string,
-  userId: string,
   sessionId: string,
   params?: { limit?: number; offset?: number },
 ): Promise<JourneyEventsResult> {
@@ -661,7 +659,7 @@ export async function getJourneySessionEvents(
   if (params?.limit  != null) qs.set("limit",  String(params.limit))
   if (params?.offset != null) qs.set("offset", String(params.offset))
   const query = qs.toString()
-  return api.get(`/api/v1/games/${gameId}/players/${userId}/sessions/${sessionId}/events${query ? `?${query}` : ""}`)
+  return api.get(`/api/v1/games/${gameId}/sessions/${sessionId}/events${query ? `?${query}` : ""}`)
 }
 
 // ─── Player Equipped Items ────────────────────────────────────────────────────

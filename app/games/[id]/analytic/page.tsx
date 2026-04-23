@@ -100,11 +100,12 @@ interface JourneyTabProps {
   maxNodeDefinitions?: number
   expandedJourneyId: string | null
   setExpandedJourneyId: (id: string | null) => void
+  initialSessionId?: string
 }
 
 const JOURNEY_LIMIT = 1000
 
-function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId }: JourneyTabProps) {
+function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId, initialSessionId }: JourneyTabProps) {
   const { toast } = useToast()
   const { t } = useTranslation()
 
@@ -387,7 +388,13 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                   {expandedJourneyId === j.id && (
                     <TableRow>
                       <TableCell colSpan={5} className="p-4 bg-muted/10">
-                        <JourneyDagView gameId={gameId} journeyId={j.id} description={j.description} maxNodeDefinitions={maxNodeDefinitions} />
+                        <JourneyDagView
+                          gameId={gameId}
+                          journeyId={j.id}
+                          description={j.description}
+                          maxNodeDefinitions={maxNodeDefinitions}
+                          initialSessionId={initialSessionId}
+                        />
                       </TableCell>
                     </TableRow>
                   )}
@@ -937,6 +944,13 @@ export default function AnalyticPage() {
   const rawJourneyParam = searchParams.get("journey")
   const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null)
 
+  // When session_id is present but no journey is expanded, auto-open the first journey
+  useEffect(() => {
+    if (!expandedJourneyId && searchParams.get("session_id") && journeys.length > 0) {
+      setExpandedJourneyIdState(journeys[0].id)
+    }
+  }, [expandedJourneyId, journeys, searchParams])
+
   const setExpandedJourneyId = useCallback((id: string | null) => {
     setExpandedJourneyIdState(id)
     const sp = new URLSearchParams(searchParams.toString())
@@ -1163,6 +1177,7 @@ export default function AnalyticPage() {
             maxNodeDefinitions={game?.limits?.max_node_definitions}
             expandedJourneyId={expandedJourneyId}
             setExpandedJourneyId={setExpandedJourneyId}
+            initialSessionId={searchParams.get("session_id") ?? undefined}
           />
         )}
         {activeTab === "event-types" && (

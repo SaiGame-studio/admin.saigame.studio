@@ -1204,11 +1204,10 @@ export default function GameUserProgressDetailPage({
   }, [gameId, detail, journeyOffset])
 
   const loadJourneyEvents = useCallback(async (sessionId: string) => {
-    if (!detail?.user_id) return
     setJourneyEventsLoading(prev => { const n = new Set(prev); n.add(sessionId); return n })
     setJourneyEventsError(prev => { const n = { ...prev }; delete n[sessionId]; return n })
     try {
-      const res = await getJourneySessionEvents(gameId, detail.user_id, sessionId, { limit: JOURNEY_EVENTS_LIMIT, offset: 0 })
+      const res = await getJourneySessionEvents(gameId, sessionId, { limit: JOURNEY_EVENTS_LIMIT, offset: 0 })
       setJourneyEvents(prev => ({ ...prev, [sessionId]: res.events ?? [] }))
       setJourneyEventsTotal(prev => ({ ...prev, [sessionId]: res.total ?? 0 }))
     } catch (err: any) {
@@ -1216,7 +1215,7 @@ export default function GameUserProgressDetailPage({
     } finally {
       setJourneyEventsLoading(prev => { const n = new Set(prev); n.delete(sessionId); return n })
     }
-  }, [gameId, detail])
+  }, [gameId])
 
   const toggleJourneyRow = useCallback((sessionId: string) => {
     setJourneyExpandedRows(prev => {
@@ -2834,6 +2833,7 @@ export default function GameUserProgressDetailPage({
                       <TableHead>Started</TableHead>
                       <TableHead>Ended</TableHead>
                       <TableHead className="text-right">Events</TableHead>
+                      <TableHead className="w-[100px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2846,26 +2846,37 @@ export default function GameUserProgressDetailPage({
                       return (
                         <Fragment key={session.session_id}>
                           <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleJourneyRow(session.session_id)}>
-                            <TableCell>
+                            <TableCell className="py-2">
                               {expanded
                                 ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                 : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="py-2">
                               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                 <span className="font-mono text-xs">{session.session_id}</span>
                                 <CopyButton text={session.session_id} />
                               </div>
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{formatISODate(session.started_at)}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{session.ended_at ? formatISODate(session.ended_at) : "—"}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="py-2 text-xs text-muted-foreground">{formatISODate(session.started_at)}</TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground">{session.ended_at ? formatISODate(session.ended_at) : "—"}</TableCell>
+                            <TableCell className="py-2 text-right">
                               <Badge variant="secondary" className="text-xs">{session.event_count}</Badge>
+                            </TableCell>
+                            <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <a
+                                href={`/games/${gameId}/analytic?tab=journey&session_id=${session.session_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="View in analytics"
+                                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
                             </TableCell>
                           </TableRow>
                           {expanded && (
                             <TableRow>
-                              <TableCell colSpan={5} className="bg-muted/30 p-4">
+                              <TableCell colSpan={6} className="bg-muted/30 p-4">
                                 {eventsLoading ? (
                                   <div className="space-y-2">
                                     {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
