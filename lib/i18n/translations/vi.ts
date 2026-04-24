@@ -2817,6 +2817,10 @@ export const vi = {
     failedDeleteEntry: "Xóa mục thất bại",
     failedUpdateWeight: "Cập nhật trọng số thất bại",
     failedUpdate: "Cập nhật thất bại",
+    poolLimitReached: "Đã đạt giới hạn {max} pools mỗi game",
+    entriesLimitReached: "Đã đạt giới hạn {max} entries mỗi pool",
+    weightRange: "Trọng số phải từ {min} đến {max}",
+    nameTooLong: "Tên tối đa {max} ký tự",
   },
   quest: {
     // Tabs
