@@ -2837,6 +2837,10 @@ export const en = {
     failedDeleteEntry: "Failed to delete entry",
     failedUpdateWeight: "Failed to update weight",
     failedUpdate: "Failed to update",
+    poolLimitReached: "Maximum {max} pools per game reached",
+    entriesLimitReached: "Maximum {max} entries per pool reached",
+    weightRange: "Weight must be between {min} and {max}",
+    nameTooLong: "Name must be at most {max} characters",
   },
 
   quest: {

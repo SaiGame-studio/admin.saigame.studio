@@ -2805,6 +2805,10 @@ export const ja = {
     failedDeleteEntry: "エントリーの削除に失敗しました",
     failedUpdateWeight: "ウェイトの更新に失敗しました",
     failedUpdate: "更新に失敗しました",
+    poolLimitReached: "ゲームあたり最大 {max} プールに達しました",
+    entriesLimitReached: "プールあたり最大 {max} エントリに達しました",
+    weightRange: "ウェイトは {min} から {max} の範囲で入力してください",
+    nameTooLong: "名前は最大 {max} 文字です",
   },
   quest: {
     // Tabs

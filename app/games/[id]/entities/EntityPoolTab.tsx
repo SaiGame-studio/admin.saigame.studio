@@ -18,15 +18,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
-import { listEntityPools, getEntityPool, updateEntityPool, createEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
+import { listEntityPools, getEntityPool, updateEntityPool, createEntityPool, deleteEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
 import { listGachaPacks } from "@/lib/inventory-api"
 import type { GachaPack } from "@/types/inventory"
 import { ApiError } from "@/lib/api-client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import type { EntityPool, EntityPoolEntry, EntityRarity, EntityDefinition } from "@/types/entity-definition"
 import { ENTITY_RARITY_COLORS, ENTITY_TYPE_LABELS } from "@/types/entity-definition"
 import { CopyButton } from "@/components/CopyButton"
+
+// Backend limits — entity_pool.go:23-30
+const MAX_POOLS_PER_GAME = 1000
+const MAX_ENTRIES_PER_POOL = 200
+const MAX_POOL_NAME_LENGTH = 128
+const MAX_POOL_DESC_LENGTH = 500
+const MIN_ENTRY_WEIGHT = 0
+const MAX_ENTRY_WEIGHT = 10000
+const DEFAULT_ENTRY_WEIGHT = 100
 
 export function EntityPoolTab({ gameId }: { gameId: string }) {
   const { t } = useTranslation()
@@ -55,6 +65,8 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   const [createForm, setCreateForm] = useState({ pool_key: "", name: "", description: "" })
   const [creating, setCreating] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<EntityPool | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const genSlug = (name: string) => toSlugUnderscore(name)
 
@@ -101,6 +113,23 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
     }
   }
 
+  const handleDeletePool = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteEntityPool(gameId, deleteTarget.id)
+      setPools(prev => prev.filter(p => p.id !== deleteTarget.id))
+      if (expandedId === deleteTarget.id) setExpandedId(null)
+      toast({ title: t('common.deleted'), description: t('entity.poolDeleted').replace('{name}', deleteTarget.name) })
+      setDeleteTarget(null)
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedDelete')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleCreatePool = async () => {
     if (!createForm.pool_key.trim() || !createForm.name.trim()) return
     setCreating(true)
@@ -129,7 +158,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
         <div>
           <h2 className="text-lg font-semibold">{t('entity.poolTab')}</h2>
           <p className="text-sm text-muted-foreground">
-            {refreshing ? t('common.loading') : `${filteredPools.length} ${t('entity.entitiesCount')}`}
+            {refreshing ? t('common.loading') : `${filteredPools.length} ${t('entity.entitiesCount')} · ${pools.length}/${MAX_POOLS_PER_GAME}`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -153,7 +182,13 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => loadPools(true)} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
-          <Button size="sm" className="h-9 gap-2" onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}>
+          <Button
+            size="sm"
+            className="h-9 gap-2"
+            onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}
+            disabled={pools.length >= MAX_POOLS_PER_GAME}
+            title={pools.length >= MAX_POOLS_PER_GAME ? t('entity.poolLimitReached').replace('{max}', String(MAX_POOLS_PER_GAME)) : undefined}
+          >
             <Plus className="h-4 w-4" />
             {t('entity.newPool')}
           </Button>
@@ -224,7 +259,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex justify-end items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); toast({ title: t('entity.featureComingSoon') }) }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget(pool) }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -260,8 +295,9 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               <Input
                 placeholder={t('entity.poolNamePlaceholder')}
                 value={createForm.name}
+                maxLength={MAX_POOL_NAME_LENGTH}
                 onChange={(e) => {
-                  const v = e.target.value
+                  const v = e.target.value.slice(0, MAX_POOL_NAME_LENGTH)
                   setCreateForm(f => ({
                     ...f,
                     name: v,
@@ -270,6 +306,9 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                 }}
                 disabled={creating}
               />
+              <p className={`text-xs text-right ${createForm.name.length >= MAX_POOL_NAME_LENGTH ? "text-destructive" : "text-muted-foreground"}`}>
+                {createForm.name.length}/{MAX_POOL_NAME_LENGTH}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>{t('entity.poolKey')} <span className="text-destructive">*</span></Label>
@@ -307,10 +346,14 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               <Textarea
                 placeholder={t('entity.optionalDesc')}
                 value={createForm.description}
-                onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))}
+                maxLength={MAX_POOL_DESC_LENGTH}
+                onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value.slice(0, MAX_POOL_DESC_LENGTH) }))}
                 disabled={creating}
                 rows={3}
               />
+              <p className={`text-xs text-right ${createForm.description.length >= MAX_POOL_DESC_LENGTH ? "text-destructive" : "text-muted-foreground"}`}>
+                {createForm.description.length}/{MAX_POOL_DESC_LENGTH}
+              </p>
             </div>
           </div>
           <SheetFooter>
@@ -324,6 +367,35 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('entity.deletePoolTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('entity.deleteDescPre')}{" "}
+              <span className="font-semibold">"{deleteTarget?.name}"</span>{" "}
+              (<code className="font-mono text-xs">{deleteTarget?.pool_key}</code>).{" "}
+              {t('entity.deleteDescPost')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePool}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -394,9 +466,16 @@ function PoolExpandedContent({
   }
 
   async function saveField() {
-    if (editingField === "name" && !editName.trim()) {
-      toast({ title: t('common.validation'), description: t('entity.nameRequired'), variant: "destructive" })
-      return
+    if (editingField === "name") {
+      const trimmed = editName.trim()
+      if (!trimmed) {
+        toast({ title: t('common.validation'), description: t('entity.nameRequired'), variant: "destructive" })
+        return
+      }
+      if (trimmed.length > MAX_POOL_NAME_LENGTH) {
+        toast({ title: t('common.validation'), description: t('entity.nameTooLong').replace('{max}', String(MAX_POOL_NAME_LENGTH)), variant: "destructive" })
+        return
+      }
     }
     setSaving(true)
     try {
@@ -434,7 +513,7 @@ function PoolExpandedContent({
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [addDefId, setAddDefId] = useState("")
   const [addDefLabel, setAddDefLabel] = useState("")
-  const [addWeight, setAddWeight] = useState("1")
+  const [addWeight, setAddWeight] = useState(String(DEFAULT_ENTRY_WEIGHT))
   const [addingEntry, setAddingEntry] = useState(false)
   const [defPopoverOpen, setDefPopoverOpen] = useState(false)
   const [defSearchInput, setDefSearchInput] = useState("")
@@ -483,8 +562,14 @@ function PoolExpandedContent({
       return
     }
     const weight = parseInt(addWeight, 10)
-    if (isNaN(weight) || weight < 1) {
-      toast({ title: t('common.validation'), description: t('entity.weightPositive'), variant: "destructive" })
+    if (isNaN(weight) || weight < MIN_ENTRY_WEIGHT || weight > MAX_ENTRY_WEIGHT) {
+      toast({
+        title: t('common.validation'),
+        description: t('entity.weightRange')
+          .replace('{min}', String(MIN_ENTRY_WEIGHT))
+          .replace('{max}', String(MAX_ENTRY_WEIGHT)),
+        variant: "destructive",
+      })
       return
     }
     setAddingEntry(true)
@@ -495,7 +580,7 @@ function PoolExpandedContent({
       toast({ title: t('common.saved') })
       setAddDefId("")
       setAddDefLabel("")
-      setAddWeight("1")
+      setAddWeight(String(DEFAULT_ENTRY_WEIGHT))
       setShowAddEntry(false)
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : t('entity.failedAddEntry')
@@ -539,8 +624,14 @@ function PoolExpandedContent({
 
   async function saveWeight(entryId: string) {
     const weight = parseInt(editWeightValue, 10)
-    if (isNaN(weight) || weight < 0) {
-      toast({ title: t('common.validation'), description: t('entity.weightNonNegative'), variant: "destructive" })
+    if (isNaN(weight) || weight < MIN_ENTRY_WEIGHT || weight > MAX_ENTRY_WEIGHT) {
+      toast({
+        title: t('common.validation'),
+        description: t('entity.weightRange')
+          .replace('{min}', String(MIN_ENTRY_WEIGHT))
+          .replace('{max}', String(MAX_ENTRY_WEIGHT)),
+        variant: "destructive",
+      })
       return
     }
     setSavingWeight(true)
@@ -686,7 +777,7 @@ function PoolExpandedContent({
           <dd className="flex items-center gap-1.5">
             {editingField === "name" ? (
               <>
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-7 text-sm flex-1" disabled={saving} />
+                <Input value={editName} maxLength={MAX_POOL_NAME_LENGTH} onChange={(e) => setEditName(e.target.value.slice(0, MAX_POOL_NAME_LENGTH))} className="h-7 text-sm flex-1" disabled={saving} />
                 {saveCancel}
               </>
             ) : (
@@ -705,8 +796,8 @@ function PoolExpandedContent({
             {editingField === "description" ? (
               <>
                 <div className="flex-1 space-y-1">
-                  <Textarea rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value.slice(0, 500))} className="text-sm resize-none" disabled={saving} />
-                  <p className={`text-xs text-right ${editDescription.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{editDescription.length}/500</p>
+                  <Textarea rows={2} value={editDescription} maxLength={MAX_POOL_DESC_LENGTH} onChange={(e) => setEditDescription(e.target.value.slice(0, MAX_POOL_DESC_LENGTH))} className="text-sm resize-none" disabled={saving} />
+                  <p className={`text-xs text-right ${editDescription.length >= MAX_POOL_DESC_LENGTH ? "text-destructive" : "text-muted-foreground"}`}>{editDescription.length}/{MAX_POOL_DESC_LENGTH}</p>
                 </div>
                 <div className="flex flex-col gap-1">{saveCancel}</div>
               </>
@@ -841,13 +932,15 @@ function PoolExpandedContent({
       <div>
         <div className="flex items-center gap-2 mb-2">
           <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 border-l-2 border-primary/50">
-            {t('entity.entries')} {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length})</span>}
+            {t('entity.entries')} {!loadingDetail && <span className="text-muted-foreground font-normal normal-case tracking-normal">({entries.length}/{MAX_ENTRIES_PER_POOL})</span>}
           </h4>
           <Button
             variant="ghost"
             size="icon"
             className="h-5 w-5"
             onClick={() => setShowAddEntry(!showAddEntry)}
+            disabled={entries.length >= MAX_ENTRIES_PER_POOL}
+            title={entries.length >= MAX_ENTRIES_PER_POOL ? t('entity.entriesLimitReached').replace('{max}', String(MAX_ENTRIES_PER_POOL)) : undefined}
           >
             <Plus className="h-3.5 w-3.5" />
           </Button>
@@ -929,7 +1022,8 @@ function PoolExpandedContent({
               <label className="text-xs font-medium text-muted-foreground">{t('entity.weight')}</label>
               <Input
                 type="number"
-                min={1}
+                min={MIN_ENTRY_WEIGHT}
+                max={MAX_ENTRY_WEIGHT}
                 value={addWeight}
                 onChange={(e) => setAddWeight(e.target.value)}
                 className="h-8 text-sm font-mono"
@@ -1002,7 +1096,8 @@ function PoolExpandedContent({
                         <div className="flex items-center justify-end gap-1">
                           <Input
                             type="number"
-                            min={0}
+                            min={MIN_ENTRY_WEIGHT}
+                            max={MAX_ENTRY_WEIGHT}
                             value={editWeightValue}
                             onChange={(e) => setEditWeightValue(e.target.value)}
                             className="h-6 w-20 text-sm font-mono text-right"
