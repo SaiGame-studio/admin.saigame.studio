@@ -27,6 +27,7 @@ import { getToken } from "@/lib/auth-utils"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { useTheme } from "next-themes"
+import { getCacheItem, setCacheItem } from "@/lib/utils/cache-utils"
 
 interface Category {
   id: string
@@ -149,8 +150,19 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     setDetailLoading(true)
     setDetail(null)
     window.history.replaceState(null, "", `/tutorials/${categoryPath}/${item.slug}`)
+    const detailCacheKey = `tutorials_content_${item.id}_${locale}`
+    const cachedDetail = getCacheItem<ContentDetail>(detailCacheKey)
+    if (cachedDetail) {
+      setDetail(cachedDetail)
+      setDetailLoading(false)
+      return
+    }
     api.get(`/api/v1/contents/${item.id}?language=${locale}`, { requireAuth: false })
-      .then((res) => setDetail(res as ContentDetail))
+      .then((res) => {
+        const detail = res as ContentDetail
+        setCacheItem(detailCacheKey, detail)
+        setDetail(detail)
+      })
       .catch(() => setDetail(null))
       .finally(() => setDetailLoading(false))
   }
@@ -169,11 +181,26 @@ function ContentList({ categoryId, categoryPath, initialContentSlug, onSlugNotFo
     setLoading(true)
     setSelectedContentId(null)
     setDetail(null)
+    const contentsCacheKey = `tutorials_category_contents_${categoryId}_${locale}`
+    const cachedContents = getCacheItem<ContentItem[]>(contentsCacheKey)
+    if (cachedContents) {
+      setContents(cachedContents)
+      if (initialContentSlug) {
+        const match = cachedContents.find((i) => i.slug === initialContentSlug)
+        if (match) loadContent(match)
+        else onSlugNotFound?.(initialContentSlug)
+      } else if (cachedContents.length > 0) {
+        loadContent(cachedContents[0])
+      }
+      setLoading(false)
+      return
+    }
     api.get(`/api/v1/categories/${categoryId}/contents?language=${locale}`, { requireAuth: false })
       .then((res) => {
         const data = res?.data ?? res
         const items: ContentItem[] = Array.isArray(data) ? data : (data?.items ?? data?.contents ?? data?.data ?? [])
         items.sort((a, b) => a.title.localeCompare(b.title))
+        setCacheItem(contentsCacheKey, items)
         setContents(items)
         if (initialContentSlug) {
           const match = items.find((i) => i.slug === initialContentSlug)
@@ -482,11 +509,9 @@ function TutorialsTabs() {
   }, [])
 
   useEffect(() => {
-    api.get("/api/v1/categories", { requireAuth: false })
-      .then((res) => {
-        const roots = (res.data as Category[])
-          .filter((c) => c.parent_id === null && c.is_active)
-          .sort((a, b) => a.sort_order - b.sort_order)
+    const categoriesCacheKey = "tutorials_categories"
+    const cachedCategories = getCacheItem<Category[]>(categoriesCacheKey)
+    const processCategories = (roots: Category[]) => {
         setCategories(roots)
 
         if (fullPath) {
@@ -523,6 +548,19 @@ function TutorialsTabs() {
             setActiveTab(roots[0]?.slug ?? null)
           }
         }
+    }
+    if (cachedCategories) {
+      processCategories(cachedCategories)
+      setLoading(false)
+      return
+    }
+    api.get("/api/v1/categories", { requireAuth: false })
+      .then((res) => {
+        const roots = (res.data as Category[])
+          .filter((c) => c.parent_id === null && c.is_active)
+          .sort((a, b) => a.sort_order - b.sort_order)
+        setCacheItem(categoriesCacheKey, roots)
+        processCategories(roots)
       })
       .catch(() => setCategories([]))
       .finally(() => setLoading(false))
