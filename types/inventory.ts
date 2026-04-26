@@ -14,7 +14,7 @@ export type ItemCategory =
   | 'generator'
   | 'other'
 
-export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary'
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
 
 export type TxType =
   | 'GACHA_OPEN'
@@ -226,6 +226,11 @@ export const RARITY_COLORS: Record<ItemRarity, { text: string; border: string; b
     text: 'text-gray-400',
     border: 'border-gray-400',
     bg: 'bg-gray-400/10',
+  },
+  uncommon: {
+    text: 'text-green-500',
+    border: 'border-green-500',
+    bg: 'bg-green-500/10',
   },
   rare: {
     text: 'text-blue-500',
