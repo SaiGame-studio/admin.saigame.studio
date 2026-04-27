@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag } from "lucide-react"
+import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
-import { getItemDefinition, updateItemDefinition, deleteItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions, listItemTags, getItemDefinitionTags, assignTagsToItemDefinition, removeTagsFromItemDefinition, type ItemTag } from "@/lib/inventory-api"
+import { getItemDefinition, updateItemDefinition, deleteItemDefinition, createItemDefinition, fetchItemCategories, fetchItemRarities, getGachaPack, getContainerDefinition, listItemDefinitions, listItemTags, getItemDefinitionTags, assignTagsToItemDefinition, removeTagsFromItemDefinition, type ItemTag } from "@/lib/inventory-api"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getCraftingRecipe } from "@/lib/crafting-api"
 import {
@@ -149,6 +149,7 @@ export default function ItemDefinitionDetailPage() {
   const [editingField, setEditingField] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [cloning, setCloning] = useState(false)
 
   // temp values per field
   const [tmpName, setTmpName] = useState("")
@@ -500,6 +501,34 @@ export default function ItemDefinitionDetailPage() {
     }
   }
 
+  async function handleClone() {
+    if (!item) return
+    setCloning(true)
+    try {
+      const suffix = `_copy`
+      const res = await createItemDefinition({ gameId }, {
+        name: `${item.name} (Copy)`,
+        item_code: `${item.item_code}${suffix}`,
+        category: item.category,
+        rarity: item.rarity,
+        is_stackable: item.is_stackable,
+        max_stack_size: item.max_stack_size,
+        grid_width: item.grid_width,
+        grid_height: item.grid_height,
+        base_stats: { ...item.base_stats },
+        metadata: (({ gacha_pack_ids, gacha_pack_id, ...rest }) => rest)(item.metadata ?? {}),
+        client_writable: item.client_writable,
+        allow_client_update_qty: item.allow_client_update_qty,
+      })
+      toast({ title: t('common.saved') })
+      router.push(`/games/${gameId}/items/${res.item.id}`)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Clone failed", description: err?.message ?? t('common.unknown') })
+    } finally {
+      setCloning(false)
+    }
+  }
+
   // ── render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -603,33 +632,58 @@ export default function ItemDefinitionDetailPage() {
             ))}
           </TabsList>
         </Tabs>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="icon" disabled={deleting}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('items.deleteItemConfirmTitle')} "{item.name}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('items.deleteItemConfirmDesc1')}
-                {" "}
-                {t('items.deleteItemConfirmDesc2')}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? t('items.deleting') : t('common.delete')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-1">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="icon" disabled={deleting}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('items.deleteItemConfirmTitle')} "{item.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('items.deleteItemConfirmDesc1')}
+                  {" "}
+                  {t('items.deleteItemConfirmDesc2')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? t('items.deleting') : t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <div className="w-px h-6 bg-border mx-0.5" />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="icon" disabled={cloning} title="Clone item">
+                {cloning ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clone "{item.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A copy of this item will be created with the name "{item.name} (Copy)". You will be redirected to the new item.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={cloning}>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClone} disabled={cloning}>
+                  {cloning ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <CopyPlus className="h-4 w-4 mr-1.5" />}
+                  Clone
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
