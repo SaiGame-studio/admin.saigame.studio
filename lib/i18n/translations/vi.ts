@@ -1388,6 +1388,7 @@ export const vi = {
     errorLoadingItems: "Lỗi Tải Vật Phẩm",
     labelAttachments: "Đính Kèm (Phần Thưởng)",
     addAttachment: "Thêm Đính Kèm",
+    attachmentLimitReached: "Tối đa 10 đính kèm mỗi thư.",
     labelType: "Loại",
     typeItem: "Vật Phẩm",
     labelItemDefinition: "Định Nghĩa Vật Phẩm",

@@ -1394,6 +1394,7 @@ export const en = {
     errorLoadingItems: "Error Loading Items",
     labelAttachments: "Attachments (Rewards)",
     addAttachment: "Add Attachment",
+    attachmentLimitReached: "Maximum 10 attachments per message.",
     labelType: "Type",
     typeItem: "Item",
     labelItemDefinition: "Item Definition",

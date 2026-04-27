@@ -1376,6 +1376,7 @@ export const ja = {
     errorLoadingItems: "アイテム読み込みエラー",
     labelAttachments: "添付（報酬）",
     addAttachment: "添付を追加",
+    attachmentLimitReached: "1通につき添付は最大10件です。",
     labelType: "タイプ",
     typeItem: "アイテム",
     labelItemDefinition: "アイテム定義",
