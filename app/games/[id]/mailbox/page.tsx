@@ -578,11 +578,14 @@ export default function MailboxPage({ params }: { params: Promise<{ id: string }
             {/* Attachments */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="flex items-center">
+                <Label className="flex items-center gap-1.5">
                   <Gift className="inline h-4 w-4 mr-1" />
                   {t('mailbox.labelAttachments')}
+                  <span className={`text-xs font-mono ${form.attachments.length >= 10 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {form.attachments.length}/10
+                  </span>
                 </Label>
-                <Button type="button" variant="outline" size="sm" onClick={addAttachment}>
+                <Button type="button" variant="outline" size="sm" onClick={addAttachment} disabled={form.attachments.length >= 10}>
                   {t('mailbox.addAttachment')}
                 </Button>
               </div>
