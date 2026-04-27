@@ -60,6 +60,17 @@ import { ITEMS_TABS } from "@/lib/items-tabs"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+function trimStrings<T>(obj: T): T {
+  if (typeof obj === 'string') return obj.trim() as unknown as T
+  if (Array.isArray(obj)) return obj.map(trimStrings) as unknown as T
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, trimStrings(v)])
+    ) as T
+  }
+  return obj
+}
+
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
   if (!c) {
@@ -365,7 +376,7 @@ export default function ItemDefinitionDetailPage() {
     if (!item) return
     setSaving(true)
     try {
-      const res = await updateItemDefinition({ gameId }, itemId, patch)
+      const res = await updateItemDefinition({ gameId }, itemId, trimStrings(patch))
       setItem(res.item)
       setEditingField(null)
       toast({ title: t('common.saved') })
@@ -441,7 +452,7 @@ export default function ItemDefinitionDetailPage() {
         if (genMailboxBody.trim()) generatorConfig.mailbox_body = genMailboxBody.trim()
       }
       metadata.generator_config = generatorConfig
-      const res = await updateItemDefinition({ gameId }, itemId, { metadata })
+      const res = await updateItemDefinition({ gameId }, itemId, trimStrings({ metadata }))
       setItem(res.item)
       setEditingGenConfig(false)
       toast({ title: t('items.generatorConfigSaved') })
