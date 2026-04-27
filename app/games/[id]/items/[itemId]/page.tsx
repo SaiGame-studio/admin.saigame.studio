@@ -1081,14 +1081,14 @@ export default function ItemDefinitionDetailPage() {
             ) : Object.keys(item.base_stats ?? {}).length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('items.detailNoBaseStats')}</p>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 {Object.entries(item.base_stats).map(([key, value]) => (
-                  <div key={key} className="group flex justify-between text-sm">
-                    <span className="flex items-center gap-1 text-muted-foreground">
+                  <div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
+                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                       {key}
                       <CopyIconButton value={key} />
                     </span>
-                    <span className="font-semibold">{value}</span>
+                    <span className="text-xs font-semibold">{value}</span>
                   </div>
                 ))}
               </div>
