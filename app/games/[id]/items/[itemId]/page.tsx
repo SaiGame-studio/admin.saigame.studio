@@ -104,6 +104,33 @@ function CopyUUID({ value }: { value: string }) {
   )
 }
 
+function CopyIconButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value)
+    } else {
+      const textarea = document.createElement("textarea")
+      textarea.value = value
+      textarea.style.position = "fixed"
+      textarea.style.opacity = "0"
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={copy} className="inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity" title="Copy">
+      {copied
+        ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+        : <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground shrink-0" />}
+    </button>
+  )
+}
+
 // ─── main page ───────────────────────────────────────────────────────────────
 
 export default function ItemDefinitionDetailPage() {
@@ -1056,8 +1083,11 @@ export default function ItemDefinitionDetailPage() {
             ) : (
               <div className="space-y-2">
                 {Object.entries(item.base_stats).map(([key, value]) => (
-                  <div key={key} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
+                  <div key={key} className="group flex justify-between text-sm">
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      {key}
+                      <CopyIconButton value={key} />
+                    </span>
                     <span className="font-semibold">{value}</span>
                   </div>
                 ))}
@@ -1211,8 +1241,11 @@ export default function ItemDefinitionDetailPage() {
                 {Object.entries(item.metadata)
                   .filter(([key]) => !RESERVED_META_KEYS.includes(key))
                   .map(([key, value]) => (
-                  <div key={key} className="flex justify-between text-sm border-b border-muted/50 pb-1.5">
-                    <span className="text-muted-foreground font-mono text-xs">{key}</span>
+                  <div key={key} className="group flex justify-between text-sm border-b border-muted/50 pb-1.5">
+                    <span className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
+                      {key}
+                      <CopyIconButton value={key} />
+                    </span>
                     <span className="text-xs font-medium max-w-[200px] truncate text-right" title={String(value)}>
                       {typeof value === "boolean" ? (value ? "true" : "false") : String(value)}
                     </span>
