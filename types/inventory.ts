@@ -60,6 +60,7 @@ export interface CreateItemRequest {
 }
 
 export interface UpdateItemRequest {
+  item_code?: string
   name?: string
   category?: ItemCategory
   rarity?: ItemRarity

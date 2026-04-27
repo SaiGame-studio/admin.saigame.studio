@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Lock, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
+import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -153,6 +153,7 @@ export default function ItemDefinitionDetailPage() {
 
   // temp values per field
   const [tmpName, setTmpName] = useState("")
+  const [tmpItemCode, setTmpItemCode] = useState("")
   const [tmpCategory, setTmpCategory] = useState<ItemCategory>("weapon")
   const [tmpRarity, setTmpRarity] = useState<ItemRarity>("common")
   const [tmpGridW, setTmpGridW] = useState("1")
@@ -353,6 +354,7 @@ export default function ItemDefinitionDetailPage() {
     if (!item) return
     setEditingField(field)
     if (field === "name") setTmpName(item.name)
+    if (field === "item_code") setTmpItemCode(item.item_code ?? "")
     if (field === "category") setTmpCategory(item.category)
     if (field === "rarity") setTmpRarity(item.rarity)
     if (field === "grid") { setTmpGridW(String(item.grid_width)); setTmpGridH(String(item.grid_height)) }
@@ -703,15 +705,41 @@ export default function ItemDefinitionDetailPage() {
               <span className="text-muted-foreground shrink-0">{t('items.detailGameId')}</span>
               <CopyUUID value={item.game_id} />
             </div>
-            {item.item_code && (
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-muted-foreground shrink-0 flex items-center gap-1">
-                  {t('items.itemCode')}
-                  <Lock className="h-3 w-3 text-muted-foreground/60" />
-                </span>
-                <CopyUUID value={item.item_code} />
-              </div>
-            )}
+            <div className="group flex justify-between items-center gap-4 py-1.5">
+              <span className="text-muted-foreground shrink-0">{t('items.itemCode')}</span>
+              {editingField === "item_code" ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    className="h-7 text-xs w-44 font-mono"
+                    value={tmpItemCode}
+                    onChange={(e) => setTmpItemCode(e.target.value)}
+                    disabled={saving}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") saveField({ item_code: tmpItemCode.trim() }); if (e.key === "Escape") setEditingField(null) }}
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => saveField({ item_code: tmpItemCode.trim() })}>
+                    <Save className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                    onClick={() => setEditingField(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => startEdit("item_code")}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  {item.item_code
+                    ? <CopyUUID value={item.item_code} />
+                    : <span className="text-xs text-muted-foreground italic">—</span>
+                  }
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-between py-1.5">
               <span className="text-muted-foreground">{t('items.createdAtLabel')}</span>
