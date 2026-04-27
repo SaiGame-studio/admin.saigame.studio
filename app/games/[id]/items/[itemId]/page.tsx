@@ -338,8 +338,6 @@ export default function ItemDefinitionDetailPage() {
       const res = await updateItemDefinition({ gameId }, itemId, patch)
       setItem(res.item)
       setEditingField(null)
-      setEditingStats(false)
-      setEditingMeta(false)
       toast({ title: t('common.saved') })
     } catch (err: any) {
       toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? t('common.unknown') })
