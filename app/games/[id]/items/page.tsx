@@ -149,14 +149,17 @@ function KVEditor({
   entries,
   onChange,
   label,
+  numericValue,
 }: {
   entries: KVEntry[]
   onChange: (v: KVEntry[]) => void
   label: string
+  numericValue?: boolean
 }) {
   const addRow = () => onChange([...entries, { key: "", value: "" }])
   const remove = (i: number) => onChange(entries.filter((_, idx) => idx !== i))
   const update = (i: number, field: "key" | "value", val: string) => {
+    if (numericValue && field === "value" && val !== "" && val !== "-" && isNaN(Number(val))) return
     const next = entries.map((e, idx) =>
       idx === i ? { ...e, [field]: val } : e,
     )
@@ -177,7 +180,8 @@ function KVEditor({
           <span className="text-muted-foreground">=</span>
           <Input
             className="h-7 text-xs"
-            placeholder="value"
+            placeholder={numericValue ? "0" : "value"}
+            inputMode={numericValue ? "decimal" : undefined}
             value={e.value}
             onChange={(ev) => update(i, "value", ev.target.value)}
           />
@@ -1440,6 +1444,7 @@ function CreateItemDialog({
             entries={stats}
             onChange={setStats}
             label={t('items.baseStatsLabel')}
+            numericValue
           />
 
           {/* Metadata */}
