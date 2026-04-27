@@ -62,6 +62,13 @@ import { ITEMS_TABS } from "@/lib/items-tabs"
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
+  if (!c) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border text-gray-400 border-gray-400 bg-gray-400/10 capitalize">
+        {rarity}
+      </span>
+    )
+  }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}>
       {rarity}
