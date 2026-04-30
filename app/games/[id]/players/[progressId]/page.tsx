@@ -13,7 +13,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
+import { formatTimestamp, formatISODate, getUserTimezone } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
 import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, getJourneySessions, getJourneySessionEvents, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, JourneySession, JourneySessionsResult, JourneyEvent, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
@@ -477,7 +477,7 @@ function GeneratorLiveEstimate({
           <div className="flex items-center justify-between text-[11px]">
             <span className="font-medium text-foreground/80">⚡ Live Accumulation</span>
             <span className="font-mono text-muted-foreground">
-              since {new Date(lastModifiedAt).toLocaleTimeString()}
+              since {new Date(lastModifiedAt).toLocaleTimeString(undefined, { timeZone: getUserTimezone() })}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs">
