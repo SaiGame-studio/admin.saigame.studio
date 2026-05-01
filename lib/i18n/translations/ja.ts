@@ -3233,10 +3233,18 @@ export const ja = {
     tableHeaderDescription: "説明",
     tableHeaderVer: "Ver",
     tableHeaderActive: "アクティブ",
+    tableHeaderLibrary: "ライブラリ",
+    tableHeaderUpdatedAt: "更新日時",
 
     // Script row
     editScript: "スクリプトを編集",
     toastFailedToggle: "スクリプトの切り替えに失敗しました",
+    toastFailedToggleLibrary: "ライブラリフラグの切り替えに失敗しました",
+    promoteLibrary: "ライブラリとしてマーク",
+    demoteLibrary: "ライブラリから削除",
+    libraryLimitReached: "ライブラリ上限に達しました（最大{max}件）",
+    toastLibraryLimit: "ライブラリ上限に達しました（最大{max}件）",
+    libraryCounter: "ライブラリ",
 
     // Create sheet
     createTitle: "新規スクリプト",

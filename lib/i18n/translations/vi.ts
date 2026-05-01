@@ -3245,10 +3245,18 @@ export const vi = {
     tableHeaderDescription: "Mô tả",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Hoạt động",
+    tableHeaderLibrary: "Thư viện",
+    tableHeaderUpdatedAt: "Cập nhật",
 
     // Script row
     editScript: "Sửa script",
     toastFailedToggle: "Không thể chuyển đổi trạng thái script",
+    toastFailedToggleLibrary: "Không thể chuyển đổi trạng thái thư viện",
+    promoteLibrary: "Đánh dấu là thư viện",
+    demoteLibrary: "Bỏ khỏi thư viện",
+    libraryLimitReached: "Đã đạt giới hạn thư viện (tối đa {max})",
+    toastLibraryLimit: "Đã đạt giới hạn thư viện (tối đa {max})",
+    libraryCounter: "thư viện",
 
     // Create sheet
     createTitle: "Script mới",

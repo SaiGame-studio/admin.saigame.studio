@@ -3287,10 +3287,18 @@ export const en = {
     tableHeaderDescription: "Description",
     tableHeaderVer: "Ver",
     tableHeaderActive: "Active",
+    tableHeaderLibrary: "Library",
+    tableHeaderUpdatedAt: "Updated",
 
     // Script row
     editScript: "Edit script",
     toastFailedToggle: "Failed to toggle script",
+    toastFailedToggleLibrary: "Failed to toggle library flag",
+    promoteLibrary: "Mark as library",
+    demoteLibrary: "Remove from library",
+    libraryLimitReached: "Library limit reached ({max} max)",
+    toastLibraryLimit: "Library limit reached ({max} max)",
+    libraryCounter: "libs",
 
     // Create sheet
     createTitle: "New Script",
