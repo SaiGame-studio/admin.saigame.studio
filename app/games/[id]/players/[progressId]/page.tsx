@@ -830,7 +830,7 @@ export default function GameUserProgressDetailPage({
   const [battleError, setBattleError] = useState<string | null>(null)
   const [battleExpandedRows, setBattleExpandedRows] = useState<Set<string>>(new Set())
   const toggleBattleRow = (id: string) =>
-    setBattleExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+    setBattleExpandedRows(prev => prev.has(id) ? new Set() : new Set([id]))
 
   // Journey tab
   const JOURNEY_LIMIT = 50
@@ -3060,13 +3060,13 @@ export default function GameUserProgressDetailPage({
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">start_data</p>
-                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-[36rem] whitespace-pre-wrap break-all">
                                     {JSON.stringify(session.start_data, null, 2)}
                                   </pre>
                                 </div>
                                 <div>
                                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">end_data</p>
-                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-[36rem] whitespace-pre-wrap break-all">
                                     {session.end_data != null ? JSON.stringify(session.end_data, null, 2) : "null"}
                                   </pre>
                                 </div>
