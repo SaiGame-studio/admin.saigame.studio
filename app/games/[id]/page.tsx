@@ -212,7 +212,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
     if (loading) {
         return (
-            <div className="container mx-auto py-6">
+            <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
                 <div className="animate-pulse">
                     <div className="h-8 w-1/3 bg-muted/50 rounded mb-4" />
                     <div className="h-4 w-1/4 bg-muted/50 rounded mb-8" />
@@ -232,7 +232,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
     if (error || !game) {
         return (
-            <div className="container mx-auto py-6">
+            <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
                 <Card className="border-destructive">
                     <CardHeader>
                         <CardTitle>{t('common.error')}</CardTitle>
@@ -255,7 +255,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
     }
 
     return (
-        <div className="container mx-auto py-6">
+        <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
             <div className="mb-2">
                 <Breadcrumb>
                     <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
@@ -280,13 +280,13 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                 </Breadcrumb>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" size="icon" onClick={() => game.studio_id ? router.push(`/studios/${game.studio_id}`) : router.back()}>
+            <div className="flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center md:gap-0">
+                <div className="flex items-center gap-3 min-w-0">
+                    <Button variant="outline" size="icon" className="shrink-0" onClick={() => game.studio_id ? router.push(`/studios/${game.studio_id}`) : router.back()}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <div className="group">
-                        <div className="flex items-center gap-2">
+                    <div className="group min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <GameNameEditable
                                 game={game}
                                 gameId={game.id}
@@ -303,7 +303,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         />
                     </div>
                 </div>
-                <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
+                <div className="flex flex-col gap-2 items-start md:items-end">
                     <GameNavButtons gameId={game.id} active="detail" />
                     <DeleteGameDialog game={game} />
                 </div>
@@ -500,7 +500,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                     <CardContent>
                         {/* Daily Quest Max Advance Days */}
                         <div className="flex flex-col gap-2 py-2 border-b border-border">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
                                 <Label htmlFor="daily-quest-days" className="text-sm font-medium">
                                     {t('game.dailyQuestAdvanceDays')}
                                 </Label>
@@ -513,7 +513,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
                         {/* Toggle 1: Allow player trading and mailbox */}
                         <div className="flex flex-col gap-2 py-2 border-b border-border">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
                                 <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
                                     {t('game.allowPlayerTrading')}
                                 </Label>
@@ -784,18 +784,20 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
                 {/* Teams Section */}
                 <Card className="lg:col-span-3 mt-6">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                        <div>
+                    <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-4">
+                        <div className="min-w-0">
                             <CardTitle>{t('studio.teams')}</CardTitle>
                             <CardDescription>{t('game.teamsDesc')}</CardDescription>
                         </div>
                         {game.studio_id && (
-                            <AddTeamToGameDialog 
-                                gameId={game.id} 
-                                studioId={game.studio_id}
-                                existingTeamIds={teams.map(t => t.id)}
-                                onTeamsAdded={handleTeamRemoved}
-                            />
+                            <div className="shrink-0">
+                                <AddTeamToGameDialog
+                                    gameId={game.id}
+                                    studioId={game.studio_id}
+                                    existingTeamIds={teams.map(t => t.id)}
+                                    onTeamsAdded={handleTeamRemoved}
+                                />
+                            </div>
                         )}
                     </CardHeader>
                     <CardContent className="group">

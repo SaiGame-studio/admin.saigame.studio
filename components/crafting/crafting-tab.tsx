@@ -555,7 +555,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                 {isExpanded && (
                   <>
                     <Separator />
-                    <CardContent className="p-4 bg-muted/10">
+                    <CardContent className="group/detail p-4 bg-muted/10">
                       {detailLoading === recipe.id ? (
                         <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -588,24 +588,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     ) : (
                                       <>
                                         <span className="font-medium text-xs truncate">{detail.name}</span>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.name); setEditingField("name") }}><Pencil className="h-3 w-3" /></Button>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  {/* Description */}
-                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldDescription')}</span>
-                                  <div className="group flex items-center gap-1 min-w-0">
-                                    {editingField === "description" ? (
-                                      <>
-                                        <Input value={editValue} onChange={e => setEditValue(e.target.value)} className="h-7 text-xs py-0" disabled={fieldSaving} autoFocus placeholder={t('crafting.addDescriptionPlaceholder')} onKeyDown={e => { if (e.key === "Enter") handleFieldSave(detail.id); if (e.key === "Escape") setEditingField(null) }} />
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleFieldSave(detail.id)} disabled={fieldSaving}>{fieldSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}</Button>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingField(null)} disabled={fieldSaving}><X className="h-3 w-3" /></Button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="text-muted-foreground italic text-xs truncate">{detail.description || <span className="opacity-40">{t('crafting.noDescription')}</span>}</span>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.description || ""); setEditingField("description") }}><Pencil className="h-3 w-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.name); setEditingField("name") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
@@ -622,7 +605,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     ) : (
                                       <>
                                         <Badge variant="outline" className="text-xs capitalize font-normal">{detail.category}</Badge>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.category); setEditingField("category") }}><Pencil className="h-3 w-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.category); setEditingField("category") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
@@ -640,7 +623,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     ) : (
                                       <>
                                         <Badge variant={detail.is_active ? "default" : "secondary"} className="text-xs font-normal">{detail.is_active ? t('common.active') : t('common.inactive')}</Badge>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.is_active)); setEditingField("is_active") }}><Pencil className="h-3 w-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.is_active)); setEditingField("is_active") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
@@ -658,7 +641,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     ) : (
                                       <>
                                         <span className="text-emerald-600 dark:text-emerald-400 text-xs">{formatRate(detail.success_rate)}</span>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.success_rate)); setEditingField("success_rate") }}><Pencil className="h-3 w-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.success_rate)); setEditingField("success_rate") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>
@@ -676,7 +659,24 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                                     ) : (
                                       <>
                                         <span className="text-amber-500 text-xs">{formatRate(detail.bonus_rate)}</span>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.bonus_rate)); setEditingField("bonus_rate") }}><Pencil className="h-3 w-3" /></Button>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(String(detail.bonus_rate)); setEditingField("bonus_rate") }}><Pencil className="h-3 w-3" /></Button>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Description */}
+                                  <span className="text-muted-foreground text-xs self-center">{t('crafting.fieldDescription')}</span>
+                                  <div className="group flex items-center gap-1 min-w-0">
+                                    {editingField === "description" ? (
+                                      <>
+                                        <Input value={editValue} onChange={e => setEditValue(e.target.value)} className="h-7 text-xs py-0" disabled={fieldSaving} autoFocus placeholder={t('crafting.addDescriptionPlaceholder')} onKeyDown={e => { if (e.key === "Enter") handleFieldSave(detail.id); if (e.key === "Escape") setEditingField(null) }} />
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleFieldSave(detail.id)} disabled={fieldSaving}>{fieldSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}</Button>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingField(null)} disabled={fieldSaving}><X className="h-3 w-3" /></Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="text-muted-foreground italic text-xs truncate">{detail.description || <span className="opacity-40">{t('crafting.noDescription')}</span>}</span>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/detail:opacity-100 transition-opacity shrink-0" onClick={() => { setEditValue(detail.description || ""); setEditingField("description") }}><Pencil className="h-3 w-3" /></Button>
                                       </>
                                     )}
                                   </div>

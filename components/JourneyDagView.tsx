@@ -11,6 +11,7 @@ import {
   MarkerType,
   Handle,
   Position,
+  SelectionMode,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -78,6 +79,9 @@ import {
   type JourneyNodeStats,
 } from "@/lib/journey-api"
 import { listEventTypes } from "@/lib/event-type-api"
+import { getJourneySessionEvents, type JourneyEvent } from "@/lib/game-user-api"
+import { CopyButton } from "@/components/CopyButton"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 // ─── EventType Combobox ──────────────────────────────────────────────────────
 
@@ -90,6 +94,7 @@ function EventTypeCombobox({
   onChange: (v: string) => void
   gameId: string
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [options, setOptions] = useState<string[]>([])
@@ -125,7 +130,7 @@ function EventTypeCombobox({
             className="flex-1 justify-between font-normal"
           >
             <span className={value ? "" : "text-muted-foreground"}>
-              {value || "Select event type…"}
+              {value || t("analytic.journeyDag.selectEventType")}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -133,13 +138,13 @@ function EventTypeCombobox({
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder="Search…"
+              placeholder={t("analytic.journeyDag.search")}
               value={query}
               onValueChange={setQuery}
             />
             <CommandList>
               {filtered.length === 0 && (
-                <CommandEmpty>No results.</CommandEmpty>
+                <CommandEmpty>{t("analytic.journeyDag.noResults")}</CommandEmpty>
               )}
               {filtered.length > 0 && (
                 <CommandGroup>
@@ -162,7 +167,7 @@ function EventTypeCombobox({
         className="shrink-0"
         disabled={refreshing}
         onClick={loadOptions}
-        title="Refresh event types"
+        title={t("analytic.journeyDag.refreshEventTypes")}
       >
         <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
       </Button>
@@ -173,7 +178,7 @@ function EventTypeCombobox({
         onClick={() => window.open(`/games/${gameId}/analytic?tab=event-types&create=1`, "_blank")}
       >
         <ExternalLink className="h-3 w-3" />
-        Add new event type
+        {t("analytic.journeyDag.addNewEventType")}
       </button>
     </div>
   )
@@ -208,6 +213,9 @@ const NodeStatsContext = React.createContext<Map<string, { playerCount: number; 
 /** Maps journey-node ID → dashboard stats (total_reached, currently_at, drop_off_rate) */
 const NodeDashboardStatsContext = React.createContext<Map<string, JourneyNodeStats>>(new Map())
 
+/** Maps event_type → events from the inspected session (in occurred_at ASC order) */
+const SessionEventsContext = React.createContext<Map<string, JourneyEvent[]>>(new Map())
+
 // ─── Node action context ─────────────────────────────────────────────────────
 
 const DagNodeActionsContext = React.createContext<{
@@ -236,14 +244,19 @@ const NODE_TYPE_OPTIONS = [
 ] as const
 
 function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
+  const { t } = useTranslation()
   const { onEdit, onDelete, onChangeType } = useContext(DagNodeActionsContext)
   const statsMap = useContext(NodeStatsContext)
   const dashboardStatsMap = useContext(NodeDashboardStatsContext)
+  const sessionEventsMap = useContext(SessionEventsContext)
   const isStart = data.nodeType === "start"
   const isEnd = data.nodeType === "end"
   const stats = statsMap.get(data.eventType)
   const dashboardStats = dashboardStatsMap.get(id)
+  const sessionEvents = sessionEventsMap.get(data.eventType)
+  const sessionHit = !!sessionEvents && sessionEvents.length > 0
   const [copied, setCopied] = useState(false)
+  const [eventsOpen, setEventsOpen] = useState(false)
 
   const handleCopyEventType = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -279,6 +292,8 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         "group rounded-lg border bg-card text-card-foreground shadow-sm px-3 py-2 select-none relative",
         isStart && "border-green-500 ring-1 ring-green-500",
         isEnd && "border-orange-400 ring-1 ring-orange-400",
+        sessionHit && !isStart && !isEnd && "border-sky-500 ring-2 ring-sky-400/70",
+        sessionHit && (isStart || isEnd) && "ring-2 ring-sky-400/70",
       )}
       style={{ width: NODE_W, minHeight: NODE_H }}
     >
@@ -287,18 +302,56 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
         position={Position.Left}
         className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background"
       />
+      {sessionHit && (
+        <Popover open={eventsOpen} onOpenChange={setEventsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEventsOpen((v) => !v) }}
+              className="absolute -top-2.5 -right-2.5 z-10 flex items-center gap-0.5 bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-white dark:border-background"
+              title={t("analytic.journeyDag.eventsInThisSession").replace("{count}", String(sessionEvents!.length))}
+            >
+              <Zap className="h-3 w-3" />
+              {sessionEvents!.length}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[320px] p-0" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b">
+              <p className="text-sm font-medium leading-tight">{data.name}</p>
+              <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{data.eventType}</p>
+            </div>
+            <div className="max-h-[320px] overflow-auto p-2 space-y-1.5">
+              {sessionEvents!.map((ev, idx) => (
+                <div key={ev.id} className="rounded border bg-muted/30 p-2">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                    <span>#{idx + 1}</span>
+                    <span>{new Date(ev.occurred_at).toLocaleString()}</span>
+                  </div>
+                  {ev.event_data && Object.keys(ev.event_data).length > 0 ? (
+                    <pre className="text-[10px] font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                      {JSON.stringify(ev.event_data, null, 2)}
+                    </pre>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
       {stats && (
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 whitespace-nowrap">
           <div
             className="flex items-center gap-0.5 bg-blue-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md"
-            title={`${stats.playerCount.toLocaleString()} unique players`}
+            title={`${stats.playerCount.toLocaleString()} ${t("analytic.journeyDag.uniquePlayers")}`}
           >
             <Users className="h-3 w-3" />
             {stats.playerCount.toLocaleString()}
           </div>
           <div
             className="flex items-center gap-0.5 bg-violet-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md"
-            title={`${stats.eventCount.toLocaleString()} events`}
+            title={`${stats.eventCount.toLocaleString()} ${t("analytic.journeyDag.events")}`}
           >
             <Zap className="w-3 h-3" />
             {stats.eventCount.toLocaleString()}
@@ -307,12 +360,12 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
       )}
       <p className="text-sm font-medium leading-tight truncate">{data.name}</p>
       <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight flex items-center gap-0.5">
-        <span className="font-medium">event:</span>
+        <span className="font-medium">{t("analytic.journeyDag.eventLabel")}</span>
         <span className="truncate">{data.eventType}</span>
         <button
           onClick={handleCopyEventType}
           className="shrink-0 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Copy event type"
+          title={t("analytic.journeyDag.copyEventType")}
         >
           {copied
             ? <Check className="h-2.5 w-2.5 text-green-500" />
@@ -322,16 +375,16 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
       {/* Dashboard stats row */}
       {dashboardStats && (
         <div className="grid grid-cols-3 gap-0.5 mt-1.5">
-          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-blue-500/10" title="Total players reached this node">
-            <span className="text-[9px] text-muted-foreground leading-tight">reached</span>
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-blue-500/10" title={t("analytic.journeyDag.totalPlayersReachedThisNode")}>
+            <span className="text-[9px] text-muted-foreground leading-tight">{t("analytic.journeyDag.reached")}</span>
             <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 leading-tight">{dashboardStats.total_reached}</span>
           </div>
-          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-emerald-500/10" title="Players currently at this node">
-            <span className="text-[9px] text-muted-foreground leading-tight">here</span>
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-emerald-500/10" title={t("analytic.journeyDag.playersCurrentlyAtThisNode")}>
+            <span className="text-[9px] text-muted-foreground leading-tight">{t("analytic.journeyDag.here")}</span>
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dashboardStats.currently_at}</span>
           </div>
-          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-orange-500/10" title="Drop-off rate from this node">
-            <span className="text-[9px] text-muted-foreground leading-tight">drop</span>
+          <div className="flex flex-col items-center rounded px-1 py-0.5 bg-orange-500/10" title={t("analytic.journeyDag.dropOffRateFromThisNode")}>
+            <span className="text-[9px] text-muted-foreground leading-tight">{t("analytic.journeyDag.drop")}</span>
             <span className={cn("text-[10px] font-bold leading-tight", dashboardStats.drop_off_rate > 0.5 ? "text-destructive" : "text-orange-500 dark:text-orange-400")}>
               {(dashboardStats.drop_off_rate * 100).toFixed(0)}%
             </span>
@@ -340,9 +393,15 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
       )}
       {/* Node type toggle + Edit / Delete */}
       <div className="mt-1.5 flex gap-1 items-center">
-        <span className="text-[10px] text-muted-foreground mr-0.5">type:</span>
+        <span className="text-[10px] text-muted-foreground mr-0.5">{t("analytic.journeyDag.typeLabel")}</span>
         {NODE_TYPE_OPTIONS.map((opt) => {
           const active = data.nodeType === opt.value
+          const label =
+            opt.value === "start"
+              ? t("analytic.journeyDag.start")
+              : opt.value === "end"
+                ? t("analytic.journeyDag.end")
+                : opt.label
           return (
             <button
               key={opt.value}
@@ -355,7 +414,7 @@ function JourneyNode({ id, data }: NodeProps<Node<JourneyNodeData>>) {
                   : "bg-background text-muted-foreground border-border hover:border-foreground/40",
               )}
             >
-              {opt.label}
+              {label}
             </button>
           )
         })}
@@ -394,12 +453,13 @@ function MetaRows({
   rows: { k: string; v: string }[]
   onChange: (rows: { k: string; v: string }[]) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-2">
       {rows.map((row, i) => (
         <div key={i} className="flex gap-2 items-center">
           <Input
-            placeholder="key"
+            placeholder={t("analytic.metaPlaceholderKey")}
             value={row.k}
             onChange={(e) => {
               const next = [...rows]
@@ -410,7 +470,7 @@ function MetaRows({
           />
           <span className="text-muted-foreground text-xs">:</span>
           <Input
-            placeholder="value"
+            placeholder={t("analytic.metaPlaceholderValue")}
             value={row.v}
             onChange={(e) => {
               const next = [...rows]
@@ -437,7 +497,7 @@ function MetaRows({
         onClick={() => onChange([...rows, { k: "", v: "" }])}
       >
         <Plus className="h-3 w-3 mr-1" />
-        Add field
+        {t("analytic.metaAddField")}
       </Button>
     </div>
   )
@@ -458,6 +518,7 @@ interface NodeDefsPanelProps {
 }
 
 function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDag, editDef, setEditDef, maxNodeDefinitions }: NodeDefsPanelProps) {
+  const { t } = useTranslation()
   const { toast } = useToast()
 
   // Create
@@ -492,7 +553,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
 
   const handleCreate = async () => {
     if (!createForm.name.trim() || !createForm.node_key.trim() || !createForm.event_type.trim()) {
-      toast({ variant: "destructive", title: "Validation", description: "Name, Node Key, and Event Type are required." })
+      toast({ variant: "destructive", title: t("analytic.toastValidation"), description: t("analytic.journeyDag.nameNodeKeyEventTypeRequired") })
       return
     }
     setCreateSaving(true)
@@ -502,11 +563,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await createNodeDefinition(gameId, { ...createForm, metadata: meta })
-      toast({ title: "Journey node created" })
+      toast({ title: t("analytic.journeyDag.journeyNodeCreated") })
       setCreateOpen(false)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to create journey node" })
+      toast({ variant: "destructive", title: t("analytic.toastError"), description: t("analytic.journeyDag.failedCreateJourneyNode") })
     } finally {
       setCreateSaving(false)
     }
@@ -521,11 +582,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         if (row.k.trim()) meta[row.k.trim()] = row.v
       }
       await updateNodeDefinition(gameId, editDef.id, { ...editForm, metadata: meta })
-      toast({ title: "Journey node updated" })
+      toast({ title: t("analytic.journeyDag.journeyNodeUpdated") })
       setEditDef(null)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to update journey node" })
+      toast({ variant: "destructive", title: t("analytic.toastError"), description: t("analytic.journeyDag.failedUpdateJourneyNode") })
     } finally {
       setEditSaving(false)
     }
@@ -536,11 +597,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
     setDeleteSaving(true)
     try {
       await deleteNodeDefinition(gameId, deleteDef.id)
-      toast({ title: "Journey node deleted" })
+      toast({ title: t("analytic.journeyDag.journeyNodeDeleted") })
       setDeleteDef(null)
       onRefresh()
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete journey node" })
+      toast({ variant: "destructive", title: t("analytic.toastError"), description: t("analytic.journeyDag.failedDeleteJourneyNode") })
     } finally {
       setDeleteSaving(false)
     }
@@ -554,7 +615,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {/* Header */}
         <div className="px-3 py-2 border-b flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium">Journey Node</span>
+            <span className="text-sm font-medium">{t("analytic.journeyDag.journeyNode")}</span>
             {!loading && availableDefs.length > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                 {availableDefs.length}
@@ -569,7 +630,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               size="sm"
               className="h-7 text-xs px-2"
               disabled={maxNodeDefinitions != null && defs.length >= maxNodeDefinitions}
-              title={maxNodeDefinitions != null && defs.length >= maxNodeDefinitions ? `Limit reached (${maxNodeDefinitions})` : undefined}
+              title={maxNodeDefinitions != null && defs.length >= maxNodeDefinitions ? `${t("analytic.journeyDag.limitReached")} (${maxNodeDefinitions})` : undefined}
               onClick={() => {
                 setCreateForm({ name: "", node_key: "", description: "", event_type: "arrive" })
                 setCreateMetaRows([])
@@ -578,7 +639,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               }}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
-              New
+              {t("analytic.journeyDag.new")}
             </Button>
           </div>
         </div>
@@ -588,13 +649,13 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
           <div className="px-3 py-1.5 border-b bg-muted/10">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
               <span className="flex items-center gap-1">
-                Usage
+                {t("analytic.journeyDag.usage")}
                 <a
                   href={`/games/${gameId}/plugins`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors"
-                  title="Manage plugins / raise limits"
+                  title={t("analytic.managePluginsTitle")}
                 >
                   <Hammer className="h-2.5 w-2.5" />
                 </a>
@@ -617,7 +678,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
         {/* Drag hint */}
         {!loading && availableDefs.length > 0 && (
           <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/20">
-            Drag onto canvas or click <PlusCircle className="inline h-3 w-3" /> to add to journey
+            {t("analytic.journeyDag.dragOntoCanvasOrClick")}&nbsp;<PlusCircle className="inline h-3 w-3" />&nbsp;{t("analytic.journeyDag.toAddToJourney")}
           </p>
         )}
 
@@ -631,12 +692,12 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           ) : defs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-muted-foreground gap-2">
-              <p className="text-xs">No journey nodes yet.</p>
-              <p className="text-xs">Create one to start building your journey.</p>
+              <p className="text-xs">{t("analytic.journeyDag.noJourneyNodesYet")}</p>
+              <p className="text-xs">{t("analytic.journeyDag.createOneToStartBuilding")}</p>
             </div>
           ) : availableDefs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-muted-foreground gap-2">
-              <p className="text-xs">All definitions are in this journey.</p>
+              <p className="text-xs">{t("analytic.journeyDag.allDefinitionsAreInThisJourney")}</p>
             </div>
           ) : (
             <div className="p-2 space-y-1.5">
@@ -660,12 +721,12 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                         {def.event_type}
                       </Badge>
                     </div>
-                    <div className="flex gap-0.5 shrink-0">
+                    <div className="flex flex-col gap-0.5 shrink-0">
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 text-primary hover:text-primary"
-                        title="Add to journey"
+                        title={t("analytic.journeyDag.addToJourney")}
                         onClick={() => onAddToDag(def)}
                       >
                         <PlusCircle className="h-3.5 w-3.5" />
@@ -711,11 +772,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto" side="right">
           <SheetHeader>
-            <SheetTitle>New Journey Node</SheetTitle>
+            <SheetTitle>{t("analytic.journeyDag.newJourneyNode")}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>{t("analytic.labelName")} <span className="text-destructive">*</span></Label>
               <Input
                 value={createForm.name}
                 onChange={(e) => {
@@ -726,11 +787,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                     node_key: autoSlug ? slugify(newName) : f.node_key,
                   }))
                 }}
-                placeholder="Join Game"
+                placeholder={t("analytic.journeyDag.placeholderNodeName")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Node Key <span className="text-destructive">*</span></Label>
+              <Label>{t("analytic.journeyDag.nodeKey")} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
                 <Input
                   value={createForm.node_key}
@@ -738,7 +799,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                     setCreateForm((f) => ({ ...f, node_key: e.target.value }))
                     setAutoSlug(false)
                   }}
-                  placeholder="join_game"
+                  placeholder={t("analytic.journeyDag.placeholderNodeKey")}
                   className="flex-1"
                 />
                 <Button
@@ -751,17 +812,17 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                     setAutoSlug(next)
                     if (next) setCreateForm((f) => ({ ...f, node_key: slugify(f.name) }))
                   }}
-                  title={autoSlug ? "Auto-slug enabled" : "Auto-slug disabled"}
+                  title={autoSlug ? t("analytic.autoSlugEnabled") : t("analytic.autoSlugDisabled")}
                 >
                   <Wand2 className="h-4 w-4" />
                 </Button>
               </div>
               {autoSlug && (
-                <p className="text-xs text-muted-foreground">Node key will auto-generate from name</p>
+                <p className="text-xs text-muted-foreground">{t("analytic.journeyDag.nodeKeyWillAutoGenerateFromName")}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Event Type <span className="text-destructive">*</span></Label>
+              <Label>{t("analytic.labelEventType")} <span className="text-destructive">*</span></Label>
               <EventTypeCombobox
                 value={createForm.event_type}
                 onChange={(v) => setCreateForm((f) => ({ ...f, event_type: v }))}
@@ -769,7 +830,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>{t("analytic.labelDescription")}</Label>
               <Textarea
                 value={createForm.description}
                 onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
@@ -779,11 +840,11 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
           </div>
           <SheetFooter className="mt-6 flex gap-2">
             <SheetClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t("analytic.btnCancel")}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={createSaving}>
               {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Create
+              {t("analytic.btnCreate")}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -793,22 +854,22 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <Sheet open={!!editDef} onOpenChange={(open) => { if (!open) setEditDef(null) }}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto" side="right">
           <SheetHeader>
-            <SheetTitle>Edit Journey Node</SheetTitle>
+            <SheetTitle>{t("analytic.journeyDag.editJourneyNode")}</SheetTitle>
           </SheetHeader>
           {editDef && (
             <div className="space-y-4 mt-6">
               <p className="text-xs text-muted-foreground">
-                Key: <code>{editDef.node_key}</code>
+                {t("analytic.tableHeaderKey")}: <code>{editDef.node_key}</code>
               </p>
               <div className="space-y-1.5">
-                <Label>Name</Label>
+                <Label>{t("analytic.labelName")}</Label>
                 <Input
                   value={editForm.name}
                   onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Event Type</Label>
+                <Label>{t("analytic.labelEventType")}</Label>
                 <EventTypeCombobox
                   value={editForm.event_type}
                   onChange={(v) => setEditForm((f) => ({ ...f, event_type: v }))}
@@ -816,7 +877,7 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <Label>{t("analytic.labelDescription")}</Label>
                 <Textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
@@ -826,10 +887,10 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
             </div>
           )}
           <SheetFooter className="mt-6 flex gap-2">
-            <Button variant="outline" onClick={() => setEditDef(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditDef(null)}>{t("analytic.btnCancel")}</Button>
             <Button onClick={handleEdit} disabled={editSaving}>
               {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Save
+              {t("analytic.btnSave")}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -839,21 +900,22 @@ function NodeDefsPanel({ gameId, defs, loading, usedDefIds, onRefresh, onAddToDa
       <AlertDialog open={!!deleteDef} onOpenChange={(open) => { if (!open) setDeleteDef(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Journey Node</AlertDialogTitle>
+            <AlertDialogTitle>{t("analytic.journeyDag.deleteJourneyNode")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteDef?.name}</span>? This action cannot be undone.
+              {t("analytic.journeyDag.deleteJourneyNodeDesc")}{" "}
+              <span className="font-semibold">{deleteDef?.name}</span>
+              {t("analytic.journeyDag.deleteJourneyNodeDescSuffix")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("analytic.btnCancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteSaving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Delete
+              {t("analytic.btnDelete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -869,11 +931,18 @@ interface Props {
   journeyId: string
   description?: string
   maxNodeDefinitions?: number
+  /** Optional initial session ID to inspect (events will be fetched and highlighted on DAG). */
+  initialSessionId?: string
 }
 
-function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
+function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions, initialSessionId }: Props) {
+  const { t } = useTranslation()
   const { screenToFlowPosition, fitView } = useReactFlow()
   const { toast } = useToast()
+  const tRef = useRef(t)
+  const toastRef = useRef(toast)
+  tRef.current = t
+  toastRef.current = toast
 
   const [rfNodes, setRfNodes] = useNodesState<Node<JourneyNodeData>>([])
   const [rfEdges, setRfEdges] = useEdgesState<Edge>([])
@@ -899,6 +968,14 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   const [dashboardStatsMap, setDashboardStatsMap] = useState<Map<string, JourneyNodeStats>>(new Map())
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [dashboardRefreshedAt, setDashboardRefreshedAt] = useState<string | null>(null)
+
+  // Session inspection (given a session_id, fetch its events and map by event_type)
+  const [sessionIdInput, setSessionIdInput] = useState(initialSessionId ?? "")
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(initialSessionId ?? null)
+  const [sessionEventsMap, setSessionEventsMap] = useState<Map<string, JourneyEvent[]>>(new Map())
+  const [sessionEventsLoading, setSessionEventsLoading] = useState(false)
+  const [sessionEventsError, setSessionEventsError] = useState<string | null>(null)
+  const [sessionEventsTotal, setSessionEventsTotal] = useState<number | null>(null)
 
   // Refs updated inline each render — lets the debounced callback read fresh state
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -932,12 +1009,16 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
         }
         await saveJourneyDag(gameId, journeyId, payload)
       } catch {
-        toast({ variant: "destructive", title: "Error", description: "Failed to save DAG" })
+        toastRef.current({
+          variant: "destructive",
+          title: tRef.current("analytic.toastError"),
+          description: tRef.current("analytic.journeyDag.failedSaveDag"),
+        })
       } finally {
         setIsSaving(false)
       }
     }, 800)
-  }, [gameId, journeyId, toast])
+  }, [gameId, journeyId])
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) => {
@@ -979,8 +1060,8 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     [setRfNodes, setUsedDefIds, scheduleSave],
   )
 
-  const loadDag = useCallback(async () => {
-    setDagLoading(true)
+  const loadDag = useCallback(async (silent = false) => {
+    if (!silent) setDagLoading(true)
     setDagError(null)
     try {
       const dag = await getJourneyDag(gameId, journeyId)
@@ -1004,9 +1085,9 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
       setRfEdges(edges)
       setUsedDefIds(new Set(rawNodes.map((n) => n.node_definition_id)))
     } catch {
-      setDagError("Failed to load DAG")
+      setDagError(tRef.current("analytic.journeyDag.failedLoadDag"))
     } finally {
-      setDagLoading(false)
+      if (!silent) setDagLoading(false)
     }
   }, [gameId, journeyId, setRfNodes, setRfEdges])
 
@@ -1016,11 +1097,11 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
       const data = await listNodeDefinitions(gameId)
       setAllDefs(data)
     } catch {
-      toast({ variant: "destructive", title: "Error", description: "Failed to load journey nodes" })
+      toastRef.current({ variant: "destructive", title: tRef.current("analytic.toastError"), description: tRef.current("analytic.journeyDag.failedLoadJourneyNodes") })
     } finally {
       setDefsLoading(false)
     }
-  }, [gameId, toast])
+  }, [gameId])
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -1065,6 +1146,42 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
   useEffect(() => { loadDag(); loadDefs() }, [loadDag, loadDefs])
   useEffect(() => { loadStats() }, [loadStats])
   useEffect(() => { loadDashboard() }, [loadDashboard])
+
+  const loadSessionEvents = useCallback(async (sessionId: string) => {
+    setSessionEventsLoading(true)
+    setSessionEventsError(null)
+    try {
+      const res = await getJourneySessionEvents(gameId, sessionId, { limit: 500, offset: 0 })
+      const events = (res.events ?? [])
+        .slice()
+        .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime())
+      const map = new Map<string, JourneyEvent[]>()
+      for (const ev of events) {
+        const arr = map.get(ev.event_type) ?? []
+        arr.push(ev)
+        map.set(ev.event_type, arr)
+      }
+      setSessionEventsMap(map)
+      setSessionEventsTotal(res.total ?? events.length)
+    } catch (err: any) {
+      setSessionEventsError(err?.message ?? tRef.current("analytic.journeyDag.failedLoadSessionEvents"))
+      setSessionEventsMap(new Map())
+      setSessionEventsTotal(null)
+    } finally {
+      setSessionEventsLoading(false)
+    }
+  }, [gameId])
+
+  // Auto-fetch when activeSessionId changes
+  useEffect(() => {
+    if (activeSessionId) {
+      loadSessionEvents(activeSessionId)
+    } else {
+      setSessionEventsMap(new Map())
+      setSessionEventsTotal(null)
+      setSessionEventsError(null)
+    }
+  }, [activeSessionId, loadSessionEvents])
 
   const addNodeToDag = useCallback(
     (def: JourneyDagNodeDefinition, x: number, y: number) => {
@@ -1173,11 +1290,66 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
     <DagNodeActionsContext.Provider value={nodeActions}>
     <NodeStatsContext.Provider value={nodeStatsMap}>
     <NodeDashboardStatsContext.Provider value={dashboardStatsMap}>
+    <SessionEventsContext.Provider value={sessionEventsMap}>
     <div className="space-y-2">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <p className="text-sm text-muted-foreground">{description || "No description"}</p>
-        <div className="ml-auto flex items-center gap-2">
+      {/* Journey description */}
+      <p className="text-sm text-muted-foreground">{description || t("analytic.journeyDag.noDescription")}</p>
+
+      {/* Journey ID + Session inspector (same row) */}
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground h-8">
+          <span>{t("analytic.journeyDag.journeyId")}</span>
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">{journeyId}</code>
+          <CopyButton text={journeyId} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-xs font-medium">{t("analytic.journeyDag.sessionId")}</Label>
+            <Input
+              value={sessionIdInput}
+              onChange={(e) => setSessionIdInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  setActiveSessionId(sessionIdInput.trim() || null)
+                }
+              }}
+              placeholder={t("analytic.journeyDag.sessionUuidPlaceholder")}
+              className="h-8 text-xs font-mono w-[360px] max-w-full"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setActiveSessionId(sessionIdInput.trim() || null)}
+              disabled={sessionEventsLoading || !sessionIdInput.trim()}
+            >
+              {sessionEventsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("analytic.journeyDag.load")}
+            </Button>
+            {activeSessionId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setSessionIdInput(""); setActiveSessionId(null) }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> {t("analytic.journeyDag.clear")}
+              </Button>
+            )}
+          </div>
+          {sessionEventsError ? (
+            <span className="text-[11px] text-destructive">{sessionEventsError}</span>
+          ) : activeSessionId && sessionEventsTotal != null ? (
+            <span className="text-[11px] text-muted-foreground">
+              {t("analytic.journeyDag.eventsMatchedOnTypes")
+                .replace("{count}", String(sessionEventsTotal))
+                .replace("{types}", String(sessionEventsMap.size))}
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">{t("analytic.journeyDag.pasteSessionToHighlight")}</span>
+          )}
+        </div>
+        <div className="ml-auto self-end flex items-center h-8">
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
@@ -1189,7 +1361,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                     format(dateRange.from, "MMM d, yyyy")
                   )
                 ) : (
-                  "Pick date range"
+                  t("analytic.journeyDag.pickDateRange")
                 )}
               </Button>
             </PopoverTrigger>
@@ -1244,21 +1416,26 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
               nodeTypes={nodeTypes}
               onConnect={onConnect}
               deleteKeyCode={["Delete", "Backspace"]}
+              selectionOnDrag
+              panOnDrag={[1, 2]}
+              selectionMode={SelectionMode.Partial}
+              multiSelectionKeyCode={["Meta", "Control"]}
               fitView
               fitViewOptions={{ padding: 0.25 }}
+              minZoom={0.01}
               proOptions={{ hideAttribution: true }}
               onDragOver={onDragOver}
               onDrop={onDrop}
             >
               <Background />
               <Controls>
-                <ControlButton onClick={handleAutoLayout} title="Auto layout">
+                <ControlButton onClick={handleAutoLayout} title={t("analytic.journeyDag.autoLayout")}>
                   <Wand2 className="h-3.5 w-3.5" />
                 </ControlButton>
               </Controls>
               {rfNodes.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <p className="text-xs text-muted-foreground">Drop nodes here or click + in the panel</p>
+                  <p className="text-xs text-muted-foreground">{t("analytic.journeyDag.dropNodesHereOrClickInPanel")}</p>
                 </div>
               )}
             </ReactFlow>
@@ -1268,8 +1445,8 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 variant="outline"
                 size="icon"
                 className="h-7 w-7 bg-background/80 backdrop-blur-sm"
-                onClick={() => { loadDag(); loadDefs() }}
-                title="Refresh DAG"
+                onClick={() => { loadDag(true); loadDefs(); loadStats(); loadDashboard() }}
+                title={t("analytic.journeyDag.refreshDag")}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -1278,7 +1455,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
                 size="icon"
                 className="h-7 w-7 bg-background/80 backdrop-blur-sm"
                 onClick={() => setPanelOpen((v) => !v)}
-                title={panelOpen ? "Hide panel" : "Show panel"}
+                title={panelOpen ? t("analytic.journeyDag.hidePanel") : t("analytic.journeyDag.showPanel")}
               >
                 {panelOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
               </Button>
@@ -1286,7 +1463,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
             {isSaving && (
               <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md border">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Saving…
+                {t("analytic.journeyDag.saving")}
               </div>
             )}
           </>
@@ -1310,6 +1487,7 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
 
     </div>
     </div>
+    </SessionEventsContext.Provider>
     </NodeDashboardStatsContext.Provider>
     </NodeStatsContext.Provider>
     </DagNodeActionsContext.Provider>
@@ -1318,10 +1496,16 @@ function JourneyDagInner({ gameId, journeyId, description, maxNodeDefinitions }:
 
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function JourneyDagView({ gameId, journeyId, description, maxNodeDefinitions }: Props) {
+export function JourneyDagView({ gameId, journeyId, description, maxNodeDefinitions, initialSessionId }: Props) {
   return (
     <ReactFlowProvider>
-      <JourneyDagInner gameId={gameId} journeyId={journeyId} description={description} maxNodeDefinitions={maxNodeDefinitions} />
+      <JourneyDagInner
+        gameId={gameId}
+        journeyId={journeyId}
+        description={description}
+        maxNodeDefinitions={maxNodeDefinitions}
+        initialSessionId={initialSessionId}
+      />
     </ReactFlowProvider>
   )
 }

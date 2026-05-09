@@ -1,8 +1,8 @@
 "use client"
 
-import { Mail, User, Package, Archive, Zap, Shield, ScrollText, Swords, ArrowLeftRight, LayoutTemplate } from "lucide-react"
+import { Mail, User, Package, Archive, Zap, Shield, ScrollText, Swords, ArrowLeftRight, LayoutTemplate, Route } from "lucide-react"
 
-export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "battle" | "transactions"
+export type PlayerNavTab = "info" | "items" | "containers" | "presets" | "generators" | "equipments" | "quests" | "journey" | "battle" | "transactions"
 
 interface PlayerSectionNavProps {
   gameId: string
@@ -18,6 +18,7 @@ interface PlayerSectionNavProps {
     presets?: number
     generators?: number
     quests?: number
+    journey?: number
     transactions?: number
   }
 }
@@ -32,6 +33,7 @@ const TABS: { value: PlayerNavTab; label: string; icon: LucideIcon }[] = [
   { value: "equipments",   label: "Equipments",   icon: Shield         },
   { value: "presets",      label: "Presets",      icon: LayoutTemplate },
   { value: "quests",       label: "Quests",       icon: ScrollText     },
+  { value: "journey",      label: "Journey",      icon: Route          },
   { value: "battle",       label: "Battle",       icon: Swords         },
   { value: "transactions", label: "Transactions", icon: ArrowLeftRight },
 ]
@@ -57,6 +59,7 @@ export function PlayerSectionNav({
     if (value === "presets" && counts.presets != null) n = counts.presets
     if (value === "generators" && counts.generators != null) n = counts.generators
     if (value === "quests" && counts.quests != null) n = counts.quests
+    if (value === "journey" && counts.journey != null && activeTab === "journey") n = counts.journey
     if (value === "transactions" && counts.transactions != null && activeTab === "transactions")
       n = counts.transactions
     if (!n) return null

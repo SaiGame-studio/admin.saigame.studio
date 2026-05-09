@@ -1,3 +1,16 @@
+## Language Rules
+
+### 0. English-Only Code & Comments
+All code, comments, variable names, function names, commit messages, and documentation **must be written in English only**.
+
+**Requirements:**
+- Never write comments, inline notes, or log messages in Vietnamese or any language other than English.
+- Never use non-English characters in identifiers, string literals (except translation files), or file names.
+- The **only** exception is translation/i18n resource files (e.g., `locales/vi/*.json`, `messages/vi.json`), where non-English content is expected and required.
+- If asked a question in Vietnamese, respond but always produce code and comments in English.
+
+---
+
 ## Automation Test Rules
 
 ### 1. Compliance Reporting & Verification
@@ -8,6 +21,16 @@
 ---
 
 ## UI/Component Pattern Rules
+
+### 3. Mandatory I18n For New UI Text
+Whenever adding or changing any UI-facing text (labels, buttons, placeholders, tooltips, headings, empty states, toasts, badges), **always add multi-language translations in the same change**.
+
+**Requirements:**
+- Never ship hardcoded UI text in a single language.
+- Add translation keys for all supported locales immediately (currently: `en`, `vi`, `ja`).
+- Replace raw strings in components/pages with translation lookups.
+- Keep wording consistent across locales for the same feature.
+- If a translation is temporarily unavailable, use a clearly named translation key and add placeholder values for all locales in the same PR.
 
 ### 2. Reuse Existing Patterns Before Building New Ones
 Before implementing any new UI element or component, **always search the codebase for an existing similar element** and follow its established pattern exactly. Do not invent a new approach if one already exists.

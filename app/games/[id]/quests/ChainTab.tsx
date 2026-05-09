@@ -135,7 +135,7 @@ function UnlockQuestIdsPicker({
 
   const memberIds = new Set(chainMembers.map((m) => m.quest_definition_id))
   const extraQuests = allQuestDefs
-    .filter((q) => !memberIds.has(q.id) && q.id !== excludeQuestId)
+    .filter((q) => !memberIds.has(q.id) && q.id !== excludeQuestId && q.quest_type !== 'daily')
     .map((q) => ({ id: q.id, name: q.name, inChain: false }))
 
   const allOptions = [...available, ...extraQuests]
@@ -501,7 +501,7 @@ export function ChainTab({ game }: { game: Game | null }) {
 
   const getAvailableQuests = (): QuestDefinition[] => {
     const memberQuestIds = new Set(expandedMembers.map((m) => m.quest_definition_id))
-    return allQuestDefs.filter((q) => !memberQuestIds.has(q.id))
+    return allQuestDefs.filter((q) => !memberQuestIds.has(q.id) && q.quest_type !== 'daily')
   }
 
   const handleAddMember = async () => {
@@ -597,8 +597,8 @@ export function ChainTab({ game }: { game: Game | null }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Quest Chains</h2>
-          <p className="text-sm text-muted-foreground">Manage sequential and branching quest chains. Add quests via the membership panel.</p>
+          <h2 className="text-lg font-semibold">{t('quest.chain.headerTitle')}</h2>
+          <p className="text-sm text-muted-foreground">{t('quest.chain.headerDesc')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing} title={t('quest.chain.refresh')}>
@@ -904,7 +904,7 @@ export function ChainTab({ game }: { game: Game | null }) {
                                   members={expandedMembers}
                                   questDefsMap={questDefsMap}
                                   availableQuests={allQuestDefs.filter(
-                                    (q) => !expandedMembers.some((m) => m.quest_definition_id === q.id)
+                                    (q) => !expandedMembers.some((m) => m.quest_definition_id === q.id) && q.quest_type !== 'daily'
                                   )}
                                   onQuickAdd={async (questId) => {
                                     const nextSort = expandedMembers.length > 0

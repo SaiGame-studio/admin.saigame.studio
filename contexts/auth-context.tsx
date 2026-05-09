@@ -82,6 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           capabilities,
         }
 
+        // Auto-logout if user has been deactivated
+        if (!rawUser.is_active) {
+          toast({
+            title: 'Account deactivated',
+            description: 'Your account has been deactivated. Please contact an administrator.',
+            variant: 'destructive',
+            duration: 5000,
+          })
+          logout()
+          return
+        }
+
         setUser(user)
         // Save capabilities and timezone to localStorage for global access
         safeSetItem('user_capabilities', JSON.stringify(capabilities))
@@ -189,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Redirect logic
     if (!isLoading) {
-      const authPages = ["/login", "/register", "/forgot-password", "/reset-password"]
+      const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/google-login-success"]
       const publicPrefixes = ["/tutorials"]
       const isPublicPage = authPages.includes(pathname) || publicPrefixes.some(p => pathname.startsWith(p))
       if (!isAuthenticated && !isPublicPage) {

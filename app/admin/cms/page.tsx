@@ -21,6 +21,12 @@ import { useToast } from "@/hooks/use-toast"
 import { Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoryTab } from "./CategoryTab"
+import { locales } from "@/lib/i18n/config"
+import ReactCountryFlag from "react-country-flag"
+
+const LANGUAGE_STORAGE_KEY = "admin.cms.languageFilter"
+const LANGUAGE_LABELS: Record<string, string> = { en: "English", vi: "Tiếng Việt", ja: "日本語" }
+const LANGUAGE_COUNTRY: Record<string, string> = { en: "US", vi: "VN", ja: "JP" }
 
 function flattenCategoryTree(cats: ContentCategory[], depth = 0): { value: string; label: string; depth: number }[] {
   const result: { value: string; label: string; depth: number }[] = []
@@ -71,6 +77,15 @@ function CmsPageInner() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchName)
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "created_at")
   const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc")
+  const [language, setLanguage] = useState<string>(() => {
+    const fromUrl = searchParams.get("language")
+    if (fromUrl && (fromUrl === "all" || (locales as readonly string[]).includes(fromUrl))) return fromUrl
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+      if (stored && (stored === "all" || (locales as readonly string[]).includes(stored))) return stored
+    }
+    return "all"
+  })
   const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
   const perPage = 20
   const { toast } = useToast()
@@ -119,7 +134,7 @@ function CmsPageInner() {
       const result = await listCmsContents({
         category_id: category !== "all" ? category : undefined,
         search: debouncedSearch || undefined,
-        language: "en",
+        language: language !== "all" ? language : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
         page,
@@ -134,14 +149,21 @@ function CmsPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [category, debouncedSearch, sortBy, sortOrder, page])
+  }, [category, debouncedSearch, language, sortBy, sortOrder, page])
 
   useEffect(() => {
     if (capabilities.is_super_admin) {
       load()
-      updateUrl({ category, search: debouncedSearch, sort_by: sortBy, sort_order: sortOrder, page })
+      updateUrl({ category, search: debouncedSearch, language, sort_by: sortBy, sort_order: sortOrder, page })
     }
   }, [capabilities.is_super_admin, load])
+
+  // persist language filter
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language)
+    }
+  }, [language])
 
   useEffect(() => {
     if (!capabilities.is_super_admin) {
@@ -152,7 +174,7 @@ function CmsPageInner() {
   // reset page when filters change
   useEffect(() => {
     setPage(1)
-  }, [category, sortBy, sortOrder])
+  }, [category, language, sortBy, sortOrder])
 
   const handleCreate = async () => {
     if (!createTitle.trim()) return
@@ -171,7 +193,7 @@ function CmsPageInner() {
     }
   }
 
-  const hasActiveFilters = category !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
+  const hasActiveFilters = category !== "all" || language !== "all" || searchName || sortBy !== "created_at" || sortOrder !== "desc"
 
   if (!capabilities.is_super_admin) {
     return (
@@ -223,7 +245,7 @@ function CmsPageInner() {
           {hasActiveFilters && (
             <button
               className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-              onClick={() => { setSearchName(""); setCategory("all"); setSortBy("created_at"); setSortOrder("desc") }}
+              onClick={() => { setSearchName(""); setCategory("all"); setLanguage("all"); setSortBy("created_at"); setSortOrder("desc") }}
             >
               Clear
             </button>
@@ -258,6 +280,17 @@ function CmsPageInner() {
               <option key={c.value} value={c.value}>
                 {"\u00a0\u00a0".repeat(c.depth)}{c.depth > 0 ? "↳ " : ""}{c.label}
               </option>
+            ))}
+          </select>
+          {/* Language */}
+          <select
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            <option value="all">All Languages</option>
+            {locales.map((lng) => (
+              <option key={lng} value={lng}>{LANGUAGE_LABELS[lng] ?? lng.toUpperCase()}</option>
             ))}
           </select>
           {/* Sort */}
@@ -314,10 +347,40 @@ function CmsPageInner() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {contents.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/admin/cms/${item.id}?language=${item.language}`)}>
+                {contents.map((item) => {
+                  const href = `/admin/cms/${item.id}?language=${item.language}`
+                  return (
+                  <TableRow
+                    key={item.id}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+                        window.open(href, "_blank")
+                      } else {
+                        router.push(href)
+                      }
+                    }}
+                    onAuxClick={(e) => {
+                      if (e.button === 1) {
+                        e.preventDefault()
+                        window.open(href, "_blank")
+                      }
+                    }}
+                  >
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <Link
+                        href={href}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 hover:underline"
+                      >
+                        {item.language && LANGUAGE_COUNTRY[item.language] && (
+                          <ReactCountryFlag
+                            countryCode={LANGUAGE_COUNTRY[item.language]}
+                            svg
+                            style={{ width: "1.25em", height: "1.25em" }}
+                            title={LANGUAGE_LABELS[item.language] ?? item.language}
+                          />
+                        )}
                         {item.featured && <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />}
                         <div>
                           <div className="font-medium text-sm">{item.title}</div>
@@ -325,7 +388,7 @@ function CmsPageInner() {
                             <div className="text-xs text-muted-foreground truncate max-w-[300px]">{item.description}</div>
                           )}
                         </div>
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
@@ -364,7 +427,8 @@ function CmsPageInner() {
                       <span className="text-xs text-muted-foreground">{formatDate(item.updated_at)}</span>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           )}
@@ -372,15 +436,18 @@ function CmsPageInner() {
       </Card>
 
       {/* Pagination */}
-      {!loading && !error && totalPages > 1 && (
+      {!error && (
         <div className="flex items-center justify-center gap-2 mt-4">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <Button variant="outline" size="sm" onClick={() => setPage(1)}>
+            First
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setPage(Math.max(1, page - 1))}>
             Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
+            Page {page} of {Math.max(totalPages, page)}
           </span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+          <Button variant="outline" size="sm" onClick={() => setPage(page + 1)}>
             Next
           </Button>
         </div>

@@ -1,12 +1,14 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
-import { toSlug, toSlugUpperCase } from "@/lib/utils"
+import { toSlug, toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
@@ -43,6 +45,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ITEMS_TABS } from "@/lib/items-tabs"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetTrigger,
 } from "@/components/ui/sheet"
@@ -146,14 +149,17 @@ function KVEditor({
   entries,
   onChange,
   label,
+  numericValue,
 }: {
   entries: KVEntry[]
   onChange: (v: KVEntry[]) => void
   label: string
+  numericValue?: boolean
 }) {
   const addRow = () => onChange([...entries, { key: "", value: "" }])
   const remove = (i: number) => onChange(entries.filter((_, idx) => idx !== i))
   const update = (i: number, field: "key" | "value", val: string) => {
+    if (numericValue && field === "value" && val !== "" && val !== "-" && isNaN(Number(val))) return
     const next = entries.map((e, idx) =>
       idx === i ? { ...e, [field]: val } : e,
     )
@@ -174,7 +180,8 @@ function KVEditor({
           <span className="text-muted-foreground">=</span>
           <Input
             className="h-7 text-xs"
-            placeholder="value"
+            placeholder={numericValue ? "0" : "value"}
+            inputMode={numericValue ? "decimal" : undefined}
             value={e.value}
             onChange={(ev) => update(i, "value", ev.target.value)}
           />
@@ -258,7 +265,11 @@ const EMPTY_KEY_ROW = (): KeyReqRow => ({
 function emptyGachaForm() {
   return {
     name: "",
+    code_name: "",
+    collect_destination: "mailbox" as "mailbox" | "inventory",
     is_enabled: true,
+    mailbox_title: "",
+    mailbox_body: "",
     pool: [EMPTY_ROW()],
     keyReqs: [EMPTY_KEY_ROW()],
   }
@@ -781,6 +792,9 @@ function CreateItemDialog({
   const [genOutputPool, setGenOutputPool] = useState<GenPoolEntry[]>([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
   const [genInterval, setGenInterval] = useState("3600")
   const [genTickCapacity, setGenTickCapacity] = useState("24")
+  const [genCollectDestination, setGenCollectDestination] = useState<"mailbox" | "inventory">("mailbox")
+  const [genMailboxTitle, setGenMailboxTitle] = useState("")
+  const [genMailboxBody, setGenMailboxBody] = useState("")
 
   // All items for generator output dropdown
   const [genAllItems, setGenAllItems] = useState<ItemDefinition[]>([])
@@ -817,6 +831,9 @@ function CreateItemDialog({
     setGenOutputPool([{ item_definition_id: "", drop_rate: "1", quantity_min: "1", quantity_max: "1", collect_cap: "5", initial_output: "0" }])
     setGenInterval("3600")
     setGenTickCapacity("24")
+    setGenCollectDestination("mailbox")
+    setGenMailboxTitle("")
+    setGenMailboxBody("")
     setGenAllItems([])
   }
 
@@ -864,9 +881,10 @@ function CreateItemDialog({
 
       // Inject generator_config into metadata
       if (category === "generator") {
-        metadata.generator_config = {
+        const generatorConfig: Record<string, unknown> = {
           production_interval_seconds: Number(genInterval) || 3600,
           tick_capacity: Number(genTickCapacity) || 24,
+          collect_destination: genCollectDestination,
           output_pool: genOutputPool
             .filter(p => p.item_definition_id.trim())
             .map(p => ({
@@ -878,6 +896,11 @@ function CreateItemDialog({
               initial_output: Number(p.initial_output) || 0,
             })),
         }
+        if (genCollectDestination === "mailbox") {
+          if (genMailboxTitle.trim()) generatorConfig.mailbox_title = genMailboxTitle.trim()
+          if (genMailboxBody.trim()) generatorConfig.mailbox_body = genMailboxBody.trim()
+        }
+        metadata.generator_config = generatorConfig
       }
 
       const body: CreateItemRequest = {
@@ -945,7 +968,7 @@ function CreateItemDialog({
                 const v = e.target.value
                 setName(v)
                 if (autoSlug) {
-                  setItemCode(toSlugUpperCase(v))
+                  setItemCode(toSlugUnderscore(v))
                 }
               }}
             />
@@ -958,7 +981,7 @@ function CreateItemDialog({
             <div className="flex gap-2">
               <Input
                 id="item-code"
-                placeholder="e.g. IRON_SWORD"
+                placeholder="e.g. iron_sword"
                 value={itemCode}
                 onChange={(e) => {
                   setAutoSlug(false)
@@ -974,7 +997,7 @@ function CreateItemDialog({
                 title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
                 onClick={() => {
                   setAutoSlug(true)
-                  setItemCode(toSlugUpperCase(name))
+                  setItemCode(toSlugUnderscore(name))
                 }}
               >
                 <Wand2 className="h-4 w-4" />
@@ -1127,58 +1150,104 @@ function CreateItemDialog({
 
           {/* Generator Config */}
           {category === "generator" && (
-            <div className="space-y-4 rounded-lg border p-5">
+            <div className="space-y-4">
               <Label className="text-sm font-semibold">{t('items.generatorConfig')}</Label>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Card 1: Collect Destination + Mailbox */}
+              <div className="space-y-4 rounded-lg border p-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="gen-interval"
-                    type="number"
-                    min={1}
-                    value={genInterval}
-                    onChange={(e) => setGenInterval(e.target.value)}
-                  />
-                  {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
+                  <Label htmlFor="gen-collect-destination">{t('items.collectDestination')}</Label>
+                  <Select value={genCollectDestination} onValueChange={(v) => setGenCollectDestination(v as "mailbox" | "inventory")}>
+                    <SelectTrigger id="gen-collect-destination">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                      <SelectItem value="inventory">{t('items.collectDestinationInventory')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {genCollectDestination === "inventory" && (
+                    <p className="text-xs text-muted-foreground">{t('items.generatorInventoryHint')}</p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gen-tick-capacity">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="gen-tick-capacity"
-                    type="number"
-                    min={1}
-                    value={genTickCapacity}
-                    onChange={(e) => setGenTickCapacity(e.target.value)}
-                  />
-                  {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
-                </div>
+
+                {genCollectDestination === "mailbox" && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gen-mailbox-title">{t('items.generatorMailboxTitle')}</Label>
+                      <Input
+                        id="gen-mailbox-title"
+                        value={genMailboxTitle}
+                        onChange={(e) => setGenMailboxTitle(e.target.value)}
+                        placeholder={t('items.generatorMailboxTitlePlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gen-mailbox-body">{t('items.generatorMailboxBody')}</Label>
+                      <Textarea
+                        id="gen-mailbox-body"
+                        value={genMailboxBody}
+                        onChange={(e) => setGenMailboxBody(e.target.value)}
+                        placeholder={t('items.generatorMailboxBodyPlaceholder')}
+                        rows={3}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('items.generatorMailboxHint')}</p>
+                  </div>
+                )}
               </div>
 
-              {/* Offline calculation hint */}
-              {(() => {
-                const interval = parseInt(genInterval) || 0
-                const ticks = parseInt(genTickCapacity) || 0
-                const maxSeconds = interval * ticks
-                if (interval > 0 && ticks > 0) {
-                  const hours = Math.floor(maxSeconds / 3600)
-                  const mins = Math.floor((maxSeconds % 3600) / 60)
-                  const timeStr = hours > 0
-                    ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}`
-                    : `${mins}m`
-                  return (
-                    <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
-                      <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
-                      <p>Max offline duration = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
-                      <p>After being offline for up to <span className="font-medium text-foreground">{timeStr}</span>, the player can collect up to <span className="font-mono font-medium text-foreground">{ticks}</span> ticks worth of output.</p>
-                    </div>
-                  )
-                }
-                return null
-              })()}
+              {/* Card 2: Interval + Tick Capacity */}
+              <div className="space-y-4 rounded-lg border p-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gen-interval">{t('items.intervalLabel')} <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="gen-interval"
+                      type="number"
+                      min={1}
+                      value={genInterval}
+                      onChange={(e) => setGenInterval(e.target.value)}
+                    />
+                    {errors.genInterval && <p className="text-xs text-destructive">{errors.genInterval}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gen-tick-capacity">{t('items.tickCapacity')} <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="gen-tick-capacity"
+                      type="number"
+                      min={1}
+                      value={genTickCapacity}
+                      onChange={(e) => setGenTickCapacity(e.target.value)}
+                    />
+                    {errors.genTickCapacity && <p className="text-xs text-destructive">{errors.genTickCapacity}</p>}
+                  </div>
+                </div>
 
-              {/* Output Pool */}
-              <div className="space-y-3">
+                {(() => {
+                  const interval = parseInt(genInterval) || 0
+                  const ticks = parseInt(genTickCapacity) || 0
+                  const maxSeconds = interval * ticks
+                  if (interval > 0 && ticks > 0) {
+                    const hours = Math.floor(maxSeconds / 3600)
+                    const mins = Math.floor((maxSeconds % 3600) / 60)
+                    const timeStr = hours > 0
+                      ? `${hours}h${mins > 0 ? ` ${mins}m` : ""}`
+                      : `${mins}m`
+                    return (
+                      <div className="rounded-md bg-muted/50 border border-dashed px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+                        <p className="font-medium text-foreground/80">⏱ Offline Calculation</p>
+                        <p>Max offline duration = <span className="font-mono font-medium text-foreground">{interval}s</span> × <span className="font-mono font-medium text-foreground">{ticks}</span> ticks = <span className="font-semibold text-foreground">{maxSeconds.toLocaleString()}s ({timeStr})</span></p>
+                        <p>After being offline for up to <span className="font-medium text-foreground">{timeStr}</span>, the player can collect up to <span className="font-mono font-medium text-foreground">{ticks}</span> ticks worth of output.</p>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+
+              {/* Card 3: Output Pool */}
+              <div className="space-y-3 rounded-lg border p-5">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm">{t('items.outputPool')} <span className="text-destructive">*</span></Label>
                   <Button
@@ -1375,6 +1444,7 @@ function CreateItemDialog({
             entries={stats}
             onChange={setStats}
             label={t('items.baseStatsLabel')}
+            numericValue
           />
 
           {/* Metadata */}
@@ -1840,6 +1910,7 @@ function GeneratorTab({
   generatorError,
   setGeneratorError,
   activeTab,
+  refreshKey,
   onAddGenerator,
 }: {
   studioId: string
@@ -1851,6 +1922,7 @@ function GeneratorTab({
   generatorError: string | null
   setGeneratorError: (v: string | null) => void
   activeTab: string
+  refreshKey: number
   onAddGenerator: () => void
 }) {
   const { t } = useTranslation()
@@ -1891,6 +1963,12 @@ function GeneratorTab({
     if (generatorItems.length > 0 || generatorLoading) return
     fetchGenerators()
   }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refetch when parent bumps the refresh key (e.g. after creating a new generator)
+  useEffect(() => {
+    if (refreshKey === 0 || !gameId) return
+    fetchGenerators()
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (generatorLoading) {
     return (
@@ -2125,6 +2203,7 @@ export default function GameItemsPage() {
   const [generatorItems, setGeneratorItems] = useState<ItemDefinition[]>([])
   const [generatorLoading, setGeneratorLoading] = useState(false)
   const [generatorError, setGeneratorError] = useState<string | null>(null)
+  const [generatorRefreshKey, setGeneratorRefreshKey] = useState(0)
 
   // equipments tab state
   const [equipmentSlots, setEquipmentSlots] = useState<EquipmentSlot[]>([])
@@ -2165,11 +2244,13 @@ export default function GameItemsPage() {
   const [editingPack, setEditingPack] = useState<GachaPack | null>(null)
   const [formSaving, setFormSaving] = useState(false)
   const [gachaForm, setGachaForm] = useState(emptyGachaForm())
+  const [gachaAutoSlug, setGachaAutoSlug] = useState(true)
   const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null)
   const [deletePackLoading, setDeletePackLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null)
   const [gachaComboSearch, setGachaComboSearch] = useState("")
+  const suppressGachaAutoOpenRef = useRef(false)
 
   // initialize tab from URL params
   useEffect(() => {
@@ -2228,15 +2309,6 @@ export default function GameItemsPage() {
     }
     router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
   }, [containerSearchDebounced]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // auto-open create dialog from query params e.g. ?create=1&category=currency
-  useEffect(() => {
-    if (searchParams.get("create") === "1") {
-      const cat = searchParams.get("category") as ItemCategory | null
-      setCreateInitCategory(cat ?? undefined)
-      setShowCreate(true)
-    }
-  }, [searchParams])
 
   // fetch categories, rarities & tags from API on mount
   useEffect(() => {
@@ -2518,6 +2590,10 @@ export default function GameItemsPage() {
 
   // auto-open edit sheet when ?editPack=<id> is in the URL (keep param so F5 re-opens)
   useEffect(() => {
+    if (suppressGachaAutoOpenRef.current) {
+      suppressGachaAutoOpenRef.current = false
+      return
+    }
     const packId = searchParams.get("editPack")
     if (!packId || gachaLoading || gachaPacks.length === 0) return
     const pack = gachaPacks.find((p) => p.id === packId)
@@ -2528,6 +2604,7 @@ export default function GameItemsPage() {
   }, [gachaPacks, gachaLoading])
 
   function gachaCloseSheet() {
+    suppressGachaAutoOpenRef.current = true
     setGachaSheetOpen(false)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
@@ -2537,6 +2614,7 @@ export default function GameItemsPage() {
   function gachaOpenCreate() {
     setEditingPack(null)
     setGachaForm(emptyGachaForm())
+    setGachaAutoSlug(true)
     setGachaSheetOpen(true)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
@@ -2545,9 +2623,15 @@ export default function GameItemsPage() {
 
   function gachaOpenEdit(pack: GachaPack) {
     setEditingPack(pack)
+    setGachaAutoSlug(false)
+    const meta = (pack.metadata ?? {}) as Record<string, unknown>
     setGachaForm({
       name: pack.name,
+      code_name: pack.code_name ?? "",
+      collect_destination: pack.collect_destination ?? "mailbox",
       is_enabled: pack.is_enabled,
+      mailbox_title: typeof meta.mailbox_title === "string" ? meta.mailbox_title : "",
+      mailbox_body: typeof meta.mailbox_body === "string" ? meta.mailbox_body : "",
       pool: pack.item_pool.length > 0
         ? pack.item_pool.map((e) => ({
             item_definition_id: e.item_definition_id,
@@ -2588,7 +2672,7 @@ export default function GameItemsPage() {
     setGachaForm((f) => ({ ...f, pool: f.pool.filter((_, i) => i !== index) }))
   }
 
-  async function handleGachaSave() {
+  async function handleGachaSave(closeAfterSave: boolean = true) {
     if (!gachaForm.name.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
     const item_pool: GachaPoolEntry[] = gachaForm.pool
       .filter((r) => r.item_definition_id.trim())
@@ -2604,30 +2688,44 @@ export default function GameItemsPage() {
         item_definition_id: r.item_definition_id.trim(),
         quantity: Math.max(1, Number(r.quantity) || 1),
       }))
+    const existingMeta = (editingPack?.metadata ?? {}) as Record<string, unknown>
+    const { mailbox_title: _omitTitle, mailbox_body: _omitBody, ...restMeta } = existingMeta
+    const metadata: Record<string, unknown> = { ...restMeta }
+    if (gachaForm.collect_destination === "mailbox") {
+      if (gachaForm.mailbox_title.trim()) metadata.mailbox_title = gachaForm.mailbox_title.trim()
+      if (gachaForm.mailbox_body.trim()) metadata.mailbox_body = gachaForm.mailbox_body.trim()
+    }
     setFormSaving(true)
     try {
       const ctx = { gameId }
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
+          metadata,
         })
         setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
+        setEditingPack(res.pack)
         toast({ title: t('items.packUpdated') })
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),
+          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,
           key_requirements,
+          metadata,
         })
         setGachaPacks((prev) => [res.pack, ...prev])
         toast({ title: t('items.packCreated') })
         loadGameInfo()
       }
-      gachaCloseSheet()
+      if (closeAfterSave) gachaCloseSheet()
     } catch (err: any) {
       toast({ variant: "destructive", title: t('items.saveFailed'), description: err?.message ?? "Unknown error" })
     } finally {
@@ -2710,7 +2808,7 @@ export default function GameItemsPage() {
   const currentPage = Math.floor(offset / LIMIT) + 1
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb>
@@ -2731,16 +2829,16 @@ export default function GameItemsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
+      <div className="flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center md:gap-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="outline" size="icon" className="shrink-0" onClick={() => router.push(`/games/${gameId}`)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold tracking-tight break-words sm:text-2xl lg:text-3xl">
               {t('items.itemCatalogue')}
             </h1>
-            <p className="text-muted-foreground flex items-center gap-2">
+            <p className="text-muted-foreground flex items-center gap-2 flex-wrap text-sm">
               {maxItems != null
                 ? (() => {
                     const used = itemUsage ?? total
@@ -2748,7 +2846,7 @@ export default function GameItemsPage() {
                     <span className={used >= maxItems ? "text-destructive font-medium" : ""}>
                       {used.toLocaleString()} / {maxItems.toLocaleString()} {t('items.itemsUnit')}
                     </span>
-                    <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
+                    <span className="inline-block h-1.5 w-20 shrink-0 rounded-full bg-muted overflow-hidden align-middle sm:w-24">
                       <span
                         className={`block h-full rounded-full transition-all ${
                           used >= maxItems ? "bg-destructive" : used / maxItems >= 0.8 ? "bg-amber-500" : "bg-primary"
@@ -2758,7 +2856,7 @@ export default function GameItemsPage() {
                     </span>
                     <Link
                       href={`/games/${gameId}/plugins`}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0"
                       title="Manage plugins / raise limits"
                     >
                       <Hammer className="h-3.5 w-3.5" />
@@ -2777,16 +2875,15 @@ export default function GameItemsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="catalogue"><Package className="h-3.5 w-3.5 mr-1.5" />{t('items.tabItems')}</TabsTrigger>
-            <TabsTrigger value="tags"><Tag className="h-3.5 w-3.5 mr-1.5" />{t('items.tabTags')}</TabsTrigger>
-            <TabsTrigger value="containers"><Archive className="h-3.5 w-3.5 mr-1.5" />{t('items.tabContainers')}</TabsTrigger>
-            <TabsTrigger value="gacha"><Dices className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGacha')}</TabsTrigger>
-            <TabsTrigger value="generators"><Zap className="h-3.5 w-3.5 mr-1.5" />{t('items.tabGenerators')}</TabsTrigger>
-            <TabsTrigger value="equipments"><Shield className="h-3.5 w-3.5 mr-1.5" />{t('items.tabEquipmentSlots')}</TabsTrigger>
-            <TabsTrigger value="preset"><LayoutTemplate className="h-3.5 w-3.5 mr-1.5" />{t('items.tabPreset')}</TabsTrigger>
-            <TabsTrigger value="crafting"><Hammer className="h-3.5 w-3.5 mr-1.5" />{t('items.tabCrafting')}</TabsTrigger>
-          </TabsList>
+          <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
+            <TabsList className="w-auto inline-flex">
+              {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (
+                <TabsTrigger key={key} value={key} className="whitespace-nowrap">
+                  <Icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />{t(labelKey)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
         <TabsContent value="crafting" className="space-y-4">
           <CraftingTab gameId={gameId} studioId={studioId} />
@@ -3068,11 +3165,6 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="icon" asChild title="View">
-                              <Link href={`/games/${gameId}/items/${item.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
                             <Button variant="ghost" size="icon" asChild title="Edit">
                               <Link href={`/games/${gameId}/items/${item.id}`}>
                                 <Pencil className="h-4 w-4" />
@@ -3090,11 +3182,11 @@ export default function GameItemsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 mt-4 text-sm text-muted-foreground flex-wrap">
               <span>
                 Page {currentPage} of {totalPages} — {total} items
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -3118,10 +3210,12 @@ export default function GameItemsPage() {
 
         <TabsContent value="containers" className="space-y-4">
           <Tabs value={containerSubTab} onValueChange={handleContainerSubTabChange} className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="definitions">{t('items.subTabDefinitions')}</TabsTrigger>
-              <TabsTrigger value="slot-guide">{t('items.subTabSlotGuide')}</TabsTrigger>
-            </TabsList>
+            <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
+              <TabsList className="w-auto inline-flex">
+                <TabsTrigger value="definitions" className="whitespace-nowrap">{t('items.subTabDefinitions')}</TabsTrigger>
+                <TabsTrigger value="slot-guide" className="whitespace-nowrap">{t('items.subTabSlotGuide')}</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="slot-guide" className="space-y-6">
               <Card>
@@ -3983,6 +4077,12 @@ export default function GameItemsPage() {
                               <span>ID: {pack.id}</span>
                               <CopyButton text={pack.id} size="h-3 w-3" />
                             </div>
+                            {pack.code_name && (
+                              <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                                <span>Code: {pack.code_name}</span>
+                                <CopyButton text={pack.code_name} size="h-3 w-3" />
+                              </div>
+                            )}
                           </div>
 
                           {/* Col 2: Keys */}
@@ -3996,7 +4096,15 @@ export default function GameItemsPage() {
                             )}
                           </div>
 
-                          {/* Col 3: Items in pool */}
+                          {/* Col 3: Collect destination */}
+                          <div className="w-36 shrink-0 text-sm text-muted-foreground">
+                            <span className="inline-flex flex-col items-start px-2 py-1 rounded text-xs font-medium border bg-muted/40 leading-tight">
+                              <span className="text-muted-foreground">{t('items.deliveryToLabel')}</span>
+                              <span className="text-foreground">{pack.collect_destination === "inventory" ? t('items.collectDestinationMainInventoryShort') : t('items.collectDestinationMailboxShort')}</span>
+                            </span>
+                          </div>
+
+                          {/* Col 4: Items in pool */}
                           <div className="w-28 shrink-0 text-sm text-muted-foreground">
                             🎲 {pack.item_pool.length} {t('items.itemsUnit')}
                           </div>
@@ -4030,15 +4138,18 @@ export default function GameItemsPage() {
                       <>
                         <Separator />
                         <CardContent className="pt-4 pb-4">
-                          <div className="flex gap-4 items-start">
-                            {/* Col 1 — Key Requirements (narrow, fixed width) */}
-                            {(pack.key_requirements ?? []).length > 0 && (
-                              <div className="w-[300px] shrink-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 {t('items.keyRequirements')}</p>
+                          <div className="grid grid-cols-5 gap-4 items-start">
+                            {/* Key Requirements — spans 2 columns */}
+                            <div className="col-span-2">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔑 {t('items.keyRequirements')}</p>
+                              {(pack.key_requirements ?? []).length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">{t('items.noKeyRequired')}</p>
+                              ) : (
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
@@ -4048,14 +4159,17 @@ export default function GameItemsPage() {
                                         const item = gachaAllItems.find((x) => x.id === kr.item_definition_id)
                                         return (
                                           <TableRow key={i}>
+                                            <TableCell className="text-xs py-2 w-8">
+                                              <Link href={`/games/${gameId}/items/${kr.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
+                                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                              </Link>
+                                            </TableCell>
                                             <TableCell className="text-xs py-2">
                                               {item ? (
-                                                <div className="space-y-0.5">
-                                                  <span className="font-medium block">{item.name}</span>
-                                                  <div className="flex items-center gap-1 flex-wrap">
-                                                    {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
-                                                    {item.rarity && <RarityBadge rarity={item.rarity} />}
-                                                  </div>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span className="font-medium">{item.name}</span>
+                                                  {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
+                                                  {item.rarity && <RarityBadge rarity={item.rarity} />}
                                                 </div>
                                               ) : (
                                                 <code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}…</code>
@@ -4068,22 +4182,26 @@ export default function GameItemsPage() {
                                     </TableBody>
                                   </Table>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
 
-                            {/* Col 2 — Drop Table (takes remaining width) */}
-                            {pack.item_pool.length > 0 && (
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 {t('items.dropTable')}</p>
+                            {/* Drop Table — spans 3 columns */}
+                            <div className="col-span-3">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🎲 {t('items.dropTable')}</p>
+                              {pack.item_pool.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">No items in pool</p>
+                              ) : (
                                 <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
                                         <TableHead className="text-xs h-8">{t('items.dropRate')}</TableHead>
                                         <TableHead className="text-xs h-8 text-right w-24">{t('items.weight')}</TableHead>
-                                        <TableHead className="text-xs h-8 text-right w-14">{t('items.quantity')}</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">Min</TableHead>
+                                        <TableHead className="text-xs h-8 text-right w-14">Max</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -4095,6 +4213,11 @@ export default function GameItemsPage() {
                                           const rarity = entry.rarity ?? item?.rarity
                                           return (
                                             <TableRow key={i}>
+                                              <TableCell className="text-xs py-2 w-8">
+                                                <Link href={`/games/${gameId}/items/${entry.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
+                                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                                </Link>
+                                              </TableCell>
                                               <TableCell className="text-xs py-2">
                                                 {item ? (
                                                   <div>
@@ -4117,19 +4240,16 @@ export default function GameItemsPage() {
                                                 </div>
                                               </TableCell>
                                               <TableCell className="text-xs py-2 text-right tabular-nums text-muted-foreground">{entry.weight.toLocaleString()}</TableCell>
-                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">
-                                                {entry.quantity_min === entry.quantity_max
-                                                  ? entry.quantity_min
-                                                  : `${entry.quantity_min}–${entry.quantity_max}`}
-                                              </TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_min}</TableCell>
+                                              <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_max}</TableCell>
                                             </TableRow>
                                           )
                                         })}
                                     </TableBody>
                                   </Table>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </>
@@ -4153,6 +4273,7 @@ export default function GameItemsPage() {
             generatorError={generatorError}
             setGeneratorError={setGeneratorError}
             activeTab={activeTab}
+            refreshKey={generatorRefreshKey}
             onAddGenerator={() => {
               setCreateInitCategory("generator" as ItemCategory)
               setShowCreate(true)
@@ -4278,6 +4399,7 @@ export default function GameItemsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.codeName')}</TableHead>
                       <TableHead>{t('items.presetType')}</TableHead>
                       <TableHead>{t('items.maxSlots')}</TableHead>
                       <TableHead>{t('items.metadata')}</TableHead>
@@ -4296,6 +4418,16 @@ export default function GameItemsPage() {
                             <span className="truncate max-w-[180px]">{def.id}</span>
                             <CopyButton text={def.id} />
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {def.code_name ? (
+                            <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={def.code_name}>
+                              <span className="truncate max-w-[180px]">{def.code_name}</span>
+                              <CopyButton text={def.code_name} />
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-blue-500/15 text-blue-400 border-blue-400/40 capitalize">
@@ -4346,7 +4478,12 @@ export default function GameItemsPage() {
         open={showCreate}
         studioId={studioId}
         gameId={gameId}
-        onCreated={() => { fetchItems(); loadGameInfo() }}
+        onCreated={() => {
+          fetchItems()
+          loadGameInfo()
+          if (activeTab === "generators") setGeneratorRefreshKey((k) => k + 1)
+          if (activeTab === "gacha") fetchGachaData()
+        }}
         onClose={() => setShowCreate(false)}
         categories={categories}
         rarities={rarities}
@@ -4450,16 +4587,134 @@ export default function GameItemsPage() {
           </SheetHeader>
 
           <div className="space-y-5">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label>{t('items.name')} <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="Standard Pack"
-                value={gachaForm.name}
-                onChange={(e) => setGachaForm((f) => ({ ...f, name: e.target.value }))}
-                disabled={formSaving}
-              />
+            {/* Name + Enabled */}
+            <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
+              <div className="space-y-1.5 min-w-0">
+                <Label htmlFor="gacha-name">{t('items.name')} <span className="text-destructive">*</span></Label>
+                <Input
+                  id="gacha-name"
+                  placeholder={t('items.gachaNamePlaceholder')}
+                  value={gachaForm.name}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setGachaForm((f) => ({
+                      ...f,
+                      name: v,
+                      ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+                    }))
+                  }}
+                  disabled={formSaving}
+                />
+              </div>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <label
+                      htmlFor="gacha-enabled"
+                      className="flex items-center gap-3 h-10 px-3 rounded-md border border-border bg-muted/30 cursor-pointer select-none"
+                    >
+                      <Switch
+                        id="gacha-enabled"
+                        checked={gachaForm.is_enabled}
+                        onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))}
+                        disabled={formSaving}
+                      />
+                      <span className="text-sm font-medium">{t('items.enabled')}</span>
+                    </label>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    {t('items.playersCanOpen')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
+
+            {/* Code Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="gacha-code-name">
+                {t('items.gachaCodeNameLabel')}{" "}
+                <span className="text-muted-foreground text-xs font-normal">({t('items.gachaCodeNameHint')})</span>
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="gacha-code-name"
+                  placeholder={t('items.gachaCodeNamePlaceholder')}
+                  value={gachaForm.code_name}
+                  onChange={(e) => {
+                    setGachaAutoSlug(false)
+                    setGachaForm((f) => ({ ...f, code_name: e.target.value }))
+                  }}
+                  className="font-mono"
+                  disabled={formSaving}
+                />
+                <Button
+                  type="button"
+                  variant={gachaAutoSlug ? "default" : "outline"}
+                  size="icon"
+                  className="shrink-0"
+                  title={gachaAutoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+                  onClick={() => {
+                    const next = !gachaAutoSlug
+                    setGachaAutoSlug(next)
+                    if (next) setGachaForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }))
+                  }}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Collect Destination */}
+            <div className="space-y-1.5">
+              <Label htmlFor="gacha-collect-destination">{t('items.collectDestination')}</Label>
+              <Select
+                value={gachaForm.collect_destination}
+                onValueChange={(v) => setGachaForm((f) => ({ ...f, collect_destination: v as "mailbox" | "inventory" }))}
+              >
+                <SelectTrigger id="gacha-collect-destination" disabled={formSaving}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
+                  <SelectItem value="inventory">{t('items.collectDestinationMainInventory')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {gachaForm.collect_destination === "inventory" && (
+                <p className="text-xs text-muted-foreground">{t('items.collectDestinationInventoryHint')}</p>
+              )}
+            </div>
+
+            {/* Mailbox message (only when destination is mailbox) */}
+            {gachaForm.collect_destination === "mailbox" && (
+              <div className="space-y-3 rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gacha-mailbox-title">{t('items.gachaMailboxTitle')}</Label>
+                  <Input
+                    id="gacha-mailbox-title"
+                    value={gachaForm.mailbox_title}
+                    onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_title: e.target.value }))}
+                    placeholder={t('items.gachaMailboxTitlePlaceholder')}
+                    disabled={formSaving}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gacha-mailbox-body">{t('items.gachaMailboxBody')}</Label>
+                  <Textarea
+                    id="gacha-mailbox-body"
+                    value={gachaForm.mailbox_body}
+                    onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_body: e.target.value }))}
+                    placeholder={t('items.gachaMailboxBodyPlaceholder')}
+                    disabled={formSaving}
+                    rows={3}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{t('items.gachaMailboxHint')}</p>
+              </div>
+            )}
+
+            <Separator />
 
             {/* Key Requirements */}
             <div className="space-y-3">
@@ -4572,25 +4827,17 @@ export default function GameItemsPage() {
               {gachaForm.keyReqs.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>
               )}
-              <Link
-                href={`/games/${gameId}/items?create=1&category=key`}
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateInitCategory("key" as ItemCategory)
+                  setShowCreate(true)
+                }}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                <ExternalLink className="h-3 w-3" />
+                <Plus className="h-3 w-3" />
                 {t('items.createNewItem')}
-              </Link>
-            </div>
-
-            {/* Enabled */}
-            <div className="flex items-center gap-3">
-              <Switch
-                id="gacha-enabled"
-                checked={gachaForm.is_enabled}
-                onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))}
-                disabled={formSaving}
-              />
-              <Label htmlFor="gacha-enabled" className="cursor-pointer">{t('items.enabled')}</Label>
-              <span className="text-xs text-muted-foreground">{t('items.playersCanOpen')}</span>
+              </button>
             </div>
 
             <Separator />
@@ -4753,10 +5000,23 @@ export default function GameItemsPage() {
             <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleGachaSave} disabled={formSaving}>
-              {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {editingPack ? t('items.saveChanges') : t('items.createPack')}
-            </Button>
+            {editingPack ? (
+              <>
+                <Button variant="outline" onClick={() => handleGachaSave(false)} disabled={formSaving}>
+                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  {t('items.saveAndContinue')}
+                </Button>
+                <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
+                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  {t('items.saveAndClose')}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
+                {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {t('items.createPack')}
+              </Button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -4952,6 +5212,8 @@ function CreatePresetDefinitionSheet({
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState("")
+  const [codeName, setCodeName] = useState("")
+  const [autoSlug, setAutoSlug] = useState(true)
   const [maxSlots, setMaxSlots] = useState("20")
   const [meta, setMeta] = useState<{ key: string; value: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -4959,6 +5221,8 @@ function CreatePresetDefinitionSheet({
   function resetForm() {
     setName("")
     setContainerType("")
+    setCodeName("")
+    setAutoSlug(true)
     setMaxSlots("20")
     setMeta([])
     setErrors({})
@@ -4980,9 +5244,11 @@ function CreatePresetDefinitionSheet({
     try {
       const metadata: Record<string, unknown> = {}
       meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
+      const finalCodeName = (autoSlug ? toSlugUnderscore(name) : codeName).trim()
       const body: CreatePresetDefinitionRequest = {
         preset_type: containerType.trim(),
         name: name.trim(),
+        ...(finalCodeName ? { code_name: finalCodeName } : {}),
         max_slots: Number(maxSlots),
         metadata,
       }
@@ -5011,8 +5277,49 @@ function CreatePresetDefinitionSheet({
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
             <Label htmlFor="pd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-name" placeholder="e.g. Standard Deck" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="pd-name"
+              placeholder="e.g. Standard Deck"
+              value={name}
+              onChange={(e) => {
+                const v = e.target.value
+                setName(v)
+                if (autoSlug) setCodeName(toSlugUnderscore(v))
+              }}
+            />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pd-code-name">
+              {t('items.codeName')}{" "}
+              <span className="text-muted-foreground text-xs font-normal">({t('items.presetCodeNameHint')})</span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="pd-code-name"
+                placeholder={t('items.presetCodeNamePlaceholder')}
+                value={autoSlug ? toSlugUnderscore(name) : codeName}
+                onChange={(e) => {
+                  setAutoSlug(false)
+                  setCodeName(e.target.value)
+                }}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant={autoSlug ? "default" : "outline"}
+                size="icon"
+                className="shrink-0"
+                title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+                onClick={() => {
+                  const next = !autoSlug
+                  setAutoSlug(next)
+                  if (next) setCodeName(toSlugUnderscore(name))
+                }}
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="pd-type">{t('items.presetType')} <span className="text-destructive">*</span></Label>

@@ -13,9 +13,9 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
+import { formatTimestamp, formatISODate, getUserTimezone } from "@/lib/utils/date-utils"
 import { getGame } from "@/lib/game-api"
-import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
+import { banProgress, getGameProgressDetail, getGameProgressList, getProgressItems, getProgressContainers, getGachaTransactions, getPlayerQuestHistory, getPlayerPresets, getPlayerPresetDetail, getBattleSessions, getJourneySessions, getJourneySessionEvents, GameProgressDetail, PlayerItem, PlayerItemsResult, PlayerContainer, PlayerContainersResult, PlayerPresetContainer, PlayerPresetDetail, GachaTransaction, GachaTransactionsResult, QuestHistoryResult, QuestHistoryStart, QuestHistoryClaim, BattleSession, BattleSessionsResult, JourneySession, JourneySessionsResult, JourneyEvent, getPlayerIdentityMapByUserIds, PlayerIdentity, unbanProgress } from "@/lib/game-user-api"
 import { fetchItemCategories, fetchItemRarities, getItemDefinition, getGachaPack, getContainerDefinition } from "@/lib/inventory-api"
 import { listDailyQuestPools, getPlayerDailyQuestAheadPreview, type DailyQuestPool, type DailyQuestFuturePreview } from "@/lib/quest-api"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -156,6 +156,253 @@ function QuestProgressDisplay({ data, gameId }: { data: Record<string, unknown>;
   )
 }
 
+// ── Quest detail sub-components (expanded row) ──────────────────────────────
+function IdField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-1 text-[11px] min-w-0">
+      <span className="text-muted-foreground/70 shrink-0">{label}:</span>
+      <span className="font-mono text-foreground break-all">{value}</span>
+      <CopyButton text={value} size="h-3 w-3" />
+    </div>
+  )
+}
+
+function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="inline-flex items-center gap-1 text-[11px]">
+      <span className="text-muted-foreground/70">{label}:</span>
+      <span className="text-foreground font-medium">{value}</span>
+    </div>
+  )
+}
+
+function RewardPill({ reward, gameId, itemNames }: { reward: any; gameId: string; itemNames: Record<string, string> }) {
+  const itemId = reward.item_definition_id as string | undefined
+  const qty = reward.quantity as number | undefined
+  const qmin = reward.quantity_min as number | undefined
+  const qmax = reward.quantity_max as number | undefined
+
+  // Only item rewards are supported — ignore coin/legacy rewards.
+  if (!itemId) return null
+  const name = itemNames[itemId] ?? (reward.name ?? reward.item_name ?? reward.item_code) as string | undefined
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+      <a
+        href={`/games/${gameId}/items/${itemId}`}
+        className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
+        onClick={e => e.stopPropagation()}
+      >
+        {name || itemId.slice(0, 8) + "…"}
+        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+      </a>
+      <CopyButton text={itemId} size="h-3 w-3" />
+      {qty != null && <span className="text-muted-foreground">×{qty}</span>}
+      {qty == null && qmin != null && qmax != null && (
+        qmin === qmax
+          ? <span className="text-muted-foreground">×{qmin}</span>
+          : <span className="text-muted-foreground">×{qmin}–{qmax}</span>
+      )}
+    </div>
+  )
+}
+
+function ConditionNode({ node, gameId, itemNames }: { node: any; gameId: string; itemNames: Record<string, string> }) {
+  if (!node) return null
+  if (node.operator && Array.isArray(node.clauses)) {
+    return (
+      <div className="space-y-1.5">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          {node.operator}
+        </span>
+        <div className="space-y-1.5 pl-3 border-l border-border/60">
+          {node.clauses.map((c: any, i: number) => (
+            <ConditionNode key={i} node={c} gameId={gameId} itemNames={itemNames} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-1 text-[11px]">
+      <div className="flex flex-wrap items-center gap-2">
+        {node.clause_id && (
+          <>
+            <span className="font-mono text-muted-foreground">{node.clause_id}</span>
+            <CopyButton text={node.clause_id} size="h-3 w-3" />
+          </>
+        )}
+        {node.type && <Badge variant="outline" className="capitalize text-[10px]">{String(node.type).replace(/_/g, " ")}</Badge>}
+        {node.target != null && <InfoField label="target" value={node.target} />}
+      </div>
+      {Array.isArray(node.items) && node.items.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-1">
+          {node.items.map((it: any, i: number) => (
+            <div key={i} className="inline-flex items-center gap-1 rounded border bg-muted/40 px-1.5 py-0.5">
+              <a
+                href={`/games/${gameId}/items/${it.item_definition_id}`}
+                className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+                onClick={e => e.stopPropagation()}
+              >
+                {itemNames[it.item_definition_id] ?? (String(it.item_definition_id).slice(0, 8) + "…")}
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </a>
+              <CopyButton text={it.item_definition_id} size="h-3 w-3" />
+              <span className="text-muted-foreground">×{it.quantity}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {node.packs && node.packs.gacha_pack_id && (
+        <div className="flex items-center gap-1.5 pl-1 flex-wrap">
+          <span className="text-muted-foreground/70">pack:</span>
+          <a
+            href={`/games/${gameId}/items?tab=gacha&editPack=${node.packs.gacha_pack_id}`}
+            className="inline-flex items-center gap-0.5 font-medium hover:underline text-foreground"
+            onClick={e => e.stopPropagation()}
+          >
+            {itemNames[node.packs.gacha_pack_id] ?? (String(node.packs.gacha_pack_id).slice(0, 8) + "…")}
+            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+          </a>
+          <CopyButton text={node.packs.gacha_pack_id} size="h-3 w-3" />
+          {node.packs.quantity != null && <span className="text-muted-foreground">×{node.packs.quantity}</span>}
+        </div>
+      )}
+      {node.details && typeof node.details === "object" && (
+        <div className="flex flex-wrap gap-x-2 gap-y-1 pl-1">
+          {Object.entries(node.details).map(([k, v]) => {
+            const sv = String(v)
+            if (typeof v === "string" && UUID_RE.test(v)) {
+              return (
+                <div key={k} className="inline-flex items-center gap-1">
+                  <span className="text-muted-foreground/70">{k}:</span>
+                  <span className="font-mono text-foreground">{sv}</span>
+                  <CopyButton text={sv} size="h-3 w-3" />
+                </div>
+              )
+            }
+            return <InfoField key={k} label={k} value={sv} />
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuestDefinitionPanel({ quest, gameId, itemNames }: { quest: any; gameId: string; itemNames: Record<string, string> }) {
+  if (!quest) return null
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Quest Definition</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        <div className="flex flex-col gap-1">
+          {quest.id && <IdField label="id" value={quest.id} />}
+          {quest.code_name && (
+            <div className="flex items-center gap-1 text-[11px] min-w-0">
+              <span className="text-muted-foreground/70 shrink-0">code_name:</span>
+              <span className="font-mono text-foreground break-all">{quest.code_name}</span>
+              <CopyButton text={quest.code_name} size="h-3 w-3" />
+            </div>
+          )}
+          {quest.game_id && <IdField label="game_id" value={quest.game_id} />}
+          {quest.name && <InfoField label="name" value={quest.name} />}
+          {quest.quest_type && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-muted-foreground/70 shrink-0">type:</span>
+              <Badge variant="outline" className="capitalize text-[10px]">{quest.quest_type}</Badge>
+            </div>
+          )}
+          {quest.is_active != null && <InfoField label="active" value={String(quest.is_active)} />}
+          {quest.is_hidden != null && <InfoField label="hidden" value={String(quest.is_hidden)} />}
+          {quest.sort_order != null && <InfoField label="sort_order" value={quest.sort_order} />}
+          {quest.created_at && <InfoField label="created" value={formatISODate(quest.created_at)} />}
+          {quest.updated_at && <InfoField label="updated" value={formatISODate(quest.updated_at)} />}
+          {quest.description && (
+            <div className="flex items-start gap-1.5 text-[11px]">
+              <span className="text-muted-foreground/70 shrink-0">description:</span>
+              <span className="text-foreground whitespace-pre-wrap">{quest.description}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          {quest.conditions && (
+            <div>
+              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Conditions</p>
+              <ConditionNode node={quest.conditions} gameId={gameId} itemNames={itemNames} />
+            </div>
+          )}
+          {(() => {
+            const itemRewards = (Array.isArray(quest.rewards) ? quest.rewards : []).filter((r: any) => r.reward_type === "item" || r.item_definition_id)
+            if (itemRewards.length === 0) return null
+            return (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Rewards</p>
+                <div className="flex flex-wrap gap-2">
+                  {itemRewards.map((r: any, i: number) => <RewardPill key={i} reward={r} gameId={gameId} itemNames={itemNames} />)}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProgressMetaPanel({ progress, gameId }: { progress: any; gameId: string }) {
+  if (!progress) return null
+  const status = progress.status as string | undefined
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Progress</p>
+      <div className="space-y-1">
+        {progress.id && <IdField label="id" value={progress.id} />}
+        {progress.game_id && <IdField label="game_id" value={progress.game_id} />}
+        {progress.user_id && <IdField label="user_id" value={progress.user_id} />}
+        {progress.quest_definition_id && <IdField label="quest_definition_id" value={progress.quest_definition_id} />}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {status && (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${
+            status === "claimed" || status === "completed"
+              ? "bg-green-500/10 text-green-500 border-green-500/30"
+              : status === "failed"
+              ? "bg-red-500/10 text-red-400 border-red-400/30"
+              : "bg-blue-500/10 text-blue-400 border-blue-400/30"
+          }`}>{status}</span>
+        )}
+        {progress.version != null && <InfoField label="version" value={progress.version} />}
+        {progress.created_at && <InfoField label="created" value={formatISODate(progress.created_at)} />}
+        {progress.updated_at && <InfoField label="updated" value={formatISODate(progress.updated_at)} />}
+        {progress.completed_at && <InfoField label="completed" value={formatISODate(progress.completed_at)} />}
+        {progress.claimed_at && <InfoField label="claimed" value={formatISODate(progress.claimed_at)} />}
+        {progress.reset_at && <InfoField label="reset" value={formatISODate(progress.reset_at)} />}
+      </div>
+    </div>
+  )
+}
+
+function ClaimMetaPanel({ claim }: { claim: any }) {
+  if (!claim) return null
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase">Claim</p>
+      <div className="space-y-1">
+        {claim.id && <IdField label="id" value={claim.id} />}
+        {claim.progress_id && <IdField label="progress_id" value={claim.progress_id} />}
+        {claim.quest_definition_id && <IdField label="quest_definition_id" value={claim.quest_definition_id} />}
+        {claim.idempotency_key && <IdField label="idempotency_key" value={claim.idempotency_key} />}
+        {claim.game_id && <IdField label="game_id" value={claim.game_id} />}
+        {claim.user_id && <IdField label="user_id" value={claim.user_id} />}
+      </div>
+      {claim.claimed_at && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <InfoField label="claimed_at" value={formatISODate(claim.claimed_at)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Live Generator Estimate component ───────────────────────────────────────
 function GeneratorLiveEstimate({
   interval,
@@ -230,7 +477,7 @@ function GeneratorLiveEstimate({
           <div className="flex items-center justify-between text-[11px]">
             <span className="font-medium text-foreground/80">⚡ Live Accumulation</span>
             <span className="font-mono text-muted-foreground">
-              since {new Date(lastModifiedAt).toLocaleTimeString()}
+              since {new Date(lastModifiedAt).toLocaleTimeString(undefined, { timeZone: getUserTimezone() })}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs">
@@ -445,7 +692,7 @@ export default function GameUserProgressDetailPage({
   const [itemRarities, setItemRarities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null
-    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "battle" || tab === "transactions" ? tab : "info"
+    return tab === "items" || tab === "containers" || tab === "presets" || tab === "generators" || tab === "equipments" || tab === "quests" || tab === "journey" || tab === "battle" || tab === "transactions" ? tab : "info"
   })
   const [playerItems, setPlayerItems] = useState<PlayerItem[]>([])
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set())
@@ -583,7 +830,24 @@ export default function GameUserProgressDetailPage({
   const [battleError, setBattleError] = useState<string | null>(null)
   const [battleExpandedRows, setBattleExpandedRows] = useState<Set<string>>(new Set())
   const toggleBattleRow = (id: string) =>
-    setBattleExpandedRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+    setBattleExpandedRows(prev => prev.has(id) ? new Set() : new Set([id]))
+
+  // Journey tab
+  const JOURNEY_LIMIT = 50
+  const JOURNEY_EVENTS_LIMIT = 200
+  const [journeySessions, setJourneySessions] = useState<JourneySession[]>([])
+  const [journeyTotal, setJourneyTotal] = useState(0)
+  const [journeyOffset, setJourneyOffset] = useState(0)
+  const [journeyLoading, setJourneyLoading] = useState(false)
+  const [journeyError, setJourneyError] = useState<string | null>(null)
+  const [journeyExpandedRows, setJourneyExpandedRows] = useState<Set<string>>(new Set())
+  const [journeyEvents, setJourneyEvents] = useState<Record<string, JourneyEvent[]>>({})
+  const [journeyEventsTotal, setJourneyEventsTotal] = useState<Record<string, number>>({})
+  const [journeyEventsLoading, setJourneyEventsLoading] = useState<Set<string>>(new Set())
+  const [journeyEventsError, setJourneyEventsError] = useState<Record<string, string>>({})
+  const [journeyExpandedEvents, setJourneyExpandedEvents] = useState<Set<string>>(new Set())
+  const toggleJourneyEvent = (eventId: string) =>
+    setJourneyExpandedEvents(prev => { const s = new Set(prev); s.has(eventId) ? s.delete(eventId) : s.add(eventId); return s })
 
   const loadData = useCallback(async () => {
     try {
@@ -814,12 +1078,47 @@ export default function GameUserProgressDetailPage({
     setQuestExpandedRows(new Set())
     try {
       const res = await getPlayerQuestHistory(game.studio_id, gameId, detail.user_id, { limit: QUEST_LIMIT })
-      setQuestHistory(res)
-      // Collect item_definition_id from rewards_granted and fetch their names
+      setQuestHistory({
+        ...res,
+        claims: res.claims ?? [],
+        starts: res.starts ?? [],
+        claims_total: res.claims_total ?? 0,
+        starts_total: res.starts_total ?? 0,
+      })
+      // Collect item_definition_ids to resolve names from: granted rewards,
+      // quest-defined rewards, and items referenced inside quest conditions.
       const itemIds = new Set<string>()
+      const collectFromRewards = (rewards: any) => {
+        if (!Array.isArray(rewards)) return
+        for (const r of rewards) {
+          if (r?.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        }
+      }
+      const collectFromConditions = (node: any) => {
+        if (!node) return
+        if (node.operator && Array.isArray(node.clauses)) {
+          for (const c of node.clauses) collectFromConditions(c)
+          return
+        }
+        if (Array.isArray(node.items)) {
+          for (const it of node.items) {
+            if (it?.item_definition_id && typeof it.item_definition_id === "string") itemIds.add(it.item_definition_id)
+          }
+        }
+      }
       for (const claim of res.claims ?? []) {
-        for (const r of (claim.rewards_granted ?? []) as any[]) {
-          if (r.item_definition_id && typeof r.item_definition_id === "string") itemIds.add(r.item_definition_id)
+        collectFromRewards((claim as any).rewards_granted)
+        const qd = (claim as any).quest_definition
+        if (qd) {
+          collectFromRewards(qd.rewards)
+          collectFromConditions(qd.conditions)
+        }
+      }
+      for (const start of res.starts ?? []) {
+        const q = (start as any).quest
+        if (q) {
+          collectFromRewards(q.rewards)
+          collectFromConditions(q.conditions)
         }
       }
       if (itemIds.size > 0) {
@@ -889,6 +1188,50 @@ export default function GameUserProgressDetailPage({
     }
   }, [gameId, detail, battleOffset])
 
+  const loadJourneySessions = useCallback(async () => {
+    if (!detail?.user_id) return
+    setJourneyLoading(true)
+    setJourneyError(null)
+    try {
+      const res = await getJourneySessions(gameId, detail.user_id, { limit: JOURNEY_LIMIT, offset: journeyOffset })
+      setJourneySessions(res.sessions ?? [])
+      setJourneyTotal(res.total ?? 0)
+    } catch (err: any) {
+      setJourneyError(err?.message ?? "Failed to load journey sessions")
+    } finally {
+      setJourneyLoading(false)
+    }
+  }, [gameId, detail, journeyOffset])
+
+  const loadJourneyEvents = useCallback(async (sessionId: string) => {
+    setJourneyEventsLoading(prev => { const n = new Set(prev); n.add(sessionId); return n })
+    setJourneyEventsError(prev => { const n = { ...prev }; delete n[sessionId]; return n })
+    try {
+      const res = await getJourneySessionEvents(gameId, sessionId, { limit: JOURNEY_EVENTS_LIMIT, offset: 0 })
+      setJourneyEvents(prev => ({ ...prev, [sessionId]: res.events ?? [] }))
+      setJourneyEventsTotal(prev => ({ ...prev, [sessionId]: res.total ?? 0 }))
+    } catch (err: any) {
+      setJourneyEventsError(prev => ({ ...prev, [sessionId]: err?.message ?? "Failed to load events" }))
+    } finally {
+      setJourneyEventsLoading(prev => { const n = new Set(prev); n.delete(sessionId); return n })
+    }
+  }, [gameId])
+
+  const toggleJourneyRow = useCallback((sessionId: string) => {
+    setJourneyExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+      } else {
+        next.add(sessionId)
+        if (!journeyEvents[sessionId] && !journeyEventsLoading.has(sessionId)) {
+          loadJourneyEvents(sessionId)
+        }
+      }
+      return next
+    })
+  }, [journeyEvents, journeyEventsLoading, loadJourneyEvents])
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
@@ -931,6 +1274,10 @@ export default function GameUserProgressDetailPage({
   useEffect(() => {
     if (activeTab === "battle") loadBattleSessions()
   }, [activeTab, loadBattleSessions, battleOffset])
+
+  useEffect(() => {
+    if (activeTab === "journey") loadJourneySessions()
+  }, [activeTab, loadJourneySessions, journeyOffset])
 
   useEffect(() => {
     if (activeTab === "quests") loadQuestHistory()
@@ -1062,6 +1409,7 @@ export default function GameUserProgressDetailPage({
             presets: presets.length || undefined,
             generators: generatorItems.length || undefined,
             quests: questHistory ? (questHistory.claims_total + questHistory.starts_total) || undefined : undefined,
+            journey: journeyTotal || undefined,
             transactions: gachaTxnsTotal || undefined,
           }}
         />
@@ -2206,7 +2554,7 @@ export default function GameUserProgressDetailPage({
                           <TableBody>
                             {questHistory.claims.map((claim) => {
                               const expanded = questExpandedRows.has(claim.id)
-                              const rewards = (claim.rewards_granted ?? []) as any[]
+                              const rewards = ((claim.rewards_granted ?? []) as any[]).filter(r => r.reward_type === "item" || r.item_definition_id)
                               return (
                                 <Fragment key={claim.id}>
                                   <TableRow
@@ -2215,7 +2563,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(claim.id)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       <a
@@ -2249,63 +2599,23 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${claim.id}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={4} className="py-3">
-                                        {rewards.length === 0 ? (
-                                          <p className="text-xs text-muted-foreground">No rewards recorded.</p>
-                                        ) : (
-                                          <div>
-                                            <p className="text-xs font-medium text-muted-foreground mb-2">Rewards Granted</p>
-                                            <div className="flex flex-wrap gap-2">
-                                              {rewards.map((r: any, i: number) => {
-                                                const itemId = r.item_definition_id as string | undefined
-                                                const name = (r.name ?? r.item_name ?? r.item_code ?? (itemId ? questItemNames[itemId] : undefined)) as string | undefined
-                                                const qty = r.quantity as number | undefined
-                                                const category = r.category as string | undefined
-                                                const rewardType = r.reward_type as string | undefined
-                                                const amount = r.amount as number | undefined
-                                                // Coin / currency reward
-                                                if (!itemId && rewardType) {
-                                                  return (
-                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                      <Coins className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-                                                      <span className="capitalize text-muted-foreground">{rewardType}</span>
-                                                      {amount != null && <span className="font-semibold text-foreground">+{amount.toLocaleString()}</span>}
-                                                    </div>
-                                                  )
-                                                }
-                                                // Item reward
-                                                if (itemId) {
-                                                  return (
-                                                    <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                      {category && (
-                                                        <span className="capitalize text-muted-foreground">{category}</span>
-                                                      )}
-                                                      <a
-                                                        href={`/games/${gameId}/items/${itemId}`}
-                                                        className="inline-flex items-center gap-1 font-medium hover:underline text-foreground"
-                                                      >
-                                                        {name || itemId.slice(0, 8) + "…"}
-                                                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                                                      </a>
-                                                      {qty != null && <span className="text-muted-foreground">×{qty}</span>}
-                                                    </div>
-                                                  )
-                                                }
-                                                // Generic reward — render key/value pairs
-                                                const entries = Object.entries(r).filter(([, v]) => v != null && v !== "")
-                                                return (
-                                                  <div key={i} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
-                                                    {entries.map(([k, v]) => (
-                                                      <span key={k}>
-                                                        <span className="text-muted-foreground">{k}:</span>{" "}
-                                                        <span className="font-medium text-foreground">{String(v)}</span>
-                                                      </span>
-                                                    ))}
-                                                  </div>
-                                                )
-                                              })}
-                                            </div>
+                                        <div className="space-y-3">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <ClaimMetaPanel claim={claim} />
+                                            {rewards.length > 0 ? (
+                                              <div className="space-y-2">
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase">Rewards Granted</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {rewards.map((r: any, i: number) => (
+                                                    <RewardPill key={i} reward={r} gameId={gameId} itemNames={questItemNames} />
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            ) : <div />}
                                           </div>
-                                        )}
+                                          <hr className="border-border/60" />
+                                          <QuestDefinitionPanel quest={(claim as any).quest_definition} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -2323,7 +2633,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(rowId)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {start.quest?.id ? (
@@ -2353,11 +2665,15 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={4} className="py-3">
-                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
-                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground">No progress data.</p>
-                                        )}
+                                        <div className="space-y-3">
+                                          <ProgressMetaPanel progress={start.progress} gameId={gameId} />
+                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (
+                                            <div>
+                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                            </div>
+                                          )}
+                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -2417,7 +2733,9 @@ export default function GameUserProgressDetailPage({
                                     onClick={() => toggleQuestRow(rowId)}
                                   >
                                     <TableCell className="text-muted-foreground">
-                                      <ArrowUpRight className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                      {expanded
+                                        ? <ChevronDown className="h-4 w-4 shrink-0" />
+                                        : <ChevronRight className="h-4 w-4 shrink-0" />}
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {start.quest?.id ? (
@@ -2445,11 +2763,15 @@ export default function GameUserProgressDetailPage({
                                     <TableRow key={`${rowId}-detail`} className="bg-muted/20 hover:bg-muted/20">
                                       <TableCell />
                                       <TableCell colSpan={2} className="py-3">
-                                        {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 ? (
-                                          <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground">No progress data.</p>
-                                        )}
+                                        <div className="space-y-3">
+                                          <ProgressMetaPanel progress={start.progress} gameId={gameId} />
+                                          {start.progress?.progress_data && Object.keys(start.progress.progress_data).length > 0 && (
+                                            <div>
+                                              <QuestProgressDisplay data={start.progress.progress_data} gameId={gameId} />
+                                            </div>
+                                          )}
+                                          <QuestDefinitionPanel quest={start.quest} gameId={gameId} itemNames={questItemNames} />
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   )}
@@ -2465,6 +2787,200 @@ export default function GameUserProgressDetailPage({
                 )
               })()}
             </>
+          )}
+        </TabsContent>
+
+        {/* ── Journey Sessions Tab ── */}
+        <TabsContent value="journey" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Journey Sessions</h2>
+              <p className="text-sm text-muted-foreground">
+                {journeyLoading ? "Loading…" : journeyTotal > 0 ? `${journeyTotal} session${journeyTotal !== 1 ? "s" : ""}` : "No journey sessions found"}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={loadJourneySessions} disabled={journeyLoading} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${journeyLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {journeyLoading ? (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </CardContent>
+            </Card>
+          ) : journeyError ? (
+            <Card className="border-destructive">
+              <CardContent className="p-4 text-sm text-destructive">{journeyError}</CardContent>
+            </Card>
+          ) : journeySessions.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                <Hash className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">No journey sessions</p>
+                <p className="text-sm mt-1">This player has not recorded any journey sessions yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8" />
+                      <TableHead>Session ID</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Ended</TableHead>
+                      <TableHead className="text-right">Events</TableHead>
+                      <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {journeySessions.map((session) => {
+                      const expanded = journeyExpandedRows.has(session.session_id)
+                      const eventsLoading = journeyEventsLoading.has(session.session_id)
+                      const events = journeyEvents[session.session_id]
+                      const eventsErr = journeyEventsError[session.session_id]
+                      const eventsTotal = journeyEventsTotal[session.session_id]
+                      return (
+                        <Fragment key={session.session_id}>
+                          <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleJourneyRow(session.session_id)}>
+                            <TableCell className="py-2">
+                              {expanded
+                                ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <span className="font-mono text-xs">{session.session_id}</span>
+                                <CopyButton text={session.session_id} />
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground">{formatISODate(session.started_at)}</TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground">{session.ended_at ? formatISODate(session.ended_at) : "—"}</TableCell>
+                            <TableCell className="py-2 text-right">
+                              <Badge variant="secondary" className="text-xs">{session.event_count}</Badge>
+                            </TableCell>
+                            <TableCell className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                              <a
+                                href={`/games/${gameId}/analytic?tab=journey&session_id=${session.session_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="View in analytics"
+                                className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            </TableCell>
+                          </TableRow>
+                          {expanded && (
+                            <TableRow>
+                              <TableCell colSpan={6} className="bg-muted/30 p-4">
+                                {eventsLoading ? (
+                                  <div className="space-y-2">
+                                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+                                  </div>
+                                ) : eventsErr ? (
+                                  <p className="text-sm text-destructive">{eventsErr}</p>
+                                ) : !events || events.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">No events recorded for this session.</p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                        {eventsTotal != null ? `${events.length} of ${eventsTotal} event${eventsTotal !== 1 ? "s" : ""}` : `${events.length} event${events.length !== 1 ? "s" : ""}`}
+                                      </p>
+                                      <Button variant="ghost" size="sm" onClick={() => loadJourneyEvents(session.session_id)} disabled={eventsLoading}>
+                                        <RefreshCw className={`h-3 w-3 mr-1.5 ${eventsLoading ? "animate-spin" : ""}`} />
+                                        Refresh
+                                      </Button>
+                                    </div>
+                                    <div className="rounded border bg-background">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead className="w-[200px]">Occurred</TableHead>
+                                            <TableHead className="w-[240px]">Event Type</TableHead>
+                                            <TableHead>Event Data</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {events.map((ev) => {
+                                            const hasData = ev.event_data && Object.keys(ev.event_data).length > 0
+                                            const eventExpanded = journeyExpandedEvents.has(ev.id)
+                                            return (
+                                              <TableRow key={ev.id}>
+                                                <TableCell className="text-xs text-muted-foreground align-top">{formatISODate(ev.occurred_at)}</TableCell>
+                                                <TableCell className="align-top">
+                                                  <Badge variant="outline" className="text-xs font-mono">{ev.event_type}</Badge>
+                                                </TableCell>
+                                                <TableCell className="align-top">
+                                                  {hasData ? (
+                                                    eventExpanded ? (
+                                                      <div className="space-y-1.5">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => toggleJourneyEvent(ev.id)}
+                                                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                                        >
+                                                          <ChevronDown className="h-3 w-3" />
+                                                          Hide
+                                                        </button>
+                                                        <pre className="text-xs bg-muted/50 rounded p-2 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                                          {JSON.stringify(ev.event_data, null, 2)}
+                                                        </pre>
+                                                      </div>
+                                                    ) : (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => toggleJourneyEvent(ev.id)}
+                                                        className="inline-flex items-center gap-1.5 max-w-full text-left group"
+                                                      >
+                                                        <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0 group-hover:text-foreground" />
+                                                        <code className="text-xs font-mono text-muted-foreground group-hover:text-foreground truncate bg-muted/40 rounded px-1.5 py-0.5">
+                                                          {JSON.stringify(ev.event_data)}
+                                                        </code>
+                                                      </button>
+                                                    )
+                                                  ) : (
+                                                    <span className="text-xs text-muted-foreground">—</span>
+                                                  )}
+                                                </TableCell>
+                                              </TableRow>
+                                            )
+                                          })}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                    {eventsTotal != null && events.length < eventsTotal && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Showing first {events.length} of {eventsTotal} events.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pagination */}
+          {journeyTotal > JOURNEY_LIMIT && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Page {Math.floor(journeyOffset / JOURNEY_LIMIT) + 1} of {Math.ceil(journeyTotal / JOURNEY_LIMIT)} — {journeyTotal} sessions</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={journeyOffset === 0} onClick={() => setJourneyOffset(Math.max(0, journeyOffset - JOURNEY_LIMIT))}>Previous</Button>
+                <Button variant="outline" size="sm" disabled={journeyOffset + JOURNEY_LIMIT >= journeyTotal} onClick={() => setJourneyOffset(journeyOffset + JOURNEY_LIMIT)}>Next</Button>
+              </div>
+            </div>
           )}
         </TabsContent>
 
@@ -2544,13 +3060,13 @@ export default function GameUserProgressDetailPage({
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">start_data</p>
-                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-[36rem] whitespace-pre-wrap break-all">
                                     {JSON.stringify(session.start_data, null, 2)}
                                   </pre>
                                 </div>
                                 <div>
                                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">end_data</p>
-                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-72 whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-muted/50 rounded p-3 overflow-auto max-h-[36rem] whitespace-pre-wrap break-all">
                                     {session.end_data != null ? JSON.stringify(session.end_data, null, 2) : "null"}
                                   </pre>
                                 </div>
@@ -3499,6 +4015,17 @@ export default function GameUserProgressDetailPage({
             onLoadGameInfo={() => {}}
             equippedItems={equippedItems}
             equippedLoading={equippedLoading}
+            onRefreshEquipped={() => {
+              const userId = detail?.user_id
+              if (!userId || equippedLoading) return
+              setEquippedLoading(true)
+              import("@/lib/game-user-api").then(({ getPlayerEquipped }) =>
+                getPlayerEquipped(gameId, userId)
+                  .then((res) => setEquippedItems(res.equipped ?? []))
+                  .catch(() => {})
+                  .finally(() => setEquippedLoading(false))
+              )
+            }}
             readOnly
             playerProgressId={progressId}
           />

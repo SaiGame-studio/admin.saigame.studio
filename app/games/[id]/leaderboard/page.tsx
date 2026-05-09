@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback, Suspense } from "react"
+import React, { useEffect, useState, useCallback, Suspense, Fragment } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -88,13 +88,13 @@ import {
   getBoardHistory,
   getCurrentSeasonRaw,
   getSeasonArchive,
+  getSeasonRawEvents,
   getResetScheduleOptions,
   getScoreSourceTypeOptions,
   type LeaderboardBoard,
   type LeaderboardSeason,
   type CurrentSeasonRaw,
-  type SeasonArchiveRaw,
-  type SeasonArchiveEntry,
+  type SeasonRawEvents,
   type CreateBoardPayload,
   type UpdateBoardPayload,
   type ScoreMode,
@@ -126,6 +126,28 @@ const RESET_SCHEDULE_OPTIONS: { value: ResetSchedule; labelKey: string }[] = [
   { value: "weekly", labelKey: "leaderboard.resetSchedule_weekly" },
   { value: "monthly", labelKey: "leaderboard.resetSchedule_monthly" },
 ]
+
+interface BoardPreset {
+  value: string
+  labelKey: string
+  name: string
+  seasonName: string
+  score_mode: ScoreMode
+  sort_direction: SortDirection
+  reset_schedule: ResetSchedule
+  score_source_type: "gacha_pack_open_count" | "item_collected_count" | ""
+}
+
+const BOARD_PRESETS: BoardPreset[] = [
+  { value: "daily_gacha_opens",       labelKey: "leaderboard.preset_dailyGachaOpens",       name: "Daily Gacha Opens",        seasonName: "Day {n}",   score_mode: "sum", sort_direction: "DESC", reset_schedule: "daily",   score_source_type: "gacha_pack_open_count" },
+  { value: "weekly_gacha_opens",      labelKey: "leaderboard.preset_weeklyGachaOpens",      name: "Weekly Gacha Opens",       seasonName: "Week {n}",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "weekly",  score_source_type: "gacha_pack_open_count" },
+  { value: "monthly_item_collection", labelKey: "leaderboard.preset_monthlyItemCollection", name: "Monthly Item Collection",  seasonName: "Month {n}", score_mode: "sum", sort_direction: "DESC", reset_schedule: "monthly", score_source_type: "item_collected_count" },
+  { value: "alltime_gacha_opens",     labelKey: "leaderboard.preset_alltimeGachaOpens",     name: "All-time Gacha Opens",     seasonName: "All-time",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "never",   score_source_type: "gacha_pack_open_count" },
+  { value: "alltime_item_collection", labelKey: "leaderboard.preset_alltimeItemCollection", name: "All-time Item Collection", seasonName: "All-time",  score_mode: "sum", sort_direction: "DESC", reset_schedule: "never",   score_source_type: "item_collected_count" },
+]
+
+const PRESET_CUSTOM_VALUE = "__custom__"
+const MAX_BOARD_KEY_LEN = 64
 
 function resetScheduleBadge(schedule: ResetSchedule) {
   switch (schedule) {
@@ -323,7 +345,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
   const [scheduleFlash, setScheduleFlash] = useState(false)
   const scheduleFlashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [scheduleOptions, setScheduleOptions] = useState<ResetScheduleOption[]>(
-    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: o.labelKey, description: "" }))
+    RESET_SCHEDULE_OPTIONS.map(o => ({ value: o.value, label: t(o.labelKey as any), description: "" }))
   )
   const [sourceTypeOptions, setSourceTypeOptions] = useState<ScoreSourceTypeOption[]>([])
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
@@ -341,27 +363,99 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     reset_schedule: "never",
     score_source_type: "",
     score_source_ref_id: "",
-    max_score_delta: null,
     first_season_start_at: null,
+    first_season_name: "",
   })
+  const [presetValue, setPresetValue] = useState<string>(PRESET_CUSTOM_VALUE)
+
+  const localizeResetScheduleOption = (opt: ResetScheduleOption): ResetScheduleOption => {
+    const keyMap: Record<string, string> = {
+      never: "leaderboard.resetSchedule_never",
+      season: "leaderboard.resetSchedule_season",
+      daily: "leaderboard.resetSchedule_daily",
+      weekly: "leaderboard.resetSchedule_weekly",
+      monthly: "leaderboard.resetSchedule_monthly",
+    }
+    const key = keyMap[opt.value]
+    return key ? { ...opt, label: t(key as any) } : opt
+  }
+
+  const getResetScheduleLabel = (value: string, fallback?: string) => {
+    const keyMap: Record<string, string> = {
+      never: "leaderboard.resetSchedule_never",
+      season: "leaderboard.resetSchedule_season",
+      daily: "leaderboard.resetSchedule_daily",
+      weekly: "leaderboard.resetSchedule_weekly",
+      monthly: "leaderboard.resetSchedule_monthly",
+    }
+    const key = keyMap[value]
+    return key ? t(key as any) : (fallback ?? value)
+  }
+
+  const getScoreSourceTypeLabel = (opt: ScoreSourceTypeOption) => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.scoreSourceType_gachaPackOpenCount')
+    if (value.includes("item")) return t('leaderboard.scoreSourceType_itemCollectedCount')
+    return opt.label
+  }
+
+  const getScoreSourceTypeDesc = (opt: ScoreSourceTypeOption) => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.scoreSourceTypeDesc_gachaPackOpenCount')
+    if (value.includes("item")) return t('leaderboard.scoreSourceTypeDesc_itemCollectedCount')
+    return opt.description
+  }
+
+  const getScoreSourceRefLabel = (opt: ScoreSourceTypeOption | undefined) => {
+    if (!opt) return "score_source_ref_id"
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) return t('leaderboard.refLabel_gachaPackId')
+    if (value.includes("item")) return t('leaderboard.refLabel_itemDefinitionId')
+    return opt.ref_id_label
+  }
+
+  const localizeScoreSourceTypeOption = (opt: ScoreSourceTypeOption): ScoreSourceTypeOption => {
+    const value = opt.value.toLowerCase()
+    if (value.includes("gacha")) {
+      return {
+        ...opt,
+        label: t('leaderboard.scoreSourceType_gachaPackOpenCount'),
+        description: t('leaderboard.scoreSourceTypeDesc_gachaPackOpenCount'),
+        ref_id_label: t('leaderboard.refLabel_gachaPackId'),
+      }
+    }
+    if (value.includes("item")) {
+      return {
+        ...opt,
+        label: t('leaderboard.scoreSourceType_itemCollectedCount'),
+        description: t('leaderboard.scoreSourceTypeDesc_itemCollectedCount'),
+        ref_id_label: t('leaderboard.refLabel_itemDefinitionId'),
+      }
+    }
+    return opt
+  }
 
   // Reset form + auto-slug when sheet opens
   useEffect(() => {
     if (open) {
-      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", score_source_type: "", score_source_ref_id: "", max_score_delta: null, first_season_start_at: null })
+      setForm({ board_key: "", name: "", description: "", score_mode: "sum", sort_direction: "DESC", reset_schedule: "never", score_source_type: "", score_source_ref_id: "", first_season_start_at: null, first_season_name: "" })
       setAutoSlug(true)
+      setPresetValue(PRESET_CUSTOM_VALUE)
       getResetScheduleOptions()
         .then((opts) => {
-          setScheduleOptions(opts)
+          setScheduleOptions(opts.map(localizeResetScheduleOption))
           if (opts.length > 0) set("reset_schedule", opts[0].value)
         })
         .catch(() => { /* keep static fallback */ })
       getScoreSourceTypeOptions()
         .then((opts) => {
-          setSourceTypeOptions(opts)
-          if (opts.length > 0) {
-            const itemOpt = opts.find(o => o.value.includes("item"))
-            setForm((f) => ({ ...f, score_source_type: (itemOpt ?? opts[0]).value }))
+          const localizedOpts = opts.map(localizeScoreSourceTypeOption)
+          setSourceTypeOptions(localizedOpts)
+          if (localizedOpts.length > 0) {
+            setForm((f) => ({
+              ...f,
+              score_source_type: f.score_source_type || localizedOpts[0].value,
+            }))
           }
         })
         .catch(() => { /* non-blocking */ })
@@ -393,23 +487,32 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyInvalid') })
       return
     }
-    if (!form.score_source_type) {
+    if (form.board_key.length > MAX_BOARD_KEY_LEN) {
+      toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.boardKeyTooLong') })
+      return
+    }
+    const srcType = (form.score_source_type ?? "").trim()
+    const srcRef = (form.score_source_ref_id ?? "").trim()
+    if (!srcType) {
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: t('leaderboard.scoreSourceTypeRequired') })
       return
     }
-    if (!form.score_source_ref_id.trim()) {
-      const refLabel = sourceTypeOptions.find(o => o.value === form.score_source_type)?.ref_id_label ?? "score_source_ref_id"
+    if (srcType && !srcRef) {
+      const refLabel = sourceTypeOptions.find(o => o.value === srcType)?.ref_id_label ?? "score_source_ref_id"
       toast({ variant: "destructive", title: t('leaderboard.validationTitle'), description: `${refLabel} ${t('leaderboard.scoreSourceRefRequired')}` })
       return
     }
     setSaving(true)
     try {
+      const trimmedSeasonName = (form.first_season_name ?? "").trim()
       const payload: CreateBoardPayload = {
         ...form,
         board_key: form.board_key.trim(),
         name: form.name.trim(),
-        max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
         first_season_start_at: form.first_season_start_at ?? null,
+        first_season_name: trimmedSeasonName ? trimmedSeasonName : null,
+        score_source_type: srcType,
+        score_source_ref_id: srcRef,
       }
       const board = await createBoard(studioId, gameId, payload)
       toast({ title: t('leaderboard.boardCreated'), description: `"${board.name}" ${t('leaderboard.boardCreatedDesc')}` })
@@ -424,6 +527,25 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
     }
   }
 
+  const applyPreset = (presetVal: string) => {
+    setPresetValue(presetVal)
+    if (presetVal === PRESET_CUSTOM_VALUE) return
+    const p = BOARD_PRESETS.find(x => x.value === presetVal)
+    if (!p) return
+    const hasSourceOpt = sourceTypeOptions.some(o => o.value === p.score_source_type)
+    setForm((f) => ({
+      ...f,
+      name: p.name,
+      board_key: autoSlug ? slugify(p.name) : f.board_key,
+      first_season_name: p.seasonName,
+      score_mode: p.score_mode,
+      sort_direction: p.sort_direction,
+      reset_schedule: p.reset_schedule,
+      score_source_type: hasSourceOpt ? p.score_source_type : "",
+      score_source_ref_id: hasSourceOpt ? f.score_source_ref_id : "",
+    }))
+  }
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -431,6 +553,21 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           <SheetTitle>{t('leaderboard.createBoardTitle')}</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-1.5">
+            <Label>{t('leaderboard.presetLabel')}</Label>
+            <Select value={presetValue} onValueChange={applyPreset}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('leaderboard.presetPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PRESET_CUSTOM_VALUE}>{t('leaderboard.preset_custom')}</SelectItem>
+                {BOARD_PRESETS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{t(p.labelKey as any)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('leaderboard.presetHint')}</p>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-name">{t('leaderboard.nameLabel')} <span className="text-destructive">*</span></Label>
             <Input
@@ -454,6 +591,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                 id="c-board_key"
                 placeholder={t('leaderboard.boardKeyPlaceholder')}
                 value={form.board_key}
+                maxLength={MAX_BOARD_KEY_LEN}
                 onChange={(e) => {
                   setAutoSlug(false)
                   set("board_key", e.target.value.toLowerCase())
@@ -518,31 +656,36 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
           </div>
           {sourceTypeOptions.length > 0 && (() => {
             const selectedSourceType = sourceTypeOptions.find(o => o.value === form.score_source_type)
+            const hasSource = !!form.score_source_type
             return (
               <div className="space-y-3 rounded-md border p-3 bg-muted/20">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('leaderboard.scoreSourceSection')}</p>
                 <div className="space-y-1.5">
-                  <Label>{t('leaderboard.scoreSourceTypeLabel')} <span className="text-destructive">*</span></Label>
+                  <Label>{t('leaderboard.scoreSourceTypeLabel')}</Label>
                   <Select
                     value={form.score_source_type}
-                    onValueChange={(v) => set("score_source_type", v)}
+                    onValueChange={(v) => {
+                      setForm((f) => ({ ...f, score_source_type: v, score_source_ref_id: "" }))
+                    }}
                   >
-                    <SelectTrigger><SelectValue placeholder={t('leaderboard.selectSourceType')} /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {sourceTypeOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        <SelectItem key={o.value} value={o.value}>{getScoreSourceTypeLabel(o)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedSourceType?.description && (
-                    <p className="text-xs text-muted-foreground">{selectedSourceType.description}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {hasSource && selectedSourceType?.description
+                      ? getScoreSourceTypeDesc(selectedSourceType)
+                      : t('leaderboard.scoreSourceTypeRequired')}
+                  </p>
                 </div>
+                {hasSource && (
                 <div className="space-y-1.5">
                   <Label htmlFor="c-score_source_ref_id">
-                    {selectedSourceType?.ref_id_label ?? "score_source_ref_id"} <span className="text-destructive">*</span>
+                    {getScoreSourceRefLabel(selectedSourceType)} <span className="text-destructive">*</span>
                   </Label>
-                  {form.score_source_type.includes("gacha") ? (
+                  {(form.score_source_type ?? "").includes("gacha") ? (
                     <Popover open={gachaPopoverOpen} onOpenChange={setGachaPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -596,7 +739,7 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  ) : form.score_source_type.includes("item") ? (
+                  ) : (form.score_source_type ?? "").includes("item") ? (
                     <Popover open={itemPopoverOpen} onOpenChange={setItemPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
@@ -655,12 +798,13 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
                     <Input
                       id="c-score_source_ref_id"
                       placeholder={`${t('leaderboard.enterRefId')} ${selectedSourceType?.ref_id_label ?? "ref ID"}...`}
-                      value={form.score_source_ref_id}
+                      value={form.score_source_ref_id ?? ""}
                       onChange={(e) => set("score_source_ref_id", e.target.value.trim())}
                       className="font-mono"
                     />
                   )}
                 </div>
+                )}
               </div>
             )
           })()}
@@ -678,31 +822,19 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {scheduleOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  <SelectItem key={o.value} value={o.value}>{getResetScheduleLabel(o.value, o.label)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <div
-              className={`flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs transition-all duration-500 ${
+              className={`rounded-md px-2.5 py-2 text-xs transition-all duration-500 ${
                 scheduleFlash
                   ? "bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300"
                   : "bg-muted/40 border border-transparent text-muted-foreground"
               }`}
             >
-              <Info className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 transition-colors duration-500 ${scheduleFlash ? "text-blue-500" : "text-muted-foreground/60"}`} />
-              <span>{t(`leaderboard.resetScheduleHint_${form.reset_schedule}` as any)}</span>
+              {t(`leaderboard.resetScheduleHint_${form.reset_schedule}` as any)}
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="c-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
-            <Input
-              id="c-max_score_delta"
-              type="number"
-              placeholder={t('leaderboard.maxScoreDeltaPlaceholder')}
-              value={form.max_score_delta ?? ""}
-              onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
-            />
-            <p className="text-xs text-muted-foreground">{t('leaderboard.maxScoreDeltaHint')}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="c-first_season_start_at">{t('leaderboard.firstSeasonStartLabel')}</Label>
@@ -712,6 +844,16 @@ function CreateSheet({ open, onClose, onCreated, studioId, gameId }: CreateSheet
               placeholder={t('leaderboard.firstSeasonStartPlaceholder')}
             />
             <p className="text-xs text-muted-foreground">{t('leaderboard.firstSeasonStartHint')}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="c-first_season_name">{t('leaderboard.firstSeasonNameLabel')}</Label>
+            <Input
+              id="c-first_season_name"
+              placeholder={t('leaderboard.firstSeasonNamePlaceholder')}
+              value={form.first_season_name ?? ""}
+              onChange={(e) => set("first_season_name", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('leaderboard.firstSeasonNameHint')}</p>
           </div>
           <SheetFooter className="gap-2 pt-2">
             <SheetClose asChild>
@@ -746,7 +888,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
     name: "",
     description: "",
     is_active: true,
-    max_score_delta: null,
   })
 
   useEffect(() => {
@@ -755,7 +896,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
         name: board.name,
         description: board.description,
         is_active: board.is_active,
-        max_score_delta: board.max_score_delta,
       })
     }
   }, [board])
@@ -773,10 +913,7 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
     }
     setSaving(true)
     try {
-      const payload: UpdateBoardPayload = {
-        ...form,
-        max_score_delta: form.max_score_delta != null ? Number(form.max_score_delta) : null,
-      }
+      const payload: UpdateBoardPayload = { ...form }
       const updated = await updateBoard(studioId, gameId, board.id, payload)
       toast({ title: t('leaderboard.boardUpdated'), description: `"${updated.name}" ${t('leaderboard.boardUpdatedDesc')}` })
       onUpdated(updated)
@@ -813,16 +950,6 @@ function EditSheet({ board, onClose, onUpdated, studioId, gameId }: EditSheetPro
               value={form.description ?? ""}
               onChange={(e) => set("description", e.target.value)}
               rows={2}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="e-max_score_delta">{t('leaderboard.maxScoreDeltaLabel')}</Label>
-            <Input
-              id="e-max_score_delta"
-              type="number"
-              placeholder={t('leaderboard.leaveEmptyNoLimit')}
-              value={form.max_score_delta ?? ""}
-              onChange={(e) => set("max_score_delta", e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
@@ -999,29 +1126,66 @@ interface LeaderboardEntriesSheetProps {
 function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: LeaderboardEntriesSheetProps) {
   const { t } = useTranslation()
   const [data, setData] = useState<CurrentSeasonRaw | null>(null)
+  const [rawData, setRawData] = useState<SeasonRawEvents | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [rawLoadError, setRawLoadError] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rawLoading, setRawLoading] = useState(false)
+  const [refreshingTab, setRefreshingTab] = useState<"rank" | "raw" | null>(null)
   const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
   const [sourceRefName, setSourceRefName] = useState<string | null>(null)
+  const [expandedRawRows, setExpandedRawRows] = useState<Set<string>>(new Set())
+  const toggleRawRow = (id: string) =>
+    setExpandedRawRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  const loadCurrentSeasonData = useCallback(async (tab: "rank" | "raw" | null = null) => {
+    if (!board || !board.season_id) return
+    if (tab === "rank") setRefreshingTab("rank")
+    else if (!tab) setLoading(true)
+    setLoadError(false)
+    try {
+      const result = await getCurrentSeasonRaw(gameId, board.season_id)
+      setData(result)
+      const ids = result.entries.map((e) => e.user_id)
+      if (ids.length > 0) {
+        const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
+        setIdentities(map)
+      }
+    } catch {
+      setLoadError(true)
+    } finally {
+      if (tab === "rank") setRefreshingTab(null)
+      else if (!tab) setLoading(false)
+    }
+  }, [board, studioId, gameId])
+
+  const loadCurrentSeasonRawData = useCallback(async (tab: "raw" | null = null) => {
+    if (!board || !board.season_id) return
+    if (tab) setRefreshingTab(tab)
+    else setRawLoading(true)
+    setRawLoadError(false)
+    try {
+      const result = await getSeasonRawEvents(gameId, board.season_id)
+      setRawData(result)
+    } catch {
+      setRawLoadError(true)
+    } finally {
+      if (tab) setRefreshingTab(null)
+      else setRawLoading(false)
+    }
+  }, [board, gameId])
 
   useEffect(() => {
     if (!board) return
     setData(null)
+    setRawData(null)
     setLoadError(false)
+    setRawLoadError(false)
     setIdentities({})
     setSourceRefName(null)
-    setLoading(true)
-    getCurrentSeasonRaw(studioId, gameId, board.id)
-      .then(async (result) => {
-        setData(result)
-        const ids = result.entries.map((e) => e.user_id)
-        if (ids.length > 0) {
-          const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
-          setIdentities(map)
-        }
-      })
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false))
+    setExpandedRawRows(new Set())
+    loadCurrentSeasonData()
+    loadCurrentSeasonRawData()
     if (board.score_source_ref_id) {
       if (board.score_source_type?.includes("gacha")) {
         getGachaPack({ gameId: board.game_id }, board.score_source_ref_id)
@@ -1033,7 +1197,13 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
           .catch(() => {})
       }
     }
-  }, [board, studioId, gameId])
+  }, [board, loadCurrentSeasonData, loadCurrentSeasonRawData])
+
+  const entries = data?.entries ?? []
+  const rankEntries = [...entries].sort((a, b) => a.rank - b.rank)
+  const rawEntries = rawData?.entries ?? []
+  const emptyMessage = loadError ? t('leaderboard.noActiveSeasonOrFailed') : t('leaderboard.noEntriesYet')
+  const rawEmptyMessage = rawLoadError ? t('leaderboard.failedLoadSessionRaw') : t('leaderboard.noRawEventsFound')
 
   return (
     <Sheet open={!!board} onOpenChange={(v) => !v && onClose()}>
@@ -1041,7 +1211,7 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <BarChart2 className="h-5 w-5" />
-            {board?.name} — {t('leaderboard.currentSeasonLabel')}
+            {board?.name} — {t('leaderboard.currentSeasonDataLabel')}
           </SheetTitle>
         </SheetHeader>
 
@@ -1050,50 +1220,28 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : loadError ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
-              <Info className="h-8 w-8 opacity-40" />
-              <p className="text-sm">{t('leaderboard.noActiveSeasonOrFailed')}</p>
-            </div>
-          ) : data && (
+          ) : (
             <>
               {/* Season & board details */}
-              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
-                    <p className="font-medium">{data.season.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
-                    <p className="font-medium">{data.season.season_number}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
-                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
-                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
-                  </div>
-                  {data.season.planned_end_at && (
-                    <div>
-                      <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
-                      <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.totalEntriesLabel')}</p>
-                    <p className="font-medium">{data.total}</p>
-                  </div>
-                </div>
-                <div className="pt-1 border-t space-y-1">
+              {data ? (
+                <div className="rounded-md border p-4 bg-muted/30 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                    {board?.id && (
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.boardIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{board.id}</p>
+                          <CopyButton text={board.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
-                      <p className="font-mono">{board?.board_key}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-mono break-all">{board?.board_key}</p>
+                        {board?.board_key && <CopyButton text={board.board_key} size="h-3 w-3" />}
+                      </div>
                     </div>
                     <div>
                       <p className="text-muted-foreground">{t('leaderboard.scoreModeInfoLabel')}</p>
@@ -1138,57 +1286,235 @@ function LeaderboardEntriesSheet({ board, studioId, gameId, onClose }: Leaderboa
                       )}
                     </div>
                   </div>
+                  <div className="pt-1 border-t space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.seasonIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{data.season.id}</p>
+                          <CopyButton text={data.season.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{data.season.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
+                        <p className="font-medium">{data.season.season_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
+                        <p className="font-mono">{formatDate(data.season.started_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
+                        <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
+                      </div>
+                      {data.season.planned_end_at && (
+                        <div>
+                          <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
+                          <p className="font-mono">{formatDate(data.season.planned_end_at)}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.totalEntriesLabel')}</p>
+                        <p className="font-medium">{data.total}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
-              {/* Entries table */}
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="h-8 text-xs w-14 text-center">{t('leaderboard.rankLabel')}</TableHead>
-                      <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
-                      <TableHead className="h-8 text-xs text-right pr-4">{t('leaderboard.scoreLabel')}</TableHead>
-                      <TableHead className="h-8 text-xs">{t('leaderboard.updatedLabel')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.entries.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
-                          {t('leaderboard.noEntriesYet')}
-                        </TableCell>
-                      </TableRow>
-                    ) : data.entries.map((entry) => {
-                      const identity = identities[entry.user_id]
-                      const rankIcon = entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : null
-                      return (
-                        <TableRow key={entry.user_id}>
-                          <TableCell className="text-xs py-2 text-center font-bold">
-                            {rankIcon ? <span>{rankIcon}</span> : `#${entry.rank}`}
-                          </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <p className="font-medium">{identity?.display_name ?? `player_${entry.user_id.slice(0, 8)}`}</p>
-                            <div className="flex items-center gap-1">
-                              <p className="text-muted-foreground font-mono text-[10px]">{entry.user_id}</p>
-                              <CopyButton text={entry.user_id} size="h-3 w-3" />
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 font-mono font-semibold text-right pr-4">
-                            {entry.score.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-muted-foreground whitespace-nowrap">
-                            {timeAgo(entry.updated_at)}
-                          </TableCell>
+              <Tabs defaultValue="rank" className="space-y-3">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="rank">{t('leaderboard.rankDataLabel')}</TabsTrigger>
+                  <TabsTrigger value="raw">{t('leaderboard.rawDataLabel')}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="rank" className="mt-0 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('leaderboard.rankingEntriesLabel')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-[10px] uppercase tracking-wide">
+                        {t('leaderboard.rankDataLabel')}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title={`${t('leaderboard.refreshTitle')} ${t('leaderboard.rankDataLabel')}`}
+                        onClick={() => loadCurrentSeasonData("rank")}
+                        disabled={loading || refreshingTab === "rank"}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshingTab === "rank" ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="h-8 text-xs w-14 text-center">{t('leaderboard.rankLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                          <TableHead className="h-8 text-xs text-right pr-4">{t('leaderboard.scoreLabel')}</TableHead>
                         </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              {data.total > data.entries.length && (
+                      </TableHeader>
+                      <TableBody>
+                        {entries.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-8">
+                              {emptyMessage}
+                            </TableCell>
+                          </TableRow>
+                        ) : rankEntries.map((entry) => {
+                          const identity = identities[entry.user_id]
+                          const rankIcon = entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : null
+                          return (
+                            <TableRow key={`rank-${entry.user_id}`}>
+                              <TableCell className="text-xs py-2 text-center font-bold">
+                                {rankIcon ? <span>{rankIcon}</span> : `#${entry.rank}`}
+                              </TableCell>
+                              <TableCell className="text-xs py-2">
+                                <p className="font-medium">{entry.display_name?.trim() || identity?.display_name || `player_${entry.user_id.slice(0, 8)}`}</p>
+                                <div className="flex items-center gap-1">
+                                  <p className="text-muted-foreground font-mono text-[10px]">{entry.user_id}</p>
+                                  <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs py-2 font-mono font-semibold text-right pr-4">
+                                {entry.score.toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="raw" className="mt-0 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('leaderboard.rawEntriesLabel')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                        {t('leaderboard.rawDataLabel')}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title={`${t('leaderboard.refreshTitle')} ${t('leaderboard.rawDataLabel')}`}
+                        onClick={() => loadCurrentSeasonRawData("raw")}
+                        disabled={rawLoading || refreshingTab === "raw"}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshingTab === "raw" ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
+                  </div>
+                  {rawLoading && rawEntries.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 rounded-md border">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : rawEntries.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground rounded-md border">
+                      {rawLoadError ? <Info className="h-8 w-8 opacity-40" /> : <Archive className="h-8 w-8 opacity-30" />}
+                      <p className="text-sm">{rawEmptyMessage}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="h-8 w-6" />
+                            <TableHead className="h-8 text-xs text-right">{t('leaderboard.deltaLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.createdAtLabel')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rawEntries.map((entry) => {
+                            const isExpanded = expandedRawRows.has(entry.id)
+                            return (
+                              <Fragment key={`raw-${entry.id}`}>
+                                <TableRow
+                                  className="text-xs cursor-pointer hover:bg-muted/40"
+                                  onClick={() => toggleRawRow(entry.id)}
+                                >
+                                  <TableCell className="py-2 pl-3 pr-1 w-6">
+                                    {isExpanded
+                                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-right font-mono font-medium">
+                                    <span className={entry.delta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500"}>
+                                      {entry.delta >= 0 ? "+" : ""}{entry.delta.toLocaleString()}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-2 text-xs">
+                                    {entry.display_name?.trim() ? (
+                                      <span className="font-medium">{entry.display_name}</span>
+                                    ) : (
+                                      <span className="font-mono text-[10px] text-muted-foreground">{entry.user_id.slice(0, 8)}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2 font-mono text-muted-foreground whitespace-nowrap">{formatDate(entry.created_at)}</TableCell>
+                                </TableRow>
+                                {isExpanded && (
+                                  <TableRow className="bg-muted/10 hover:bg-muted/10">
+                                    <TableCell />
+                                    <TableCell colSpan={3} className="py-3 pr-4">
+                                      <div className="space-y-1.5 text-[10px]">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.rawRecordIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.id}</span>
+                                          <CopyButton text={entry.id} size="h-3 w-3" />
+                                        </div>
+                                        {entry.display_name?.trim() && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.playerLabel')}</span>
+                                            <span className="font-medium">{entry.display_name}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.userIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.user_id}</span>
+                                          <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceEventIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.source_event_id ?? "—"}</span>
+                                          {entry.source_event_id && <CopyButton text={entry.source_event_id} size="h-3 w-3" />}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceSystemLabel')}</span>
+                                          <span className="font-mono">{entry.source_system}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.processedAtLabel')}</span>
+                                          <span className="font-mono">{entry.processed_at ? formatDate(entry.processed_at) : "—"}</span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Fragment>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+              {data && data.total > entries.length && (
                 <p className="text-xs text-muted-foreground text-right">
-                  {t('leaderboard.showingEntries')} {data.entries.length} {t('leaderboard.ofEntries')} {data.total} {t('leaderboard.entriesLimit')} {data.limit})
+                  {t('leaderboard.showingEntries')} {entries.length} {t('leaderboard.ofEntries')} {data.total} {t('leaderboard.entriesLimit')} {data.limit})
                 </p>
               )}
             </>
@@ -1212,39 +1538,85 @@ const ARCHIVE_PAGE_SIZE = 100
 
 function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) {
   const { t } = useTranslation()
-  const [data, setData] = useState<SeasonArchiveRaw | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const [activeTab, setActiveTab] = useState<"rank" | "raw">("rank")
+  const [rankData, setRankData] = useState<CurrentSeasonRaw | null>(null)
+  const [rawData, setRawData] = useState<SeasonRawEvents | null>(null)
+  const [rankLoadError, setRankLoadError] = useState(false)
+  const [rawLoadError, setRawLoadError] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rawLoading, setRawLoading] = useState(false)
+  const [refreshingTab, setRefreshingTab] = useState<"rank" | "raw" | null>(null)
   const [offset, setOffset] = useState(0)
   const [identities, setIdentities] = useState<Record<string, PlayerIdentity>>({})
+  const [expandedRawRows, setExpandedRawRows] = useState<Set<string>>(new Set())
+  const toggleRawRow = (id: string) =>
+    setExpandedRawRows(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  const loadArchiveRankData = useCallback(async (nextOffset: number, tab: "rank" | null = null) => {
+    if (!target) return
+    if (tab) setRefreshingTab(tab)
+    else setLoading(true)
+    setRankLoadError(false)
+    try {
+      const result = await getSeasonArchive(gameId, target.season.id, nextOffset, ARCHIVE_PAGE_SIZE)
+      setRankData(result)
+      const ids = result.entries.map((e) => e.user_id)
+      if (ids.length > 0) {
+        const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
+        setIdentities(map)
+      }
+    } catch {
+      setRankLoadError(true)
+    } finally {
+      if (tab) setRefreshingTab(null)
+      else setLoading(false)
+    }
+  }, [target, studioId, gameId])
+
+  const loadArchiveRawData = useCallback(async (nextOffset: number, tab: "raw" | null = null) => {
+    if (!target) return
+    if (tab) setRefreshingTab(tab)
+    else setRawLoading(true)
+    setRawLoadError(false)
+    try {
+      const result = await getSeasonRawEvents(gameId, target.season.id, nextOffset, ARCHIVE_PAGE_SIZE)
+      setRawData(result)
+    } catch {
+      setRawLoadError(true)
+    } finally {
+      if (tab) setRefreshingTab(null)
+      else setRawLoading(false)
+    }
+  }, [target, studioId, gameId])
 
   useEffect(() => {
     if (!target) return
-    setData(null)
-    setLoadError(false)
+    setActiveTab("rank")
+    setRankData(null)
+    setRawData(null)
+    setRankLoadError(false)
+    setRawLoadError(false)
     setIdentities({})
     setOffset(0)
   }, [target])
 
   useEffect(() => {
     if (!target) return
-    setLoading(true)
-    setLoadError(false)
-    getSeasonArchive(studioId, gameId, target.board.id, target.season.id, offset, ARCHIVE_PAGE_SIZE)
-      .then(async (result) => {
-        setData(result)
-        const ids = result.entries.map((e) => e.user_id)
-        if (ids.length > 0) {
-          const map = await getPlayerIdentityMapByUserIds(ids, undefined, gameId)
-          setIdentities(map)
-        }
-      })
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false))
-  }, [target, studioId, gameId, offset])
+    loadArchiveRankData(offset)
+    loadArchiveRawData(offset)
+  }, [target, offset, loadArchiveRankData, loadArchiveRawData])
 
-  const totalPages = data ? Math.ceil(data.total / ARCHIVE_PAGE_SIZE) : 0
+  const totalItems = activeTab === "raw"
+    ? rawData?.total ?? rankData?.total ?? 0
+    : rankData?.total ?? rawData?.total ?? 0
+  const totalPages = totalItems > 0 ? Math.ceil(totalItems / ARCHIVE_PAGE_SIZE) : 0
   const currentPage = Math.floor(offset / ARCHIVE_PAGE_SIZE) + 1
+  const rankEntries = [...(rankData?.entries ?? [])].sort((a, b) => a.rank - b.rank)
+  const rawEntries = rawData?.entries ?? []
+  const rankEmptyMessage = rankLoadError ? t('leaderboard.failedLoadArchive') : t('leaderboard.noArchivedEntries')
+  const rawEmptyMessage = rawLoadError ? t('leaderboard.failedLoadSessionRaw') : t('leaderboard.noRawEventsFound')
+  const seasonInfo = rankData?.season ?? target?.season ?? null
+  const plannedEndAt = rankData?.season.planned_end_at ?? null
 
   return (
     <Sheet open={!!target} onOpenChange={(v) => !v && onClose()}>
@@ -1252,7 +1624,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Archive className="h-5 w-5" />
-            {target?.board.name} — {target?.season.name} {t('leaderboard.archiveLabel')}
+            {target?.board.name} — {target?.season.name} {t('leaderboard.archiveDataLabel')}
           </SheetTitle>
         </SheetHeader>
 
@@ -1261,94 +1633,276 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : loadError ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center text-muted-foreground">
-              <Info className="h-8 w-8 opacity-40" />
-              <p className="text-sm">{t('leaderboard.failedLoadArchive')}</p>
-            </div>
-          ) : data && (
+          ) : (
             <>
-              {/* Season info */}
-              <div className="rounded-md border p-4 bg-muted/30 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
-                    <p className="font-medium">{data.season.name}</p>
+              {/* Board & Season info */}
+              {seasonInfo ? (
+                <div className="rounded-md border p-4 bg-muted/30 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.boardLabel')}</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                    {target?.board.id && (
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.boardIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{target.board.id}</p>
+                          <CopyButton text={target.board.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                    )}
+                    {target?.board.board_key && (
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.boardKeyInfoLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{target.board.board_key}</p>
+                          <CopyButton text={target.board.board_key} size="h-3 w-3" />
+                        </div>
+                      </div>
+                    )}
+                    {target?.board.name && (
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{target.board.name}</p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
-                    <p className="font-medium">{data.season.season_number}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
-                    <p className="font-mono">{formatDate(data.season.started_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
-                    <p className="font-mono">{data.season.ended_at ? formatDate(data.season.ended_at) : "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">{t('leaderboard.totalArchivedLabel')}</p>
-                    <p className="font-medium">{data.total}</p>
+                  <div className="pt-1 border-t space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('leaderboard.seasonInfoLabel')}</p>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">{t('leaderboard.seasonIdLabel')}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-mono break-all">{seasonInfo.id}</p>
+                          <CopyButton text={seasonInfo.id} size="h-3 w-3" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.nameLabel')}</p>
+                        <p className="font-medium">{seasonInfo.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.seasonNumberLabel')}</p>
+                        <p className="font-medium">{seasonInfo.season_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.startedAtLabel')}</p>
+                        <p className="font-mono">{formatDate(seasonInfo.started_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.endedAtLabel')}</p>
+                        <p className="font-mono">{seasonInfo.ended_at ? formatDate(seasonInfo.ended_at) : "—"}</p>
+                      </div>
+                      {plannedEndAt ? (
+                        <div>
+                          <p className="text-muted-foreground">{t('leaderboard.plannedEndLabel')}</p>
+                          <p className="font-mono">{formatDate(plannedEndAt)}</p>
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="text-muted-foreground">{t('leaderboard.totalArchivedLabel')}</p>
+                        <p className="font-medium">{totalItems}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
 
               {/* Entries table */}
-              {data.entries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground">
-                  <Archive className="h-8 w-8 opacity-30" />
-                  <p className="text-sm">{t('leaderboard.noArchivedEntries')}</p>
-                </div>
-              ) : (
-                <div className="rounded-md border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/40">
-                        <TableHead className="h-8 text-xs w-[50px]">{t('leaderboard.rankLabel')}</TableHead>
-                        <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
-                        <TableHead className="h-8 text-xs text-right">{t('leaderboard.finalScoreLabel')}</TableHead>
-                        <TableHead className="h-8 text-xs">{t('leaderboard.archivedAtLabel')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.entries.map((entry) => {
-                        const identity = identities[entry.user_id]
-                        return (
-                          <TableRow key={entry.id} className="text-xs">
-                            <TableCell className="py-2 font-medium">
-                              {entry.final_rank === 1 ? "🥇" : entry.final_rank === 2 ? "🥈" : entry.final_rank === 3 ? "🥉" : `#${entry.final_rank}`}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <div className="flex flex-col gap-0.5">
-                                {identity?.username ? (
-                                  <span className="font-medium">{identity.username}</span>
-                                ) : null}
-                                <span className="font-mono text-muted-foreground text-[10px] flex items-center gap-1">
-                                  {entry.user_id}
-                                  <CopyButton text={entry.user_id} size="h-3 w-3" />
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2 text-right font-mono font-medium">
-                              {entry.final_score.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="py-2 font-mono text-muted-foreground">
-                              {formatDate(entry.archived_at)}
-                            </TableCell>
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "rank" | "raw")} className="space-y-3">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="rank">{t('leaderboard.rankDataLabel')}</TabsTrigger>
+                  <TabsTrigger value="raw">{t('leaderboard.rawDataLabel')}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="rank" className="mt-0 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('leaderboard.finalRankEntriesLabel')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-[10px] uppercase tracking-wide">
+                        {t('leaderboard.rankDataLabel')}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title={`${t('leaderboard.refreshTitle')} ${t('leaderboard.rankDataLabel')}`}
+                        onClick={() => loadArchiveRankData(offset, "rank")}
+                        disabled={loading || refreshingTab === "rank"}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshingTab === "rank" ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
+                  </div>
+                  {rankEntries.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground rounded-md border">
+                      {rankLoadError ? <Info className="h-8 w-8 opacity-40" /> : <Archive className="h-8 w-8 opacity-30" />}
+                      <p className="text-sm">{rankEmptyMessage}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="h-8 text-xs w-[50px]">{t('leaderboard.rankLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs text-right">{t('leaderboard.finalScoreLabel')}</TableHead>
                           </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {rankEntries.map((entry) => {
+                            const identity = identities[entry.user_id]
+                            return (
+                              <TableRow key={`rank-${entry.id}`} className="text-xs">
+                                <TableCell className="py-2 font-medium">
+                                  {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                                </TableCell>
+                                <TableCell className="py-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    {entry.display_name?.trim() ? (
+                                      <span className="font-medium">{entry.display_name}</span>
+                                    ) : identity?.username ? (
+                                      <span className="font-medium">{identity.username}</span>
+                                    ) : null}
+                                    <span className="font-mono text-muted-foreground text-[10px] flex items-center gap-1">
+                                      {entry.user_id}
+                                      <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2 text-right font-mono font-medium">
+                                  {entry.score.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="raw" className="mt-0 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('leaderboard.rawEntriesLabel')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                        {t('leaderboard.rawDataLabel')}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title={`${t('leaderboard.refreshTitle')} ${t('leaderboard.rawDataLabel')}`}
+                        onClick={() => loadArchiveRawData(offset, "raw")}
+                        disabled={rawLoading || refreshingTab === "raw"}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${refreshingTab === "raw" ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
+                  </div>
+                  {rawLoading && rawEntries.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 rounded-md border">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : rawEntries.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2 text-center text-muted-foreground rounded-md border">
+                      {rawLoadError ? <Info className="h-8 w-8 opacity-40" /> : <Archive className="h-8 w-8 opacity-30" />}
+                      <p className="text-sm">{rawEmptyMessage}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/40">
+                            <TableHead className="h-8 w-6" />
+                            <TableHead className="h-8 text-xs text-right">{t('leaderboard.deltaLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.playerLabel')}</TableHead>
+                            <TableHead className="h-8 text-xs">{t('leaderboard.createdAtLabel')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rawEntries.map((entry) => {
+                            const isExpanded = expandedRawRows.has(entry.id)
+                            return (
+                              <Fragment key={`raw-${entry.id}`}>
+                                <TableRow
+                                  className="text-xs cursor-pointer hover:bg-muted/40"
+                                  onClick={() => toggleRawRow(entry.id)}
+                                >
+                                  <TableCell className="py-2 pl-3 pr-1 w-6">
+                                    {isExpanded
+                                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  </TableCell>
+                                  <TableCell className="py-2 text-right font-mono font-medium">
+                                    <span className={entry.delta >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500"}>
+                                      {entry.delta >= 0 ? "+" : ""}{entry.delta.toLocaleString()}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-2 text-xs">
+                                    {entry.display_name?.trim() ? (
+                                      <span className="font-medium">{entry.display_name}</span>
+                                    ) : (
+                                      <span className="font-mono text-[10px] text-muted-foreground">{entry.user_id.slice(0, 8)}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-2 font-mono text-muted-foreground whitespace-nowrap">{formatDate(entry.created_at)}</TableCell>
+                                </TableRow>
+                                {isExpanded && (
+                                  <TableRow className="bg-muted/10 hover:bg-muted/10">
+                                    <TableCell />
+                                    <TableCell colSpan={3} className="py-3 pr-4">
+                                      <div className="space-y-1.5 text-[10px]">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.rawRecordIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.id}</span>
+                                          <CopyButton text={entry.id} size="h-3 w-3" />
+                                        </div>
+                                        {entry.display_name?.trim() && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.playerLabel')}</span>
+                                            <span className="font-medium">{entry.display_name}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.userIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.user_id}</span>
+                                          <CopyButton text={entry.user_id} size="h-3 w-3" />
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceEventIdLabel')}</span>
+                                          <span className="font-mono break-all">{entry.source_event_id ?? "—"}</span>
+                                          {entry.source_event_id && <CopyButton text={entry.source_event_id} size="h-3 w-3" />}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.sourceSystemLabel')}</span>
+                                          <span className="font-mono">{entry.source_system}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-muted-foreground w-28 shrink-0">{t('leaderboard.processedAtLabel')}</span>
+                                          <span className="font-mono">{entry.processed_at ? formatDate(entry.processed_at) : "—"}</span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Fragment>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
 
               {/* Pagination */}
-              {data.total > ARCHIVE_PAGE_SIZE && (
+              {totalItems > ARCHIVE_PAGE_SIZE && (
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>{t('leaderboard.pageOf')} {currentPage} {t('leaderboard.ofPages')} {totalPages} · {data.total} {t('leaderboard.totalLabel')}</span>
+                  <span>{t('leaderboard.pageOf')} {currentPage} {t('leaderboard.ofPages')} {totalPages} · {totalItems} {t('leaderboard.totalLabel')}</span>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -1363,7 +1917,7 @@ function ArchiveSheet({ target, studioId, gameId, onClose }: ArchiveSheetProps) 
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs px-2"
-                      disabled={offset + ARCHIVE_PAGE_SIZE >= data.total || loading}
+                      disabled={offset + ARCHIVE_PAGE_SIZE >= totalItems || loading}
                       onClick={() => setOffset(offset + ARCHIVE_PAGE_SIZE)}
                     >
                       {t('leaderboard.nextBtn')}
@@ -1392,12 +1946,13 @@ interface BoardRowProps {
   onEndSeason: () => void
   onDeleteSeason: (seasonId: string) => void
   onViewArchive: (season: LeaderboardSeason) => void
+  onRefreshSeasons: () => void
   onUpdateStatus: (board: LeaderboardBoard, is_active: boolean) => Promise<void>
   seasons: LeaderboardSeason[] | null
   seasonsLoading: boolean
 }
 
-function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, onUpdateStatus, seasons, seasonsLoading }: BoardRowProps) {
+function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, onCreateSeason, onEndSeason, onDeleteSeason, onViewArchive, onRefreshSeasons, onUpdateStatus, seasons, seasonsLoading }: BoardRowProps) {
   const { t } = useTranslation()
   const [deleteSeasonConfirm, setDeleteSeasonConfirm] = useState<LeaderboardSeason | null>(null)
   const [showCreateRow, setShowCreateRow] = useState(false)
@@ -1480,7 +2035,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
         </TableCell>
         <TableCell>
           {hasSeason
-            ? <Badge variant="default" className="text-xs bg-green-600">{t('leaderboard.seasonActive')}</Badge>
+            ? <Badge variant="default" className="text-xs bg-green-600">{t('leaderboard.hasSeason')}</Badge>
             : <span className="text-xs text-muted-foreground">—</span>}
         </TableCell>
         <TableCell>
@@ -1496,12 +2051,12 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                       disabled={!hasActiveSeasonNow}
                       onClick={onViewEntries}
                     >
-                      <BarChart2 className="h-3.5 w-3.5" />
+                      <span className="text-sm leading-none">👑</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
-                  {hasActiveSeasonNow ? t('leaderboard.viewCurrentSeasonEntries') : t('leaderboard.noActiveSeasonTooltip')}
+                  {hasActiveSeasonNow ? t('leaderboard.viewCurrentSeasonData') : t('leaderboard.noActiveSeasonTooltip')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -1553,10 +2108,6 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.resetScheduleInfoLabel')}</p>
                   <Badge variant="outline" className={`text-xs capitalize border ${resetScheduleBadge(board.reset_schedule)}`}>{board.reset_schedule}</Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.maxScoreDeltaInfoLabel')}</p>
-                  <p className="text-sm">{board.max_score_delta != null ? board.max_score_delta.toLocaleString() : t('leaderboard.unlimitedLabel')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">{t('leaderboard.scoreSourceLabel')}</p>
@@ -1611,6 +2162,19 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                   <div className="flex items-center gap-1.5">
                     <History className="h-4 w-4 text-muted-foreground" />
                     <p className="text-sm font-medium">{t('leaderboard.seasonHistoryLabel')}</p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      disabled={seasonsLoading}
+                      title={t('leaderboard.refreshSeasonHistoryTitle')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onRefreshSeasons()
+                      }}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${seasonsLoading ? "animate-spin" : ""}`} />
+                    </Button>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {(board.reset_schedule === "season" || (board.reset_schedule === "never" && !seasons?.some(s => !s.ended_at))) && !showCreateRow && (
@@ -1933,6 +2497,7 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                 const isEnded = !!s.ended_at
                                 const isActive = !isUpcoming && !isEnded
                                 const isStarted = !isUpcoming
+                                const canViewSeasonData = isEnded || isActive
                                 const isNeverSchedule = board.reset_schedule === "never"
                                 const endDisabled = !isActive || isNeverSchedule
                                 const endTooltip = isNeverSchedule && isActive
@@ -1992,20 +2557,27 @@ function BoardRow({ board, expanded, onToggle, onEdit, onDelete, onViewEntries, 
                                     <TooltipProvider delayDuration={100}>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <span tabIndex={!isEnded ? 0 : undefined}>
+                                          <span tabIndex={!canViewSeasonData ? 0 : undefined}>
                                             <Button
                                               size="sm"
                                               variant="ghost"
                                               className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                              disabled={!isEnded}
-                                              onClick={(e) => { e.stopPropagation(); onViewArchive(s) }}
+                                              disabled={!canViewSeasonData}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                if (isEnded || isActive) onViewArchive(s)
+                                              }}
                                             >
                                               <Archive className="h-3 w-3" />
                                             </Button>
                                           </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs max-w-[200px] text-center">
-                                          {isEnded ? t('leaderboard.viewArchivedScores') : t('leaderboard.archiveAfterEnds')}
+                                          {isEnded
+                                            ? t('leaderboard.viewArchiveData')
+                                            : isActive
+                                            ? t('leaderboard.viewCurrentSeasonRawData')
+                                            : t('leaderboard.archiveAfterEnds')}
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -2263,6 +2835,15 @@ function LeaderboardPageInner() {
     }
   }, [expandedBoardId, seasonsMap, game?.studio_id, gameId])
 
+  const handleRefreshBoardSeasons = useCallback((boardId: string) => {
+    if (!game?.studio_id) return
+    setSeasonsLoadingIds((s) => new Set(s).add(boardId))
+    getBoardHistory(game.studio_id, gameId, boardId)
+      .then((seasons) => setSeasonsMap((m) => ({ ...m, [boardId]: seasons })))
+      .catch(() => setSeasonsMap((m) => ({ ...m, [boardId]: [] })))
+      .finally(() => setSeasonsLoadingIds((s) => { const n = new Set(s); n.delete(boardId); return n }))
+  }, [game?.studio_id, gameId])
+
   const studioId = game?.studio_id ?? ""
 
   const rawTab = searchParams.get("tab") ?? "boards"
@@ -2489,6 +3070,7 @@ function LeaderboardPageInner() {
                     onEndSeason={() => setEndSeasonBoard(board)}
                     onDeleteSeason={(seasonId) => handleDeleteSeason(board.id, seasonId)}
                     onViewArchive={(season) => setArchiveTarget({ board, season })}
+                    onRefreshSeasons={() => handleRefreshBoardSeasons(board.id)}
                     onUpdateStatus={(board, is_active) => handleUpdateBoardStatus(board, is_active)}
                     seasons={seasonsMap[board.id] ?? null}
                     seasonsLoading={seasonsLoadingIds.has(board.id)}

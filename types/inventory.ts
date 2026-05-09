@@ -14,7 +14,7 @@ export type ItemCategory =
   | 'generator'
   | 'other'
 
-export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary'
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
 
 export type TxType =
   | 'GACHA_OPEN'
@@ -60,6 +60,7 @@ export interface CreateItemRequest {
 }
 
 export interface UpdateItemRequest {
+  item_code?: string
   name?: string
   category?: ItemCategory
   rarity?: ItemRarity
@@ -91,25 +92,34 @@ export interface GachaPack {
   studio_id: string
   game_id: string
   name: string
+  code_name?: string
+  collect_destination?: 'mailbox' | 'inventory'
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
   is_enabled: boolean
+  metadata?: Record<string, unknown>
   created_at?: string | number
   updated_at?: string | number
 }
 
 export interface CreateGachaPackRequest {
   name: string
+  code_name?: string
+  collect_destination: 'mailbox' | 'inventory'
   is_enabled?: boolean
   item_pool: GachaPoolEntry[]
   key_requirements: KeyRequirement[]
+  metadata?: Record<string, unknown>
 }
 
 export interface UpdateGachaPackRequest {
   name?: string
+  code_name?: string
+  collect_destination?: 'mailbox' | 'inventory'
   is_enabled?: boolean
   item_pool?: GachaPoolEntry[]
   key_requirements?: KeyRequirement[]
+  metadata?: Record<string, unknown>
 }
 
 export interface GrantedItem {
@@ -217,6 +227,11 @@ export const RARITY_COLORS: Record<ItemRarity, { text: string; border: string; b
     text: 'text-gray-400',
     border: 'border-gray-400',
     bg: 'bg-gray-400/10',
+  },
+  uncommon: {
+    text: 'text-green-500',
+    border: 'border-green-500',
+    bg: 'bg-green-500/10',
   },
   rare: {
     text: 'text-blue-500',

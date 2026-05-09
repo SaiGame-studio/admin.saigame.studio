@@ -183,12 +183,12 @@ function FeatureRequestCard({
       className={`overflow-hidden border-primary/10 hover:border-primary/30 transition-all cursor-pointer ${isExpanded ? 'ring-1 ring-primary/20 bg-muted/5' : ''}`}
       onClick={onToggle}
     >
-      <div className="flex p-4 gap-4">
-        <div className="flex flex-col items-center gap-1">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-12 w-12 flex-col gap-0.5 border-primary/20 hover:bg-primary/5 hover:text-primary transition-all"
+      <div className="flex p-3 gap-3 sm:p-4 sm:gap-4">
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-11 w-11 flex-col gap-0.5 border-primary/20 hover:bg-primary/5 hover:text-primary transition-all sm:h-12 sm:w-12"
             onClick={(e) => onUpvote(request.id, e)}
           >
             <ThumbsUp className="h-4 w-4" />
@@ -196,8 +196,8 @@ function FeatureRequestCard({
           </Button>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-1 flex-wrap">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <h3 className="font-bold text-base leading-tight truncate">{request.title}</h3>
               {isOwner && (
                 <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20 shrink-0">
@@ -504,12 +504,12 @@ export function FeatureRequestList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t('roadmap.featureRequests.title')}</h2>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{t('roadmap.featureRequests.title')}</h2>
           <p className="text-sm text-muted-foreground">{t('roadmap.featureRequests.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button 
             variant="outline" 
             size="icon" 

@@ -86,6 +86,7 @@ import {
   GripVertical,
   ScrollText,
   RefreshCw,
+  Clock,
 } from "lucide-react"
 import {
   DndContext,
@@ -202,6 +203,20 @@ function formatDateInput(iso: string | null | undefined): string {
   return new Date(iso).toISOString().slice(0, 16)
 }
 
+function dateStatusColor(iso: string | null | undefined, kind: "start" | "end"): string {
+  if (!iso) return "text-muted-foreground"
+  const now = Date.now()
+  const t = new Date(iso).getTime()
+  if (kind === "start") {
+    if (t > now) return "text-amber-500"
+    return "text-emerald-600"
+  }
+  const diff = t - now
+  if (diff < 0) return "text-destructive"
+  if (diff < 24 * 60 * 60 * 1000) return "text-amber-500"
+  return "text-emerald-600"
+}
+
 function toDatetimeLocal(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -259,7 +274,7 @@ export default function ShopDetailPage() {
   const [items, setItems] = useState<ShopItem[]>([])
   const [itemsLoading, setItemsLoading] = useState(true)
   const [itemsError, setItemsError] = useState<string | null>(null)
-  const [itemActiveOnly, setItemActiveOnly] = useState(false)
+  const [itemFilter, setItemFilter] = useState<"all" | "active" | "disabled">("all")
 
   // Item definitions (for picker)
   const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
@@ -344,7 +359,7 @@ export default function ShopDetailPage() {
           .then((res) => setCurrencyItem(res.item))
           .catch(() => {})
       }
-      loadItems(itemActiveOnly)
+      loadItems()
     } catch (err: any) {
       setError(err?.message ?? "Failed to load shop")
     } finally {
@@ -352,12 +367,11 @@ export default function ShopDetailPage() {
     }
   }
 
-  async function loadItems(activeOnly?: boolean) {
-    const ao = activeOnly !== undefined ? activeOnly : itemActiveOnly
+  async function loadItems() {
     try {
       setItemsLoading(true)
       setItemsError(null)
-      const resp = await listShopItems(params.id, params.shopId, { activeOnly: ao })
+      const resp = await listShopItems(params.id, params.shopId)
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch (err: any) {
@@ -366,6 +380,10 @@ export default function ShopDetailPage() {
       setItemsLoading(false)
     }
   }
+
+  const filteredItems = itemFilter === "all" ? items
+    : itemFilter === "active" ? items.filter((i) => i.is_active)
+    : items.filter((i) => !i.is_active)
 
   async function loadLogs(
     overrides?: {
@@ -428,7 +446,7 @@ export default function ShopDetailPage() {
         )
       )
       // refresh to get server state
-      const resp = await listShopItems(params.id, params.shopId, { activeOnly: itemActiveOnly })
+      const resp = await listShopItems(params.id, params.shopId)
       const sorted = [...(resp.items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       setItems(sorted)
     } catch {
@@ -726,77 +744,18 @@ export default function ShopDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="group">
-            <div className="flex items-center gap-2 flex-wrap">
-              {editingField === "name" ? (
-                <>
-                  <Input
-                    className="h-8 text-lg font-bold w-56"
-                    value={tmpVal}
-                    onChange={(e) => setTmpVal(e.target.value)}
-                    disabled={saving}
-                    autoFocus
-                  />
-                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                    onClick={() => saveField({ name: tmpVal.trim() })}>
-                    <Save className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                    onClick={() => setEditingField(null)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-bold">{shop.name}</h1>
-                  <Button size="icon" variant="ghost"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => startEdit("name", shop.name)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              )}
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
-                {shop.shop_type}
-              </span>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={shop.is_active}
-                  onCheckedChange={(checked) => setPendingToggle(checked)}
-                  title={shop.is_active ? "Deactivate shop" : "Activate shop"}
-                />
-                <span className="text-sm text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 mt-0.5">
-              {editingField === "shop_key" ? (
-                <>
-                  <Input
-                    className="h-7 text-sm font-mono w-52"
-                    value={tmpVal}
-                    onChange={(e) => setTmpVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                    disabled={saving}
-                    autoFocus
-                  />
-                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                    onClick={() => saveField({ shop_key: tmpVal.trim() })}>
-                    <Save className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                    onClick={() => setEditingField(null)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm text-muted-foreground font-mono">{shop.shop_key}</span>
-                  <Button size="icon" variant="ghost"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => startEdit("shop_key", shop.shop_key)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold">{shop.name}</h1>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
+              {shop.shop_type}
+            </span>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={shop.is_active}
+                onCheckedChange={(checked) => setPendingToggle(checked)}
+                title={shop.is_active ? "Deactivate shop" : "Activate shop"}
+              />
+              <span className="text-sm text-muted-foreground">{shop.is_active ? "Active" : "Inactive"}</span>
             </div>
           </div>
         </div>
@@ -804,18 +763,84 @@ export default function ShopDetailPage() {
           <GameNavButtons gameId={params.id} active="shops" />
         </div>
       </div>
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card className="group/card">
+        <CardContent className="pt-5 pb-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
 
-            {/* LEFT column: Shop Type, dates (event only), Currency */}
-            <div className="space-y-4 text-sm">
+            {/* LEFT column */}
+            <div className="space-y-1 text-sm">
+
+              {/* Shop Name */}
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">Name</span>
+                {editingField === "name" ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <Input
+                      className="h-7 text-sm w-56"
+                      value={tmpVal}
+                      onChange={(e) => setTmpVal(e.target.value)}
+                      disabled={saving}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => saveField({ name: tmpVal.trim() })}>
+                      <Save className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => setEditingField(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="group/name flex items-center gap-1 flex-1">
+                    <span className="font-semibold text-foreground">{shop.name}</span>
+                    <Button size="icon" variant="ghost"
+                      className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                      onClick={() => startEdit("name", shop.name)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Shop Code Name */}
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">Code Name</span>
+                {editingField === "shop_key" ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <Input
+                      className="h-7 text-sm font-mono w-52"
+                      value={tmpVal}
+                      onChange={(e) => setTmpVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      disabled={saving}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => saveField({ shop_key: tmpVal.trim() })}>
+                      <Save className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                      onClick={() => setEditingField(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="group/key flex items-center gap-1 flex-1">
+                    <span className="font-mono text-foreground/80">{shop.shop_key}</span>
+                    <Button size="icon" variant="ghost"
+                      className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                      onClick={() => startEdit("shop_key", shop.shop_key)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
 
               {/* Shop Type */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Shop Type</p>
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none">Type</span>
                 {editingField === "shop_type" ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-1">
                     <Select value={tmpShopType} onValueChange={setTmpShopType} disabled={saving}>
                       <SelectTrigger className="h-7 text-xs w-36">
                         <SelectValue />
@@ -836,12 +861,12 @@ export default function ShopDetailPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="group flex items-center gap-1">
+                  <div className="group/meta flex items-center gap-1 flex-1">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${SHOP_TYPE_BADGE[shop.shop_type] ?? ""}`}>
                       {shop.shop_type}
                     </span>
                     <Button size="icon" variant="ghost"
-                      className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                      className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
                       onClick={() => startEdit("shop_type", shop.shop_type)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -853,12 +878,12 @@ export default function ShopDetailPage() {
               {(editingField === "shop_type" ? tmpShopType : shop.shop_type) === "event" && (
                 <>
                   {/* Starts At */}
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                  <div className="flex items-baseline gap-3 min-h-[32px]">
+                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
                       <Calendar className="h-3 w-3" /> Starts At
-                    </p>
+                    </span>
                     {editingField === "starts_at" ? (
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 flex-1">
                         <div className="flex items-center gap-1">
                           <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal}
                             onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
@@ -883,10 +908,15 @@ export default function ShopDetailPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="group flex items-center gap-1">
-                        <span>{formatDate(shop.starts_at)}</span>
+                      <div className="group/meta flex items-center gap-1 flex-1">
+                        <span className={`font-semibold ${dateStatusColor(shop.starts_at, "start")}`}>
+                          {formatDate(shop.starts_at)}
+                          {shop.starts_at && new Date(shop.starts_at).getTime() > Date.now() && (
+                            <span className="ml-1.5 text-xs font-normal opacity-80">not started</span>
+                          )}
+                        </span>
                         <Button size="icon" variant="ghost"
-                          className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                          className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
                           onClick={() => startEdit("starts_at", formatDateInput(shop.starts_at))}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -895,12 +925,12 @@ export default function ShopDetailPage() {
                   </div>
 
                   {/* Ends At */}
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                  <div className="flex items-baseline gap-3 min-h-[32px]">
+                    <span className="text-xs text-muted-foreground/60 w-24 shrink-0 pt-1 select-none flex items-center gap-1">
                       <Calendar className="h-3 w-3" /> Ends At
-                    </p>
+                    </span>
                     {editingField === "ends_at" ? (
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 flex-1">
                         <div className="flex items-center gap-1">
                           <Input type="datetime-local" className="h-7 text-xs w-48" value={tmpVal}
                             onChange={(e) => setTmpVal(e.target.value)} disabled={saving} autoFocus />
@@ -925,10 +955,18 @@ export default function ShopDetailPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="group flex items-center gap-1">
-                        <span>{formatDate(shop.ends_at)}</span>
+                      <div className="group/meta flex items-center gap-1 flex-1">
+                        <span className={`font-semibold ${dateStatusColor(shop.ends_at, "end")}`}>
+                          {formatDate(shop.ends_at)}
+                          {shop.ends_at && (() => {
+                            const diff = new Date(shop.ends_at).getTime() - Date.now()
+                            if (diff < 0) return <span className="ml-1.5 text-xs font-normal opacity-80">expired</span>
+                            if (diff < 24 * 60 * 60 * 1000) return <span className="ml-1.5 text-xs font-normal opacity-80">ending soon</span>
+                            return null
+                          })()}
+                        </span>
                         <Button size="icon" variant="ghost"
-                          className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                          className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
                           onClick={() => startEdit("ends_at", formatDateInput(shop.ends_at))}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -938,13 +976,48 @@ export default function ShopDetailPage() {
                 </>
               )}
 
+            </div>
+
+            {/* RIGHT column */}
+            <div className="space-y-1 text-sm">
+
+              {/* IDs */}
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Game ID</span>
+                <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
+                  {shop.game_id}
+                  <CopyButton text={shop.game_id} />
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Shop ID</span>
+                <span className="flex items-center gap-1.5 text-xs font-mono text-foreground/70">
+                  {shop.id}
+                  <CopyButton text={shop.id} />
+                </span>
+              </div>
+
+              {/* Created At / Updated At */}
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Created
+                </span>
+                <span className="text-foreground/80">{formatDate(shop.created_at)}</span>
+              </div>
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Updated
+                </span>
+                <span className="text-foreground/80">{formatDate(shop.updated_at)}</span>
+              </div>
+
               {/* Currency */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+              <div className="flex items-baseline gap-3 min-h-[32px]">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none flex items-center gap-1">
                   <Coins className="h-3 w-3" /> Currency
-                </p>
+                </span>
                 {editingField === "currency" ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex-1">
                     <Popover open={currencyCbOpen} onOpenChange={setCurrencyCbOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" role="combobox" aria-expanded={currencyCbOpen}
@@ -1023,23 +1096,22 @@ export default function ShopDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="group flex items-center gap-1">
+                  <div className="group/meta flex items-center gap-1 flex-1">
                     {shop.currency_item_def_id ? (
                       <span className="flex items-center gap-1.5">
                         {currencyItem ? (
                           <Link
                             href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
-                            className="flex items-center gap-1.5 hover:underline text-foreground"
+                            className="flex items-center gap-1.5 hover:underline text-foreground font-semibold"
                             title="View item definition"
                           >
                             <span>{currencyItem.name}</span>
-                            <span className="text-xs text-muted-foreground font-mono">{currencyItem.item_code}</span>
                             <ExternalLink className="h-3 w-3 text-muted-foreground" />
                           </Link>
                         ) : (
                           <Link
                             href={`/games/${params.id}/items/${shop.currency_item_def_id}`}
-                            className="flex items-center gap-1 hover:underline text-muted-foreground"
+                            className="flex items-center gap-1 hover:underline text-foreground/80"
                             title="View item definition"
                           >
                             <span className="text-xs font-mono">{shop.currency_item_def_id.slice(0, 8)}…</span>
@@ -1051,85 +1123,58 @@ export default function ShopDetailPage() {
                       <span className="italic text-muted-foreground/50">—</span>
                     )}
                     <Button size="icon" variant="ghost"
-                      className="h-7 w-7 opacity-0 group-hover/meta:opacity-100 transition-opacity"
-                      onClick={() => startEdit("currency", shop.currency_item_def_id ?? "")}>  
+                      className="h-7 w-7 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                      onClick={() => startEdit("currency", shop.currency_item_def_id ?? "")}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 )}
               </div>
 
-            </div>
-
-            {/* RIGHT column: IDs */}
-            <div className="space-y-4 text-sm">
-
-              {/* IDs */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">IDs</p>
-                <div className="flex flex-col gap-0.5">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">studio</span>
-                    <span className="font-mono">{shop.studio_id}</span>
-                    <CopyButton text={shop.studio_id} />
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">game</span>
-                    <span className="font-mono">{shop.game_id}</span>
-                    <CopyButton text={shop.game_id} />
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                    <span className="w-10 shrink-0 font-medium text-muted-foreground/50 select-none">shop</span>
-                    <span className="font-mono">{shop.id}</span>
-                    <CopyButton text={shop.id} />
-                  </span>
-                </div>
+              {/* Description */}
+              <div className="flex gap-3 min-h-[32px] mt-2">
+                <span className="text-xs text-muted-foreground/60 w-20 shrink-0 pt-1 select-none">Description</span>
+                {editingField === "description" ? (
+                  <div className="space-y-1 flex-1">
+                    <textarea
+                      className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[80px] bg-background"
+                      value={tmpVal}
+                      onChange={(e) => setTmpVal(e.target.value)}
+                      disabled={saving}
+                      autoFocus
+                      maxLength={700}
+                    />
+                    <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                      {tmpVal.length}/700
+                    </p>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
+                        onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
+                        <Save className="h-3.5 w-3.5 mr-1" /> Save
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+                        onClick={() => setEditingField(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="group/desc flex w-full items-start gap-1 flex-1">
+                    <p className="flex-1 text-sm leading-relaxed whitespace-pre-line text-foreground/80">
+                      {shop.description || <span className="italic text-muted-foreground/50">—</span>}
+                    </p>
+                    <Button size="icon" variant="ghost"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                      onClick={() => startEdit("description", shop.description ?? "")}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
             </div>{/* /right column */}
 
           </div>
-
-          {/* Description — full width row */}
-          <div className="mt-4 border-t pt-4 text-sm">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Description</p>
-            {editingField === "description" ? (
-              <div className="space-y-1">
-                <textarea
-                  className="w-full border rounded px-2 py-1.5 text-sm resize-none min-h-[80px] bg-background"
-                  value={tmpVal}
-                  onChange={(e) => setTmpVal(e.target.value)}
-                  disabled={saving}
-                  autoFocus
-                  maxLength={700}
-                />
-                <p className={`text-right text-xs ${tmpVal.length >= 700 ? 'text-destructive font-medium' : tmpVal.length >= 600 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                  {tmpVal.length}/700
-                </p>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7 px-2" disabled={saving}
-                    onClick={() => saveField({ description: tmpVal.trim() || undefined })}>
-                    <Save className="h-3.5 w-3.5 mr-1" /> Save
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
-                    onClick={() => setEditingField(null)}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex w-full items-start gap-1">
-                <p className="flex-1 text-sm leading-relaxed whitespace-pre-line">
-                  {shop.description || <span className="italic text-muted-foreground/50">—</span>}
-                </p>
-                <Button size="icon" variant="ghost"
-                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => startEdit("description", shop.description ?? "")}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
-          </div>{/* /description */}
         </CardContent>
       </Card>
 
@@ -1194,20 +1239,16 @@ export default function ShopDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="item_active_only"
-                  checked={itemActiveOnly}
-                  onCheckedChange={(v) => {
-                    const next = !!v
-                    setItemActiveOnly(next)
-                    loadItems(next)
-                  }}
-                />
-                <label htmlFor="item_active_only" className="text-sm cursor-pointer select-none">
-                  Active only
-                </label>
-              </div>
+              <Select value={itemFilter} onValueChange={(v: "all" | "active" | "disabled") => setItemFilter(v)}>
+                <SelectTrigger className="w-[140px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Show All</SelectItem>
+                  <SelectItem value="active">Active Only</SelectItem>
+                  <SelectItem value="disabled">Disabled Only</SelectItem>
+                </SelectContent>
+              </Select>
               <Button onClick={openAdd} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Add Item
@@ -1226,20 +1267,26 @@ export default function ShopDetailPage() {
                 <Loader2 className="h-5 w-5 animate-spin" /> Loading items…
               </CardContent>
             </Card>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-center">
                 <PackageSearch className="h-10 w-10 text-muted-foreground" />
                 <div>
-                  <p className="font-semibold">No items in this shop</p>
+                  <p className="font-semibold">
+                    {items.length === 0 ? "No items in this shop" : `No ${itemFilter} items`}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    Add items to start selling to players.
+                    {items.length === 0
+                      ? "Add items to start selling to players."
+                      : "Try changing the filter above."}
                   </p>
                 </div>
-                <Button onClick={openAdd}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Item
-                </Button>
+                {items.length === 0 && (
+                  <Button onClick={openAdd}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Item
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -1260,9 +1307,9 @@ export default function ShopDetailPage() {
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={filteredItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     <TableBody>
-                      {items.map((item, idx) => (
+                      {filteredItems.map((item, idx) => (
                         <SortableItemRow
                           key={item.id}
                           item={item}
@@ -1885,7 +1932,7 @@ function ItemForm({
         <Label>
           Display Name <span className="text-destructive">*</span>
         </Label>
-        <div className="relative">
+        <div className="flex gap-2">
           <Input
             placeholder="e.g. Magic Sword"
             value={form.display_name}
@@ -1893,26 +1940,22 @@ function ItemForm({
               setField("display_name", e.target.value)
               setSyncName(false)
             }}
-            className={!disableItemDef ? "pr-10" : ""}
           />
           {!disableItemDef && (
-            <button
+            <Button
               type="button"
+              variant={syncName ? "default" : "outline"}
+              size="icon"
+              className="shrink-0"
               title={syncName ? "Auto-sync with item definition (click to disable)" : "Auto-sync disabled (click to enable)"}
               onClick={() => {
                 const next = !syncName
                 setSyncName(next)
                 if (next && selectedItemDef) setField("display_name", selectedItemDef.name)
               }}
-              className={`absolute right-5 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded transition-colors
-                ${
-                  syncName
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
             >
-              <Wand2 className="h-3.5 w-3.5" />
-            </button>
+              <Wand2 className="h-4 w-4" />
+            </Button>
           )}
         </div>
         {!disableItemDef && (
@@ -1937,33 +1980,29 @@ function ItemForm({
         </p>
       </div>
 
-      {/* Price */}
-      <div className="space-y-1.5">
-        <Label>
-          Price <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          type="number"
-          min={1}
-          placeholder="e.g. 200"
-          value={form.price}
-          onChange={(e) => setField("price", e.target.value)}
-        />
-      </div>
-
-      {/* Currency */}
-      <div className="space-y-1.5">
-          <Label>Currency Item Def <span className="text-xs text-muted-foreground">(overrides shop)</span></Label>
+      {/* Price + Currency */}
+      <div className="flex gap-3">
+        <div className="space-y-1.5 w-2/5">
+          <Label>
+            Price <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            placeholder="e.g. 200"
+            value={form.price}
+            onChange={(e) => setField("price", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5 w-3/5">
+          <Label>Currency <span className="text-xs text-muted-foreground">(overrides shop)</span></Label>
           <div className="flex items-center gap-2">
           <Popover open={currOpen} onOpenChange={setCurrOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" role="combobox" aria-expanded={currOpen}
                 className="flex-1 justify-between font-normal h-9 text-sm">
                 {selectedCurrDef ? (
-                  <span className="flex items-center gap-2">
-                    <span>{selectedCurrDef.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{selectedCurrDef.item_code}</span>
-                  </span>
+                  <span>{selectedCurrDef.name}</span>
                 ) : form.currency_item_def_id ? (
                   <span className="font-mono text-xs text-muted-foreground">{form.currency_item_def_id.slice(0,8)}…</span>
                 ) : (
@@ -1986,7 +2025,6 @@ function ItemForm({
                       <CommandItem key={d.id} value={d.id} onSelect={() => { setField("currency_item_def_id", d.id); setCurrOpen(false); setCurrSearch("") }}>
                         <Check className={`mr-2 h-4 w-4 shrink-0 ${form.currency_item_def_id === d.id ? "opacity-100" : "opacity-0"}`} />
                         <span className="flex-1">{d.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground font-mono">{d.item_code}</span>
                         <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{d.category}</span>
                       </CommandItem>
                     ))}
@@ -2006,37 +2044,39 @@ function ItemForm({
             </Button>
           )}
           </div>
+        </div>
       </div>
 
       {/* Purchase limit */}
-      <div className="space-y-1.5">
-        <Label>Purchase Limit Type</Label>
-        <Select
-          value={form.purchase_limit_type}
-          onValueChange={(v) => setField("purchase_limit_type", v as PurchaseLimitType)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unlimited">Unlimited</SelectItem>
-            <SelectItem value="player">Per Player</SelectItem>
-            <SelectItem value="global">Global</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {showLimits && (
+      <div className={showLimits ? "grid grid-cols-2 gap-3" : ""}>
         <div className="space-y-1.5">
-          <Label>Max Purchases</Label>
-          <Input
-            type="number"
-            min={0}
-            value={form.purchase_limit}
-            onChange={(e) => setField("purchase_limit", e.target.value)}
-          />
+          <Label>Purchase Limit Type</Label>
+          <Select
+            value={form.purchase_limit_type}
+            onValueChange={(v) => setField("purchase_limit_type", v as PurchaseLimitType)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unlimited">Unlimited</SelectItem>
+              <SelectItem value="player">Per Player</SelectItem>
+              <SelectItem value="global">Global</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        {showLimits && (
+          <div className="space-y-1.5">
+            <Label>Max Purchases</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.purchase_limit}
+              onChange={(e) => setField("purchase_limit", e.target.value)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Stock + Restock Schedule */}
       <div className="grid grid-cols-2 gap-3">
@@ -2074,11 +2114,17 @@ function ItemForm({
       {/* Available from/until */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Available From</Label>
+          <Label className={form.available_from ? dateStatusColor(new Date(form.available_from).toISOString(), "start") : ""}>
+            Available From
+            {form.available_from && new Date(form.available_from).getTime() > Date.now() && (
+              <span className="ml-1 text-xs font-normal opacity-80">· not started</span>
+            )}
+          </Label>
           <Input
             type="datetime-local"
             value={form.available_from}
             onChange={(e) => setField("available_from", e.target.value)}
+            className={form.available_from ? `border-current/20 ${dateStatusColor(new Date(form.available_from).toISOString(), "start")}` : ""}
           />
           <div className="flex flex-wrap gap-1">
             <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"
@@ -2094,11 +2140,20 @@ function ItemForm({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Available Until</Label>
+          <Label className={form.available_until ? dateStatusColor(new Date(form.available_until).toISOString(), "end") : ""}>
+            Available Until
+            {form.available_until && (() => {
+              const diff = new Date(form.available_until).getTime() - Date.now()
+              if (diff < 0) return <span className="ml-1 text-xs font-normal opacity-80">· expired</span>
+              if (diff < 24 * 60 * 60 * 1000) return <span className="ml-1 text-xs font-normal opacity-80">· ending soon</span>
+              return null
+            })()}
+          </Label>
           <Input
             type="datetime-local"
             value={form.available_until}
             onChange={(e) => setField("available_until", e.target.value)}
+            className={form.available_until ? `border-current/20 ${dateStatusColor(new Date(form.available_until).toISOString(), "end")}` : ""}
           />
           <div className="flex flex-wrap gap-1">
             <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs"

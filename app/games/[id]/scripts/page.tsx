@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil, Hammer, Trash2,
+  ArrowLeft, Plus, RefreshCw, Loader2, Code2, Pencil, Hammer, Trash2, ChevronDown, ChevronRight, BookMarked,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,10 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CopyButton } from "@/components/CopyButton"
+import CodeMirror from "@uiw/react-codemirror"
+import { StreamLanguage } from "@codemirror/language"
+import { lua } from "@codemirror/legacy-modes/mode/lua"
+import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -42,11 +46,15 @@ function VersionBadge({ version }: { version: number }) {
 
 interface ScriptRowProps {
   script: GameScript
+  expanded: boolean
+  onToggle: () => void
   onUpdated: (s: GameScript) => void
   onDeleteRequested: (s: GameScript) => void
+  libCount: number
+  maxLibs: number
 }
 
-function ScriptRow({ script, onUpdated, onDeleteRequested }: ScriptRowProps) {
+function ScriptRow({ script, expanded, onToggle, onUpdated, onDeleteRequested, libCount, maxLibs }: ScriptRowProps) {
   const { toast } = useToast()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
@@ -56,60 +64,139 @@ function ScriptRow({ script, onUpdated, onDeleteRequested }: ScriptRowProps) {
     try {
       const updated = await updateScript(script.game_id, script.id, { is_active: !script.is_active })
       onUpdated(updated)
-    } catch {
-      toast({ variant: "destructive", title: t('scripts.toastFailedToggle') })
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: t('scripts.toastFailedToggle'), description: err instanceof Error ? err.message : undefined })
+    }
+  }
+
+  async function toggleLibrary() {
+    if (!script.is_library && libCount >= maxLibs) {
+      toast({ variant: "destructive", title: t('scripts.toastLibraryLimit', { max: maxLibs }) })
+      return
+    }
+    try {
+      const updated = await updateScript(script.game_id, script.id, { is_library: !script.is_library })
+      onUpdated(updated)
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: t('scripts.toastFailedToggleLibrary'), description: err instanceof Error ? err.message : undefined })
     }
   }
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
-      {/* Version */}
-      <div className="w-[36px] shrink-0 flex justify-center">
-        <VersionBadge version={script.version} />
+    <div className={`bg-card transition-opacity ${!script.is_active ? "opacity-55" : ""}`}>
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
+        onClick={onToggle}
+      >
+        {/* Expand toggle */}
+        <div className="w-[20px] shrink-0 flex justify-center">
+          {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+        </div>
+
+        {/* Version */}
+        <div className="w-[36px] shrink-0 flex justify-center">
+          <VersionBadge version={script.version} />
+        </div>
+
+        {/* Name */}
+        <div className="w-[180px] shrink-0 min-w-0 flex items-center gap-1">
+          <p className="font-semibold text-sm truncate">{script.name}</p>
+          <CopyButton text={script.name} />
+        </div>
+
+        {/* Description */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-muted-foreground truncate">{script.description || <span className="italic opacity-50">—</span>}</p>
+        </div>
+
+        {/* Updated at */}
+        <div className="w-[130px] shrink-0 text-xs text-muted-foreground tabular-nums">
+          {new Date(script.updated_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
+        </div>
+
+        {/* Active switch */}
+        <div className="w-[48px] shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
+          <Switch checked={script.is_active} onCheckedChange={toggleActive} />
+        </div>
+
+        {/* Library toggle */}
+        <div className="w-[48px] shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
+          <Switch
+            checked={script.is_library}
+            onCheckedChange={toggleLibrary}
+            disabled={!script.is_library && libCount >= maxLibs}
+            title={script.is_library ? t('scripts.demoteLibrary') : (!script.is_library && libCount >= maxLibs ? t('scripts.libraryLimitReached', { max: maxLibs }) : t('scripts.promoteLibrary'))}
+          />
+        </div>
+
+        {/* Actions column */}
+        <div className="w-16 shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            title={t('scripts.editScript')}
+            onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            title={t('common.delete')}
+            onClick={() => onDeleteRequested(script)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Name */}
-      <div className="w-[180px] shrink-0 min-w-0 flex items-center gap-1">
-        <p className="font-semibold text-sm truncate">{script.name}</p>
-        <CopyButton text={script.name} />
-      </div>
-
-      {/* Description */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-muted-foreground truncate">{script.description || <span className="italic opacity-50">—</span>}</p>
-      </div>
-
-      {/* Active switch */}
-      <div className="w-[48px] shrink-0 flex justify-center">
-        <Switch checked={script.is_active} onCheckedChange={toggleActive} />
-      </div>
-
-      {/* Actions column */}
-      <div className="w-16 shrink-0 flex items-center justify-end gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-primary"
-          title={t('scripts.editScript')}
-          onClick={() => router.push(`/games/${script.game_id}/scripts/${script.id}`)}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          title={t('common.delete')}
-          onClick={() => onDeleteRequested(script)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Expanded script preview */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-0">
+          <div
+            style={{
+              all: "initial",
+              display: "block",
+              fontFamily: "'Fira Mono', 'Consolas', monospace",
+              fontSize: "12px",
+              lineHeight: 1.5,
+              borderRadius: "6px",
+              overflow: "hidden",
+              border: "1px solid #3c3c3c",
+            }}
+          >
+            <CodeMirror
+              value={script.script_body || "-- (empty)"}
+              readOnly
+              editable={false}
+              theme={vscodeDark}
+              extensions={[StreamLanguage.define(lua)]}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: false,
+                dropCursor: false,
+                allowMultipleSelections: false,
+                indentOnInput: false,
+                bracketMatching: false,
+                closeBrackets: false,
+                autocompletion: false,
+                highlightActiveLine: false,
+                highlightSelectionMatches: false,
+              }}
+              style={{ fontSize: "12px" }}
+              className="[&_.cm-editor]:outline-none [&_.cm-scroller]:overflow-auto [&_.cm-scroller]:max-h-[36rem]"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 const DEFAULT_SCRIPT_BODY = "-- Lua script"
+const MAX_LIBS = 7
 
 const defaultForm: CreateScriptRequest = {
   name: "",
@@ -141,6 +228,11 @@ export default function ScriptsPage() {
   // Delete confirmation
   const [deletingScript, setDeletingScript] = useState<GameScript | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Accordion expand
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const libCount = scripts.filter(s => s.is_library).length
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -289,11 +381,25 @@ export default function ScriptsPage() {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          {scripts.length > 0
-            ? `${scripts.length} ${scripts.length !== 1 ? t('scripts.scriptsDefinedPlural') : t('scripts.scriptsDefinedSingular')}`
-            : t('scripts.noScriptsYet')}
-        </p>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+          <span>
+            {scripts.length > 0
+              ? `${scripts.length} ${scripts.length !== 1 ? t('scripts.scriptsDefinedPlural') : t('scripts.scriptsDefinedSingular')}`
+              : t('scripts.noScriptsYet')}
+          </span>
+          {scripts.length > 0 && (
+            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
+              libCount >= MAX_LIBS
+                ? "border-destructive/50 text-destructive bg-destructive/10"
+                : libCount > 0
+                ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
+                : "border-border text-muted-foreground"
+            }`}>
+              <BookMarked className="h-3 w-3" />
+              {libCount} / {MAX_LIBS} {t('scripts.libraryCounter')}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchAll} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -331,19 +437,26 @@ export default function ScriptsPage() {
         <div className="border rounded-lg overflow-hidden">
           {/* Column header */}
           <div className="flex items-center gap-3 px-4 py-2 bg-muted/40 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="w-[20px] shrink-0" />
             <div className="w-[36px] shrink-0 text-center">{t('scripts.tableHeaderVer')}</div>
             <div className="w-[180px] shrink-0">{t('scripts.tableHeaderName')}</div>
             <div className="flex-1">{t('scripts.tableHeaderDescription')}</div>
+            <div className="w-[130px] shrink-0">{t('scripts.tableHeaderUpdatedAt')}</div>
             <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderActive')}</div>
+            <div className="w-[48px] shrink-0 text-center">{t('scripts.tableHeaderLibrary')}</div>
             <div className="w-16 shrink-0" />
           </div>
           <div className="divide-y">
             {scripts.map(script => (
-              <ScriptRow 
-                key={script.id} 
-                script={script} 
-                onUpdated={handleUpdated} 
+              <ScriptRow
+                key={script.id}
+                script={script}
+                expanded={expandedId === script.id}
+                onToggle={() => setExpandedId(id => id === script.id ? null : script.id)}
+                onUpdated={handleUpdated}
                 onDeleteRequested={setDeletingScript}
+                libCount={libCount}
+                maxLibs={MAX_LIBS}
               />
             ))}
           </div>

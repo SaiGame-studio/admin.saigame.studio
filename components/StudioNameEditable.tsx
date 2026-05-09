@@ -98,13 +98,13 @@ export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditabl
   };
 
   return (
-    <div className="group flex items-center gap-2">
+    <div className="group flex items-center gap-2 flex-wrap">
       {editing ? (
         <>
           <Input
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-48 h-8 px-2 text-lg font-bold"
+            className="flex-1 min-w-0 h-8 px-2 text-lg font-bold sm:w-48 sm:flex-none"
             disabled={loading}
           />
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
@@ -116,8 +116,8 @@ export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditabl
         </>
       ) : (
         <>
-          <span className="text-3xl font-bold">{game.name}</span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-2xl font-bold break-words min-w-0 sm:text-3xl">{game.name}</span>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
             <Pencil className="w-4 h-4" />
           </Button>
         </>
@@ -158,14 +158,14 @@ export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: G
   };
 
   return (
-    <div className="group flex items-center gap-2 mt-1">
+    <div className="group flex items-center gap-2 mt-1 flex-wrap">
       {editing ? (
         <>
           <Input
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="Add game description..."
-            className="w-96 h-8 px-2 text-sm"
+            className="flex-1 min-w-0 h-8 px-2 text-sm sm:w-96 sm:flex-none"
             disabled={loading}
           />
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
@@ -177,10 +177,10 @@ export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: G
         </>
       ) : (
         <>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground break-words min-w-0">
             {description || "Add game description..."}
           </span>
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
             <Pencil className="w-4 h-4" />
           </Button>
         </>

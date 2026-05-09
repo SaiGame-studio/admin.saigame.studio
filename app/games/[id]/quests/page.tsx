@@ -6,8 +6,10 @@ import Link from "next/link"
 import { CopyButton } from "@/components/CopyButton"
 import {
   Plus, RefreshCw, Trash2, Pencil, ScrollText, Loader2, Clock, ArrowLeft,
-  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, Copy, ChevronDown, ChevronRight,
+  ChevronsUpDown, Check, Hammer, ExternalLink, Search, X, ChevronDown, ChevronRight, Wand2,
+  Mail, Zap,
 } from "lucide-react"
+import { toSlugUnderscore } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,7 +70,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api"
-import type { GachaPack, ItemDefinition } from "@/types/inventory"
+import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory"
 import { useToast } from "@/hooks/use-toast"
 import { getGame } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
@@ -94,11 +96,29 @@ import { GameNavButtons } from "@/components/GameNavButtons"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { DailyTab } from "./DailyTab"
 import { ChainTab } from "./ChainTab"
+import { SettingsTab } from "./SettingsTab"
+import { QuestDeliveryOverride } from "./QuestDeliveryOverride"
 import type { Game } from "@/types/game"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
-type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest"
+type TabValue = "definitions" | "chains" | "daily" | "battle-pass" | "world-quest" | "settings"
+
+// Module-level cache so the same items?limit=200 request is only fired once per gameId
+// across ConditionEditor, RewardEditor, and the DefinitionsTab row display.
+const itemDefsCache = new Map<string, Promise<Paginated<ItemDefinition>>>()
+function getItemDefsCached(gameId: string, limit = 200): Promise<Paginated<ItemDefinition>> {
+  const key = `${gameId}:${limit}`
+  let p = itemDefsCache.get(key)
+  if (!p) {
+    p = listItemDefinitions({ gameId }, { limit }).catch((e) => {
+      itemDefsCache.delete(key)
+      throw e
+    })
+    itemDefsCache.set(key, p)
+  }
+  return p
+}
 
 const TABS: { value: TabValue; labelKey: string }[] = [
   { value: "definitions", labelKey: "quest.tabDefinitions" },
@@ -106,6 +126,7 @@ const TABS: { value: TabValue; labelKey: string }[] = [
   { value: "daily", labelKey: "quest.tabDaily" },
   { value: "battle-pass", labelKey: "quest.tabBattlePass" },
   { value: "world-quest", labelKey: "quest.tabWorldQuest" },
+  { value: "settings", labelKey: "quest.tabSettings" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
@@ -132,6 +153,7 @@ const DEFAULT_CONDITIONS: QuestConditionGroup = { operator: "AND", clauses: [] }
 
 const DEFAULT_FORM: CreateQuestDefinitionRequest = {
   name: "",
+  code_name: "",
   description: "",
   quest_type: "one_time",
   conditions: { operator: "AND", clauses: [] },
@@ -199,7 +221,7 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
   useEffect(() => {
     if (!gameId) return
     setItemDefsLoading(true)
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setItemDefs(res.items ?? []))
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
@@ -525,7 +547,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
   useEffect(() => {
     if (!gameId) return
     setItemDefsLoading(true)
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setItemDefs(res.items ?? []))
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
@@ -664,7 +686,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [copiedQuestId, setCopiedQuestId] = useState<string | null>(null)
   const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null)
 
   // Item definitions for expanded row display
@@ -673,7 +694,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   useEffect(() => {
     if (!gameId) return
-    listItemDefinitions({ gameId }, { limit: 200 })
+    getItemDefsCached(gameId)
       .then((res) => setRowItemDefs(res.items ?? []))
       .catch(() => setRowItemDefs([]))
   }, [gameId])
@@ -696,6 +717,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   // Form state
   const [form, setForm] = useState<CreateQuestDefinitionRequest>({ ...DEFAULT_FORM })
+  const [autoSlug, setAutoSlug] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -718,24 +740,44 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterSearch, filterType, filterActive, sortBy, sortOrder])
 
-  // Quest type options (fetched from API, falls back to QUEST_TYPES)
-  const [questTypeOptions, setQuestTypeOptions] = useState<{ value: string; label: string; description: string }[]>(
-    QUEST_TYPES.map((qt) => ({ value: qt.value, label: t(qt.labelKey), description: t(qt.descKey) }))
-  )
+  // Quest type options:
+  // - Prefer i18n labels/descriptions for known quest types
+  // - Keep API-provided values as fallback for unknown future types
+  const [apiQuestTypes, setApiQuestTypes] = useState<{ value: string; description?: string }[]>([])
 
   useEffect(() => {
     listQuestTypes().then((data) => {
       if (data?.quest_types?.length) {
-        setQuestTypeOptions(
+        setApiQuestTypes(
           data.quest_types.map((qt) => ({
             value: qt.value,
-            label: qt.value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
             description: qt.description,
           }))
         )
       }
     }).catch(() => {/* keep fallback */})
   }, [])
+
+  const questTypeOptions = useMemo(() => {
+    const knownTypeMap = new Map(
+      QUEST_TYPES.map((qt) => [qt.value, { label: t(qt.labelKey), description: t(qt.descKey) }])
+    )
+
+    const sourceTypes = apiQuestTypes.length > 0
+      ? apiQuestTypes.map((qt) => qt.value)
+      : QUEST_TYPES.map((qt) => qt.value)
+
+    return sourceTypes.map((value) => {
+      const known = knownTypeMap.get(value as QuestType)
+      const apiInfo = apiQuestTypes.find((qt) => qt.value === value)
+
+      return {
+        value,
+        label: known?.label ?? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: known?.description ?? (apiInfo?.description ?? ""),
+      }
+    })
+  }, [apiQuestTypes, t])
 
   const filteredQuests = useMemo(() => {
     let result = quests
@@ -785,6 +827,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const openEdit = useCallback((q: QuestDefinition) => {
     setForm({
       name: q.name,
+      code_name: q.code_name ?? "",
       description: q.description ?? "",
       quest_type: q.quest_type,
       conditions: q.conditions ?? { operator: "AND", clauses: [] },
@@ -792,6 +835,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       sort_order: q.sort_order,
       rewards: q.rewards ?? [],
     })
+    setAutoSlug(false)
     setEditQuest(q)
     // Reflect the edit target in the URL so the link can be shared
     const sp = new URLSearchParams(searchParams.toString())
@@ -819,14 +863,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   const openCreate = () => {
     setForm({ ...DEFAULT_FORM })
+    setAutoSlug(true)
     setCreateOpen(true)
   }
 
   const handleCreate = async () => {
     if (!game) return
+    const codeName = (form.code_name ?? "").trim()
+    if (!codeName) {
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') })
+      return
+    }
     setSaving(true)
     try {
-      await createQuestDefinition(game.studio_id, gameId, form)
+      const payload: CreateQuestDefinitionRequest = {
+        ...form,
+        code_name: codeName,
+      }
+      await createQuestDefinition(game.studio_id, gameId, payload)
       toast({ title: t('quest.questCreated'), description: form.name })
       setCreateOpen(false)
       await loadQuests(offset)
@@ -842,14 +896,30 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     }
   }
 
+  const closeEdit = useCallback(() => {
+    setEditQuest(null)
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.delete("editQuestId")
+    const qs = sp.toString()
+    router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [gameId, router, searchParams])
+
   const handleEdit = async () => {
     if (!game || !editQuest) return
+    const codeName = (form.code_name ?? "").trim()
+    if (!codeName) {
+      toast({ variant: "destructive", title: t('common.error'), description: t('quest.codeNameRequired') })
+      return
+    }
     setSaving(true)
     try {
-      const patch: UpdateQuestDefinitionRequest = { ...form }
+      const patch: UpdateQuestDefinitionRequest = {
+        ...form,
+        code_name: codeName,
+      }
       await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
       toast({ title: t('quest.questUpdated'), description: form.name })
-      setEditQuest(null)
+      closeEdit()
       await loadQuests(offset)
     } catch (e) {
       toast({
@@ -912,9 +982,50 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         <Input
           id="qname"
           value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          onChange={(e) => {
+            const v = e.target.value
+            setForm((f) => ({
+              ...f,
+              name: v,
+              ...(autoSlug ? { code_name: toSlugUnderscore(v) } : {}),
+            }))
+          }}
           placeholder={t('quest.questNamePlaceholder')}
         />
+      </div>
+
+      {/* Code Name */}
+      <div className="space-y-1">
+        <Label htmlFor="qcode">
+          {t('quest.codeName')} <span className="text-red-500">*</span>{" "}
+          <span className="text-muted-foreground text-xs font-normal">({t('quest.codeNameHint')})</span>
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            id="qcode"
+            value={form.code_name ?? ""}
+            placeholder={t('quest.codeNamePlaceholder')}
+            className="font-mono"
+            onChange={(e) => {
+              setAutoSlug(false)
+              setForm((f) => ({ ...f, code_name: e.target.value }))
+            }}
+          />
+          <Button
+            type="button"
+            variant={autoSlug ? "default" : "outline"}
+            size="icon"
+            className="shrink-0"
+            title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
+            onClick={() => {
+              const next = !autoSlug
+              setAutoSlug(next)
+              if (next) setForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }))
+            }}
+          >
+            <Wand2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Description */}
@@ -964,26 +1075,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         gameId={gameId}
       />
 
-      {/* Sort Order */}
-      <div className="space-y-1">
-        <Label htmlFor="qsort">{t('quest.sortOrder')}</Label>
-        <Input
-          id="qsort"
-          type="number"
-          value={form.sort_order ?? 0}
-          onChange={(e) => setForm((f) => ({ ...f, sort_order: Number(e.target.value) }))}
-        />
-      </div>
-
-      {/* Active toggle */}
-      <div className="flex items-center gap-2">
-        <Switch
-          id="qactive"
-          checked={form.is_active ?? true}
-          onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
-        />
-        <Label htmlFor="qactive">{t('quest.active')}</Label>
-      </div>
 
       {/* Rewards */}
       <RewardEditor
@@ -998,14 +1089,6 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   return (
     <>
-      {/* Sub-header */}
-      <div className="flex items-center justify-end">
-        <Button onClick={openCreate} disabled={loading || !game}>
-          <Plus className="h-4 w-4 mr-1" />
-          {t('quest.newQuest')}
-        </Button>
-      </div>
-
       {/* Error */}
       {error && (
         <Alert variant="destructive">
@@ -1075,6 +1158,10 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
+          <Button size="sm" className="h-8" onClick={openCreate} disabled={loading || !game}>
+            <Plus className="h-4 w-4 mr-1" />
+            {t('quest.newQuest')}
+          </Button>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
               <X className="h-3.5 w-3.5 mr-1" /> {t('quest.clear')}
@@ -1117,9 +1204,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('quest.name')}</TableHead>
+                  <TableHead>{t('quest.codeName')}</TableHead>
                   <TableHead>{t('quest.type')}</TableHead>
                   <TableHead>{t('quest.conditions')}</TableHead>
                   <TableHead>{t('quest.rewards')}</TableHead>
+                  <TableHead>{t('quest.delivery.column')}</TableHead>
 
                   <TableHead>{t('quest.active')}</TableHead>
                   <TableHead className="text-right">{t('quest.actions')}</TableHead>
@@ -1133,51 +1222,22 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                     onClick={() => setExpandedQuestId(expandedQuestId === q.id ? null : q.id)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-start gap-1.5">
                         {expandedQuestId === q.id
-                          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                        <span className="font-medium">{q.name}</span>
-                        <span className="text-xs font-mono text-muted-foreground">{q.id}</span>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          title={t('quest.copyQuestId')}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const text = q.id
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                              navigator.clipboard.writeText(text).catch(() => {
-                                const el = document.createElement('textarea')
-                                el.value = text
-                                el.style.position = 'fixed'
-                                el.style.opacity = '0'
-                                document.body.appendChild(el)
-                                el.focus()
-                                el.select()
-                                document.execCommand('copy')
-                                document.body.removeChild(el)
-                              })
-                            } else {
-                              const el = document.createElement('textarea')
-                              el.value = text
-                              el.style.position = 'fixed'
-                              el.style.opacity = '0'
-                              document.body.appendChild(el)
-                              el.focus()
-                              el.select()
-                              document.execCommand('copy')
-                              document.body.removeChild(el)
-                            }
-                            setCopiedQuestId(q.id)
-                            setTimeout(() => setCopiedQuestId(null), 1500)
-                          }}
-                        >
-                          {copiedQuestId === q.id
-                            ? <Check className="h-3 w-3 text-green-500" />
-                            : <Copy className="h-3 w-3" />}
-                        </button>
+                          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+                          : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />}
+                        <span className="font-medium truncate">{q.name}</span>
                       </div>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {q.code_name ? (
+                        <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={q.code_name}>
+                          <span className="truncate max-w-[220px]">{q.code_name}</span>
+                          <CopyButton text={q.code_name} size="h-3 w-3" />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={questTypeBadgeVariant(q.quest_type)}>
@@ -1200,6 +1260,33 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                     </TableCell>
                     <TableCell className="text-sm">
                       {q.rewards?.length ?? 0}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {q.metadata?.override_game_delivery === true ? (
+                        q.metadata?.reward_delivery === "direct" ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-xs text-amber-600 border-amber-500/40 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400"
+                            title={t('quest.delivery.overridesGame')}
+                          >
+                            <Zap className="h-3 w-3" />
+                            {t('quest.delivery.modeDirect')}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 text-xs text-green-700 border-green-500/40 bg-green-50 dark:bg-green-900/20 dark:text-green-400"
+                            title={t('quest.delivery.overridesGame')}
+                          >
+                            <Mail className="h-3 w-3" />
+                            {t('quest.delivery.modeMailbox')}
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          {t('quest.delivery.defaultLabel')}
+                        </Badge>
+                      )}
                     </TableCell>
 
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -1232,36 +1319,28 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                   {/* Expanded detail row */}
                   {expandedQuestId === q.id && (
                     <TableRow className="bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={7} className="p-0">
+                      <TableCell colSpan={8} className="p-0">
                         <div className="px-6 py-4 space-y-4 border-t border-dashed">
-                          {/* Row 1: Basic info */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          {/* Row 1: Quest ID + Description */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
                               <p className="text-xs text-muted-foreground mb-0.5">{t('quest.questId')}</p>
-                              <p className="font-mono text-xs break-all">{q.id}</p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-mono text-xs break-all">{q.id}</p>
+                                <CopyButton text={q.id} size="h-3 w-3" />
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.type')}</p>
-                              <Badge variant={questTypeBadgeVariant(q.quest_type)}>{q.quest_type}</Badge>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.sortOrder')}</p>
-                              <p>{q.sort_order}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.active')}</p>
-                              <Badge variant={q.is_active ? "default" : "secondary"}>{q.is_active ? t('common.yes') : t('common.no')}</Badge>
-                            </div>
+                            {q.description && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
+                                <p className="text-sm">{q.description}</p>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Description */}
-                          {q.description && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">{t('quest.description')}</p>
-                              <p className="text-sm">{q.description}</p>
-                            </div>
-                          )}
-
+                          {/* Two-column layout: [Conditions + Rewards] | [Reward Delivery] */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                          <div className="space-y-4">
                           {/* Conditions */}
                           {q.conditions && q.conditions.clauses?.length > 0 && (
                             <div>
@@ -1334,43 +1413,60 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                             </div>
                           )}
 
-                          {/* Rewards */}
-                          {q.rewards && q.rewards.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">{t('quest.rewards')} ({q.rewards.length})</p>
-                              <div className="space-y-1">
-                                {q.rewards.map((r, ri) => (
-                                  <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
-                                    {r.reward_type === "coin" && r.amount != null && (
-                                      <span className="text-xs">{r.amount} {t('quest.coins')}</span>
-                                    )}
-                                    {r.reward_type === "item" && r.item_definition_id && (() => {
-                                      const def = rowItemDefs.find(d => d.id === r.item_definition_id)
-                                      return (
-                                        <span className="flex items-center gap-1.5 text-xs">
-                                          <span className="font-medium">{def?.name ?? r.item_definition_id}</span>
-                                          {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
-                                          <span className="text-muted-foreground">
-                                            {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
+                          {/* Rewards (item rewards only — coin rewards no longer supported) */}
+                          {(() => {
+                            const itemRewards = (q.rewards ?? []).filter(r => r.reward_type === "item")
+                            if (itemRewards.length === 0) return null
+                            return (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">{t('quest.rewards')} ({itemRewards.length})</p>
+                                <div className="space-y-1">
+                                  {itemRewards.map((r, ri) => (
+                                    <div key={ri} className="border rounded px-3 py-2 bg-background text-sm flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs capitalize">{r.reward_type}</Badge>
+                                      {r.item_definition_id && (() => {
+                                        const def = rowItemDefs.find(d => d.id === r.item_definition_id)
+                                        return (
+                                          <span className="flex items-center gap-1.5 text-xs">
+                                            <span className="font-medium">{def?.name ?? r.item_definition_id}</span>
+                                            {def && <span className="text-muted-foreground font-mono">({def.item_code})</span>}
+                                            <span className="text-muted-foreground">
+                                              {r.quantity_min ?? 1}{r.quantity_max && r.quantity_max !== r.quantity_min ? `–${r.quantity_max}` : ""}
+                                            </span>
+                                            <Link
+                                              href={`/games/${gameId}/items/${r.item_definition_id}`}
+                                              target="_blank"
+                                              className="text-muted-foreground hover:text-foreground transition-colors"
+                                              onClick={(e) => e.stopPropagation()}
+                                              title={t('quest.openItemDef')}
+                                            >
+                                              <ExternalLink className="h-3 w-3" />
+                                            </Link>
                                           </span>
-                                          <Link
-                                            href={`/games/${gameId}/items/${r.item_definition_id}`}
-                                            target="_blank"
-                                            className="text-muted-foreground hover:text-foreground transition-colors"
-                                            onClick={(e) => e.stopPropagation()}
-                                            title={t('quest.openItemDef')}
-                                          >
-                                            <ExternalLink className="h-3 w-3" />
-                                          </Link>
-                                        </span>
-                                      )
-                                    })()}
-                                  </div>
-                                ))}
+                                        )
+                                      })()}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
+                            )
+                          })()}
+
+                          </div>
+
+                          {/* Right column: Reward delivery override */}
+                          {game && (
+                            <div>
+                              <QuestDeliveryOverride
+                                quest={q}
+                                game={game}
+                                onUpdated={(updated) =>
+                                  setQuests((prev) => prev.map((qd) => (qd.id === updated.id ? updated : qd)))
+                                }
+                              />
                             </div>
                           )}
+                          </div>
 
                           {/* Timestamps */}
                           <div className="flex gap-6 text-xs text-muted-foreground">
@@ -1396,14 +1492,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6">
-            <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
-            </SheetClose>
-            <Button onClick={handleCreate} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {t('common.submit')}
-            </Button>
+          <SheetFooter className="mt-6 sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="qactive-create"
+                checked={form.is_active ?? true}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+              />
+              <Label htmlFor="qactive-create">{t('quest.active')}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <SheetClose asChild>
+                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+              </SheetClose>
+              <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {t('common.submit')}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -1412,14 +1518,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       <Sheet
         open={!!editQuest}
         onOpenChange={(o) => {
-          if (!o) {
-            setEditQuest(null)
-            // Remove editQuestId from URL when the sheet is closed
-            const sp = new URLSearchParams(searchParams.toString())
-            sp.delete("editQuestId")
-            const qs = sp.toString()
-            router.replace(`/games/${gameId}/quests${qs ? `?${qs}` : ""}`, { scroll: false })
-          }
+          if (!o) closeEdit()
         }}
       >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
@@ -1433,14 +1532,24 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             )}
           </SheetHeader>
           <div className="mt-6">{QuestForm}</div>
-          <SheetFooter className="mt-6">
-            <SheetClose asChild>
-              <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
-            </SheetClose>
-            <Button onClick={handleEdit} disabled={saving || !form.name.trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
-              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {t('common.save')}
-            </Button>
+          <SheetFooter className="mt-6 sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="qactive-edit"
+                checked={form.is_active ?? true}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+              />
+              <Label htmlFor="qactive-edit">{t('quest.active')}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <SheetClose asChild>
+                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+              </SheetClose>
+              <Button onClick={handleEdit} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
+                {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -1641,6 +1750,10 @@ function QuestsPageInner() {
 
         <TabsContent value="world-quest" className="mt-6">
           <ComingSoon title="World Quest" />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-6">
+          <SettingsTab game={game} onGameUpdate={setGame} />
         </TabsContent>
       </Tabs>
       </div>

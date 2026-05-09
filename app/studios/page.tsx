@@ -110,22 +110,22 @@ export default function StudiosPage() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold">{t('common.studios')}</h1>
-          <p className="">{t('studio.manageTitle')}</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">{t('common.studios')}</h1>
+          <p className="text-sm sm:text-base">{t('studio.manageTitle')}</p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
           {!isVerified && (
             <div className="flex items-center gap-1.5 text-sm">
-              <ShieldOff className="h-3.5 w-3.5 text-yellow-500" />
+              <ShieldOff className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
               <span className="text-yellow-500 font-medium">{t('studio.emailNotVerified')}</span>
             </div>
           )}
           {isVerified && !isActivated && (
             <div className="flex items-center gap-1.5 text-sm">
-              <ShieldOff className="h-3.5 w-3.5 text-yellow-500" />
+              <ShieldOff className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
               <span className="text-yellow-500 font-medium">{t('studio.notActivated')}</span>
             </div>
           )}
@@ -135,16 +135,16 @@ export default function StudiosPage() {
               <Badge variant={atLimit ? "destructive" : "secondary"}>
                 {usedStudios} / {maxStudios}
               </Badge>
-              {atLimit && <Lock className="h-3.5 w-3.5 text-destructive" />}
+              {atLimit && <Lock className="h-3.5 w-3.5 text-destructive shrink-0" />}
             </div>
           )}
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col gap-1 sm:items-end">
             <div className="flex items-center gap-2">
               <Input
                 value={newStudioName}
                 onChange={e => setNewStudioName(e.target.value)}
                 placeholder={t('studio.newName')}
-                className="w-48"
+                className="flex-1 sm:w-48 sm:flex-none"
                 disabled={creating || atLimit || !isActivated || !isVerified}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !creating && !atLimit && isActivated && isVerified) {
@@ -156,6 +156,7 @@ export default function StudiosPage() {
                 onClick={handleCreateStudio}
                 disabled={creating || atLimit || !isActivated || !isVerified}
                 variant="default"
+                className="shrink-0"
                 title={!isVerified ? t('studio.verifyEmailToCreate') : !isActivated ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}
               >
                 {creating ? t('common.loading') : t('studio.create')}
@@ -234,21 +235,21 @@ export default function StudiosPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {studios.map((studio) => (
             <Card key={studio.id} className="overflow-hidden">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
-                <div className="flex flex-col space-y-2">
-                  <CardTitle className="text-xl">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3 space-y-0">
+                <div className="flex flex-col space-y-2 min-w-0 flex-1">
+                  <CardTitle className="text-lg sm:text-xl">
                     <Link href={`/studios/${studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
-                      {studio.name}
-                      <ExternalLink className="w-4 h-4 " />
+                      <span className="truncate">{studio.name}</span>
+                      <ExternalLink className="w-4 h-4 shrink-0" />
                     </Link>
                   </CardTitle>
                   {studio.slug && (
                     <div className="flex items-center gap-1">
-                      <Badge variant="outline" className="text-xs font-mono">{studio.slug}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono truncate max-w-full">{studio.slug}</Badge>
                     </div>
                   )}
                   {studio.description && (
-                    <p className="text-sm text-muted-foreground">{studio.description}</p>
+                    <p className="text-sm text-muted-foreground break-words">{studio.description}</p>
                   )}
                   <div className="flex flex-col gap-1">
                     {studio.tier && (
@@ -259,12 +260,12 @@ export default function StudiosPage() {
                     )}
                   </div>
                 </div>
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="shrink-0">
                   <Link href={`/studios/${studio.id}`}>{t('studio.viewDetails')}</Link>
                 </Button>
               </CardHeader>
               <CardContent className="pb-2">
-                <div className="flex flex-row gap-4 text-sm">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                   <span>{t('common.games')}: {studio.usage?.games ?? studio.game_count}</span>
                   <span>{t('studio.totalMembers')}: {studio.usage?.total_members ?? 0}</span>
                 </div>

@@ -64,13 +64,6 @@ export function UserProfiles() {
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <Card className="md:col-span-2">
-        <CardHeader>
-          <CardTitle>{t('profilePage.yourProfiles')}</CardTitle>
-          <CardDescription>{t('profilePage.yourProfilesDesc')}</CardDescription>
-        </CardHeader>
-      </Card>
-
       {profiles.map((profile) => (
         <ProfileCard key={profile.id} profile={profile} />
       ))}
@@ -140,13 +133,6 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
 function ProfilesSkeleton() {
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <Card className="md:col-span-2">
-        <CardHeader>
-          <Skeleton className="h-6 w-40 mb-2" />
-          <Skeleton className="h-4 w-60" />
-        </CardHeader>
-      </Card>
-
       {[1, 2].map((i) => (
         <Card key={i}>
           <CardHeader className="pb-2">

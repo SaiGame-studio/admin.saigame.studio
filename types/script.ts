@@ -7,6 +7,7 @@ export interface GameScript {
   script_body: string
   version: number
   is_active: boolean
+  is_library: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -23,6 +24,7 @@ export interface UpdateScriptRequest {
   description?: string
   script_body?: string
   is_active?: boolean
+  is_library?: boolean
 }
 
 export interface SampleScript {

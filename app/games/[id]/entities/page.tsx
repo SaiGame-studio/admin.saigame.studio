@@ -103,6 +103,8 @@ import { EntityPoolTab } from "./EntityPoolTab"
 
 const DEFAULT_ENTITY_TYPES: EntityType[] = ["enemy", "boss", "room", "relic", "defense_unit", "npc"]
 const ENTITY_RARITIES: EntityRarity[] = ["common", "uncommon", "rare", "epic", "legendary"]
+const MAX_ABILITIES_PER_ENTITY = 50
+const MAX_ABILITY_FIELDS = 50
 
 function formatLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -114,7 +116,7 @@ function randomAbilityId() {
 
 function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
   if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
-  const c = ENTITY_RARITY_COLORS[rarity]
+  const c = ENTITY_RARITY_COLORS[rarity] ?? { text: 'text-muted-foreground', border: 'border-muted', bg: 'bg-muted/30' }
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${c.text} ${c.border} ${c.bg} capitalize`}
@@ -148,7 +150,6 @@ interface FormState {
   entity_type: EntityType
   name: string
   description: string
-  icon_url: string
   rarity: EntityRarity | ""
   stats: string       // JSON string
   abilities: string   // JSON string
@@ -160,8 +161,7 @@ const emptyForm = (): FormState => ({
   entity_type: "enemy",
   name: "",
   description: "",
-  icon_url: "",
-  rarity: "",
+  rarity: "common",
   stats: "",
   abilities: "",
   metadata: "",
@@ -173,7 +173,6 @@ function entityToForm(e: EntityDefinition): FormState {
     entity_type: e.entity_type,
     name: e.name,
     description: e.description ?? "",
-    icon_url: e.icon_url ?? "",
     rarity: e.rarity ?? "",
     stats: e.stats ? JSON.stringify(e.stats, null, 2) : "",
     abilities: e.abilities ? JSON.stringify(e.abilities, null, 2) : "",
@@ -335,7 +334,6 @@ function EntityInlineEditForm({
         entity_type: form.entity_type,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        icon_url: form.icon_url.trim() || undefined,
         rarity: (form.rarity || undefined) as EntityRarity | undefined,
         stats: tryParseJson(form.stats),
         abilities: tryParseJson(form.abilities) as any,
@@ -494,6 +492,11 @@ function EntityInlineEditForm({
   }
 
   function startAddAbilityField(abilityIdx: number) {
+    const ability = getAbilities()[abilityIdx]
+    if (ability && Object.keys(ability).length >= MAX_ABILITY_FIELDS) {
+      toast({ title: t('common.validation'), description: t('entity.abilityFieldLimitReached'), variant: "destructive" })
+      return
+    }
     setEditingAbilityIdx(abilityIdx)
     setEditingAbilityKey("__new__")
     setEditingAbilityFieldKey("")
@@ -513,6 +516,11 @@ function EntityInlineEditForm({
     const raw = editingAbilityFieldValue
     const num = Number(raw)
     const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    const currentAbility = getAbilities()[editingAbilityIdx]
+    if (editingAbilityKey === "__new__" && currentAbility && !Object.prototype.hasOwnProperty.call(currentAbility, key) && Object.keys(currentAbility).length >= MAX_ABILITY_FIELDS) {
+      toast({ title: t('common.validation'), description: t('entity.abilityFieldLimitReached'), variant: "destructive" })
+      return
+    }
     const abilities = getAbilities().map((ab, i) => {
       if (i !== editingAbilityIdx) return ab
       const updated = { ...ab }
@@ -574,7 +582,12 @@ function EntityInlineEditForm({
   }
 
   async function addAbility() {
-    const abilities = [...getAbilities(), { id: randomAbilityId(), trigger: "passive" }]
+    const currentAbilities = getAbilities()
+    if (currentAbilities.length >= MAX_ABILITIES_PER_ENTITY) {
+      toast({ title: t('common.validation'), description: t('entity.abilityLimitReached'), variant: "destructive" })
+      return
+    }
+    const abilities = [...currentAbilities, { id: randomAbilityId(), trigger: "passive" }]
     setSaving(true)
     try {
       const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities as any })
@@ -590,6 +603,8 @@ function EntityInlineEditForm({
   }
 
   const isEditing = (f: keyof FormState) => editingField === f
+  const abilities = getAbilities()
+  const abilityCount = abilities.length
   const saveCancel = (
     <>
       <Button size="icon" variant="ghost" className="h-6 w-6" onClick={saveField} disabled={saving}>
@@ -652,27 +667,6 @@ function EntityInlineEditForm({
                 <>
                   <span className="text-sm">{entity.description || <span className="text-muted-foreground text-xs">—</span>}</span>
                   <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("description")}><Pencil className="w-3.5 h-3.5" /></Button>
-                </>
-              )}
-            </dd>
-          </div>
-
-          {/* icon_url */}
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldIconUrl')}</dt>
-            <dd className="group flex items-center gap-1.5">
-              {isEditing("icon_url") ? (
-                <>
-                  {form.icon_url && <img src={form.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" />}
-                  <Input value={form.icon_url} onChange={(e) => setField("icon_url", e.target.value)} className="h-7 text-sm flex-1" placeholder="https://..." disabled={saving} />
-                  {saveCancel}
-                </>
-              ) : (
-                <>
-                  {entity.icon_url
-                    ? <div className="flex items-center gap-2"><img src={entity.icon_url} alt="icon" className="h-7 w-7 rounded object-cover border shrink-0" /><span className="text-xs font-mono text-muted-foreground break-all">{entity.icon_url}</span></div>
-                    : <span className="text-muted-foreground text-xs">—</span>}
-                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEdit("icon_url")}><Pencil className="w-3.5 h-3.5" /></Button>
                 </>
               )}
             </dd>
@@ -799,7 +793,7 @@ function EntityInlineEditForm({
                     </div>
                   )
                 })}
-                {gachaPacks.length > 0 && (
+                {gachaPacks.length > 0 ? (
                   <Select onValueChange={addDropPack} disabled={saving}>
                     <SelectTrigger className="h-7 text-xs mt-1">
                       <SelectValue placeholder="Link a gacha pack…" />
@@ -813,6 +807,13 @@ function EntityInlineEditForm({
                       ))}
                     </SelectContent>
                   </Select>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic mt-1">
+                    {t('entity.noGachaPacksInGame')}{" "}
+                    <Link href={`/games/${gameId}/items?tab=gacha`} target="_blank" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                      {t('entity.createGachaPack')}<ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </p>
                 )}
               </div>
             </dd>
@@ -872,10 +873,16 @@ function EntityInlineEditForm({
 
           {/* abilities */}
           <div>
-            <dt className="text-xs font-medium text-muted-foreground mb-1">{t('entity.fieldAbilities')}</dt>
+            <dt className="text-xs font-medium text-muted-foreground mb-1 flex items-center justify-between gap-2">
+              <span>{t('entity.fieldAbilities')}</span>
+              <span className={`font-mono ${abilityCount >= MAX_ABILITIES_PER_ENTITY ? "text-destructive" : "text-muted-foreground"}`}>
+                {abilityCount}/{MAX_ABILITIES_PER_ENTITY}
+              </span>
+            </dt>
             <dd>
               <div className="space-y-1">
-                {getAbilities().map((ability, idx) => (
+                <p className="text-xs text-muted-foreground">{t('entity.abilityLimitHint')}</p>
+                {abilities.map((ability, idx) => (
                   <div key={idx} className="border rounded">
                     {/* ability header */}
                     <div
@@ -898,6 +905,11 @@ function EntityInlineEditForm({
                     {/* ability fields (expanded) */}
                     {expandedAbilityIdx === idx && (
                       <div className="px-2 pb-2 border-t space-y-0.5 pt-1">
+                        <div className="flex justify-end pb-1">
+                          <span className={`text-[11px] font-mono ${Object.keys(ability).length >= MAX_ABILITY_FIELDS ? "text-destructive" : "text-muted-foreground"}`}>
+                            {t('entity.abilityFieldsCounter')}: {Object.keys(ability).length}/{MAX_ABILITY_FIELDS}
+                          </span>
+                        </div>
                         {Object.entries(ability).map(([k, v]) => (
                           <div key={k} className="group/abfield">
                             {editingAbilityIdx === idx && editingAbilityKey === k ? (
@@ -943,7 +955,7 @@ function EntityInlineEditForm({
                             <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditAbilityField} disabled={saving}><X className="w-3.5 h-3.5" /></Button>
                           </div>
                         ) : (
-                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={() => startAddAbilityField(idx)} disabled={saving}>
+                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={() => startAddAbilityField(idx)} disabled={saving || Object.keys(ability).length >= MAX_ABILITY_FIELDS}>
                             <Plus className="w-3 h-3" /> {t('entity.addField')}
                           </Button>
                         )}
@@ -951,7 +963,7 @@ function EntityInlineEditForm({
                     )}
                   </div>
                 ))}
-                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={addAbility} disabled={saving}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={addAbility} disabled={saving || abilityCount >= MAX_ABILITIES_PER_ENTITY}>
                   <Plus className="w-3 h-3" /> {t('entity.addAbility')}
                 </Button>
               </div>
@@ -1170,7 +1182,6 @@ export default function EntitiesPage() {
         entity_type: form.entity_type,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        icon_url: form.icon_url.trim() || undefined,
         rarity: form.rarity || undefined,
         stats: tryParseJson(form.stats),
         abilities: tryParseJson(form.abilities) as any,
@@ -1369,12 +1380,7 @@ export default function EntitiesPage() {
                               <TableCell>
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                               </TableCell>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  {entity.icon_url && <img src={entity.icon_url} alt="" className="h-6 w-6 rounded border bg-muted shrink-0" />}
-                                  {entity.name}
-                                </div>
-                              </TableCell>
+                              <TableCell className="font-medium">{entity.name}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1.5 font-mono text-xs">
                                   {entity.entity_key}
@@ -1562,17 +1568,6 @@ export default function EntitiesPage() {
                 onChange={(e) => setField("description", e.target.value.slice(0, 500))}
               />
               <p className={`text-xs text-right ${form.description.length >= 500 ? "text-destructive" : "text-muted-foreground"}`}>{form.description.length}/500</p>
-            </div>
-
-            {/* icon_url */}
-            <div className="space-y-1.5">
-              <Label htmlFor="icon_url">{t('entity.fieldIconUrl')}</Label>
-              <Input
-                id="icon_url"
-                placeholder={t('entity.iconUrlPlaceholder')}
-                value={form.icon_url}
-                onChange={(e) => setField("icon_url", e.target.value)}
-              />
             </div>
 
             {/* stats */}

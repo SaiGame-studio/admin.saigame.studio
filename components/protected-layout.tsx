@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react"
 export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
-  const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password"].includes(pathname)
+  const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password", "/google-login-success"].includes(pathname)
   const isPublicPage = pathname.startsWith("/tutorials")
 
   if (isLoading && !isPublicPage) {

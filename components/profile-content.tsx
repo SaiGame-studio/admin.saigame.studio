@@ -123,29 +123,29 @@ export function ProfileContent() {
 
       {/* ── Page title ── */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Profile</h1>
       </div>
 
       {/* ── Header card ── */}
       <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden group/name">
         <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none" />
-        <div className="relative p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="relative p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:p-6 sm:gap-5">
           {/* Avatar */}
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary text-3xl font-extrabold select-none ring-2 ring-primary/20">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary text-2xl font-extrabold select-none ring-2 ring-primary/20 sm:h-20 sm:w-20 sm:text-3xl">
             {initials}
           </div>
 
           {/* Name / email */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <div className="flex items-center gap-2 flex-wrap">
               {nameEditing ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap w-full">
                   <Input
                     ref={nameInputRef}
                     value={nameValue}
                     onChange={e => setNameValue(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setNameEditing(false) }}
-                    className="h-9 w-60 text-lg font-extrabold"
+                    className="h-9 flex-1 min-w-0 text-lg font-extrabold sm:w-60 sm:flex-none"
                     disabled={nameSaving}
                   />
                   <Button size="sm" disabled={nameSaving} onClick={saveName}>{nameSaving ? "Saving…" : "Save"}</Button>
@@ -153,10 +153,10 @@ export function ProfileContent() {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-extrabold tracking-tight truncate">
+                  <h2 className="text-xl font-extrabold tracking-tight truncate sm:text-2xl">
                     {user.display_name || user.username}
                   </h2>
-                  <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/name:opacity-100 transition-opacity"
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/name:opacity-100"
                     onClick={startNameEdit}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -172,8 +172,8 @@ export function ProfileContent() {
               )}
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" /> {user.email}
+              <span className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 max-w-full">
+                <Mail className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{user.email}</span>
               </span>
               {user.is_verified ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
@@ -203,7 +203,7 @@ export function ProfileContent() {
       </div>
 
       {/* ── Account info ── */}
-      <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-4 sm:p-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Account Information</p>
 
         <InfoRow icon={<UserIcon className="h-3.5 w-3.5" />} label={t('profilePage.userId')}>
@@ -230,7 +230,7 @@ export function ProfileContent() {
             <div className="flex items-center gap-2 flex-wrap">
               <Popover open={tzOpen} onOpenChange={setTzOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-56 justify-between font-normal text-sm h-8">
+                  <Button variant="outline" role="combobox" className="w-full justify-between font-normal text-sm h-8 sm:w-56">
                     <span className="truncate">{tzValue}</span>
                     <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                   </Button>
@@ -259,7 +259,7 @@ export function ProfileContent() {
             <div className="flex items-center gap-2 text-sm font-medium">
               <span>{currentTz}</span>
               {!user.timezone && <span className="text-[10px] text-muted-foreground">(local)</span>}
-              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/tz:opacity-100 transition-opacity"
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/tz:opacity-100"
                 onClick={() => { setTzValue(currentTz); setTzEditing(true) }}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>

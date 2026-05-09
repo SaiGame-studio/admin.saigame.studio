@@ -488,17 +488,17 @@ function PaymentPageContent() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">{t('payment.back')}</span>
           </Link>
         </Button>
-        <div>
-          <h1 className="text-xl font-semibold md:text-2xl">{t('payment.title')}</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold md:text-2xl truncate">{t('payment.title')}</h1>
           <p className="text-sm text-muted-foreground">
             {t('payment.subtitle')}
           </p>
@@ -507,11 +507,13 @@ function PaymentPageContent() {
 
       <div className="w-full">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="w-auto inline-flex">
-            <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
-            <TabsTrigger value="redeem">{t('payment.tabRedeemGiftCode')}</TabsTrigger>
-            <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
-          </TabsList>
+          <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
+            <TabsList className="w-auto inline-flex">
+              <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
+              <TabsTrigger value="redeem">{t('payment.tabRedeemGiftCode')}</TabsTrigger>
+              <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ============================================================
               TAB 1 – Buy sCoin
@@ -590,8 +592,8 @@ function PaymentPageContent() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-0 space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
                               <p className="text-2xl font-bold tabular-nums">
                                 {pkg.total_scoin.toLocaleString()}
                                 <span className="text-sm font-normal text-muted-foreground ml-1">sCoin</span>
@@ -604,13 +606,13 @@ function PaymentPageContent() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-base font-semibold text-primary">
+                            <div className="flex items-center gap-2 shrink-0">
+                              <p className="text-base font-semibold text-primary whitespace-nowrap">
                                 {(() => { const p = getLocalizedPrice(pkg, locale, selectedMethod); return formatPrice(p.amount, p.currency) })()}
                               </p>
                               {pkg.bonus_scoin > 0 && (
-                                <div className={`flex items-center justify-center w-14 h-14 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 ${isSelected ? "stamp-animate" : ""}`}>
-                                  <span className="text-[11px] font-bold text-primary leading-tight text-center rotate-0">
+                                <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 sm:w-14 sm:h-14 ${isSelected ? "stamp-animate" : ""}`}>
+                                  <span className="text-[10px] font-bold text-primary leading-tight text-center rotate-0 sm:text-[11px]">
                                     {t('payment.save')}<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
                                   </span>
                                 </div>
@@ -674,7 +676,7 @@ function PaymentPageContent() {
                             }
                           }}
                         >
-                          <CardContent className="flex items-center gap-4 p-4">
+                          <CardContent className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
                               {getMethodIcon(method.provider_key)}
                             </div>
@@ -709,7 +711,7 @@ function PaymentPageContent() {
                   <h2 className="text-lg font-semibold">{t('payment.orderSummary')}</h2>
                 </div>
                 <Card>
-                  <CardContent className="p-5 space-y-4">
+                  <CardContent className="p-4 space-y-4 sm:p-5">
                     {/* Package row */}
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('payment.coinPackages')}</p>
@@ -782,7 +784,7 @@ function PaymentPageContent() {
               TAB 2 – Redeem Gift Code
           ============================================================ */}
           <TabsContent value="redeem" className="mt-6">
-            <section className="space-y-3 max-w-[50%]">
+            <section className="space-y-3 max-w-full lg:max-w-[50%]">
               <div className="flex items-center gap-2">
                 <Gift className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-semibold">{t('payment.redeemGiftCode')}</h2>
@@ -890,7 +892,7 @@ function PaymentPageContent() {
                           }}
                           id={tx.id}
                         >
-                          <CardContent className="flex items-center gap-4 p-4">
+                          <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                               <Coins className="h-4 w-4" />
                             </div>
@@ -900,25 +902,31 @@ function PaymentPageContent() {
                                 {tx.provider_key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                               </p>
                               <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 truncate">
-                                {tx.id}
+                                <span className="truncate">{tx.id}</span>
                                 <CopyButton text={tx.id} />
                               </p>
                             </div>
 
                             <Badge
                               variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                              className="text-xs shrink-0 capitalize"
+                              className="hidden text-xs shrink-0 capitalize sm:inline-flex"
                             >
                               {tx.status.replace(/_/g, " ")}
                             </Badge>
 
                             <div className="text-right shrink-0">
-                              <p className="font-semibold tabular-nums text-primary">
-                                +{tx.scoin_amount.toLocaleString()} sCoin
+                              <p className="font-semibold tabular-nums text-primary text-sm sm:text-base">
+                                +{tx.scoin_amount.toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">sCoin</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 {tx.amount.toLocaleString()} {tx.currency}
                               </p>
+                              <Badge
+                                variant={STATUS_VARIANT[tx.status] ?? "secondary"}
+                                className="mt-1 text-[10px] h-4 capitalize sm:hidden"
+                              >
+                                {tx.status.replace(/_/g, " ")}
+                              </Badge>
                             </div>
                           </CardContent>
 
@@ -1021,7 +1029,7 @@ function PaymentPageContent() {
                       const isCredit = tx.amount > 0
                       return (
                         <Card key={tx.id}>
-                          <CardContent className="flex items-center gap-4 p-4">
+                          <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
                             <div
                               className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
                                 isCredit
@@ -1040,25 +1048,25 @@ function PaymentPageContent() {
                               <p className="truncate text-sm font-medium">
                                 {tx.description ?? getTypeLabel(tx.type)}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground truncate">
                                 {formatDate(tx.created_at)}
                               </p>
                             </div>
 
-                            <Badge variant="outline" className="hidden sm:inline-flex text-xs shrink-0">
+                            <Badge variant="outline" className="hidden md:inline-flex text-xs shrink-0">
                               {getTypeLabel(tx.type)}
                             </Badge>
 
                             <Badge
                               variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                              className="text-xs shrink-0"
+                              className="hidden text-xs shrink-0 sm:inline-flex"
                             >
                               {tx.status}
                             </Badge>
 
                             <div className="text-right shrink-0">
                               <p
-                                className={`font-semibold tabular-nums ${
+                                className={`font-semibold tabular-nums text-sm sm:text-base ${
                                   isCredit ? "text-green-500" : "text-destructive"
                                 }`}
                               >
@@ -1068,6 +1076,12 @@ function PaymentPageContent() {
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 → {tx.balance_after.toLocaleString()}
                               </p>
+                              <Badge
+                                variant={STATUS_VARIANT[tx.status] ?? "secondary"}
+                                className="mt-1 text-[10px] h-4 sm:hidden"
+                              >
+                                {tx.status}
+                              </Badge>
                             </div>
                           </CardContent>
                         </Card>

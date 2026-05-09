@@ -25,7 +25,6 @@ export interface LeaderboardBoard {
   is_active: boolean
   score_source_type: string
   score_source_ref_id: string
-  max_score_delta: number | null
   created_at: string
   updated_at: string
 }
@@ -55,10 +54,10 @@ export interface CreateBoardPayload {
   score_mode: ScoreMode
   sort_direction: SortDirection
   reset_schedule: ResetSchedule
-  score_source_type: string
-  score_source_ref_id: string
-  max_score_delta?: number | null
+  score_source_type?: string | null
+  score_source_ref_id?: string | null
   first_season_start_at?: string | null
+  first_season_name?: string | null
 }
 
 export async function createBoard(
@@ -104,7 +103,6 @@ export interface UpdateBoardPayload {
   name?: string
   description?: string
   is_active?: boolean
-  max_score_delta?: number | null
 }
 
 export async function updateBoard(
@@ -194,8 +192,8 @@ export async function getBoardHistory(
 export interface LeaderboardEntry {
   rank: number
   user_id: string
+  display_name?: string
   score: number
-  metadata: Record<string, unknown> | null
   updated_at: string
 }
 
@@ -219,12 +217,11 @@ export interface CurrentSeasonRaw {
 }
 
 export async function getCurrentSeasonRaw(
-  studioId: string,
   gameId: string,
-  boardId: string
+  seasonId: string
 ): Promise<CurrentSeasonRaw> {
   const data = await api.get(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/current/raw`
+    `/api/v1/games/${gameId}/leaderboard-seasons/${seasonId}/rank`
   )
   return data
 }
@@ -261,15 +258,58 @@ export interface SeasonArchiveRaw {
 }
 
 export async function getSeasonArchive(
-  studioId: string,
   gameId: string,
-  boardId: string,
   seasonId: string,
   offset = 0,
   limit = 100
-): Promise<SeasonArchiveRaw> {
+): Promise<CurrentSeasonRaw> {
   const data = await api.get(
-    `/api/v1/studios/${studioId}/games/${gameId}/leaderboards/${boardId}/seasons/${seasonId}/raw?offset=${offset}&limit=${limit}`
+    `/api/v1/games/${gameId}/leaderboard-seasons/${seasonId}/rank?offset=${offset}&limit=${limit}`
+  )
+  return data
+}
+
+export interface SeasonRawEventSeason {
+  id: string
+  board_id: string
+  season_number: number
+  name: string
+  started_at: string
+  ended_at: string | null
+  reward_dispatched_at: string | null
+  planned_end_at: string | null
+}
+
+export interface SeasonRawEventEntry {
+  id: string
+  board_id: string
+  season_id: string
+  user_id: string
+  display_name?: string
+  source_event_id: string | null
+  delta: number
+  source_system: string
+  metadata: Record<string, unknown> | null
+  processed_at: string | null
+  created_at: string
+}
+
+export interface SeasonRawEvents {
+  season: SeasonRawEventSeason
+  entries: SeasonRawEventEntry[]
+  total: number
+  offset: number
+  limit: number
+}
+
+export async function getSeasonRawEvents(
+  gameId: string,
+  seasonId: string,
+  offset = 0,
+  limit = 100
+): Promise<SeasonRawEvents> {
+  const data = await api.get(
+    `/api/v1/games/${gameId}/leaderboard-seasons/${seasonId}/raw?offset=${offset}&limit=${limit}`
   )
   return data
 }

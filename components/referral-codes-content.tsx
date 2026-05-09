@@ -57,17 +57,17 @@ export function ReferralCodesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Referral Codes</h1>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Referral Codes</h1>
           {!isSuperAdmin && (
-            <div className="flex items-center gap-2 mt-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
-              <TriangleAlert className="h-4 w-4 shrink-0" />
-              Currently only Sai can create referral codes. Please contact him if you need one.
+            <div className="flex items-start gap-2 mt-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-400">
+              <TriangleAlert className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>Currently only Sai can create referral codes. Please contact him if you need one.</span>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={fetchCodes} disabled={loading} title="Refresh">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
@@ -77,7 +77,7 @@ export function ReferralCodesContent() {
               <Plus className="h-4 w-4" /> New Code
             </Button>
           </SheetTrigger>
-          <SheetContent side="right">
+          <SheetContent side="right" className="w-full sm:max-w-md">
             <SheetHeader>
               <SheetTitle>Create Referral Code</SheetTitle>
             </SheetHeader>
@@ -102,7 +102,7 @@ export function ReferralCodesContent() {
           <p className="text-xs mt-1">Create your first referral code to get started.</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-border/60 overflow-hidden">
+        <div className="rounded-2xl border border-border/60 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -118,12 +118,12 @@ export function ReferralCodesContent() {
                 <TableRow key={c.id}>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{c.code}</code>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs whitespace-nowrap">{c.code}</code>
                       <CopyButton text={c.code} />
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="tabular-nums text-sm">
+                    <span className="tabular-nums text-sm whitespace-nowrap">
                       {c.current_usage}
                       {c.usage_limit > 0 && (
                         <span className="text-muted-foreground"> / {c.usage_limit}</span>
@@ -143,7 +143,7 @@ export function ReferralCodesContent() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
                       {formatDateTime(c.created_at)}
                     </span>
                   </TableCell>
