@@ -227,7 +227,7 @@ function formatPct(pct: number): string {
 function DropBar({ weight, total }: { weight: number; total: number }) {
   const pct = total > 0 ? Math.min((weight / total) * 100, 100) : 0
   return (
-    <div className="flex items-center gap-1.5 min-w-[110px]">
+    <div className="flex items-center gap-1.5 min-w-[400px]">
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
       </div>
@@ -4859,7 +4859,7 @@ export default function GameItemsPage() {
                 </Button>
               </div>
               {gachaForm.pool.length > 0 && (
-                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 px-1 font-medium">
+                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 px-1 font-medium">
                   <span>{t('items.name')}</span>
                   <span>{t('items.weight')}</span>
                   <span>{t('items.min')}</span>
@@ -4871,7 +4871,7 @@ export default function GameItemsPage() {
                 {gachaForm.pool.map((row, i) => {
                   const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0
                   return (
-                    <div key={i} className="grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 items-center">
+                    <div key={i} className="grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 items-center">
                       <Popover
                         open={gachaComboOpen === `pool-${i}`}
                         onOpenChange={(open) => {
@@ -4943,19 +4943,19 @@ export default function GameItemsPage() {
                         />
                       </div>
                       <Input
-                        type="number"
-                        min={1}
-                        className="h-8 text-xs text-center"
-                        value={row.quantity_min}
-                        onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value })}
+                        type="text"
+                        inputMode="numeric"
+                        className="h-8 text-xs text-center font-mono"
+                        value={row.quantity_min ? Number(row.quantity_min).toLocaleString() : ""}
+                        onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value.replace(/[^0-9]/g, "") })}
                         disabled={formSaving}
                       />
                       <Input
-                        type="number"
-                        min={1}
-                        className="h-8 text-xs text-center"
-                        value={row.quantity_max}
-                        onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value })}
+                        type="text"
+                        inputMode="numeric"
+                        className="h-8 text-xs text-center font-mono"
+                        value={row.quantity_max ? Number(row.quantity_max).toLocaleString() : ""}
+                        onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value.replace(/[^0-9]/g, "") })}
                         disabled={formSaving}
                       />
                       <Button
