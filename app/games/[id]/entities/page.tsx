@@ -587,7 +587,7 @@ function EntityInlineEditForm({
       toast({ title: t('common.validation'), description: t('entity.abilityLimitReached'), variant: "destructive" })
       return
     }
-    const abilities = [...currentAbilities, { id: randomAbilityId(), trigger: "passive" }]
+    const abilities = [...currentAbilities, { id: randomAbilityId() }]
     setSaving(true)
     try {
       const updated = await updateEntityDefinition(gameId, entity.id, { abilities: abilities as any })
@@ -914,7 +914,7 @@ function EntityInlineEditForm({
                           <div key={k} className="group/abfield">
                             {editingAbilityIdx === idx && editingAbilityKey === k ? (
                               <div className="flex items-center gap-1.5 py-0.5">
-                                <Input value={editingAbilityFieldKey} onChange={(e) => setEditingAbilityFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-28 font-mono" disabled={saving || k === "id" || k === "trigger"} />
+                                <Input value={editingAbilityFieldKey} onChange={(e) => setEditingAbilityFieldKey(e.target.value)} placeholder="key" className="h-7 text-xs w-28 font-mono" disabled={saving || k === "id"} />
                                 <span className="text-muted-foreground text-xs">:</span>
                                 <Input value={editingAbilityFieldValue} onChange={(e) => setEditingAbilityFieldValue(e.target.value)} placeholder="value" className="h-7 text-xs flex-1 font-mono" disabled={saving} />
                                 <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveAbilityField} disabled={saving}>
@@ -928,11 +928,11 @@ function EntityInlineEditForm({
                                 onClick={() => startEditAbilityField(idx, k, String(v))}
                               >
                                 <span className="text-xs font-mono text-muted-foreground w-28 truncate shrink-0">
-                                  {k}{(k === "id" || k === "trigger") && <span className="text-destructive ml-0.5">*</span>}
+                                  {k}{k === "id" && <span className="text-destructive ml-0.5">*</span>}
                                 </span>
                                 <span className="text-xs text-muted-foreground">:</span>
                                 <span className="text-xs font-mono flex-1">{String(v)}</span>
-                                {k !== "id" && k !== "trigger" && (
+                                {k !== "id" && (
                                   <Button
                                     size="icon" variant="ghost"
                                     className="h-5 w-5 shrink-0 opacity-0 group-hover/abfield:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
