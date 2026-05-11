@@ -45,6 +45,8 @@ export default function StudiosPage() {
   const isFirstStudio = studios.length === 0
   const isActivated = user?.is_activated ?? false
   const isVerified = user?.is_verified ?? false
+  // When referral_code_required is false, skip the activation gate entirely
+  const canCreate = referralCodeRequired === false || isActivated
 
   async function loadStudios() {
     try {
@@ -130,7 +132,7 @@ export default function StudiosPage() {
               <span className="text-yellow-500 font-medium">{t('studio.emailNotVerified')}</span>
             </div>
           )}
-          {isVerified && !isActivated && (
+          {isVerified && !isActivated && referralCodeRequired !== false && (
             <div className="flex items-center gap-1.5 text-sm">
               <ShieldOff className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
               <span className="text-yellow-500 font-medium">{t('studio.notActivated')}</span>
@@ -152,24 +154,24 @@ export default function StudiosPage() {
                 onChange={e => setNewStudioName(e.target.value)}
                 placeholder={t('studio.newName')}
                 className="flex-1 sm:w-48 sm:flex-none"
-                disabled={creating || atLimit || !isActivated || !isVerified}
+                disabled={creating || atLimit || !canCreate || !isVerified}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !creating && !atLimit && isActivated && isVerified) {
+                  if (e.key === 'Enter' && !creating && !atLimit && canCreate && isVerified) {
                     handleCreateStudio();
                   }
                 }}
               />
               <Button
                 onClick={handleCreateStudio}
-                disabled={creating || atLimit || !isActivated || !isVerified}
+                disabled={creating || atLimit || !canCreate || !isVerified}
                 variant="default"
                 className="shrink-0"
-                title={!isVerified ? t('studio.verifyEmailToCreate') : !isActivated ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}
+                title={!isVerified ? t('studio.verifyEmailToCreate') : !canCreate ? t('studio.activateToCreate') : atLimit ? `${t('studio.studioLimitTitle')} (${usedStudios} / ${maxStudios})` : undefined}
               >
                 {creating ? t('common.loading') : t('studio.create')}
               </Button>
             </div>
-            {!atLimit && isActivated && isVerified && (
+            {!atLimit && canCreate && isVerified && (
               <p className="text-xs text-muted-foreground">
                 {t('studio.createCostHintPt1')}<span className="text-green-500 font-medium">{t('studio.createCostHintFree')}</span>{t('studio.createCostHintPt2')}<span className="text-yellow-500 font-medium">🪙 {STUDIO_COST} coins</span>
               </p>
