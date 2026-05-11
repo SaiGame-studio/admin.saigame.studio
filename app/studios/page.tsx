@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { useAuth } from "@/contexts/auth-context"
 import { activateReferralCode } from "@/lib/referral-api"
+import { fetchServerConfig } from "@/lib/server-config-api"
 import Link from "next/link"
 
 export default function StudiosPage() {
@@ -33,6 +34,7 @@ export default function StudiosPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [referralCodeRequired, setReferralCodeRequired] = useState<boolean | null>(null)
   const { t } = useTranslation()
   const { user, refreshUser } = useAuth()
 
@@ -57,7 +59,12 @@ export default function StudiosPage() {
     }
   }
 
-  useEffect(() => { loadStudios() }, [])
+  useEffect(() => {
+    loadStudios()
+    fetchServerConfig()
+      .then(config => setReferralCodeRequired(config.features.referral_code_required))
+      .catch(() => setReferralCodeRequired(true))
+  }, [])
 
   async function handleCreateStudio() {
     if (!newStudioName.trim()) {
@@ -226,7 +233,7 @@ export default function StudiosPage() {
         <Card className="bg-muted/50">
           <CardContent className="flex flex-col items-center justify-center py-10">
             <p className="mb-4">{t('studio.noStudios')}</p>
-            {!isActivated && (
+            {!isActivated && referralCodeRequired && (
               <ReferralCodeInput onActivated={async () => { await refreshUser(); loadStudios() }} />
             )}
           </CardContent>

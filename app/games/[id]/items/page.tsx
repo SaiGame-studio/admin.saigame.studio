@@ -227,7 +227,7 @@ function formatPct(pct: number): string {
 function DropBar({ weight, total }: { weight: number; total: number }) {
   const pct = total > 0 ? Math.min((weight / total) * 100, 100) : 0
   return (
-    <div className="flex items-center gap-1.5 min-w-[110px]">
+    <div className="flex items-center gap-1.5 min-w-[400px]">
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
       </div>
@@ -4718,14 +4718,9 @@ export default function GameItemsPage() {
 
             {/* Key Requirements */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">{t('items.keyRequirements')}</Label>
-                  <p className="text-xs text-muted-foreground">{t('items.keyReqDesc')}</p>
-                </div>
-                <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.addKey')}
-                </Button>
+              <div>
+                <Label className="text-base">{t('items.keyRequirements')}</Label>
+                <p className="text-xs text-muted-foreground">{t('items.keyReqDesc')}</p>
               </div>
               {gachaForm.keyReqs.length > 0 && (
                 <div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
@@ -4762,14 +4757,14 @@ export default function GameItemsPage() {
                         >
                           {row.item_definition_id
                             ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "…"}</span>
-                            : <span className="text-muted-foreground">Select item…</span>}
+                            : <span className="text-muted-foreground">{t('items.selectItemPlaceholder')}</span>}
                           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[280px] p-0" align="start">
                         <Command shouldFilter={false}>
                           <CommandInput
-                            placeholder="Search by name or ID…"
+                            placeholder={t('items.searchByNameOrIdPlaceholder')}
                             value={gachaComboSearch}
                             onValueChange={setGachaComboSearch}
                           />
@@ -4827,17 +4822,32 @@ export default function GameItemsPage() {
               {gachaForm.keyReqs.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateInitCategory("key" as ItemCategory)
-                  setShowCreate(true)
-                }}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Plus className="h-3 w-3" />
-                {t('items.createNewItem')}
-              </button>
+              <div className="flex items-center justify-between">
+                <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.addKey')}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateInitCategory("key" as ItemCategory)
+                    setShowCreate(true)
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  {t('items.createNewItem')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fetchGachaData()}
+                  disabled={formSaving}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                  title="Reload item definitions"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  {t('items.reloadItemDefs')}
+                </button>
+              </div>
             </div>
 
             <Separator />
@@ -4859,7 +4869,7 @@ export default function GameItemsPage() {
                 </Button>
               </div>
               {gachaForm.pool.length > 0 && (
-                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 px-1 font-medium">
+                <div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 px-1 font-medium">
                   <span>{t('items.name')}</span>
                   <span>{t('items.weight')}</span>
                   <span>{t('items.min')}</span>
@@ -4871,7 +4881,7 @@ export default function GameItemsPage() {
                 {gachaForm.pool.map((row, i) => {
                   const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0
                   return (
-                    <div key={i} className="grid grid-cols-[1fr_110px_60px_60px_32px] gap-1.5 items-center">
+                    <div key={i} className="grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 items-center">
                       <Popover
                         open={gachaComboOpen === `pool-${i}`}
                         onOpenChange={(open) => {
@@ -4889,14 +4899,14 @@ export default function GameItemsPage() {
                           >
                             {row.item_definition_id
                               ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "…"}</span>
-                              : <span className="text-muted-foreground">Select item…</span>}
+                              : <span className="text-muted-foreground">{t('items.selectItemPlaceholder')}</span>}
                             <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[280px] p-0" align="start">
                           <Command shouldFilter={false}>
                             <CommandInput
-                              placeholder="Search by name or ID…"
+                              placeholder={t('items.searchByNameOrIdPlaceholder')}
                               value={gachaComboSearch}
                               onValueChange={setGachaComboSearch}
                             />
@@ -4943,19 +4953,19 @@ export default function GameItemsPage() {
                         />
                       </div>
                       <Input
-                        type="number"
-                        min={1}
-                        className="h-8 text-xs text-center"
-                        value={row.quantity_min}
-                        onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value })}
+                        type="text"
+                        inputMode="numeric"
+                        className="h-8 text-xs text-center font-mono"
+                        value={row.quantity_min ? Number(row.quantity_min).toLocaleString() : ""}
+                        onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value.replace(/[^0-9]/g, "") })}
                         disabled={formSaving}
                       />
                       <Input
-                        type="number"
-                        min={1}
-                        className="h-8 text-xs text-center"
-                        value={row.quantity_max}
-                        onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value })}
+                        type="text"
+                        inputMode="numeric"
+                        className="h-8 text-xs text-center font-mono"
+                        value={row.quantity_max ? Number(row.quantity_max).toLocaleString() : ""}
+                        onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value.replace(/[^0-9]/g, "") })}
                         disabled={formSaving}
                       />
                       <Button

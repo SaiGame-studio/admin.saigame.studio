@@ -19,6 +19,7 @@ import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { LanguageSelector } from "@/components/ui/language-selector"
+import { useServerConfig } from "@/hooks/use-server-config"
 
 // Storage key for remembered email/username
 const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
@@ -27,6 +28,8 @@ export function LoginForm() {
   const { login } = useAuth()
   const { toast } = useToast()
   const { t } = useTranslation()
+  const { config } = useServerConfig()
+  const registrationEnabled = config === null || config.features.registration_enabled
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [usernameOrEmail, setUsernameOrEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -297,10 +300,14 @@ export function LoginForm() {
           )}
 
           <div className="text-center text-sm text-muted-foreground">
-            {t('login.dontHaveAccount')}{" "}
-            <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/register')}>
-              {t('login.signUp')}
-            </Button>
+            {registrationEnabled && (
+              <>
+                {t('login.dontHaveAccount')}{" "}
+                <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/register')}>
+                  {t('login.signUp')}
+                </Button>
+              </>
+            )}
           </div>
         </CardFooter>
       </form>

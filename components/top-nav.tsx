@@ -13,11 +13,14 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { CoinBalance } from "@/components/coin-balance"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { TipsBanner } from "@/components/TipsBanner"
+import { useServerConfig } from "@/hooks/use-server-config"
 
 export function TopNav() {
   const { logout, user, isAuthenticated } = useAuth()
   const pathname = usePathname()
   const isAdminZone = pathname?.startsWith("/admin")
+  const { config } = useServerConfig()
+  const registrationEnabled = config === null || config.features.registration_enabled
 
   return (
     <header className="sticky top-0 z-50 flex h-14 items-center gap-2 border-b bg-background px-3 sm:gap-3 sm:px-4 lg:h-[60px] lg:gap-4 lg:px-6">
@@ -52,9 +55,11 @@ export function TopNav() {
             <Button variant="outline" size="sm" asChild>
               <Link href="/login">Login</Link>
             </Button>
-            <Button size="sm" asChild>
-              <Link href="/register">Sign Up</Link>
-            </Button>
+            {registrationEnabled && (
+              <Button size="sm" asChild>
+                <Link href="/register">Sign Up</Link>
+              </Button>
+            )}
           </>
         )}
         {isAuthenticated && (
