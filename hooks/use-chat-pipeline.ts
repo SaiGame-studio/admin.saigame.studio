@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, streamDetectIntent, streamRequest, updateConversation } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 
 export interface ChatTurn {
@@ -38,6 +38,7 @@ export function useChatPipeline() {
     convId: string | null,
     requestType: string,          // 'auto' → detect-intent SSE; anything else → skip SSE
     onConvCreated: (conv: Conversation) => void,
+    onConvUpdated: (conv: Conversation) => void,
     errorCreate: string,
     errorSend: string,
     entityType?: string,
@@ -55,6 +56,7 @@ export function useChatPipeline() {
 
     try {
       // ── Step 1: ensure conversation exists (regular REST) ────────────────────
+      const isNewConversation = !convId
       let resolvedConvId = convId
       if (!resolvedConvId) {
         const newConv = await createConversation(gameId, {
@@ -88,6 +90,24 @@ export function useChatPipeline() {
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
             ),
+          (fields) => {
+            if (fields.detectedType)       resolvedType         = fields.detectedType
+            if (fields.detectedLanguage)   resolvedLanguage     = fields.detectedLanguage
+            if (fields.detectedEntityType) resolvedEntityType   = fields.detectedEntityType
+            if (fields.detectedGoal)       resolvedGoal         = fields.detectedGoal
+            setChatHistory((prev) =>
+              prev.map((t) => {
+                if (t.id !== turnId) return t
+                return {
+                  ...t,
+                  ...(fields.detectedType       ? { detectedType:       fields.detectedType }             : {}),
+                  ...(fields.detectedLanguage   ? { detectedLanguage:   fields.detectedLanguage }         : {}),
+                  ...(fields.detectedEntityType ? { detectedEntityType: fields.detectedEntityType }       : {}),
+                  ...(fields.detectedGoal       ? { detectedGoal:       fields.detectedGoal }             : {}),
+                }
+              })
+            )
+          },
           (detectedType, detectedLanguage, detectedEntityType, detectedGoal) => {
             resolvedType = detectedType
             resolvedLanguage = detectedLanguage
@@ -105,6 +125,18 @@ export function useChatPipeline() {
           },
         )
         if (detectError) { finish(); return }
+        // Update conversation title & goal from detected goal — only for the first detect-intent
+        if (resolvedGoal && resolvedConvId && isNewConversation) {
+          try {
+            const updatedConv = await updateConversation(gameId, resolvedConvId, {
+              title: resolvedGoal.slice(0, 80),
+              goal: resolvedGoal,
+            })
+            onConvUpdated(updatedConv)
+          } catch {
+            // Non-fatal — pipeline continues
+          }
+        }
       } else {
         // Type explicitly chosen — set immediately, skip detect-intent
         setChatHistory((prev) =>

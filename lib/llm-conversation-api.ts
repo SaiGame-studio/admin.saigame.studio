@@ -1,5 +1,6 @@
 import { api } from '@/lib/api-client'
 import { getValidToken } from '@/lib/auth-utils'
+import { parse, STR, OBJ } from 'partial-json'
 import type {
   Conversation,
   ListConversationsResponse,
@@ -93,6 +94,7 @@ export async function streamDetectIntent(
   conversationId: string,
   userPrompt: string,
   onChunk: (text: string) => void,
+  onPartial: (fields: { detectedType?: string; detectedLanguage?: string; detectedEntityType?: string; detectedGoal?: string }) => void,
   onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string) => void,
   onError: (message: string) => void,
 ): Promise<void> {
@@ -119,6 +121,7 @@ export async function streamDetectIntent(
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buf = ''
+  let accText = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -133,7 +136,20 @@ export async function streamDetectIntent(
       const evt = JSON.parse(part.slice(6))
 
       if (evt.type === 'chunk') {
-        onChunk(evt.text ?? '')
+        const chunk = evt.text ?? ''
+        accText += chunk
+        onChunk(chunk)
+        try {
+          const p = parse(accText, STR | OBJ) as Record<string, string>
+          if (p && typeof p === 'object') {
+            onPartial({
+              ...(p.type        ? { detectedType:       p.type }        : {}),
+              ...(p.language    ? { detectedLanguage:   p.language }    : {}),
+              ...(p.entity_type ? { detectedEntityType: p.entity_type } : {}),
+              ...(p.goal        ? { detectedGoal:       p.goal }        : {}),
+            })
+          }
+        } catch { /* partial parse failed — ignore */ }
       } else if (evt.type === 'done') {
         onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '', evt.detected_goal ?? '')
         return

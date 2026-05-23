@@ -149,7 +149,6 @@ export function LLMConversationPanel() {
   // the trigger can display "Auto - [label]" instead of just the label.
   const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null)
   const [autoDetectedEntityType, setAutoDetectedEntityType] = useState<string | null>(null)
-  const [autoDetectedGoal, setAutoDetectedGoal] = useState<string | null>(null)
   // Tracks whether the most recent send used auto mode, so the chatHistory watcher
   // knows when to apply the auto-detection label update.
   const sentWithAutoRef = useRef(false)
@@ -307,7 +306,6 @@ export function LLMConversationPanel() {
     if (lastTurn?.done && lastTurn.detectedType && !lastTurn.error) {
       setAutoDetectedType(lastTurn.detectedType)
       setAutoDetectedEntityType(lastTurn.detectedEntityType ?? null)
-      setAutoDetectedGoal(lastTurn.detectedGoal ?? null)
       sentWithAutoRef.current = false
     }
   }, [chatHistory])
@@ -455,6 +453,10 @@ export function LLMConversationPanel() {
         setActiveConvs((prev) => [newConv, ...prev])
         setActiveConvId(newConv.ID)
         setActiveConv(newConv)
+      },
+      (updatedConv) => {
+        setActiveConv(updatedConv)
+        setActiveConvs((prev) => prev.map((c) => (c.ID === updatedConv.ID ? updatedConv : c)))
       },
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
@@ -839,13 +841,23 @@ export function LLMConversationPanel() {
                         <Bot className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
                         <div id={`conv-panel-ai-msg-content-${turn.id}`} className="flex-1 min-w-0">
                           {turn.detectedType && (
-                            <span
-                              id={`conv-panel-ai-detected-type-${turn.id}`}
-                              className="mb-1.5 inline-flex items-center gap-1 text-xs border border-primary/50 text-primary rounded-md px-2 py-0.5"
-                            >
-                              <Sparkles className="h-3 w-3 shrink-0" />
-                              {t(`llmConversation.requestTypes.${turn.detectedType}`) || turn.detectedType}
-                            </span>
+                            <div id={`conv-panel-ai-detected-row-${turn.id}`} className="mb-1.5 flex items-center gap-2 flex-wrap">
+                              <span
+                                id={`conv-panel-ai-detected-type-${turn.id}`}
+                                className="inline-flex items-center gap-1 text-xs border border-primary/50 text-primary rounded-md px-2 py-0.5"
+                              >
+                                <Sparkles className="h-3 w-3 shrink-0" />
+                                {t(`llmConversation.requestTypes.${turn.detectedType}`) || turn.detectedType}
+                              </span>
+                              {turn.detectedGoal && (
+                                <span
+                                  id={`conv-panel-ai-detected-goal-${turn.id}`}
+                                  className="text-[10px] text-muted-foreground leading-none"
+                                >
+                                  {turn.detectedGoal}
+                                </span>
+                              )}
+                            </div>
                           )}
                           {turn.error ? (
                             <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">
@@ -886,19 +898,14 @@ export function LLMConversationPanel() {
                     }
                   }}
                 />
+              </div>
 
-                {/* Detected goal hint */}
-                {autoDetectedGoal && autoDetectedType && (
-                  <p id="conv-panel-detected-goal" className="px-2 pb-1 text-[10px] text-muted-foreground truncate">
-                    ({t(`llmConversation.requestTypes.${autoDetectedType}`) || autoDetectedType}) - {autoDetectedGoal}
-                  </p>
-                )}
 
-                {/* Bottom toolbar: request type + send */}
-                <div id="conv-panel-input-toolbar" className="flex items-center gap-1.5 px-2 pb-2">
+              {/* Bottom toolbar: request type + send */}
+              <div id="conv-panel-input-toolbar" className="flex items-center gap-1.5 pt-1.5">
                   <Select
                     value={selectedRequestType}
-                    onValueChange={(v) => { setSelectedRequestType(v); setAutoDetectedType(null); setAutoDetectedEntityType(null); setAutoDetectedGoal(null) }}
+                    onValueChange={(v) => { setSelectedRequestType(v); setAutoDetectedType(null); setAutoDetectedEntityType(null) }}
                     disabled={isStreaming || requestTypes.length === 0}
                   >
                     <SelectTrigger id="conv-panel-request-type-trigger" className="h-7 text-xs flex-1">
@@ -928,8 +935,8 @@ export function LLMConversationPanel() {
 
                   <Button
                     id="conv-panel-send-btn"
-                    size="icon"
-                    className="h-7 w-7 rounded-full shrink-0"
+                    size="sm"
+                    className="h-7 px-3 rounded-lg shrink-0 gap-1.5"
                     disabled={isStreaming || !message.trim()}
                     onClick={() => handleSend()}
                   >
@@ -938,9 +945,9 @@ export function LLMConversationPanel() {
                     ) : (
                       <Send className="h-3.5 w-3.5" />
                     )}
+                    {t('llmConversation.send')}
                   </Button>
                 </div>
-              </div>
             </div>
           </div>
         </div>

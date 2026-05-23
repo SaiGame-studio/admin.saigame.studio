@@ -3483,5 +3483,6 @@ export const vi = {
     errorDelete: "Không thể xóa cuộc hội thoại.",
     errorCreateRecords: "Không thể tạo bản ghi vật phẩm.",
     errorLoadRequestTypes: "Không thể tải loại yêu cầu.",
+    send: "Gửi",
   },
 };

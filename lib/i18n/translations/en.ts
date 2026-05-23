@@ -3543,5 +3543,6 @@ export const en = {
     errorDelete: "Failed to delete conversation.",
     errorCreateRecords: "Failed to create item records.",
     errorLoadRequestTypes: "Failed to load request types.",
+    send: "Send",
   },
 };

@@ -3471,5 +3471,6 @@ export const ja = {
     errorDelete: "会話の削除に失敗しました。",
     errorCreateRecords: "アイテムレコードの作成に失敗しました。",
     errorLoadRequestTypes: "リクエストタイプの読み込みに失敗しました。",
+    send: "送信",
   },
 };
