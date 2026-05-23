@@ -34,6 +34,10 @@ import {
   Brush,
   Gamepad2,
   ExternalLink,
+  BotMessageSquare,
+  Plus,
+  Pencil,
+  Eye,
 } from "lucide-react"
 import {
   getWorkersStatus,
@@ -57,6 +61,14 @@ import {
   CCUGameEntry,
   updateUserActiveStatus,
   updateGameActiveStatus,
+  listDefaultSystemPrompts,
+  createDefaultSystemPrompt,
+  updateDefaultSystemPrompt,
+  SystemPrompt,
+  SystemPromptType,
+  SystemPromptProvider,
+  CreateSystemPromptBody,
+  UpdateSystemPromptBody,
 } from "@/lib/admin-api"
 import { toast } from "@/hooks/use-toast"
 import {
@@ -2141,10 +2153,454 @@ function GrowthChartTab() {
 }
 
 // ---------------------------------------------------------------------------
+// System Prompts Tab
+// ---------------------------------------------------------------------------
+
+const PROMPT_TYPES: SystemPromptType[] = ["lore", "item_gen", "quest", "gacha", "generic"]
+const PROMPT_PROVIDERS: Array<SystemPromptProvider | "none"> = ["none", "gemini", "openai", "anthropic"]
+
+const PROMPT_TYPE_LABELS: Record<SystemPromptType, string> = {
+  lore: "Lore",
+  item_gen: "Item Gen",
+  quest: "Quest",
+  gacha: "Gacha",
+  generic: "Generic",
+}
+
+interface SystemPromptFormState {
+  name: string
+  prompt_type: SystemPromptType
+  description: string
+  is_active: boolean
+  content: string
+  max_input_tokens: string
+  max_output_tokens: string
+  temperature: string
+  provider: SystemPromptProvider | "none"
+  model: string
+}
+
+const DEFAULT_FORM: SystemPromptFormState = {
+  name: "",
+  prompt_type: "generic",
+  description: "",
+  is_active: true,
+  content: "",
+  max_input_tokens: "8192",
+  max_output_tokens: "4096",
+  temperature: "0.7",
+  provider: "none",
+  model: "",
+}
+
+function SystemPromptFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  title,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  initial?: Partial<SystemPromptFormState>
+  onSave: (data: SystemPromptFormState) => Promise<void>
+  title: string
+}) {
+  const [form, setForm] = useState<SystemPromptFormState>({ ...DEFAULT_FORM, ...initial })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (open) setForm({ ...DEFAULT_FORM, ...initial })
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function set<K extends keyof SystemPromptFormState>(k: K, v: SystemPromptFormState[K]) {
+    setForm((p) => ({ ...p, [k]: v }))
+  }
+
+  async function handleSubmit() {
+    setSaving(true)
+    try {
+      await onSave(form)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Name */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-name">Name <span className="text-destructive">*</span></Label>
+              <Input id="sp-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="default-lore-writer" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type <span className="text-destructive">*</span></Label>
+              <Select value={form.prompt_type} onValueChange={(v) => set("prompt_type", v as SystemPromptType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROMPT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{PROMPT_TYPE_LABELS[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="sp-desc">Description</Label>
+            <Input id="sp-desc" value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Platform default for..." />
+          </div>
+
+          {/* Content */}
+          <div className="space-y-1.5">
+            <Label htmlFor="sp-content">Content <span className="text-destructive">*</span></Label>
+            <textarea
+              id="sp-content"
+              className="flex min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono resize-y"
+              value={form.content}
+              onChange={(e) => set("content", e.target.value)}
+              placeholder="You are a..."
+            />
+          </div>
+
+          {/* Tokens + Temperature */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-max-in">Max Input Tokens</Label>
+              <Input id="sp-max-in" type="number" min={0} value={form.max_input_tokens} onChange={(e) => set("max_input_tokens", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-max-out">Max Output Tokens</Label>
+              <Input id="sp-max-out" type="number" min={0} value={form.max_output_tokens} onChange={(e) => set("max_output_tokens", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-temp">Temperature</Label>
+              <Input id="sp-temp" type="number" min={0} max={2} step={0.05} value={form.temperature} onChange={(e) => set("temperature", e.target.value)} />
+            </div>
+          </div>
+
+          {/* Provider + Model */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Provider</Label>
+              <Select value={form.provider} onValueChange={(v) => set("provider", v as SystemPromptProvider | "none")}>
+                <SelectTrigger><SelectValue placeholder="Platform default" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Platform default</SelectItem>
+                  <SelectItem value="gemini">Gemini</SelectItem>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="anthropic">Anthropic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-model">Model</Label>
+              <Input id="sp-model" value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="e.g. gemini-2.0-flash" />
+            </div>
+          </div>
+
+          {/* Active */}
+          <div className="flex items-center gap-3">
+            <Switch checked={form.is_active} onCheckedChange={(v) => set("is_active", v)} id="sp-active" />
+            <Label htmlFor="sp-active">Active</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving || !form.name.trim() || !form.content.trim()}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SystemPromptsTab() {
+  const [prompts, setPrompts] = useState<SystemPrompt[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<SystemPromptType | "all">("all")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editPrompt, setEditPrompt] = useState<SystemPrompt | null>(null)
+  const [viewPrompt, setViewPrompt] = useState<SystemPrompt | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const load = useCallback(async (type?: SystemPromptType | "all") => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await listDefaultSystemPrompts(
+        type && type !== "all" ? { prompt_type: type } : undefined
+      )
+      setPrompts(result.data ?? [])
+    } catch (err) {
+      setError("Failed to load system prompts")
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load(typeFilter) }, [load, typeFilter])
+
+  async function handleCreate(form: SystemPromptFormState) {
+    const body: CreateSystemPromptBody = {
+      name: form.name,
+      prompt_type: form.prompt_type,
+      description: form.description || undefined,
+      is_active: form.is_active,
+      content: form.content,
+      max_input_tokens: Number(form.max_input_tokens) || undefined,
+      max_output_tokens: Number(form.max_output_tokens) || undefined,
+      temperature: Number(form.temperature),
+      provider: (form.provider !== "none" ? form.provider as SystemPromptProvider : null),
+      model: form.model || null,
+    }
+    try {
+      await createDefaultSystemPrompt(body)
+      toast({ title: "Created", description: `System prompt "${form.name}" created.` })
+      setCreateOpen(false)
+      load(typeFilter)
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+      throw err
+    }
+  }
+
+  async function handleEdit(form: SystemPromptFormState) {
+    if (!editPrompt) return
+    const body: UpdateSystemPromptBody = {
+      name: form.name,
+      prompt_type: form.prompt_type,
+      description: form.description,
+      is_active: form.is_active,
+      content: form.content,
+      max_input_tokens: Number(form.max_input_tokens) || undefined,
+      max_output_tokens: Number(form.max_output_tokens) || undefined,
+      temperature: Number(form.temperature),
+      provider: (form.provider !== "none" ? form.provider as SystemPromptProvider : ""),
+      model: form.model || null,
+    }
+    try {
+      const updated = await updateDefaultSystemPrompt(editPrompt.id, body)
+      toast({ title: "Updated", description: `System prompt "${form.name}" updated.` })
+      setEditPrompt(null)
+      setPrompts((prev) => prev.map((p) => p.id === updated.id ? updated : p))
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+      throw err
+    }
+  }
+
+  async function handleToggleActive(prompt: SystemPrompt) {
+    setTogglingId(prompt.id)
+    try {
+      const updated = await updateDefaultSystemPrompt(prompt.id, { is_active: !prompt.is_active })
+      setPrompts((prev) => prev.map((p) => p.id === updated.id ? updated : p))
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  function promptToForm(p: SystemPrompt): SystemPromptFormState {
+    return {
+      name: p.name,
+      prompt_type: p.prompt_type,
+      description: p.description ?? "",
+      is_active: p.is_active,
+      content: p.content,
+      max_input_tokens: String(p.max_input_tokens ?? 8192),
+      max_output_tokens: String(p.max_output_tokens ?? 4096),
+      temperature: String(p.temperature ?? 0.7),
+      provider: p.provider ?? "none",
+      model: p.model ?? "",
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">System Prompts</h2>
+          {!loading && <span className="text-xs text-muted-foreground">{prompts.length} prompt{prompts.length !== 1 ? "s" : ""}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as SystemPromptType | "all")}>
+            <SelectTrigger className="w-[150px] h-8 text-xs">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              {PROMPT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{PROMPT_TYPE_LABELS[t]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" className="flex items-center gap-2" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Prompt
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => load(typeFilter)} disabled={loading} className="flex items-center gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <Card className="border-destructive/50">
+          <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
+        </Card>
+      )}
+
+      {loading && (
+        <Card>
+          <CardContent className="pt-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && (
+        <Card>
+          <CardContent className="p-0">
+            {prompts.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <BotMessageSquare className="h-12 w-12 mx-auto mb-2 opacity-40" />
+                <p>No system prompts found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Provider / Model</TableHead>
+                      <TableHead className="text-right">Temp</TableHead>
+                      <TableHead className="text-right">In / Out Tokens</TableHead>
+                      <TableHead className="text-center">Active</TableHead>
+                      <TableHead>Updated</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {prompts.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="font-medium">{p.name}</div>
+                          {p.description && <div className="text-xs text-muted-foreground max-w-xs truncate">{p.description}</div>}
+                          <div className="text-xs text-muted-foreground font-mono flex items-center gap-1">{p.id}<CopyButton text={p.id} /></div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs capitalize">{PROMPT_TYPE_LABELS[p.prompt_type]}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {p.provider ? (
+                            <div>
+                              <div className="text-xs font-medium capitalize">{p.provider}</div>
+                              {p.model && <div className="text-xs text-muted-foreground font-mono">{p.model}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Platform default</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">{p.temperature}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {(p.max_input_tokens ?? "—")} / {(p.max_output_tokens ?? "—")}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={p.is_active}
+                            disabled={togglingId === p.id}
+                            onCheckedChange={() => handleToggleActive(p)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{formatISORelative(p.updated_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setViewPrompt(p)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditPrompt(p)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Create dialog */}
+      <SystemPromptFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="Create System Prompt"
+        onSave={handleCreate}
+      />
+
+      {/* Edit dialog */}
+      {editPrompt && (
+        <SystemPromptFormDialog
+          open={!!editPrompt}
+          onOpenChange={(v) => { if (!v) setEditPrompt(null) }}
+          title={`Edit — ${editPrompt.name}`}
+          initial={promptToForm(editPrompt)}
+          onSave={handleEdit}
+        />
+      )}
+
+      {/* View content dialog */}
+      <Dialog open={!!viewPrompt} onOpenChange={(v) => { if (!v) setViewPrompt(null) }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewPrompt?.name}</DialogTitle>
+            <DialogDescription>{viewPrompt?.description}</DialogDescription>
+          </DialogHeader>
+          {viewPrompt && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline">{PROMPT_TYPE_LABELS[viewPrompt.prompt_type]}</Badge>
+                {viewPrompt.provider && <Badge variant="secondary" className="capitalize">{viewPrompt.provider}{viewPrompt.model ? ` / ${viewPrompt.model}` : ""}</Badge>}
+                <span className="text-muted-foreground">temp: {viewPrompt.temperature}</span>
+                <span className="text-muted-foreground">in: {viewPrompt.max_input_tokens} / out: {viewPrompt.max_output_tokens}</span>
+              </div>
+              <pre className="whitespace-pre-wrap break-words rounded-md bg-muted/50 border px-4 py-3 text-xs leading-relaxed font-mono text-foreground/80 max-h-[500px] overflow-y-auto">
+                {viewPrompt.content}
+              </pre>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewPrompt(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Tabs shell
 // ---------------------------------------------------------------------------
 
-const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts"] as const
+const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts"] as const
 type TabValue = (typeof VALID_TABS)[number]
 
 function MonitorTabs() {
@@ -2209,6 +2665,10 @@ function MonitorTabs() {
             <TrendingUp className="h-4 w-4" />
             Charts
           </TabsTrigger>
+          <TabsTrigger value="sysprompts" className="flex items-center gap-2">
+            <BotMessageSquare className="h-4 w-4" />
+            Sys Prompts
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ccu" className="mt-0">
@@ -2231,6 +2691,9 @@ function MonitorTabs() {
         </TabsContent>
         <TabsContent value="charts" className="mt-0">
           <GrowthChartTab />
+        </TabsContent>
+        <TabsContent value="sysprompts" className="mt-0">
+          <SystemPromptsTab />
         </TabsContent>
       </Tabs>
     </div>
