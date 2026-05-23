@@ -93,7 +93,7 @@ export async function streamDetectIntent(
   conversationId: string,
   userPrompt: string,
   onChunk: (text: string) => void,
-  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string) => void,
+  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string) => void,
   onError: (message: string) => void,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -135,7 +135,7 @@ export async function streamDetectIntent(
       if (evt.type === 'chunk') {
         onChunk(evt.text ?? '')
       } else if (evt.type === 'done') {
-        onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '')
+        onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '', evt.detected_goal ?? '')
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')

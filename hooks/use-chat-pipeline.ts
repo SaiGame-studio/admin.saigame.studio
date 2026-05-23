@@ -10,6 +10,7 @@ export interface ChatTurn {
   detectedType: string | null
   detectedLanguage: string | null
   detectedEntityType: string | null
+  detectedGoal: string | null
   done: boolean
   error: string | null
 }
@@ -69,13 +70,14 @@ export function useChatPipeline() {
       // Append user turn immediately so the UI feels responsive
       setChatHistory((prev) => [
         ...prev,
-        { id: turnId, userMessage: userPrompt, aiText: '', responseText: '', detectedType: null, detectedLanguage: null, detectedEntityType: null, done: false, error: null },
+        { id: turnId, userMessage: userPrompt, aiText: '', responseText: '', detectedType: null, detectedLanguage: null, detectedEntityType: null, detectedGoal: null, done: false, error: null },
       ])
 
       // ── Step 2: detect intent (SSE) or use explicit type ────────────────────
       let resolvedType = requestType
       let resolvedLanguage = ''
       let resolvedEntityType = ''
+      let resolvedGoal = ''
       if (requestType === 'auto') {
         let detectError = ''
         await streamDetectIntent(
@@ -86,12 +88,13 @@ export function useChatPipeline() {
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
             ),
-          (detectedType, detectedLanguage, detectedEntityType) => {
+          (detectedType, detectedLanguage, detectedEntityType, detectedGoal) => {
             resolvedType = detectedType
             resolvedLanguage = detectedLanguage
             resolvedEntityType = detectedEntityType
+            resolvedGoal = detectedGoal
             setChatHistory((prev) =>
-              prev.map((t) => (t.id === turnId ? { ...t, detectedType, detectedLanguage, detectedEntityType: detectedEntityType || null } : t))
+              prev.map((t) => (t.id === turnId ? { ...t, detectedType, detectedLanguage, detectedEntityType: detectedEntityType || null, detectedGoal: detectedGoal || null } : t))
             )
           },
           (errMsg) => {

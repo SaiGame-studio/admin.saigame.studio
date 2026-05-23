@@ -149,6 +149,7 @@ export function LLMConversationPanel() {
   // the trigger can display "Auto - [label]" instead of just the label.
   const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null)
   const [autoDetectedEntityType, setAutoDetectedEntityType] = useState<string | null>(null)
+  const [autoDetectedGoal, setAutoDetectedGoal] = useState<string | null>(null)
   // Tracks whether the most recent send used auto mode, so the chatHistory watcher
   // knows when to apply the auto-detection label update.
   const sentWithAutoRef = useRef(false)
@@ -306,6 +307,7 @@ export function LLMConversationPanel() {
     if (lastTurn?.done && lastTurn.detectedType && !lastTurn.error) {
       setAutoDetectedType(lastTurn.detectedType)
       setAutoDetectedEntityType(lastTurn.detectedEntityType ?? null)
+      setAutoDetectedGoal(lastTurn.detectedGoal ?? null)
       sentWithAutoRef.current = false
     }
   }, [chatHistory])
@@ -852,6 +854,7 @@ export function LLMConversationPanel() {
                           ) : turn.responseText ? (
                             <p id={`conv-panel-ai-text-${turn.id}`} className="text-xs leading-relaxed whitespace-pre-wrap">
                               {turn.responseText}
+                              {!turn.done && <Loader2 id={`conv-panel-ai-cursor-${turn.id}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />}
                             </p>
                           ) : !turn.done ? (
                             <Loader2 id={`conv-panel-ai-spinner-${turn.id}`} className="h-3 w-3 animate-spin text-muted-foreground" />
@@ -884,11 +887,18 @@ export function LLMConversationPanel() {
                   }}
                 />
 
+                {/* Detected goal hint */}
+                {autoDetectedGoal && autoDetectedType && (
+                  <p id="conv-panel-detected-goal" className="px-2 pb-1 text-[10px] text-muted-foreground truncate">
+                    ({t(`llmConversation.requestTypes.${autoDetectedType}`) || autoDetectedType}) - {autoDetectedGoal}
+                  </p>
+                )}
+
                 {/* Bottom toolbar: request type + send */}
                 <div id="conv-panel-input-toolbar" className="flex items-center gap-1.5 px-2 pb-2">
                   <Select
                     value={selectedRequestType}
-                    onValueChange={(v) => { setSelectedRequestType(v); setAutoDetectedType(null); setAutoDetectedEntityType(null) }}
+                    onValueChange={(v) => { setSelectedRequestType(v); setAutoDetectedType(null); setAutoDetectedEntityType(null); setAutoDetectedGoal(null) }}
                     disabled={isStreaming || requestTypes.length === 0}
                   >
                     <SelectTrigger id="conv-panel-request-type-trigger" className="h-7 text-xs flex-1">
