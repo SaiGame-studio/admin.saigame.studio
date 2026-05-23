@@ -1,3 +1,17 @@
+## Element ID Rules
+
+### 0. Mandatory `id` on Every Element
+Every HTML/JSX element that is rendered to the DOM **must have a unique `id` attribute**.
+
+**Requirements:**
+- Every `<div>`, `<button>`, `<input>`, `<form>`, `<section>`, `<ul>`, `<li>`, `<span>`, `<p>`, `<a>`, and all other rendered elements must include an `id` prop.
+- IDs must be descriptive, kebab-case, and scoped to their feature (e.g., `game-list-filter-input`, `conv-panel-send-button`).
+- Dynamically rendered list items must include the record identifier in the id (e.g., `conv-item-{conv.ID}`).
+- Component wrapper divs must have an id even if they have no other props (e.g., `id="profile-page-root"`).
+- Never leave an element without an `id` — this is required for automation testing and accessibility tooling.
+
+---
+
 ## Language Rules
 
 ### 0. English-Only Code & Comments
