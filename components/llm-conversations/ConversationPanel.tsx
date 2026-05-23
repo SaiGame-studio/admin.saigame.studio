@@ -12,6 +12,7 @@ import {
   ArchiveRestore,
   Bot,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Loader2,
   Minus,
@@ -54,21 +55,18 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n/use-translation'
-import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils'
 import {
   listConversations,
-  createConversation,
   getConversation,
   updateConversation,
-  submitRequest,
   archiveConversation,
   unarchiveConversation,
   deleteConversation,
-  createRecordsFromConversation,
   listRequestTypes,
 } from '@/lib/llm-conversation-api'
-import type { Conversation, ItemDraft, LoreDraft, RequestType } from '@/types/llm-conversation'
-import { ApiError } from '@/lib/api-client'
+import { useChatPipeline } from '@/hooks/use-chat-pipeline'
+import type { Conversation, RequestType } from '@/types/llm-conversation'
 
 // ---------------------------------------------------------------------------
 // localStorage keys
@@ -79,6 +77,7 @@ const LS_PANEL_WIDTH = 'ss_conv_panel_width'
 const LS_SIDEBAR_WIDTH = 'ss_conv_sidebar_width'
 const LS_SIDEBAR_SPLIT = 'ss_conv_sidebar_split'
 const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`
+const lsConvHistory = (convId: string) => `ss_conv_history_${convId}`
 
 const PANEL_MIN_WIDTH = 320
 const PANEL_MAX_WIDTH = 1200
@@ -97,17 +96,6 @@ const SPLIT_DEFAULT = 180
 function extractGameId(pathname: string): string | null {
   const match = pathname.match(/^\/games\/([^/]+)/)
   return match ? match[1] : null
-}
-
-// ---------------------------------------------------------------------------
-// Rarity badge color map
-// ---------------------------------------------------------------------------
-const RARITY_COLORS: Record<string, string> = {
-  common: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  uncommon: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  rare: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  epic: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
-  legendary: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
 }
 
 // ---------------------------------------------------------------------------
@@ -147,27 +135,26 @@ export function LLMConversationPanel() {
 
   // Message input
   const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isPolling, setIsPolling] = useState(false)
-  const pollingRequestSentAtRef = useRef<string | null>(null)
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Archive/delete dialogs
+  // When we create a conversation ourselves in handleSend, skip loadConversation in the useEffect
+  const justCreatedConvIdRef = useRef<string | null>(null)
 
-  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
+  // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
+  const { isRunning: isStreaming, chatHistory, send: runPipeline, clearHistory, loadHistory } = useChatPipeline()
 
-  // Create records dialog
-  const [showCreateRecordsConfirm, setShowCreateRecordsConfirm] = useState(false)
-  const [isCreatingRecords, setIsCreatingRecords] = useState(false)
-
-  // Request types (fetched from API, mapped to i18n labels)
+  // Request type selector
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([])
   const [selectedRequestType, setSelectedRequestType] = useState<string>('auto')
-  // Detected request type from the last submit response (scoped to active conversation)
-  const [convDetectedType, setConvDetectedType] = useState<string | null>(null)
+  // When selectedRequestType was resolved by auto-detection, stores the detected key so
+  // the trigger can display "Auto - [label]" instead of just the label.
+  const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null)
+  const [autoDetectedEntityType, setAutoDetectedEntityType] = useState<string | null>(null)
+  // Tracks whether the most recent send used auto mode, so the chatHistory watcher
+  // knows when to apply the auto-detection label update.
+  const sentWithAutoRef = useRef(false)
 
-  // Intent error: show retry buttons
-  const [intentError, setIntentError] = useState(false)
+  // Archive/delete dialogs
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
 
   // Panel width (horizontal resize)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -291,12 +278,6 @@ export function LLMConversationPanel() {
   useEffect(() => { safeSetItem(LS_SIDEBAR_SPLIT, String(activeSectionHeight)) }, [activeSectionHeight])
 
   // ---------------------------------------------------------------------------
-  // Persist UI state to localStorage
-  // ---------------------------------------------------------------------------
-  useEffect(() => { safeSetItem(LS_PANEL_OPEN, String(isOpen)) }, [isOpen])
-  useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
-
-  // ---------------------------------------------------------------------------
   // Fetch request types once on mount
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -304,17 +285,45 @@ export function LLMConversationPanel() {
       .then((keys) => {
         const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') }
         const mapped: RequestType[] = keys.map((k) => ({
-          key: k,
-          label: t(`llmConversation.requestTypes.${k}`) || k,
+          key: k.key ?? k,
+          label: t(`llmConversation.requestTypes.${k.key ?? k}`) || k.label || k.key || k,
         }))
         setRequestTypes([auto, ...mapped])
-        setSelectedRequestType('auto')
       })
       .catch(() => {
         toast({ title: t('llmConversation.errorLoadRequestTypes'), variant: 'destructive' })
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ---------------------------------------------------------------------------
+  // After auto-detection completes, update the display label only.
+  // selectedRequestType stays 'auto' so every send re-runs detect-intent.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!sentWithAutoRef.current) return
+    const lastTurn = chatHistory[chatHistory.length - 1]
+    if (lastTurn?.done && lastTurn.detectedType && !lastTurn.error) {
+      setAutoDetectedType(lastTurn.detectedType)
+      setAutoDetectedEntityType(lastTurn.detectedEntityType ?? null)
+      sentWithAutoRef.current = false
+    }
+  }, [chatHistory])
+
+  // ---------------------------------------------------------------------------
+  // Persist UI state to localStorage
+  // ---------------------------------------------------------------------------
+  useEffect(() => { safeSetItem(LS_PANEL_OPEN, String(isOpen)) }, [isOpen])
+  useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
+
+  // Persist completed chat turns for the active conversation
+  useEffect(() => {
+    if (!activeConvId || chatHistory.length === 0) return
+    const completedTurns = chatHistory.filter((t) => t.done)
+    if (completedTurns.length > 0) {
+      safeSetItem(lsConvHistory(activeConvId), JSON.stringify(completedTurns))
+    }
+  }, [chatHistory, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -360,23 +369,27 @@ export function LLMConversationPanel() {
   useEffect(() => {
     if (!gameId || !activeConvId) {
       setActiveConv(null)
-      setConvDetectedType(null)
+      clearHistory()
+      if (gameId) safeRemoveItem(lsActiveConv(gameId))
       return
     }
-    setConvDetectedType(null)
     safeSetItem(lsActiveConv(gameId), activeConvId)
+    // Skip re-fetching when the conversation was just created by handleSend
+    if (justCreatedConvIdRef.current === activeConvId) {
+      justCreatedConvIdRef.current = null
+      return
+    }
+    // Restore chat history from localStorage
+    clearHistory()
+    const raw = safeGetItem(lsConvHistory(activeConvId))
+    if (raw) {
+      try { loadHistory(JSON.parse(raw)) } catch { loadHistory([]) }
+    } else {
+      loadHistory([])
+    }
     loadConversation(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConvId, gameId])
-
-  // ---------------------------------------------------------------------------
-  // Stop polling when component unmounts
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-    }
-  }, [])
 
   // ---------------------------------------------------------------------------
   // API calls
@@ -416,56 +429,34 @@ export function LLMConversationPanel() {
       const conv = await getConversation(gId, convId)
       setActiveConv(conv)
     } catch {
+      // Conversation no longer exists (deleted/archived) — clear stale ID so the
+      // next send will go through the create-conversation step instead of failing.
       setActiveConv(null)
+      setActiveConvId(null)
     } finally {
       setIsLoadingConv(false)
     }
   }
 
-  async function handleSend(requestType?: string) {
-    if (!gameId || !message.trim()) return
-    setIsSubmitting(true)
-    setIntentError(false)
-    const sentAt = new Date().toISOString()
-
-    // Auto-create a dummy conversation to get an ID if none is active
-    let convId = activeConvId
-    if (!convId) {
-      try {
-        const title = message.trim().slice(0, 60)
-        const newConv = await createConversation(gameId, { title, goal: message.trim() })
+  function handleSend() {
+    if (!gameId || !message.trim() || isStreaming) return
+    const userPrompt = message.trim()
+    sentWithAutoRef.current = selectedRequestType === 'auto'
+    setMessage('')
+    void runPipeline(
+      gameId,
+      userPrompt,
+      activeConvId,
+      selectedRequestType,
+      (newConv) => {
+        justCreatedConvIdRef.current = newConv.ID
         setActiveConvs((prev) => [newConv, ...prev])
         setActiveConvId(newConv.ID)
         setActiveConv(newConv)
-        convId = newConv.ID
-      } catch {
-        toast({ title: t('llmConversation.errorCreate'), variant: 'destructive' })
-        setIsSubmitting(false)
-        return
-      }
-    }
-
-    const resolvedType = requestType ?? (selectedRequestType && selectedRequestType !== 'auto' ? selectedRequestType : undefined)
-
-    try {
-      const submitRes = await submitRequest(gameId, convId, {
-        user_prompt: message.trim(),
-        ...(resolvedType ? { request_type: resolvedType } : {}),
-      })
-      setConvDetectedType(submitRes.detected_request_type ?? null)
-      setMessage('')
-      pollingRequestSentAtRef.current = sentAt
-      setIsPolling(true)
-      startPolling(gameId, convId, sentAt)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
-        setIntentError(true)
-      } else {
-        toast({ title: t('llmConversation.errorSend'), variant: 'destructive' })
-      }
-    } finally {
-      setIsSubmitting(false)
-    }
+      },
+      t('llmConversation.errorCreate'),
+      t('llmConversation.errorSend'),
+    )
   }
   async function handleSaveTitle() {
     if (!gameId || !activeConv || !editTitleValue.trim()) {
@@ -499,24 +490,6 @@ export function LLMConversationPanel() {
     }
   }
 
-  const startPolling = useCallback((gId: string, convId: string, sentAt: string) => {
-    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const conv = await getConversation(gId, convId)
-        if (conv.UpdatedAt > sentAt) {
-          setActiveConv(conv)
-          setActiveConvs((prev) => prev.map((c) => (c.ID === conv.ID ? conv : c)))
-          setIsPolling(false)
-          pollingRequestSentAtRef.current = null
-          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-        }
-      } catch {
-        setIsPolling(false)
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-      }
-    }, 2000)
-  }, [])
 
   async function handleArchive(conv: Conversation) {
     if (!gameId) return
@@ -550,6 +523,7 @@ export function LLMConversationPanel() {
     if (!gameId || !deleteTarget) return
     try {
       await deleteConversation(gameId, deleteTarget.ID)
+      safeRemoveItem(lsConvHistory(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
@@ -566,29 +540,6 @@ export function LLMConversationPanel() {
       setDeleteTarget(null)
     }
   }
-
-  async function handleCreateRecords() {
-    if (!gameId || !activeConv) return
-    setIsCreatingRecords(true)
-    try {
-      const res = await createRecordsFromConversation(gameId, activeConv.ID)
-      toast({
-        title: t('llmConversation.recordsCreated').replace('{count}', String(res.created_count)),
-      })
-    } catch {
-      toast({ title: t('llmConversation.errorCreateRecords'), variant: 'destructive' })
-    } finally {
-      setIsCreatingRecords(false)
-      setShowCreateRecordsConfirm(false)
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Derived values
-  // ---------------------------------------------------------------------------
-  const items: ItemDraft[] = activeConv?.AccumulatedContent?.items ?? []
-  const loreEntries: LoreDraft[] = activeConv?.AccumulatedContent?.lore ?? []
-  const canCreateItems = items.length > 0
 
   // ---------------------------------------------------------------------------
   // Don't render when not on a game page, or before client hydration
@@ -630,26 +581,6 @@ export function LLMConversationPanel() {
           <span id="conv-panel-resize-left-dot-2" className="w-0.5 h-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
           <span id="conv-panel-resize-left-dot-3" className="w-0.5 h-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
         </div>
-        {/* ── Panel header ── */}
-        <div id="conv-panel-header" className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-          <div id="conv-panel-header-title" className="flex items-center gap-2 font-semibold text-sm">
-            <Bot className="h-4 w-4 text-primary" />
-            {t('llmConversation.title')}
-          </div>
-          <div id="conv-panel-header-actions" className="flex items-center gap-1">
-            <Button
-              id="conv-panel-btn-close"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setIsOpen(false)}
-              title={t('common.close')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         {/* ── Body: sidebar + conversation view ── */}
         <div id="conv-panel-body" className="flex flex-1 min-h-0">
           {/* Sidebar */}
@@ -670,13 +601,13 @@ export function LLMConversationPanel() {
                   ) : (
                     <ul id="conv-panel-active-list" className="py-0.5 w-full">
                       {activeConvs.map((conv) => (
-                        <li id={`conv-panel-active-item-${conv.ID}`} key={conv.ID} className="grid grid-cols-[1fr_auto] w-full">
+                        <li id={`conv-panel-active-item-${conv.ID}`} key={conv.ID} className={['group grid grid-cols-[1fr_auto] w-full', conv.ID === activeConvId ? 'bg-accent' : ''].join(' ')}>
                           <button
                             id={`conv-panel-active-btn-${conv.ID}`}
-                            onClick={() => setActiveConvId(conv.ID)}
+                            onClick={() => { clearHistory(); setActiveConvId(conv.ID) }}
                             className={[
                               'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors',
-                              conv.ID === activeConvId ? 'bg-accent font-medium' : '',
+                              conv.ID === activeConvId ? 'font-medium' : '',
                             ].join(' ')}
                           >
                             <div id={`conv-panel-active-title-${conv.ID}`} className="truncate">{conv.Title}</div>
@@ -685,8 +616,8 @@ export function LLMConversationPanel() {
                             id={`conv-panel-active-archive-btn-${conv.ID}`}
                             onClick={(e) => { e.stopPropagation(); handleArchive(conv) }}
                             className={[
-                              'ml-0.5 mr-1 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors',
-                              conv.ID === activeConvId ? 'bg-accent' : '',
+                              'mr-1 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                              conv.ID === activeConvId ? 'opacity-100' : '',
                             ].join(' ')}
                             title={t('llmConversation.archive')}
                           >
@@ -724,13 +655,13 @@ export function LLMConversationPanel() {
                   ) : (
                     <ul id="conv-panel-archived-list" className="py-0.5 w-full">
                       {archivedConvs.map((conv) => (
-                        <li id={`conv-panel-archived-item-${conv.ID}`} key={conv.ID} className="grid grid-cols-[1fr_auto] w-full">
+                        <li id={`conv-panel-archived-item-${conv.ID}`} key={conv.ID} className={['group grid grid-cols-[1fr_auto] w-full', conv.ID === activeConvId ? 'bg-accent' : ''].join(' ')}>
                           <button
                             id={`conv-panel-archived-btn-${conv.ID}`}
-                            onClick={() => setActiveConvId(conv.ID)}
+                            onClick={() => { clearHistory(); setActiveConvId(conv.ID) }}
                             className={[
                               'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors opacity-70',
-                              conv.ID === activeConvId ? 'bg-accent font-medium opacity-100' : '',
+                              conv.ID === activeConvId ? 'font-medium opacity-100' : '',
                             ].join(' ')}
                           >
                             <div id={`conv-panel-archived-title-${conv.ID}`} className="truncate">{conv.Title}</div>
@@ -739,8 +670,8 @@ export function LLMConversationPanel() {
                             id={`conv-panel-archived-unarchive-btn-${conv.ID}`}
                             onClick={(e) => { e.stopPropagation(); handleUnarchive(conv) }}
                             className={[
-                              'ml-0.5 mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors',
-                              conv.ID === activeConvId ? 'bg-accent' : '',
+                              'mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                              conv.ID === activeConvId ? 'opacity-100' : '',
                             ].join(' ')}
                             title={t('llmConversation.unarchive')}
                           >
@@ -768,23 +699,44 @@ export function LLMConversationPanel() {
 
           {/* Conversation view */}
           <div id="conv-panel-view" className="flex flex-1 flex-col min-w-0">
-            {!activeConv && !isLoadingConv ? (
-              <div id="conv-panel-empty-state" className="flex flex-1 items-center justify-center p-4 text-center">
+            {!activeConv && !isLoadingConv && !isStreaming && chatHistory.length === 0 ? (
+              <div id="conv-panel-empty-state" className="flex flex-1 items-center justify-center p-4 text-center relative">
+                <Button
+                  id="conv-panel-btn-close"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1 right-1 h-7 w-7"
+                  onClick={() => setIsOpen(false)}
+                  title={t('common.close')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
                 <div id="conv-panel-empty-state-inner">
                   <Bot className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
                   <p id="conv-panel-empty-state-text" className="text-xs text-muted-foreground">{t('llmConversation.selectOrCreate')}</p>
                 </div>
               </div>
-            ) : isLoadingConv ? (
+            ) : isLoadingConv && !isStreaming ? (
               <div id="conv-panel-loading-state" className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : activeConv ? (
+            ) : (
               <>
-                {/* Conv header */}
-                <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
+                {/* Conv header — only when conversation is loaded */}
+                {activeConv && <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
                   {/* Title row */}
                   <div id="conv-panel-title-row" className="flex items-start justify-between gap-1">
+                    {/* Back to list */}
+                    <Button
+                      id="conv-panel-btn-back"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => { setActiveConvId(null); setActiveConv(null) }}
+                      title={t('llmConversation.backToList')}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
                     {editingTitle ? (
                       <Input
                         id="conv-panel-title-input"
@@ -833,154 +785,97 @@ export function LLMConversationPanel() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button
+                      id="conv-panel-btn-close"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => setIsOpen(false)}
+                      title={t('common.close')}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
 
                   {/* Goal row — hidden */}
-                </div>
+                </div>}
 
                 {/* Scrollable content area */}
                 <ScrollArea id="conv-panel-content-scroll" className="flex-1 px-3 py-2">
-                  {/* Summary */}
-                  {activeConv.Summary ? (
-                    <div id="conv-panel-summary-box" className="mb-3 rounded-md bg-muted/50 p-2.5">
-                      <p id="conv-panel-summary-label" className="text-xs font-medium text-primary mb-1">{t('llmConversation.summary')}</p>
-                      <p id="conv-panel-summary-text" className="text-xs leading-relaxed whitespace-pre-wrap">{activeConv.Summary}</p>
-                    </div>
-                  ) : (
-                    <div id="conv-panel-no-summary" className="mb-3 rounded-md border border-dashed p-4 text-center">
-                      <Sparkles className="mx-auto h-5 w-5 text-muted-foreground mb-1" />
-                      <p id="conv-panel-no-summary-text" className="text-xs text-muted-foreground">{t('llmConversation.noSummaryYet')}</p>
-                    </div>
-                  )}
-
-                  {/* Polling indicator */}
-                  {isPolling && (
-                    <div id="conv-panel-polling-indicator" className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      {t('llmConversation.processing')}
+                  {/* Conversation ID + detected language */}
+                  {activeConvId && (
+                    <div id="conv-panel-meta-row" className="flex items-center justify-between mb-2">
+                      <p id="conv-panel-conv-id" className="text-[10px] text-muted-foreground/50 font-mono truncate">
+                        {activeConvId}
+                      </p>
+                      {(() => {
+                        const lang = [...chatHistory].reverse().find((t) => t.detectedLanguage)?.detectedLanguage ?? 'en'
+                        return (
+                          <span id="conv-panel-detected-lang" className="text-[10px] text-muted-foreground/50 font-mono ml-2 shrink-0">
+                            {lang}
+                          </span>
+                        )
+                      })()}
                     </div>
                   )}
 
-                  {/* Intent error */}
-                  {intentError && (
-                    <div id="conv-panel-intent-error" className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 p-2.5 space-y-2">
-                      <p id="conv-panel-intent-error-text" className="text-xs text-destructive">{t('llmConversation.intentError')}</p>
-                      <div id="conv-panel-intent-error-actions" className="flex gap-2">
-                        <Button
-                          id="conv-panel-intent-retry-btn"
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs h-7"
-                          onClick={() => { setIntentError(false); handleSend() }}
+                  {/* Chat history */}
+                  {chatHistory.map((turn) => (
+                    <div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
+                      {/* User message */}
+                      <div id={`conv-panel-user-msg-${turn.id}`} className="flex justify-end mb-2">
+                        <span
+                          id={`conv-panel-user-msg-text-${turn.id}`}
+                          className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs max-w-[80%] break-words"
                         >
-                          {t('common.retry')}
-                        </Button>
+                          {turn.userMessage}
+                        </span>
+                      </div>
+
+                      {/* AI response */}
+                      <div id={`conv-panel-ai-msg-${turn.id}`} className="flex items-start gap-2">
+                        <Bot className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+                        <div id={`conv-panel-ai-msg-content-${turn.id}`} className="flex-1 min-w-0">
+                          {turn.detectedType && (
+                            <span
+                              id={`conv-panel-ai-detected-type-${turn.id}`}
+                              className="mb-1.5 inline-flex items-center gap-1 text-xs border border-primary/50 text-primary rounded-md px-2 py-0.5"
+                            >
+                              <Sparkles className="h-3 w-3 shrink-0" />
+                              {t(`llmConversation.requestTypes.${turn.detectedType}`) || turn.detectedType}
+                            </span>
+                          )}
+                          {turn.error ? (
+                            <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">
+                              {turn.error}
+                            </p>
+                          ) : turn.responseText ? (
+                            <p id={`conv-panel-ai-text-${turn.id}`} className="text-xs leading-relaxed whitespace-pre-wrap">
+                              {turn.responseText}
+                            </p>
+                          ) : !turn.done ? (
+                            <Loader2 id={`conv-panel-ai-spinner-${turn.id}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  )}
+                  ))}
 
-                  {/* Accumulated Items */}
-                  {items.length > 0 && (
-                    <div id="conv-panel-items-section" className="mb-3">
-                      <div id="conv-panel-items-header" className="flex items-center justify-between mb-1.5">
-                        <p id="conv-panel-items-label" className="text-xs font-medium">{t('llmConversation.generatedItems')} ({items.length})</p>
-                        <Button
-                          id="conv-panel-save-to-game-btn"
-                          size="sm"
-                          variant="default"
-                          className="h-6 text-xs px-2"
-                          onClick={() => setShowCreateRecordsConfirm(true)}
-                        >
-                          <Sparkles className="mr-1 h-3 w-3" />
-                          {t('llmConversation.saveToGame')}
-                        </Button>
-                      </div>
-                      <ul id="conv-panel-items-list" className="space-y-1.5">
-                        {items.map((item, i) => (
-                          <li id={`conv-panel-item-draft-${i}`} key={i} className="rounded border p-2 text-xs">
-                            <div id={`conv-panel-item-draft-header-${i}`} className="flex items-center gap-1.5 mb-0.5">
-                              <span id={`conv-panel-item-draft-name-${i}`} className="font-medium">{item.name}</span>
-                              <span id={`conv-panel-item-draft-rarity-${i}`} className={`rounded px-1 py-0.5 text-[10px] font-medium ${RARITY_COLORS[item.rarity] ?? ''}`}>
-                                {item.rarity}
-                              </span>
-                            </div>
-                            <p id={`conv-panel-item-draft-desc-${i}`} className="text-muted-foreground leading-snug">{item.description}</p>
-                            {Object.keys(item.attributes ?? {}).length > 0 && (
-                              <div id={`conv-panel-item-draft-attrs-${i}`} className="mt-1 flex flex-wrap gap-1">
-                                {Object.entries(item.attributes).map(([k, v]) => (
-                                  <span id={`conv-panel-item-draft-attr-${i}-${k}`} key={k} className="rounded bg-muted px-1 py-0.5 text-[10px]">
-                                    {k}: {v}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Accumulated Lore */}
-                  {loreEntries.length > 0 && (
-                    <div id="conv-panel-lore-section" className="mb-3">
-                      <p id="conv-panel-lore-label" className="text-xs font-medium mb-1.5">{t('llmConversation.generatedLore')} ({loreEntries.length})</p>
-                      <ul id="conv-panel-lore-list" className="space-y-1.5">
-                        {loreEntries.map((entry, i) => (
-                          <li id={`conv-panel-lore-entry-${i}`} key={i} className="rounded border p-2 text-xs">
-                            <div id={`conv-panel-lore-header-${i}`} className="flex items-center gap-1.5 mb-0.5">
-                              <span id={`conv-panel-lore-name-${i}`} className="font-medium">{entry.name}</span>
-                              {entry.era && (
-                                <span id={`conv-panel-lore-era-${i}`} className="text-muted-foreground">· {entry.era}</span>
-                              )}
-                            </div>
-                            <p id={`conv-panel-lore-desc-${i}`} className="text-muted-foreground leading-snug">{entry.description}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </ScrollArea>
 
               </>
-            ) : null}
+            )}
 
             {/* Message input — always visible */}
-            <div id="conv-panel-input-area" className="shrink-0 border-t p-2 space-y-1.5">
-              {/* Request type selector + conversation detected type */}
-              <div id="conv-panel-request-type-row" className="flex gap-1.5 items-center">
-                <Select
-                  value={selectedRequestType}
-                  onValueChange={setSelectedRequestType}
-                  disabled={isSubmitting || isPolling || requestTypes.length === 0}
-                >
-                  <SelectTrigger id="conv-panel-request-type-trigger" className="h-7 text-xs w-1/2">
-                    <SelectValue id="conv-panel-request-type-value" placeholder={t('llmConversation.requestTypeLabel')} />
-                  </SelectTrigger>
-                  <SelectContent id="conv-panel-request-type-content">
-                    {requestTypes.map((rt) => (
-                      <SelectItem id={`conv-panel-request-type-option-${rt.key}`} key={rt.key} value={rt.key} className="text-xs">
-                        {rt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span
-                  id="conv-panel-conv-detected-type"
-                  className="w-1/2 h-7 flex items-center px-2 rounded-md border border-dashed text-xs text-muted-foreground truncate"
-                  title={convDetectedType ?? ''}
-                >
-                  {convDetectedType
-                    ? (t(`llmConversation.requestTypes.${convDetectedType}`) || convDetectedType)
-                    : '---'}
-                </span>
-              </div>
-              <div id="conv-panel-textarea-row" className="flex gap-1.5">
+            <div id="conv-panel-input-area" className="shrink-0 border-t p-2">
+              <div id="conv-panel-input-box" className="flex flex-col rounded-xl border bg-background">
+                {/* Textarea */}
                 <Textarea
                   id="conv-panel-message-input"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={t('llmConversation.messagePlaceholder')}
-                  className="text-xs min-h-[56px] resize-none flex-1"
+                  className="min-h-[60px] resize-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-xs px-3 py-2"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
@@ -988,19 +883,53 @@ export function LLMConversationPanel() {
                     }
                   }}
                 />
-                <Button
-                  id="conv-panel-send-btn"
-                  size="icon"
-                  className="h-auto w-8 self-end shrink-0"
-                  disabled={isSubmitting || isPolling || !message.trim()}
-                  onClick={() => handleSend()}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Send className="h-3.5 w-3.5" />
-                  )}
-                </Button>
+
+                {/* Bottom toolbar: request type + send */}
+                <div id="conv-panel-input-toolbar" className="flex items-center gap-1.5 px-2 pb-2">
+                  <Select
+                    value={selectedRequestType}
+                    onValueChange={(v) => { setSelectedRequestType(v); setAutoDetectedType(null); setAutoDetectedEntityType(null) }}
+                    disabled={isStreaming || requestTypes.length === 0}
+                  >
+                    <SelectTrigger id="conv-panel-request-type-trigger" className="h-7 text-xs flex-1">
+                      <span id="conv-panel-request-type-value" className="flex-1 text-left truncate">
+                        {(() => {
+                          if (autoDetectedType && selectedRequestType === 'auto') {
+                            const detectedLabel = t(`llmConversation.requestTypes.${autoDetectedType}`) || (requestTypes.find((rt) => rt.key === autoDetectedType)?.label ?? autoDetectedType)
+                            const entityLabel = autoDetectedEntityType
+                              ? (t(`llmConversation.entityTypes.${autoDetectedEntityType}`) || autoDetectedEntityType)
+                              : null
+                            return entityLabel
+                              ? `Auto - ${detectedLabel} - ${entityLabel}`
+                              : `Auto - ${detectedLabel}`
+                          }
+                          return t(`llmConversation.requestTypes.${selectedRequestType}`) || (requestTypes.find((rt) => rt.key === selectedRequestType)?.label ?? selectedRequestType)
+                        })()}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent id="conv-panel-request-type-content">
+                      {requestTypes.map((rt) => (
+                        <SelectItem id={`conv-panel-request-type-option-${rt.key}`} key={rt.key} value={rt.key} className="text-xs">
+                          {t(`llmConversation.requestTypes.${rt.key}`) || rt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    id="conv-panel-send-btn"
+                    size="icon"
+                    className="h-7 w-7 rounded-full shrink-0"
+                    disabled={isStreaming || !message.trim()}
+                    onClick={() => handleSend()}
+                  >
+                    {isStreaming ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1025,24 +954,7 @@ export function LLMConversationPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Create records confirmation ── */}
-      <AlertDialog open={showCreateRecordsConfirm} onOpenChange={setShowCreateRecordsConfirm}>
-        <AlertDialogContent id="conv-panel-create-records-dialog">
-          <AlertDialogHeader>
-            <AlertDialogTitle id="conv-panel-create-records-dialog-title">{t('llmConversation.createRecordsTitle')}</AlertDialogTitle>
-            <AlertDialogDescription id="conv-panel-create-records-dialog-desc">
-              {t('llmConversation.createRecordsDesc').replace('{count}', String(items.length))}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel id="conv-panel-create-records-cancel-btn" disabled={isCreatingRecords}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction id="conv-panel-create-records-confirm-btn" onClick={handleCreateRecords} disabled={isCreatingRecords}>
-              {isCreatingRecords && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              {t('common.confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </>
   )
 }

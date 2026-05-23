@@ -1,4 +1,5 @@
 import { api } from '@/lib/api-client'
+import { getValidToken } from '@/lib/auth-utils'
 import type {
   Conversation,
   ListConversationsResponse,
@@ -85,4 +86,127 @@ export async function createRecordsFromConversation(
 export async function listRequestTypes(): Promise<RequestType[]> {
   const res = await api.get('/api/v1/llm/request-types')
   return Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
+}
+
+export async function streamDetectIntent(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  onChunk: (text: string) => void,
+  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string) => void,
+  onError: (message: string) => void,
+): Promise<void> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (!apiUrl) throw new Error('API URL is not configured.')
+
+  const token = getValidToken()
+  if (!token) throw new Error('Not authenticated.')
+
+  const res = await fetch(
+    `${apiUrl}${base(gameId)}/${conversationId}/detect-intent`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_prompt: userPrompt }),
+    },
+  )
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buf += decoder.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop()!
+
+    for (const part of parts) {
+      if (!part.startsWith('data: ')) continue
+      const evt = JSON.parse(part.slice(6))
+
+      if (evt.type === 'chunk') {
+        onChunk(evt.text ?? '')
+      } else if (evt.type === 'done') {
+        onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '')
+        return
+      } else if (evt.type === 'error') {
+        onError(evt.message ?? 'Unknown error')
+        return
+      }
+    }
+  }
+}
+
+export async function streamRequest(
+  gameId: string,
+  conversationId: string,
+  requestType: string,
+  userPrompt: string,
+  onChunk: (text: string) => void,
+  onDone: (requestId: string) => void,
+  onError: (message: string) => void,
+  entityType?: string,
+  language?: string,
+): Promise<void> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (!apiUrl) throw new Error('API URL is not configured.')
+
+  const token = getValidToken()
+  if (!token) throw new Error('Not authenticated.')
+
+  const urlType = requestType.replace(/_/g, '-')
+  const res = await fetch(
+    `${apiUrl}${base(gameId)}/${conversationId}/requests/${urlType}`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_prompt: userPrompt,
+        entity_type: entityType ?? 'custom',
+        language: language ?? '',
+        lore_entry_ids: [],
+      }),
+    },
+  )
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buf += decoder.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop()!
+
+    for (const part of parts) {
+      if (!part.startsWith('data: ')) continue
+      const evt = JSON.parse(part.slice(6))
+
+      if (evt.type === 'chunk') {
+        onChunk(evt.text ?? '')
+      } else if (evt.type === 'done') {
+        onDone(evt.request_id ?? '')
+        return
+      } else if (evt.type === 'error') {
+        onError(evt.message ?? 'Unknown error')
+        return
+      }
+    }
+  }
 }
