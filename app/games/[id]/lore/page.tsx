@@ -345,7 +345,7 @@ export default function LorePage() {
             </h1>
             <p className="text-muted-foreground text-sm">
               {total > 0
-                ? `${total} ${total !== 1 ? t("lore.entryCountPlural") : t("lore.entryCount")}${game ? ` · ${game.name}` : ""}`
+                ? `${total} ${total !== 1 ? t("lore.entryCountPlural") : t("lore.entryCount")}`
                 : game?.name ?? gameId}
             </p>
           </div>
@@ -355,42 +355,28 @@ export default function LorePage() {
         </div>
       </div>
 
-      {/* Type sub-tabs */}
-      {loreTypes.length > 0 && (
-        <div className="mb-3 overflow-x-auto">
-          <Tabs
-            value={typeFilter || "all"}
-            onValueChange={v => { setTypeFilter(v === "all" ? "" : v); setOffset(0) }}
-          >
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="text-xs px-3 h-7">
-                {t("lore.filterAll")}
-              </TabsTrigger>
-              {loreTypes.map(type => (
-                <TabsTrigger key={type} value={type} className="text-xs px-3 h-7">
-                  {loreTypeLabel(type, t)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
-
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Search */}
-          <div className="relative">
-            <Input
-              className="h-8 w-52 pl-3 text-sm"
-              placeholder={t("lore.searchPlaceholder")}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+        <div className="overflow-x-auto">
+          {loreTypes.length > 0 && (
+            <Tabs
+              value={typeFilter || "all"}
+              onValueChange={v => { setTypeFilter(v === "all" ? "" : v); setOffset(0) }}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger value="all" className="text-xs px-3 h-7">
+                  {t("lore.filterAll")}
+                </TabsTrigger>
+                {loreTypes.map(type => (
+                  <TabsTrigger key={type} value={type} className="text-xs px-3 h-7">
+                    {loreTypeLabel(type, t)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
         </div>
-
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchAll(offset)} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
