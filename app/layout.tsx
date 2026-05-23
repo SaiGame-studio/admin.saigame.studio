@@ -28,6 +28,26 @@ export const metadata: Metadata = {
     shortcut: '/logo.png',
     apple: '/logo.png',
   },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: `${SITE_NAME} dashboard for managing Game Server`,
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1456,
+        height: 816,
+        alt: `${SITE_NAME} - Quản lý Game Server chuyên nghiệp`,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: `${SITE_NAME} dashboard for managing Game Server`,
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({
