@@ -84,9 +84,10 @@ export async function createRecordsFromConversation(
   return api.post(`${base(gameId)}/${conversationId}/create-records`)
 }
 
-export async function listRequestTypes(): Promise<RequestType[]> {
+export async function listRequestTypes(): Promise<string[]> {
   const res = await api.get('/api/v1/llm/request-types')
-  return Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
+  const arr: unknown = Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
+  return (Array.isArray(arr) ? arr : []) as string[]
 }
 
 export async function streamDetectIntent(

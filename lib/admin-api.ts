@@ -941,7 +941,7 @@ export async function getCCUOverview(): Promise<CCUOverviewResult> {
 // System Prompts (platform-wide defaults)
 // ---------------------------------------------------------------------------
 
-export type SystemPromptType = "lore" | "item_gen" | "quest" | "gacha" | "generic"
+export type SystemPromptType = string
 export type SystemPromptProvider = "gemini" | "openai" | "anthropic"
 
 export interface SystemPrompt {

@@ -285,8 +285,8 @@ export function LLMConversationPanel() {
       .then((keys) => {
         const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') }
         const mapped: RequestType[] = keys.map((k) => ({
-          key: k.key ?? k,
-          label: t(`llmConversation.requestTypes.${k.key ?? k}`) || k.label || k.key || k,
+          key: k,
+          label: t(`llmConversation.requestTypes.${k}`) || k,
         }))
         setRequestTypes([auto, ...mapped])
       })
