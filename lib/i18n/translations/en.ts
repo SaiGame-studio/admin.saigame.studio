@@ -341,6 +341,7 @@ export const en = {
     navUpgrade: "Upgrade",
     navMailbox: "Mailbox",
     navScripts: "Scripts",
+    navLore: "Lore",
     scripts: "Scripts",
     compactNav: "Compact nav",
     expandNav: "Expand nav",
@@ -3400,6 +3401,76 @@ export const en = {
     confirmUpvoteTitle: "Confirm Upvote",
     confirmUpvoteDesc: "Upvoting this content will cost 🪙 1 sCoin. Do you want to proceed?",
     confirmUpvoteBtn: "Confirm & Pay 1 sCoin",
+  },
+  lore: {
+    pageTitle: "Lore",
+    breadcrumbGames: "Games",
+    breadcrumbLore: "Lore",
+
+    // Header
+    entryCount: "entry",
+    entryCountPlural: "entries",
+
+    // Toolbar
+    newEntry: "New Entry",
+    noEntriesYet: "No lore entries yet",
+    filterByType: "Filter by type",
+    filterAll: "All Types",
+    searchPlaceholder: "Search lore...",
+
+    // Lore types
+    typeWorld: "World",
+    typeRegion: "Region",
+    typeFaction: "Faction",
+    typeCharacter: "Character",
+    typeItemLore: "Item Lore",
+    typeEvent: "Event",
+    typeCreature: "Creature",
+    typeCustom: "Custom",
+
+    // Table headers
+    tableHeaderTitle: "Title",
+    tableHeaderType: "Type",
+    tableHeaderSummary: "Summary",
+    tableHeaderUpdatedAt: "Updated",
+
+    // Empty state
+    emptyTitle: "No lore entries yet. Create your first entry to get started.",
+
+    // Create / Edit sheet
+    createTitle: "New Lore Entry",
+    createDescription: "Add a piece of lore to enrich your game world.",
+    editTitle: "Edit Lore Entry",
+    editDescription: "Update the details of this lore entry.",
+    labelType: "Type",
+    labelTitle: "Title",
+    labelSummary: "Summary",
+    labelContent: "Content",
+    placeholderType: "Select a type...",
+    placeholderTitle: "Enter title...",
+    placeholderSummary: "A short description (max 500 chars)...",
+    placeholderContent: "Full lore content (max 100 000 chars)...",
+    btnCancel: "Cancel",
+    btnCreate: "Create Entry",
+    btnSave: "Save Changes",
+
+    // Delete
+    deleteTitle: "Delete Lore Entry",
+    deleteDescription: "Are you sure you want to delete",
+    deleteCannotUndone: "This action cannot be undone.",
+
+    // Validation
+    validationTitleRequired: "Title is required.",
+    validationTypeRequired: "Lore type is required.",
+
+    // Toasts
+    toastCreated: "Lore entry created",
+    toastUpdated: "Lore entry updated",
+    toastDeleted: "Lore entry deleted",
+    toastFailedCreate: "Failed to create lore entry",
+    toastFailedUpdate: "Failed to update lore entry",
+    toastFailedDelete: "Failed to delete lore entry",
+    toastFailedLoad: "Failed to load lore entries",
   },
   tutorials: {
     title: "Learning Center",
