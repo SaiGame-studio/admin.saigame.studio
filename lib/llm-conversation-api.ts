@@ -61,6 +61,13 @@ export async function archiveConversation(
   return api.post(`${base(gameId)}/${conversationId}/archive`)
 }
 
+export async function unarchiveConversation(
+  gameId: string,
+  conversationId: string,
+): Promise<Conversation> {
+  return api.post(`${base(gameId)}/${conversationId}/unarchive`)
+}
+
 export async function deleteConversation(
   gameId: string,
   conversationId: string,

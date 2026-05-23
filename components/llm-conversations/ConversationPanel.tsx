@@ -9,6 +9,7 @@ import {
 import { usePathname } from 'next/navigation'
 import {
   Archive,
+  ArchiveRestore,
   Bot,
   ChevronDown,
   ChevronRight,
@@ -61,6 +62,7 @@ import {
   updateConversation,
   submitRequest,
   archiveConversation,
+  unarchiveConversation,
   deleteConversation,
   createRecordsFromConversation,
   listRequestTypes,
@@ -79,11 +81,11 @@ const LS_SIDEBAR_SPLIT = 'ss_conv_sidebar_split'
 const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`
 
 const PANEL_MIN_WIDTH = 320
-const PANEL_MAX_WIDTH = 720
+const PANEL_MAX_WIDTH = 1200
 const PANEL_DEFAULT_WIDTH = 380
 
 const SIDEBAR_MIN_WIDTH = 100
-const SIDEBAR_MAX_WIDTH = 280
+const SIDEBAR_MAX_WIDTH = 500
 const SIDEBAR_DEFAULT_WIDTH = 140
 
 const SPLIT_MIN = 60
@@ -151,7 +153,7 @@ export function LLMConversationPanel() {
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Archive/delete dialogs
-  const [archiveTarget, setArchiveTarget] = useState<Conversation | null>(null)
+
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
 
   // Create records dialog
@@ -516,21 +518,31 @@ export function LLMConversationPanel() {
     }, 2000)
   }, [])
 
-  async function handleArchive() {
-    if (!gameId || !archiveTarget) return
+  async function handleArchive(conv: Conversation) {
+    if (!gameId) return
     try {
-      const archived = await archiveConversation(gameId, archiveTarget.ID)
-      setActiveConvs((prev) => prev.filter((c) => c.ID !== archiveTarget.ID))
+      const archived = await archiveConversation(gameId, conv.ID)
+      setActiveConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       setArchivedConvs((prev) => [archived, ...prev])
-      if (activeConvId === archiveTarget.ID) {
+      if (activeConvId === conv.ID) {
         setActiveConvId(null)
         setActiveConv(null)
       }
       toast({ title: t('llmConversation.archived') })
     } catch {
       toast({ title: t('llmConversation.errorArchive'), variant: 'destructive' })
-    } finally {
-      setArchiveTarget(null)
+    }
+  }
+
+  async function handleUnarchive(conv: Conversation) {
+    if (!gameId) return
+    try {
+      const restored = await unarchiveConversation(gameId, conv.ID)
+      setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
+      setActiveConvs((prev) => [restored, ...prev])
+      toast({ title: t('llmConversation.unarchived') })
+    } catch {
+      toast({ title: t('llmConversation.errorUnarchive'), variant: 'destructive' })
     }
   }
 
@@ -607,7 +619,7 @@ export function LLMConversationPanel() {
   // ---------------------------------------------------------------------------
   return (
     <>
-      <div id="conv-panel-root" className="fixed right-0 top-0 z-40 flex h-screen flex-col border-l bg-background shadow-2xl" style={{ width: panelWidth }}>
+      <div id="conv-panel-root" className="fixed right-0 top-14 lg:top-[60px] z-40 flex h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-60px)] flex-col border-l bg-background shadow-2xl" style={{ width: panelWidth }}>
         {/* ── Resize handle (left edge) ── */}
         <div
           id="conv-panel-resize-left"
@@ -625,16 +637,6 @@ export function LLMConversationPanel() {
             {t('llmConversation.title')}
           </div>
           <div id="conv-panel-header-actions" className="flex items-center gap-1">
-            <Button
-              id="conv-panel-btn-minimize"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setIsMinimized(true)}
-              title={t('llmConversation.minimize')}
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
             <Button
               id="conv-panel-btn-close"
               variant="ghost"
@@ -666,18 +668,29 @@ export function LLMConversationPanel() {
                   {!isLoadingActive && activeConvs.length === 0 ? (
                     <p id="conv-panel-active-empty" className="p-2.5 text-xs text-muted-foreground">{t('llmConversation.noConversations')}</p>
                   ) : (
-                    <ul id="conv-panel-active-list" className="py-0.5">
+                    <ul id="conv-panel-active-list" className="py-0.5 w-full">
                       {activeConvs.map((conv) => (
-                        <li id={`conv-panel-active-item-${conv.ID}`} key={conv.ID}>
+                        <li id={`conv-panel-active-item-${conv.ID}`} key={conv.ID} className="grid grid-cols-[1fr_auto] w-full">
                           <button
                             id={`conv-panel-active-btn-${conv.ID}`}
                             onClick={() => setActiveConvId(conv.ID)}
                             className={[
-                              'w-full text-left px-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors',
+                              'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors',
                               conv.ID === activeConvId ? 'bg-accent font-medium' : '',
                             ].join(' ')}
                           >
-                            <div id={`conv-panel-active-title-${conv.ID}`} className="line-clamp-2">{conv.Title}</div>
+                            <div id={`conv-panel-active-title-${conv.ID}`} className="truncate">{conv.Title}</div>
+                          </button>
+                          <button
+                            id={`conv-panel-active-archive-btn-${conv.ID}`}
+                            onClick={(e) => { e.stopPropagation(); handleArchive(conv) }}
+                            className={[
+                              'ml-0.5 mr-1 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors',
+                              conv.ID === activeConvId ? 'bg-accent' : '',
+                            ].join(' ')}
+                            title={t('llmConversation.archive')}
+                          >
+                            <Archive className="h-3 w-3" />
                           </button>
                         </li>
                       ))}
@@ -709,18 +722,29 @@ export function LLMConversationPanel() {
                   {!isLoadingArchived && archivedConvs.length === 0 ? (
                     <p id="conv-panel-archived-empty" className="p-2.5 text-xs text-muted-foreground">{t('llmConversation.noConversations')}</p>
                   ) : (
-                    <ul id="conv-panel-archived-list" className="py-0.5">
+                    <ul id="conv-panel-archived-list" className="py-0.5 w-full">
                       {archivedConvs.map((conv) => (
-                        <li id={`conv-panel-archived-item-${conv.ID}`} key={conv.ID}>
+                        <li id={`conv-panel-archived-item-${conv.ID}`} key={conv.ID} className="grid grid-cols-[1fr_auto] w-full">
                           <button
                             id={`conv-panel-archived-btn-${conv.ID}`}
                             onClick={() => setActiveConvId(conv.ID)}
                             className={[
-                              'w-full text-left px-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors opacity-70',
+                              'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors opacity-70',
                               conv.ID === activeConvId ? 'bg-accent font-medium opacity-100' : '',
                             ].join(' ')}
                           >
-                            <div id={`conv-panel-archived-title-${conv.ID}`} className="line-clamp-2">{conv.Title}</div>
+                            <div id={`conv-panel-archived-title-${conv.ID}`} className="truncate">{conv.Title}</div>
+                          </button>
+                          <button
+                            id={`conv-panel-archived-unarchive-btn-${conv.ID}`}
+                            onClick={(e) => { e.stopPropagation(); handleUnarchive(conv) }}
+                            className={[
+                              'ml-0.5 mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors',
+                              conv.ID === activeConvId ? 'bg-accent' : '',
+                            ].join(' ')}
+                            title={t('llmConversation.unarchive')}
+                          >
+                            <ArchiveRestore className="h-3 w-3" />
                           </button>
                         </li>
                       ))}
@@ -792,13 +816,9 @@ export function LLMConversationPanel() {
                           <Pencil className="mr-2 h-3.5 w-3.5" />
                           {t('llmConversation.editTitle')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem id="conv-panel-menu-edit-goal" onClick={() => { setEditGoalValue(activeConv.Goal); setEditingGoal(true) }}>
-                          <Pencil className="mr-2 h-3.5 w-3.5" />
-                          {t('llmConversation.editGoal')}
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {!activeConv.ArchivedAt && (
-                          <DropdownMenuItem id="conv-panel-menu-archive" onClick={() => setArchiveTarget(activeConv)}>
+                          <DropdownMenuItem id="conv-panel-menu-archive" onClick={() => handleArchive(activeConv)}>
                             <Archive className="mr-2 h-3.5 w-3.5" />
                             {t('llmConversation.archive')}
                           </DropdownMenuItem>
@@ -815,27 +835,7 @@ export function LLMConversationPanel() {
                     </DropdownMenu>
                   </div>
 
-                  {/* Goal row */}
-                  {editingGoal ? (
-                    <Textarea
-                      id="conv-panel-goal-textarea"
-                      value={editGoalValue}
-                      onChange={(e) => setEditGoalValue(e.target.value)}
-                      onBlur={handleSaveGoal}
-                      autoFocus
-                      className="text-xs min-h-[56px] resize-none"
-                    />
-                  ) : (
-                    <button
-                      id="conv-panel-goal-btn"
-                      className="w-full text-left text-xs text-muted-foreground hover:text-foreground leading-snug line-clamp-2"
-                      onClick={() => { setEditGoalValue(activeConv.Goal); setEditingGoal(true) }}
-                      title={t('llmConversation.editGoal')}
-                    >
-                      <span id="conv-panel-goal-label" className="font-medium text-primary">{t('llmConversation.goalLabel')}</span>{' '}
-                      {activeConv.Goal}
-                    </button>
-                  )}
+                  {/* Goal row — hidden */}
                 </div>
 
                 {/* Scrollable content area */}
@@ -1006,22 +1006,6 @@ export function LLMConversationPanel() {
           </div>
         </div>
       </div>
-
-      {/* ── Archive confirmation ── */}
-      <AlertDialog open={!!archiveTarget} onOpenChange={(o) => { if (!o) setArchiveTarget(null) }}>
-        <AlertDialogContent id="conv-panel-archive-dialog">
-          <AlertDialogHeader>
-            <AlertDialogTitle id="conv-panel-archive-dialog-title">{t('llmConversation.archiveTitle')}</AlertDialogTitle>
-            <AlertDialogDescription id="conv-panel-archive-dialog-desc">
-              {t('llmConversation.archiveDesc').replace('{title}', archiveTarget?.Title ?? '')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel id="conv-panel-archive-cancel-btn">{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction id="conv-panel-archive-confirm-btn" onClick={handleArchive}>{t('llmConversation.archive')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* ── Delete confirmation ── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
