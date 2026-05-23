@@ -33,6 +33,7 @@ export const ja = {
     submit: "送信",
     reset: "リセット",
     refresh: "更新",
+    retry: "再試行",
     confirm: "確認",
     success: "成功",
     warning: "警告",
@@ -3425,6 +3426,12 @@ export const ja = {
     noSummaryYet: "メッセージを送信して開始してください。",
     processing: "応答を処理中...",
     messagePlaceholder: "メッセージを入力... (Enterで送信)",
+    requestTypeLabel: "リクエストタイプ",
+    requestTypes: {
+      auto: "自動",
+      item_generation: "アイテム生成",
+      lore_building: "ロア構築",
+    },
     generateItems: "アイテム生成",
     buildLore: "ロア構築",
     generatedItems: "生成されたアイテム",
@@ -3449,5 +3456,6 @@ export const ja = {
     errorArchive: "会話のアーカイブに失敗しました。",
     errorDelete: "会話の削除に失敗しました。",
     errorCreateRecords: "アイテムレコードの作成に失敗しました。",
+    errorLoadRequestTypes: "リクエストタイプの読み込みに失敗しました。",
   },
 };

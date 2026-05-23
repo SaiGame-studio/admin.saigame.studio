@@ -7,6 +7,7 @@ import type {
   SubmitRequestBody,
   SubmitRequestResponse,
   CreateRecordsResponse,
+  RequestType,
 } from '@/types/llm-conversation'
 
 const base = (gameId: string) => `/api/v1/games/${gameId}/llm/conversations`
@@ -72,4 +73,9 @@ export async function createRecordsFromConversation(
   conversationId: string,
 ): Promise<CreateRecordsResponse> {
   return api.post(`${base(gameId)}/${conversationId}/create-records`)
+}
+
+export async function listRequestTypes(): Promise<RequestType[]> {
+  const res = await api.get('/api/v1/llm/request-types')
+  return Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
 }

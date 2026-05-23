@@ -49,9 +49,14 @@ export interface UpdateConversationRequest {
   goal?: string
 }
 
+export interface RequestType {
+  key: string
+  label: string
+}
+
 export interface SubmitRequestBody {
   user_prompt: string
-  request_type?: 'item_generation' | 'lore_building'
+  request_type?: string
   lore_entry_ids?: string[]
 }
 

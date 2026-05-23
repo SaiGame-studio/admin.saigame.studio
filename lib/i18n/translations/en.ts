@@ -33,6 +33,7 @@ export const en = {
     submit: "Submit",
     reset: "Reset",
     refresh: "Refresh",
+    retry: "Retry",
     confirm: "Confirm",
     success: "Success",
     warning: "Warning",
@@ -3497,6 +3498,12 @@ export const en = {
     noSummaryYet: "Send a message to get started.",
     processing: "Processing response...",
     messagePlaceholder: "Type a message... (Enter to send)",
+    requestTypeLabel: "Request type",
+    requestTypes: {
+      auto: "Auto",
+      item_generation: "Generate Items",
+      lore_building: "Build Lore",
+    },
     generateItems: "Generate Items",
     buildLore: "Build Lore",
     generatedItems: "Generated Items",
@@ -3521,5 +3528,6 @@ export const en = {
     errorArchive: "Failed to archive conversation.",
     errorDelete: "Failed to delete conversation.",
     errorCreateRecords: "Failed to create item records.",
+    errorLoadRequestTypes: "Failed to load request types.",
   },
 };

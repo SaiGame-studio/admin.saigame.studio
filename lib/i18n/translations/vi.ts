@@ -31,6 +31,7 @@ export const vi = {
     submit: "Gửi",
     reset: "Đặt lại",
     refresh: "Làm mới",
+    retry: "Thử lại",
     confirm: "Xác nhận",
     success: "Thành công",
     warning: "Cảnh báo",
@@ -3437,6 +3438,12 @@ export const vi = {
     noSummaryYet: "Gửi tin nhắn để bắt đầu.",
     processing: "Đang xử lý phản hồi...",
     messagePlaceholder: "Nhập tin nhắn... (Enter để gửi)",
+    requestTypeLabel: "Loại yêu cầu",
+    requestTypes: {
+      auto: "Tự động",
+      item_generation: "Tạo Vật Phẩm",
+      lore_building: "Xây Dựng Lore",
+    },
     generateItems: "Tạo Vật Phẩm",
     buildLore: "Xây Dựng Lore",
     generatedItems: "Vật Phẩm Đã Tạo",
@@ -3461,5 +3468,6 @@ export const vi = {
     errorArchive: "Không thể lưu trữ cuộc hội thoại.",
     errorDelete: "Không thể xóa cuộc hội thoại.",
     errorCreateRecords: "Không thể tạo bản ghi vật phẩm.",
+    errorLoadRequestTypes: "Không thể tải loại yêu cầu.",
   },
 };

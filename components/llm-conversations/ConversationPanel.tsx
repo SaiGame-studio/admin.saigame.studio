@@ -28,6 +28,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -56,8 +63,9 @@ import {
   archiveConversation,
   deleteConversation,
   createRecordsFromConversation,
+  listRequestTypes,
 } from '@/lib/llm-conversation-api'
-import type { Conversation, ItemDraft, LoreDraft } from '@/types/llm-conversation'
+import type { Conversation, ItemDraft, LoreDraft, RequestType } from '@/types/llm-conversation'
 import { ApiError } from '@/lib/api-client'
 
 // ---------------------------------------------------------------------------
@@ -110,6 +118,10 @@ export function LLMConversationPanel() {
 
   const gameId = extractGameId(pathname)
 
+  // Defer rendering until after hydration to avoid localStorage mismatch
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   // Panel visibility state
   const [isOpen, setIsOpen] = useState(() => safeGetItem(LS_PANEL_OPEN) === 'true')
   const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true')
@@ -145,6 +157,12 @@ export function LLMConversationPanel() {
   // Create records dialog
   const [showCreateRecordsConfirm, setShowCreateRecordsConfirm] = useState(false)
   const [isCreatingRecords, setIsCreatingRecords] = useState(false)
+
+  // Request types (fetched from API, mapped to i18n labels)
+  const [requestTypes, setRequestTypes] = useState<RequestType[]>([])
+  const [selectedRequestType, setSelectedRequestType] = useState<string>('auto')
+  // Detected request type from the last submit response (scoped to active conversation)
+  const [convDetectedType, setConvDetectedType] = useState<string | null>(null)
 
   // Intent error: show retry buttons
   const [intentError, setIntentError] = useState(false)
@@ -277,6 +295,26 @@ export function LLMConversationPanel() {
   useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
 
   // ---------------------------------------------------------------------------
+  // Fetch request types once on mount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    listRequestTypes()
+      .then((keys) => {
+        const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') }
+        const mapped: RequestType[] = keys.map((k) => ({
+          key: k,
+          label: t(`llmConversation.requestTypes.${k}`) || k,
+        }))
+        setRequestTypes([auto, ...mapped])
+        setSelectedRequestType('auto')
+      })
+      .catch(() => {
+        toast({ title: t('llmConversation.errorLoadRequestTypes'), variant: 'destructive' })
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
   // ---------------------------------------------------------------------------
   const prevGameIdRef = useRef<string | null>(null)
@@ -320,8 +358,10 @@ export function LLMConversationPanel() {
   useEffect(() => {
     if (!gameId || !activeConvId) {
       setActiveConv(null)
+      setConvDetectedType(null)
       return
     }
+    setConvDetectedType(null)
     safeSetItem(lsActiveConv(gameId), activeConvId)
     loadConversation(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -380,7 +420,7 @@ export function LLMConversationPanel() {
     }
   }
 
-  async function handleSend(requestType?: 'item_generation' | 'lore_building') {
+  async function handleSend(requestType?: string) {
     if (!gameId || !message.trim()) return
     setIsSubmitting(true)
     setIntentError(false)
@@ -403,11 +443,14 @@ export function LLMConversationPanel() {
       }
     }
 
+    const resolvedType = requestType ?? (selectedRequestType && selectedRequestType !== 'auto' ? selectedRequestType : undefined)
+
     try {
-      await submitRequest(gameId, convId, {
+      const submitRes = await submitRequest(gameId, convId, {
         user_prompt: message.trim(),
-        ...(requestType ? { request_type: requestType } : {}),
+        ...(resolvedType ? { request_type: resolvedType } : {}),
       })
+      setConvDetectedType(submitRes.detected_request_type ?? null)
       setMessage('')
       pollingRequestSentAtRef.current = sentAt
       setIsPolling(true)
@@ -536,9 +579,9 @@ export function LLMConversationPanel() {
   const canCreateItems = items.length > 0
 
   // ---------------------------------------------------------------------------
-  // Don't render when not on a game page
+  // Don't render when not on a game page, or before client hydration
   // ---------------------------------------------------------------------------
-  if (!gameId) return null
+  if (!gameId || !mounted) return null
 
   // ---------------------------------------------------------------------------
   // Minimized state — floating button
@@ -824,22 +867,13 @@ export function LLMConversationPanel() {
                       <p id="conv-panel-intent-error-text" className="text-xs text-destructive">{t('llmConversation.intentError')}</p>
                       <div id="conv-panel-intent-error-actions" className="flex gap-2">
                         <Button
-                          id="conv-panel-intent-gen-items-btn"
+                          id="conv-panel-intent-retry-btn"
                           size="sm"
                           variant="outline"
                           className="flex-1 text-xs h-7"
-                          onClick={() => { setIntentError(false); handleSend('item_generation') }}
+                          onClick={() => { setIntentError(false); handleSend() }}
                         >
-                          {t('llmConversation.generateItems')}
-                        </Button>
-                        <Button
-                          id="conv-panel-intent-lore-btn"
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs h-7"
-                          onClick={() => { setIntentError(false); handleSend('lore_building') }}
-                        >
-                          {t('llmConversation.buildLore')}
+                          {t('common.retry')}
                         </Button>
                       </div>
                     </div>
@@ -912,28 +946,33 @@ export function LLMConversationPanel() {
 
             {/* Message input — always visible */}
             <div id="conv-panel-input-area" className="shrink-0 border-t p-2 space-y-1.5">
-              {/* Quick action buttons */}
-              <div id="conv-panel-quick-actions" className="flex gap-1.5">
-                <Button
-                  id="conv-panel-btn-gen-items"
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs h-7"
-                  disabled={isSubmitting || isPolling}
-                  onClick={() => handleSend('item_generation')}
+              {/* Request type selector + conversation detected type */}
+              <div id="conv-panel-request-type-row" className="flex gap-1.5 items-center">
+                <Select
+                  value={selectedRequestType}
+                  onValueChange={setSelectedRequestType}
+                  disabled={isSubmitting || isPolling || requestTypes.length === 0}
                 >
-                  {t('llmConversation.generateItems')}
-                </Button>
-                <Button
-                  id="conv-panel-btn-lore"
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs h-7"
-                  disabled={isSubmitting || isPolling}
-                  onClick={() => handleSend('lore_building')}
+                  <SelectTrigger id="conv-panel-request-type-trigger" className="h-7 text-xs w-1/2">
+                    <SelectValue id="conv-panel-request-type-value" placeholder={t('llmConversation.requestTypeLabel')} />
+                  </SelectTrigger>
+                  <SelectContent id="conv-panel-request-type-content">
+                    {requestTypes.map((rt) => (
+                      <SelectItem id={`conv-panel-request-type-option-${rt.key}`} key={rt.key} value={rt.key} className="text-xs">
+                        {rt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span
+                  id="conv-panel-conv-detected-type"
+                  className="w-1/2 h-7 flex items-center px-2 rounded-md border border-dashed text-xs text-muted-foreground truncate"
+                  title={convDetectedType ?? ''}
                 >
-                  {t('llmConversation.buildLore')}
-                </Button>
+                  {convDetectedType
+                    ? (t(`llmConversation.requestTypes.${convDetectedType}`) || convDetectedType)
+                    : '---'}
+                </span>
               </div>
               <div id="conv-panel-textarea-row" className="flex gap-1.5">
                 <Textarea
