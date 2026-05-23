@@ -224,7 +224,7 @@ export default function LorePage() {
 
   function openCreate() {
     setEditingEntry(null)
-    setForm(DEFAULT_FORM)
+    setForm({ ...DEFAULT_FORM, lore_type: typeFilter || "" })
     setFormError(null)
     setSheetOpen(true)
   }
