@@ -58,6 +58,7 @@ export interface SubmitRequestBody {
   user_prompt: string
   request_type?: string
   lore_entry_ids?: string[]
+  goals?: string[]
 }
 
 export interface SubmitRequestResponse {

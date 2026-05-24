@@ -172,6 +172,7 @@ export async function streamRequest(
   onError: (message: string) => void,
   entityType?: string,
   language?: string,
+  goals?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -193,6 +194,7 @@ export async function streamRequest(
         entity_type: entityType ?? 'custom',
         language: language ?? '',
         lore_entry_ids: [],
+        ...(goals && goals.length > 0 ? { goals } : {}),
       }),
     },
   )

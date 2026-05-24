@@ -32,6 +32,9 @@ export function useChatPipeline() {
   // even if the closure captured a stale `isRunning` snapshot.
   const isRunningRef = useRef(false)
 
+  // Accumulated goals from all detect-intent calls in this conversation session.
+  const accumulatedGoalsRef = useRef<string[]>([])
+
   const send = useCallback(async (
     gameId: string,
     userPrompt: string,
@@ -95,6 +98,9 @@ export function useChatPipeline() {
             if (fields.detectedLanguage)   resolvedLanguage     = fields.detectedLanguage
             if (fields.detectedEntityType) resolvedEntityType   = fields.detectedEntityType
             if (fields.detectedGoal)       resolvedGoal         = fields.detectedGoal
+            if (fields.detectedGoal && !accumulatedGoalsRef.current.includes(fields.detectedGoal)) {
+              accumulatedGoalsRef.current = [...accumulatedGoalsRef.current, fields.detectedGoal]
+            }
             setChatHistory((prev) =>
               prev.map((t) => {
                 if (t.id !== turnId) return t
@@ -113,6 +119,9 @@ export function useChatPipeline() {
             resolvedLanguage = detectedLanguage
             resolvedEntityType = detectedEntityType
             resolvedGoal = detectedGoal
+            if (detectedGoal && !accumulatedGoalsRef.current.includes(detectedGoal)) {
+              accumulatedGoalsRef.current = [...accumulatedGoalsRef.current, detectedGoal]
+            }
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, detectedType, detectedLanguage, detectedEntityType: detectedEntityType || null, detectedGoal: detectedGoal || null } : t))
             )
@@ -168,6 +177,7 @@ export function useChatPipeline() {
         },
         entityType ?? (resolvedEntityType || undefined),
         resolvedLanguage,
+        accumulatedGoalsRef.current.length > 0 ? [...accumulatedGoalsRef.current] : undefined,
       )
     } catch {
       // Pipeline failed — surface the error on the turn (or create a synthetic turn
@@ -197,7 +207,10 @@ export function useChatPipeline() {
     }
   }, [])
 
-  const clearHistory = useCallback(() => setChatHistory([]), [])
+  const clearHistory = useCallback(() => {
+    setChatHistory([])
+    accumulatedGoalsRef.current = []
+  }, [])
   const loadHistory = useCallback((turns: ChatTurn[]) => setChatHistory(turns), [])
 
   return { isRunning, chatHistory, send, clearHistory, loadHistory }

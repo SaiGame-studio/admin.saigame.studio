@@ -804,25 +804,25 @@ export function LLMConversationPanel() {
                   {/* Goal row — hidden */}
                 </div>}
 
+                {/* Sticky meta bar — conversation ID + detected language */}
+                {activeConvId && (
+                  <div id="conv-panel-meta-row" className="shrink-0 flex items-center justify-between gap-2 border-b bg-background px-3 py-1">
+                    <p id="conv-panel-conv-id" className="text-[10px] text-muted-foreground/50 font-mono truncate">
+                      {activeConvId}
+                    </p>
+                    {(() => {
+                      const lang = [...chatHistory].reverse().find((t) => t.detectedLanguage)?.detectedLanguage ?? 'en'
+                      return (
+                        <span id="conv-panel-detected-lang" className="text-[10px] text-muted-foreground/50 font-mono shrink-0">
+                          {lang}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                )}
+
                 {/* Scrollable content area */}
                 <ScrollArea id="conv-panel-content-scroll" className="flex-1 px-3 py-2">
-                  {/* Conversation ID + detected language */}
-                  {activeConvId && (
-                    <div id="conv-panel-meta-row" className="flex items-center justify-between mb-2">
-                      <p id="conv-panel-conv-id" className="text-[10px] text-muted-foreground/50 font-mono truncate">
-                        {activeConvId}
-                      </p>
-                      {(() => {
-                        const lang = [...chatHistory].reverse().find((t) => t.detectedLanguage)?.detectedLanguage ?? 'en'
-                        return (
-                          <span id="conv-panel-detected-lang" className="text-[10px] text-muted-foreground/50 font-mono ml-2 shrink-0">
-                            {lang}
-                          </span>
-                        )
-                      })()}
-                    </div>
-                  )}
-
                   {/* Chat history */}
                   {chatHistory.map((turn) => (
                     <div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
