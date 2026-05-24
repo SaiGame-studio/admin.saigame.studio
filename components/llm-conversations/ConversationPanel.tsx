@@ -14,10 +14,12 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Info,
   Loader2,
   Minus,
   MoreVertical,
   Pencil,
+  RotateCcw,
   Send,
   Sparkles,
   Trash2,
@@ -53,6 +55,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils'
@@ -140,7 +148,7 @@ export function LLMConversationPanel() {
   const justCreatedConvIdRef = useRef<string | null>(null)
 
   // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
-  const { isRunning: isStreaming, chatHistory, send: runPipeline, clearHistory, loadHistory } = useChatPipeline()
+  const { isRunning: isStreaming, chatHistory, send: runPipeline, clearHistory, loadHistory, removeTurn } = useChatPipeline()
 
   // Request type selector
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([])
@@ -155,6 +163,9 @@ export function LLMConversationPanel() {
 
   // Archive/delete dialogs
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
+
+  // Detail dialog
+  const [detailOpen, setDetailOpen] = useState(false)
 
   // Panel width (horizontal resize)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -436,6 +447,35 @@ export function LLMConversationPanel() {
     } finally {
       setIsLoadingConv(false)
     }
+  }
+
+  function handleRetry(turn: { id: string; userMessage: string; detectedType: string | null; detectedEntityType: string | null }) {
+    if (!gameId || isStreaming) return
+    // If detect-intent already succeeded, skip it and use the resolved type directly.
+    // Otherwise fall back to the current selector (may re-run detect-intent).
+    const retryType = turn.detectedType ?? selectedRequestType
+    const retryEntityType = turn.detectedEntityType ?? undefined
+    removeTurn(turn.id)
+    sentWithAutoRef.current = retryType === 'auto'
+    void runPipeline(
+      gameId,
+      turn.userMessage,
+      activeConvId,
+      retryType,
+      (newConv) => {
+        justCreatedConvIdRef.current = newConv.ID
+        setActiveConvs((prev) => [newConv, ...prev])
+        setActiveConvId(newConv.ID)
+        setActiveConv(newConv)
+      },
+      (updatedConv) => {
+        setActiveConv(updatedConv)
+        setActiveConvs((prev) => prev.map((c) => (c.ID === updatedConv.ID ? updatedConv : c)))
+      },
+      t('llmConversation.errorCreate'),
+      t('llmConversation.errorSend'),
+      retryEntityType,
+    )
   }
 
   function handleSend() {
@@ -772,6 +812,10 @@ export function LLMConversationPanel() {
                           <Pencil className="mr-2 h-3.5 w-3.5" />
                           {t('llmConversation.editTitle')}
                         </DropdownMenuItem>
+                        <DropdownMenuItem id="conv-panel-menu-detail" onClick={() => setDetailOpen(true)}>
+                          <Info className="mr-2 h-3.5 w-3.5" />
+                          Full detail
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {!activeConv.ArchivedAt && (
                           <DropdownMenuItem id="conv-panel-menu-archive" onClick={() => handleArchive(activeConv)}>
@@ -860,9 +904,21 @@ export function LLMConversationPanel() {
                             </div>
                           )}
                           {turn.error ? (
-                            <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">
-                              {turn.error}
-                            </p>
+                            <div id={`conv-panel-ai-error-row-${turn.id}`} className="flex items-center gap-2">
+                              <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">
+                                {turn.error}
+                              </p>
+                              <button
+                                id={`conv-panel-ai-retry-btn-${turn.id}`}
+                                onClick={() => handleRetry(turn)}
+                                disabled={isStreaming}
+                                className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                                title="Retry"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                Retry
+                              </button>
+                            </div>
                           ) : turn.responseText ? (
                             <p id={`conv-panel-ai-text-${turn.id}`} className="text-xs leading-relaxed whitespace-pre-wrap">
                               {turn.responseText}
@@ -952,6 +1008,92 @@ export function LLMConversationPanel() {
           </div>
         </div>
       </div>
+
+      {/* ── Full detail dialog ── */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent id="conv-panel-detail-dialog" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle id="conv-panel-detail-dialog-title">Conversation Detail</DialogTitle>
+          </DialogHeader>
+          <ScrollArea id="conv-panel-detail-scroll" className="max-h-[65vh] pr-2">
+            <div id="conv-panel-detail-body" className="space-y-4 text-xs">
+
+              {/* Goals / intents sent to backend */}
+              <section id="conv-panel-detail-goals-section">
+                <p id="conv-panel-detail-goals-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Goals sent with each request</p>
+                {(() => {
+                  const goals = [...new Set(chatHistory.filter((t) => t.detectedGoal).map((t) => t.detectedGoal!))]
+                  return goals.length === 0 ? (
+                    <p id="conv-panel-detail-goals-empty" className="text-muted-foreground italic">No goals detected yet.</p>
+                  ) : (
+                    <ol id="conv-panel-detail-goals-list" className="space-y-1 list-decimal list-inside">
+                      {goals.map((g, i) => (
+                        <li id={`conv-panel-detail-goal-${i}`} key={i} className="bg-muted rounded px-2 py-1 leading-snug">{g}</li>
+                      ))}
+                    </ol>
+                  )
+                })()}
+              </section>
+
+              {/* Conversation metadata */}
+              {activeConv && (
+                <section id="conv-panel-detail-meta-section">
+                  <p id="conv-panel-detail-meta-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Conversation</p>
+                  <div id="conv-panel-detail-meta-grid" className="space-y-1">
+                    <div id="conv-panel-detail-meta-id" className="flex gap-2">
+                      <span id="conv-panel-detail-meta-id-key" className="text-muted-foreground w-16 shrink-0">ID</span>
+                      <span id="conv-panel-detail-meta-id-val" className="font-mono break-all">{activeConv.ID}</span>
+                    </div>
+                    <div id="conv-panel-detail-meta-title" className="flex gap-2">
+                      <span id="conv-panel-detail-meta-title-key" className="text-muted-foreground w-16 shrink-0">Title</span>
+                      <span id="conv-panel-detail-meta-title-val">{activeConv.Title}</span>
+                    </div>
+                    <div id="conv-panel-detail-meta-goal" className="flex gap-2">
+                      <span id="conv-panel-detail-meta-goal-key" className="text-muted-foreground w-16 shrink-0">Goal</span>
+                      <span id="conv-panel-detail-meta-goal-val">{activeConv.Goal || '—'}</span>
+                    </div>
+                    <div id="conv-panel-detail-meta-status" className="flex gap-2">
+                      <span id="conv-panel-detail-meta-status-key" className="text-muted-foreground w-16 shrink-0">Status</span>
+                      <span id="conv-panel-detail-meta-status-val">{activeConv.ArchivedAt ? 'archived' : 'active'}</span>
+                    </div>
+                    <div id="conv-panel-detail-meta-created" className="flex gap-2">
+                      <span id="conv-panel-detail-meta-created-key" className="text-muted-foreground w-16 shrink-0">Created</span>
+                      <span id="conv-panel-detail-meta-created-val">{new Date(activeConv.CreatedAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Turn history */}
+              {chatHistory.length > 0 && (
+                <section id="conv-panel-detail-turns-section">
+                  <p id="conv-panel-detail-turns-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Turn history ({chatHistory.length})</p>
+                  <div id="conv-panel-detail-turns-list" className="space-y-2">
+                    {chatHistory.map((turn, i) => (
+                      <div id={`conv-panel-detail-turn-${turn.id}`} key={turn.id} className="rounded border p-2 space-y-0.5">
+                        <p id={`conv-panel-detail-turn-user-${turn.id}`} className="font-medium truncate">{i + 1}. {turn.userMessage}</p>
+                        {turn.detectedType && (
+                          <p id={`conv-panel-detail-turn-type-${turn.id}`} className="text-muted-foreground">Type: <span className="text-foreground">{turn.detectedType}</span></p>
+                        )}
+                        {turn.detectedGoal && (
+                          <p id={`conv-panel-detail-turn-goal-${turn.id}`} className="text-muted-foreground">Goal: <span className="text-foreground">{turn.detectedGoal}</span></p>
+                        )}
+                        {turn.detectedLanguage && (
+                          <p id={`conv-panel-detail-turn-lang-${turn.id}`} className="text-muted-foreground">Language: <span className="text-foreground">{turn.detectedLanguage}</span></p>
+                        )}
+                        {turn.detectedEntityType && (
+                          <p id={`conv-panel-detail-turn-entity-${turn.id}`} className="text-muted-foreground">Entity: <span className="text-foreground">{turn.detectedEntityType}</span></p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Delete confirmation ── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>

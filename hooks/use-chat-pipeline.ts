@@ -211,7 +211,22 @@ export function useChatPipeline() {
     setChatHistory([])
     accumulatedGoalsRef.current = []
   }, [])
-  const loadHistory = useCallback((turns: ChatTurn[]) => setChatHistory(turns), [])
+  const removeTurn = useCallback((id: string) => {
+    setChatHistory((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+  const loadHistory = useCallback((turns: ChatTurn[]) => {
+    setChatHistory(turns)
+    // Repopulate accumulated goals so they are sent on the next request
+    const seen = new Set<string>()
+    const restored: string[] = []
+    for (const turn of turns) {
+      if (turn.detectedGoal && !seen.has(turn.detectedGoal)) {
+        seen.add(turn.detectedGoal)
+        restored.push(turn.detectedGoal)
+      }
+    }
+    accumulatedGoalsRef.current = restored
+  }, [])
 
-  return { isRunning, chatHistory, send, clearHistory, loadHistory }
+  return { isRunning, chatHistory, send, clearHistory, loadHistory, removeTurn }
 }
