@@ -70,6 +70,9 @@ export const en = {
     deleted: "Deleted",
     added: "Added",
     validation: "Validation",
+    title: "Title",
+    summary: "Summary",
+    content: "Content",
   },
   shop: {
     title: "Game Shops",
@@ -3417,7 +3420,7 @@ export const en = {
     noEntriesYet: "No lore entries yet",
     filterByType: "Filter by type",
     filterAll: "All Types",
-    searchPlaceholder: "Search lore...",
+    searchPlaceholder: "Search by title or lore ID…",
 
     // Lore types
     typeWorld: "World",
@@ -3519,6 +3522,8 @@ export const en = {
     generatedItems: "Generated Items",
     generatedLore: "Generated Lore",
     saveToGame: "Save to Game",
+    saveAsLore: "Save as Lore",
+    loreType: "Lore Type",
     editTitle: "Edit title",
     editGoal: "Edit goal",
     backToList: "Back to conversations",
@@ -3534,6 +3539,10 @@ export const en = {
     createRecordsTitle: "Create Item Definitions",
     createRecordsDesc: "This will create {count} new item definition(s) in your game. Continue?",
     recordsCreated: "{count} item definition(s) created successfully.",
+    createLoreRecordsTitle: "Create Lore Entries",
+    createLoreRecordsDesc: "This will create {count} new lore entry(ies) in your game. Continue?",
+    loreRecordsCreated: "{count} lore entry(ies) created successfully.",
+    errorCreateLoreRecords: "Failed to create lore records.",
     intentError: "Could not determine what you want to do. Use the buttons below or be more specific.",
     errorCreate: "Failed to create conversation.",
     errorUpdate: "Failed to update conversation.",
@@ -3543,5 +3552,13 @@ export const en = {
     errorDelete: "Failed to delete conversation.",
     errorCreateRecords: "Failed to create item records.",
     errorLoadRequestTypes: "Failed to load request types.",
+    linkedContent: "Linked Content",
+    linkedAuto: "auto",
+    linkedManual: "manual",
+    contentType: {
+      lore_entry: "Lore",
+      item_definition: "Item",
+    },
+    send: "Send",
   },
 };

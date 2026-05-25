@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, BookOpen, Pencil, Trash2, ChevronDown, ChevronRight,
+  ArrowLeft, Plus, RefreshCw, Loader2, BookOpen, Pencil, Trash2, ChevronDown, ChevronRight, Search, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +36,7 @@ import {
   updateLoreEntry,
   deleteLoreEntry,
   getLoreTypes,
+  getLoreEntry,
 } from "@/lib/lore-api"
 import type { Game } from "@/types/game"
 import type { LoreEntry, CreateLoreEntryRequest, UpdateLoreEntryRequest } from "@/types/lore"
@@ -117,7 +118,10 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
       {/* Expanded content */}
       {expanded && (
         <div className="px-4 pb-4 pt-0">
-          <p className="text-xs text-muted-foreground mb-2 font-mono">ID: {entry.ID}</p>
+          <div id={`lore-row-${entry.ID}-id-row`} className="flex items-center gap-1 mb-2">
+            <p className="text-xs text-muted-foreground font-mono">ID: {entry.ID}</p>
+            <CopyButton text={entry.ID} />
+          </div>
           <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed rounded border bg-muted/30 p-3 max-h-96 overflow-y-auto">
             {entry.Content || <span className="italic opacity-50">— no content —</span>}
           </div>
@@ -150,16 +154,21 @@ const DEFAULT_FORM: CreateLoreEntryRequest = {
   content: "",
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const PAGE_SIZE = 20
 
 export default function LorePage() {
   const params = useParams() as { id: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const { locale } = useLanguage()
   const { t } = useTranslation(locale)
 
   const gameId = params.id
+
+  const loreIdParam = searchParams.get('lore_id')
 
   const [game, setGame] = useState<Game | null>(null)
   const [entries, setEntries] = useState<LoreEntry[]>([])
@@ -169,7 +178,11 @@ export default function LorePage() {
 
   // Filter
   const [typeFilter, setTypeFilter] = useState("")
-  const [search, setSearch] = useState("")
+
+  // Search (server-side, debounced)
+  const [searchInput, setSearchInput] = useState(loreIdParam ?? "")
+  const [searchQuery, setSearchQuery] = useState(loreIdParam ?? "")
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Pagination
   const [offset, setOffset] = useState(0)
@@ -188,6 +201,25 @@ export default function LorePage() {
   // Accordion
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Spotlight: a single entry highlighted via ?lore_id= URL param
+  const [spotlightEntry, setSpotlightEntry] = useState<LoreEntry | null>(null)
+  const [spotlightLoading, setSpotlightLoading] = useState(false)
+
+  useEffect(() => {
+    if (!loreIdParam) {
+      setSpotlightEntry(null)
+      return
+    }
+    setSpotlightLoading(true)
+    getLoreEntry(gameId, loreIdParam)
+      .then(entry => {
+        setSpotlightEntry(entry)
+        setExpandedId(entry.ID)
+      })
+      .catch(() => setSpotlightEntry(null))
+      .finally(() => setSpotlightLoading(false))
+  }, [gameId, loreIdParam])
+
   // Lore types from API
   const [loreTypes, setLoreTypes] = useState<string[]>([])
 
@@ -205,6 +237,11 @@ export default function LorePage() {
           limit: PAGE_SIZE,
           offset: currentOffset,
           type: typeFilter || undefined,
+          ...(searchQuery
+            ? UUID_RE.test(searchQuery.trim())
+              ? { id: searchQuery.trim() }
+              : { q: searchQuery.trim() }
+            : {}),
         }),
       ])
       if (g) setGame(g)
@@ -215,7 +252,7 @@ export default function LorePage() {
     } finally {
       setLoading(false)
     }
-  }, [gameId, typeFilter])
+  }, [gameId, typeFilter, searchQuery])
 
   useEffect(() => {
     setOffset(0)
@@ -245,6 +282,20 @@ export default function LorePage() {
     if (!form.title.trim()) return t("lore.validationTitleRequired")
     if (!form.lore_type) return t("lore.validationTypeRequired")
     return null
+  }
+
+  function handleSearchInput(value: string) {
+    setSearchInput(value)
+    if (loreIdParam) router.replace(`/games/${gameId}/lore`)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => setSearchQuery(value), 400)
+  }
+
+  function clearSearch() {
+    setSearchInput("")
+    setSearchQuery("")
+    setSpotlightEntry(null)
+    if (loreIdParam) router.replace(`/games/${gameId}/lore`)
   }
 
   async function handleSave() {
@@ -302,14 +353,7 @@ export default function LorePage() {
     }
   }
 
-  const filteredEntries = entries.filter(e => {
-    const matchSearch = !search.trim() ||
-      e.Title.toLowerCase().includes(search.toLowerCase()) ||
-      e.Summary.toLowerCase().includes(search.toLowerCase())
-    const matchType = !typeFilter.trim() ||
-      e.LoreType.toLowerCase().includes(typeFilter.toLowerCase())
-    return matchSearch && matchType
-  })
+  const filteredEntries = spotlightEntry ? [spotlightEntry] : entries
 
   return (
     <div className="container mx-auto py-6">
@@ -355,20 +399,24 @@ export default function LorePage() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-        <div className="overflow-x-auto">
+      {/* Toolbar row 1 – type tabs + create */}
+      <div id="lore-toolbar-top" className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div id="lore-type-tabs-wrap" className="overflow-x-auto">
           {loreTypes.length > 0 && (
             <Tabs
               value={typeFilter || "all"}
-              onValueChange={v => { setTypeFilter(v === "all" ? "" : v); setOffset(0) }}
+              onValueChange={v => {
+                if (loreIdParam) router.replace(`/games/${gameId}/lore`)
+                setTypeFilter(v === "all" ? "" : v)
+                setOffset(0)
+              }}
             >
-              <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-xs px-3 h-7">
+              <TabsList id="lore-type-tabslist" className="h-8">
+                <TabsTrigger id="lore-tab-all" value="all" className="text-xs px-3 h-7">
                   {t("lore.filterAll")}
                 </TabsTrigger>
                 {loreTypes.map(type => (
-                  <TabsTrigger key={type} value={type} className="text-xs px-3 h-7">
+                  <TabsTrigger id={`lore-tab-${type}`} key={type} value={type} className="text-xs px-3 h-7">
                     {loreTypeLabel(type, t)}
                   </TabsTrigger>
                 ))}
@@ -376,15 +424,36 @@ export default function LorePage() {
             </Tabs>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchAll(offset)} disabled={loading}>
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t("lore.newEntry")}
-          </Button>
+        <Button id="lore-btn-create" size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-1" />
+          {t("lore.newEntry")}
+        </Button>
+      </div>
+
+      {/* Toolbar row 2 – search + refresh */}
+      <div id="lore-toolbar-search" className="flex items-center gap-2 mb-4">
+        <div id="lore-search-wrap" className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            id="lore-search-input"
+            value={searchInput}
+            onChange={e => handleSearchInput(e.target.value)}
+            placeholder={t("lore.searchPlaceholder")}
+            className="h-8 pl-8 pr-7 text-sm"
+          />
+          {searchInput && (
+            <button
+              id="lore-search-clear"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={clearSearch}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        <Button id="lore-btn-refresh" variant="outline" size="icon" className="h-8 w-8" onClick={() => fetchAll(offset)} disabled={loading}>
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Error */}
@@ -395,7 +464,7 @@ export default function LorePage() {
       )}
 
       {/* Table header */}
-      {!loading && filteredEntries.length > 0 && (
+      {!loading && !spotlightLoading && filteredEntries.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground font-medium border-b bg-muted/30 rounded-t">
           <div className="w-[20px] shrink-0" />
           <div className="w-[110px] shrink-0">{t("lore.tableHeaderType")}</div>
@@ -407,7 +476,7 @@ export default function LorePage() {
       )}
 
       {/* Loading */}
-      {loading && (
+      {(loading || spotlightLoading) && (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">{t("lore.noEntriesYet")}</span>
@@ -415,7 +484,7 @@ export default function LorePage() {
       )}
 
       {/* Empty state */}
-      {!loading && filteredEntries.length === 0 && (
+      {!loading && !spotlightLoading && filteredEntries.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <BookOpen className="h-10 w-10 text-muted-foreground/40" />
           <p className="text-muted-foreground text-sm">{t("lore.emptyTitle")}</p>
@@ -427,7 +496,7 @@ export default function LorePage() {
       )}
 
       {/* Entries list */}
-      {!loading && filteredEntries.length > 0 && (
+      {!loading && !spotlightLoading && filteredEntries.length > 0 && (
         <div className="border rounded-b overflow-hidden divide-y">
           {filteredEntries.map(entry => (
             <LoreRow
@@ -445,7 +514,7 @@ export default function LorePage() {
       )}
 
       {/* Pagination */}
-      {!loading && total > PAGE_SIZE && (
+      {!loading && !spotlightEntry && total > PAGE_SIZE && (
         <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
           <span>
             {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} / {total}

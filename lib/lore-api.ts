@@ -10,9 +10,11 @@ export interface ListLoreParams {
   limit?: number
   offset?: number
   type?: string
+  q?: string
+  id?: string
 }
 
-/** GET /api/v1/games/:gameId/lore — List lore entries with optional type filter and pagination */
+/** GET /api/v1/games/:gameId/lore — List lore entries with optional type filter, text search and pagination */
 export async function listLoreEntries(
   gameId: string,
   params?: ListLoreParams,
@@ -21,6 +23,8 @@ export async function listLoreEntries(
   if (params?.limit != null) query.set('limit', String(params.limit))
   if (params?.offset != null) query.set('offset', String(params.offset))
   if (params?.type) query.set('type', params.type)
+  if (params?.q) query.set('q', params.q)
+  if (params?.id) query.set('id', params.id)
   const qs = query.toString()
   return api.get(`/api/v1/games/${gameId}/lore${qs ? `?${qs}` : ''}`)
 }

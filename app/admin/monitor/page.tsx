@@ -70,6 +70,8 @@ import {
   CreateSystemPromptBody,
   UpdateSystemPromptBody,
 } from "@/lib/admin-api"
+import { listRequestTypes } from "@/lib/llm-conversation-api"
+import { useTranslation } from "@/lib/i18n/use-translation"
 import { toast } from "@/hooks/use-toast"
 import {
   Dialog,
@@ -2156,17 +2158,6 @@ function GrowthChartTab() {
 // System Prompts Tab
 // ---------------------------------------------------------------------------
 
-const PROMPT_TYPES: SystemPromptType[] = ["lore", "item_gen", "quest", "gacha", "generic"]
-const PROMPT_PROVIDERS: Array<SystemPromptProvider | "none"> = ["none", "gemini", "openai", "anthropic"]
-
-const PROMPT_TYPE_LABELS: Record<SystemPromptType, string> = {
-  lore: "Lore",
-  item_gen: "Item Gen",
-  quest: "Quest",
-  gacha: "Gacha",
-  generic: "Generic",
-}
-
 interface SystemPromptFormState {
   name: string
   prompt_type: SystemPromptType
@@ -2182,7 +2173,7 @@ interface SystemPromptFormState {
 
 const DEFAULT_FORM: SystemPromptFormState = {
   name: "",
-  prompt_type: "generic",
+  prompt_type: "",
   description: "",
   is_active: true,
   content: "",
@@ -2199,13 +2190,16 @@ function SystemPromptFormDialog({
   initial,
   onSave,
   title,
+  promptTypes,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   initial?: Partial<SystemPromptFormState>
   onSave: (data: SystemPromptFormState) => Promise<void>
   title: string
+  promptTypes: string[]
 }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState<SystemPromptFormState>({ ...DEFAULT_FORM, ...initial })
   const [saving, setSaving] = useState(false)
 
@@ -2241,11 +2235,11 @@ function SystemPromptFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Type <span className="text-destructive">*</span></Label>
-              <Select value={form.prompt_type} onValueChange={(v) => set("prompt_type", v as SystemPromptType)}>
+              <Select value={form.prompt_type} onValueChange={(v) => set("prompt_type", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PROMPT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{PROMPT_TYPE_LABELS[t]}</SelectItem>
+                  {promptTypes.map((k) => (
+                    <SelectItem key={k} value={k}>{t(`llmConversation.requestTypes.${k}`) || k}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -2325,16 +2319,22 @@ function SystemPromptFormDialog({
 }
 
 function SystemPromptsTab() {
+  const { t } = useTranslation()
   const [prompts, setPrompts] = useState<SystemPrompt[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [typeFilter, setTypeFilter] = useState<SystemPromptType | "all">("all")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [promptTypes, setPromptTypes] = useState<string[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editPrompt, setEditPrompt] = useState<SystemPrompt | null>(null)
   const [viewPrompt, setViewPrompt] = useState<SystemPrompt | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  const load = useCallback(async (type?: SystemPromptType | "all") => {
+  useEffect(() => {
+    listRequestTypes().then(setPromptTypes).catch(() => {})
+  }, [])
+
+  const load = useCallback(async (type?: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -2350,7 +2350,7 @@ function SystemPromptsTab() {
     }
   }, [])
 
-  useEffect(() => { load(typeFilter) }, [load, typeFilter])
+  useEffect(() => { load(typeFilter) }, [load, typeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleCreate(form: SystemPromptFormState) {
     const body: CreateSystemPromptBody = {
@@ -2436,14 +2436,14 @@ function SystemPromptsTab() {
           {!loading && <span className="text-xs text-muted-foreground">{prompts.length} prompt{prompts.length !== 1 ? "s" : ""}</span>}
         </div>
         <div className="flex items-center gap-2">
-          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as SystemPromptType | "all")}>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-[150px] h-8 text-xs">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
-              {PROMPT_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>{PROMPT_TYPE_LABELS[t]}</SelectItem>
+              {promptTypes.map((k) => (
+                <SelectItem key={k} value={k}>{t(`llmConversation.requestTypes.${k}`) || k}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -2504,7 +2504,7 @@ function SystemPromptsTab() {
                           <div className="text-xs text-muted-foreground font-mono flex items-center gap-1">{p.id}<CopyButton text={p.id} /></div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize">{PROMPT_TYPE_LABELS[p.prompt_type]}</Badge>
+                          <Badge variant="outline" className="text-xs capitalize">{t(`llmConversation.requestTypes.${p.prompt_type}`) || p.prompt_type}</Badge>
                         </TableCell>
                         <TableCell>
                           {p.provider ? (
@@ -2554,6 +2554,7 @@ function SystemPromptsTab() {
         onOpenChange={setCreateOpen}
         title="Create System Prompt"
         onSave={handleCreate}
+        promptTypes={promptTypes}
       />
 
       {/* Edit dialog */}
@@ -2564,6 +2565,7 @@ function SystemPromptsTab() {
           title={`Edit — ${editPrompt.name}`}
           initial={promptToForm(editPrompt)}
           onSave={handleEdit}
+          promptTypes={promptTypes}
         />
       )}
 
@@ -2577,7 +2579,7 @@ function SystemPromptsTab() {
           {viewPrompt && (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 text-xs">
-                <Badge variant="outline">{PROMPT_TYPE_LABELS[viewPrompt.prompt_type]}</Badge>
+                <Badge variant="outline">{t(`llmConversation.requestTypes.${viewPrompt.prompt_type}`) || viewPrompt.prompt_type}</Badge>
                 {viewPrompt.provider && <Badge variant="secondary" className="capitalize">{viewPrompt.provider}{viewPrompt.model ? ` / ${viewPrompt.model}` : ""}</Badge>}
                 <span className="text-muted-foreground">temp: {viewPrompt.temperature}</span>
                 <span className="text-muted-foreground">in: {viewPrompt.max_input_tokens} / out: {viewPrompt.max_output_tokens}</span>

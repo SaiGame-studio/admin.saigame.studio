@@ -1,5 +1,6 @@
 import { api } from '@/lib/api-client'
 import { getValidToken } from '@/lib/auth-utils'
+import { parse, STR, OBJ } from 'partial-json'
 import type {
   Conversation,
   ListConversationsResponse,
@@ -8,7 +9,9 @@ import type {
   SubmitRequestBody,
   SubmitRequestResponse,
   CreateRecordsResponse,
+  CreateLoreRecordsResponse,
   RequestType,
+  ConversationContentLink,
 } from '@/types/llm-conversation'
 
 const base = (gameId: string) => `/api/v1/games/${gameId}/llm/conversations`
@@ -83,9 +86,37 @@ export async function createRecordsFromConversation(
   return api.post(`${base(gameId)}/${conversationId}/create-records`)
 }
 
-export async function listRequestTypes(): Promise<RequestType[]> {
+export async function createLoreRecordsFromConversation(
+  gameId: string,
+  conversationId: string,
+): Promise<CreateLoreRecordsResponse> {
+  return api.post(`${base(gameId)}/${conversationId}/create-lore-records`)
+}
+
+export async function linkConversationContent(
+  gameId: string,
+  conversationId: string,
+  contentType: string,
+  contentId: string,
+): Promise<void> {
+  return api.post(`${base(gameId)}/${conversationId}/content`, {
+    content_type: contentType,
+    content_id: contentId,
+  })
+}
+
+export async function listConversationContent(
+  gameId: string,
+  conversationId: string,
+): Promise<ConversationContentLink[]> {
+  const res = await api.get(`${base(gameId)}/${conversationId}/content`)
+  return (res?.items ?? []) as ConversationContentLink[]
+}
+
+export async function listRequestTypes(): Promise<string[]> {
   const res = await api.get('/api/v1/llm/request-types')
-  return Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
+  const arr: unknown = Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
+  return (Array.isArray(arr) ? arr : []) as string[]
 }
 
 export async function streamDetectIntent(
@@ -93,7 +124,8 @@ export async function streamDetectIntent(
   conversationId: string,
   userPrompt: string,
   onChunk: (text: string) => void,
-  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string) => void,
+  onPartial: (fields: { detectedType?: string; detectedLanguage?: string; detectedEntityType?: string; detectedGoal?: string; detectedIntents?: { type: string; entityType: string; goal: string }[] }) => void,
+  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string, detectedIntents: { type: string; entityType: string; goal: string }[]) => void,
   onError: (message: string) => void,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -119,6 +151,7 @@ export async function streamDetectIntent(
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buf = ''
+  let accText = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -133,9 +166,46 @@ export async function streamDetectIntent(
       const evt = JSON.parse(part.slice(6))
 
       if (evt.type === 'chunk') {
-        onChunk(evt.text ?? '')
+        const chunk = evt.text ?? ''
+        accText += chunk
+        onChunk(chunk)
+        try {
+          const p = parse(accText, STR | OBJ) as Record<string, unknown>
+          if (p && typeof p === 'object') {
+            const rawIntents = Array.isArray(p.intents)
+              ? (p.intents as { type?: string; entity_type?: string; goal?: string }[])
+              : []
+            const first = rawIntents[0]
+            const detectedIntents = rawIntents.map((i) => ({
+              type: i.type ?? '',
+              entityType: i.entity_type ?? '',
+              goal: i.goal ?? '',
+            }))
+            onPartial({
+              ...(p.language                       ? { detectedLanguage:   String(p.language) }          : {}),
+              ...(first?.type                      ? { detectedType:       first.type }                  : {}),
+              ...(first?.entity_type               ? { detectedEntityType: first.entity_type }           : {}),
+              ...(first?.goal                      ? { detectedGoal:       first.goal }                  : {}),
+              ...(detectedIntents.length > 0       ? { detectedIntents }                                 : {}),
+            })
+          }
+        } catch { /* partial parse failed — ignore */ }
       } else if (evt.type === 'done') {
-        onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '', evt.detected_goal ?? '')
+        const rawIntents: { Type?: string; EntityType?: string; Goal?: string }[] =
+          Array.isArray(evt.detected_intents) ? evt.detected_intents : []
+        const firstIntent = rawIntents[0] ?? {}
+        const detectedIntents = rawIntents.map((i) => ({
+          type: i.Type ?? '',
+          entityType: i.EntityType ?? '',
+          goal: i.Goal ?? '',
+        }))
+        onDone(
+          firstIntent.Type ?? '',
+          evt.detected_language ?? '',
+          firstIntent.EntityType ?? '',
+          firstIntent.Goal ?? '',
+          detectedIntents,
+        )
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')
@@ -155,6 +225,7 @@ export async function streamRequest(
   onError: (message: string) => void,
   entityType?: string,
   language?: string,
+  goals?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -176,6 +247,7 @@ export async function streamRequest(
         entity_type: entityType ?? 'custom',
         language: language ?? '',
         lore_entry_ids: [],
+        ...(goals && goals.length > 0 ? { goals } : {}),
       }),
     },
   )

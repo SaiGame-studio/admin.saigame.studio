@@ -26,9 +26,10 @@ export interface ItemDraft {
 }
 
 export interface LoreDraft {
-  name: string
-  era?: string
-  description: string
+  lore_type: string
+  title: string
+  summary?: string
+  content: string
 }
 
 export interface ListConversationsResponse {
@@ -58,6 +59,7 @@ export interface SubmitRequestBody {
   user_prompt: string
   request_type?: string
   lore_entry_ids?: string[]
+  goals?: string[]
 }
 
 export interface SubmitRequestResponse {
@@ -73,7 +75,21 @@ export interface CreateRecordsResponse {
   item_definition_ids: string[]
 }
 
+export interface CreateLoreRecordsResponse {
+  created_count: number
+  lore_entry_ids: string[]
+}
+
 export type ConversationStatus = 'active' | 'archived' | 'deleted'
+
+export interface ConversationContentLink {
+  id: string
+  conversation_id: string
+  content_type: string
+  content_id: string
+  linked_by: string | null
+  created_at: string
+}
 
 export function getConversationStatus(conv: Conversation): ConversationStatus {
   if (conv.DeletedAt) return 'deleted'
