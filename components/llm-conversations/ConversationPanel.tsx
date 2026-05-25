@@ -571,12 +571,12 @@ export function LLMConversationPanel() {
     }
   }
 
-  async function handleUnlinkContent(linkId: string) {
+  async function handleUnlinkContent(linkId: string, contentType: string, contentId: string) {
     if (!gameId || !activeConvId) return
     const convId: string = activeConvId
     setUnlinkingId(linkId)
     try {
-      await unlinkConversationContent(gameId, convId, linkId)
+      await unlinkConversationContent(gameId, convId, contentType, contentId)
       setLinkedContent(prev => prev.filter(l => l.id !== linkId))
     } catch {
       // silently ignore
@@ -1355,7 +1355,7 @@ export function LLMConversationPanel() {
                           type="button"
                           className="opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
                           disabled={unlinkingId === link.id}
-                          onClick={(e) => { e.stopPropagation(); void handleUnlinkContent(link.id) }}
+                          onClick={(e) => { e.stopPropagation(); void handleUnlinkContent(link.id, link.content_type, link.content_id) }}
                         >
                           {unlinkingId === link.id
                             ? <Loader2 className="h-2.5 w-2.5 animate-spin" />

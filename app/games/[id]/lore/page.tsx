@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, RefreshCw, Loader2, BookOpen, Pencil, Trash2, ChevronDown, ChevronRight, Search, X, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -79,24 +80,32 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
             className="w-[32px] shrink-0 flex justify-center"
             onClick={e => e.stopPropagation()}
           >
-            <Button
-              id={`lore-row-${entry.ID}-link-conv-btn`}
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-blue-500"
-              title={t("lore.linkToConv")}
-              disabled={linkingEntryId === entry.ID}
-              onClick={() => onLinkToConversation?.(entry)}
-            >
-              {linkingEntryId === entry.ID
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : (
-                  <span id={`lore-row-${entry.ID}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
-                    <Bot className="h-3.5 w-3.5" />
-                    <Plus className="h-2.5 w-2.5 stroke-[3]" />
-                  </span>
-                )}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    id={`lore-row-${entry.ID}-link-conv-btn`}
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                    disabled={linkingEntryId === entry.ID}
+                    onClick={() => onLinkToConversation?.(entry)}
+                  >
+                    {linkingEntryId === entry.ID
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : (
+                        <span id={`lore-row-${entry.ID}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                          <Bot className="h-3.5 w-3.5" />
+                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                        </span>
+                      )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent id={`lore-row-${entry.ID}-link-conv-tooltip`}>
+                  {t("lore.linkToConv")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
 

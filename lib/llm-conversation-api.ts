@@ -116,9 +116,10 @@ export async function listConversationContent(
 export async function unlinkConversationContent(
   gameId: string,
   conversationId: string,
-  linkId: string,
+  contentType: string,
+  contentId: string,
 ): Promise<void> {
-  return api.delete(`${base(gameId)}/${conversationId}/content/${linkId}`)
+  return api.delete(`${base(gameId)}/${conversationId}/content/${contentType}/${contentId}`)
 }
 
 export async function listRequestTypes(): Promise<string[]> {

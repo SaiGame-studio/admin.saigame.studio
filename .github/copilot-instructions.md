@@ -1,3 +1,17 @@
+## File Size Rules
+
+### 0. Maximum 1000 Lines Per File
+No source code file (TypeScript, TSX, JavaScript, JSX, HTML, CSS, etc.) may exceed **1000 lines**.
+
+**Requirements:**
+- If a file grows beyond 1000 lines, it **must** be split into smaller, logically cohesive modules before the change is considered complete.
+- Split along natural boundaries: separate sub-components into their own files, extract hooks into `hooks/`, extract API calls into `lib/` or `api/` files, extract types into `types/` files, etc.
+- The root file should remain the thin orchestrator; heavy logic and UI sections belong in dedicated files.
+- When asked to add code to a file that is already close to or over the limit, always refactor first.
+- This rule applies to all new and modified files — do not leave a file over 1000 lines after a change.
+
+---
+
 ## Element ID Rules
 
 ### 0. Mandatory `id` on Every Element
@@ -45,6 +59,16 @@ Whenever adding or changing any UI-facing text (labels, buttons, placeholders, t
 - Replace raw strings in components/pages with translation lookups.
 - Keep wording consistent across locales for the same feature.
 - If a translation is temporarily unavailable, use a clearly named translation key and add placeholder values for all locales in the same PR.
+
+### 4. Tooltip Position Must Be Top
+All tooltips **must** be positioned above the trigger element to avoid being obscured by the mouse cursor.
+
+**Requirements:**
+- Always set `side="top"` on every `<TooltipContent>` component.
+- Never use the default (which may render below or to the side).
+- Apply to all new and modified tooltips without exception.
+
+---
 
 ### 2. Reuse Existing Patterns Before Building New Ones
 Before implementing any new UI element or component, **always search the codebase for an existing similar element** and follow its established pattern exactly. Do not invent a new approach if one already exists.
