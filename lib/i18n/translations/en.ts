@@ -3475,6 +3475,10 @@ export const en = {
     toastFailedUpdate: "Failed to update lore entry",
     toastFailedDelete: "Failed to delete lore entry",
     toastFailedLoad: "Failed to load lore entries",
+    linkToConv: "Link to conversation",
+    linkToConvGoal: "Explore and develop the lore entry: {title}",
+    linkToConvSuccess: "Linked to conversation",
+    linkToConvFailed: "Failed to link to conversation",
   },
   tutorials: {
     title: "Learning Center",

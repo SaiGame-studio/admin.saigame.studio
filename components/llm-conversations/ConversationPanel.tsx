@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ExternalLink,
   Info,
   Link2,
   Loader2,
@@ -82,6 +81,7 @@ import {
   listRequestTypes,
   linkConversationContent,
   listConversationContent,
+  unlinkConversationContent,
 } from '@/lib/llm-conversation-api'
 import { createLoreEntry, getLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
@@ -225,6 +225,7 @@ export function LLMConversationPanel() {
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
   const [isLoadingLinkedContent, setIsLoadingLinkedContent] = useState(false)
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
   const [loreDetails, setLoreDetails] = useState<Record<string, LoreEntry>>({})
 
   // Panel width (horizontal resize)
@@ -386,7 +387,10 @@ export function LLMConversationPanel() {
   // ---------------------------------------------------------------------------
   // Persist UI state to localStorage
   // ---------------------------------------------------------------------------
-  useEffect(() => { safeSetItem(LS_PANEL_OPEN, String(isOpen)) }, [isOpen])
+  useEffect(() => {
+    safeSetItem(LS_PANEL_OPEN, String(isOpen))
+    window.dispatchEvent(new Event('ss:conv-state-changed'))
+  }, [isOpen])
   useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
 
   // Persist completed chat turns for the active conversation
@@ -471,6 +475,31 @@ export function LLMConversationPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConvId, gameId])
 
+  // Listen for externally created conversations (e.g. from lore link button)
+  useEffect(() => {
+    function handleExternalConvCreated(e: Event) {
+      const detail = (e as CustomEvent<{ convId: string; gameId: string }>).detail
+      if (detail.gameId === gameId) {
+        setActiveConvId(detail.convId)
+      }
+    }
+    window.addEventListener('ss:conv-external-created', handleExternalConvCreated)
+    return () => window.removeEventListener('ss:conv-external-created', handleExternalConvCreated)
+  }, [gameId])
+
+  // Reload linked content when an external action links new content to the active conversation
+  useEffect(() => {
+    function handleContentLinked(e: Event) {
+      const detail = (e as CustomEvent<{ convId: string; gameId: string }>).detail
+      if (detail.gameId === gameId && detail.convId === activeConvId) {
+        void loadLinkedContent(gameId, activeConvId)
+      }
+    }
+    window.addEventListener('ss:conv-content-linked', handleContentLinked)
+    return () => window.removeEventListener('ss:conv-content-linked', handleContentLinked)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, activeConvId])
+
   // ---------------------------------------------------------------------------
   // API calls
   // ---------------------------------------------------------------------------
@@ -539,6 +568,20 @@ export function LLMConversationPanel() {
       // silently ignore
     } finally {
       setIsLoadingLinkedContent(false)
+    }
+  }
+
+  async function handleUnlinkContent(linkId: string) {
+    if (!gameId || !activeConvId) return
+    const convId: string = activeConvId
+    setUnlinkingId(linkId)
+    try {
+      await unlinkConversationContent(gameId, convId, linkId)
+      setLinkedContent(prev => prev.filter(l => l.id !== linkId))
+    } catch {
+      // silently ignore
+    } finally {
+      setUnlinkingId(null)
     }
   }
 
@@ -1255,8 +1298,9 @@ export function LLMConversationPanel() {
                   </span>
                   {isLoadingLinkedContent && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
                 </div>
-                <div id="conv-panel-linked-content-list" className="flex flex-wrap gap-1">
-                  {linkedContent.map((link) => {
+                <div id="conv-panel-linked-content-list" className="grid grid-cols-3 gap-1">
+                  {linkedContent.map((link, idx) => {
+                    const refNum = `#${idx + 1}`
                     const href =
                       link.content_type === 'lore_entry'
                         ? `/games/${gameId}/lore?lore_id=${link.content_id}`
@@ -1265,39 +1309,57 @@ export function LLMConversationPanel() {
                       <span
                         key={link.id}
                         id={`conv-panel-linked-item-${link.id}`}
-                        className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                        className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground min-w-0"
                         title={
                           link.content_type === 'lore_entry' && loreDetails[link.content_id]
-                            ? `${loreDetails[link.content_id].LoreType} · ${loreDetails[link.content_id].Title} · ${link.content_id}`
-                            : `${link.content_type} · ${link.content_id}`
+                            ? `${refNum} · ${loreDetails[link.content_id].LoreType} · ${loreDetails[link.content_id].Title} · ${link.content_id}`
+                            : `${refNum} · ${link.content_type} · ${link.content_id}`
                         }
                       >
+                        <span id={`conv-panel-linked-item-ref-${link.id}`} className="font-bold text-foreground/60 tabular-nums">
+                          {refNum}
+                        </span>
                         {link.content_type === 'lore_entry' ? (
                           <BookOpen className="h-2.5 w-2.5 shrink-0" />
                         ) : (
                           <PackagePlus className="h-2.5 w-2.5 shrink-0" />
                         )}
                         {link.content_type === 'lore_entry' && loreDetails[link.content_id] ? (
-                          <>
-                            <span id={`conv-panel-linked-item-lore-type-${link.id}`} className="font-medium opacity-70">
+                          <button
+                            id={`conv-panel-linked-item-name-${link.id}`}
+                            type="button"
+                            className="inline-flex items-center gap-1 min-w-0 hover:underline hover:text-foreground transition-colors"
+                            onClick={(e) => { e.stopPropagation(); router.push(href) }}
+                          >
+                            <span id={`conv-panel-linked-item-lore-type-${link.id}`} className="font-medium opacity-70 shrink-0">
                               {loreDetails[link.content_id].LoreType}
                             </span>
-                            <span id={`conv-panel-linked-item-lore-title-${link.id}`} className="font-medium max-w-[120px] truncate">
+                            <span id={`conv-panel-linked-item-lore-title-${link.id}`} className="font-medium truncate min-w-0">
                               {loreDetails[link.content_id].Title}
                             </span>
-                          </>
+                          </button>
                         ) : (
-                          <span id={`conv-panel-linked-item-type-${link.id}`} className="font-medium">
-                            {t(`llmConversation.contentType.${link.content_type}`) || link.content_type}
-                          </span>
+                          <button
+                            id={`conv-panel-linked-item-name-${link.id}`}
+                            type="button"
+                            className="font-medium hover:underline hover:text-foreground transition-colors"
+                            onClick={(e) => { e.stopPropagation(); router.push(href) }}
+                          >
+                            <span id={`conv-panel-linked-item-type-${link.id}`}>
+                              {t(`llmConversation.contentType.${link.content_type}`) || link.content_type}
+                            </span>
+                          </button>
                         )}
                         <button
-                          id={`conv-panel-linked-item-link-${link.id}`}
+                          id={`conv-panel-linked-item-unlink-${link.id}`}
                           type="button"
-                          className="ml-0.5 opacity-50 hover:opacity-100 transition-opacity"
-                          onClick={(e) => { e.stopPropagation(); router.push(href) }}
+                          className="opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+                          disabled={unlinkingId === link.id}
+                          onClick={(e) => { e.stopPropagation(); void handleUnlinkContent(link.id) }}
                         >
-                          <ExternalLink className="h-2.5 w-2.5" />
+                          {unlinkingId === link.id
+                            ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            : <Trash2 className="h-2.5 w-2.5" />}
                         </button>
                       </span>
                     )

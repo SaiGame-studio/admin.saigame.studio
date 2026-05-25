@@ -3403,6 +3403,10 @@ export const ja = {
     toastFailedUpdate: "ロアエントリーの更新に失敗しました",
     toastFailedDelete: "ロアエントリーの削除に失敗しました",
     toastFailedLoad: "ロアエントリーの読み込みに失敗しました",
+    linkToConv: "会話にリンク",
+    linkToConvGoal: "ロアエントリーを探索・展開する: {title}",
+    linkToConvSuccess: "会話にリンクしました",
+    linkToConvFailed: "会話へのリンクに失敗しました",
   },
   tutorials: {
     title: "ラーニングセンター",

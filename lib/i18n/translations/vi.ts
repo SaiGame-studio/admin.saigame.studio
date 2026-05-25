@@ -3415,6 +3415,10 @@ export const vi = {
     toastFailedUpdate: "Không thể cập nhật mục lore",
     toastFailedDelete: "Không thể xóa mục lore",
     toastFailedLoad: "Không thể tải mục lore",
+    linkToConv: "Liên kết với hội thoại",
+    linkToConvGoal: "Khám phá và phát triển mục lore: {title}",
+    linkToConvSuccess: "Đã liên kết với hội thoại",
+    linkToConvFailed: "Không thể liên kết với hội thoại",
   },
   tutorials: {
     title: "Tài liệu hướng dẫn",

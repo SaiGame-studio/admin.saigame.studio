@@ -113,6 +113,14 @@ export async function listConversationContent(
   return (res?.items ?? []) as ConversationContentLink[]
 }
 
+export async function unlinkConversationContent(
+  gameId: string,
+  conversationId: string,
+  linkId: string,
+): Promise<void> {
+  return api.delete(`${base(gameId)}/${conversationId}/content/${linkId}`)
+}
+
 export async function listRequestTypes(): Promise<string[]> {
   const res = await api.get('/api/v1/llm/request-types')
   const arr: unknown = Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
