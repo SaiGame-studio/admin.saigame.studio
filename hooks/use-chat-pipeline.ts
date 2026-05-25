@@ -289,5 +289,94 @@ export function useChatPipeline() {
     accumulatedGoalsRef.current = restored
   }, [])
 
-  return { isRunning, chatHistory, send, clearHistory, loadHistory, removeTurn }
+  const retryResponse = useCallback(async (
+    gameId: string,
+    convId: string,
+    turnId: string,
+    responseIdx: number,
+    intentType: string,
+    entityType: string,
+    userMessage: string,
+    language: string,
+    errorSend: string,
+  ): Promise<void> => {
+    if (!gameId || !convId || isRunningRef.current) return
+
+    isRunningRef.current = true
+    setIsRunning(true)
+
+    const finish = () => {
+      isRunningRef.current = false
+      setIsRunning(false)
+    }
+
+    // Reset this specific response to loading state
+    setChatHistory((prev) =>
+      prev.map((t) => {
+        if (t.id !== turnId) return t
+        const responses = (t.responses ?? []).map((r, idx) =>
+          idx === responseIdx ? { ...r, responseText: '', error: null, done: false } : r
+        )
+        return { ...t, responses }
+      })
+    )
+
+    try {
+      await streamRequest(
+        gameId,
+        convId,
+        intentType,
+        userMessage,
+        (chunk) =>
+          setChatHistory((prev) =>
+            prev.map((t) => {
+              if (t.id !== turnId) return t
+              const responses = (t.responses ?? []).map((r, idx) =>
+                idx === responseIdx ? { ...r, responseText: r.responseText + chunk } : r
+              )
+              return { ...t, responses }
+            })
+          ),
+        (_requestId) => {
+          setChatHistory((prev) =>
+            prev.map((t) => {
+              if (t.id !== turnId) return t
+              const responses = (t.responses ?? []).map((r, idx) =>
+                idx === responseIdx ? { ...r, done: true } : r
+              )
+              return { ...t, responses }
+            })
+          )
+        },
+        (errMsg) => {
+          setChatHistory((prev) =>
+            prev.map((t) => {
+              if (t.id !== turnId) return t
+              const responses = (t.responses ?? []).map((r, idx) =>
+                idx === responseIdx ? { ...r, error: errMsg, done: true } : r
+              )
+              return { ...t, responses }
+            })
+          )
+        },
+        entityType || undefined,
+        language,
+        accumulatedGoalsRef.current.length > 0 ? [...accumulatedGoalsRef.current] : undefined,
+      )
+    } catch {
+      setChatHistory((prev) =>
+        prev.map((t) => {
+          if (t.id !== turnId) return t
+          const responses = (t.responses ?? []).map((r, idx) =>
+            idx === responseIdx ? { ...r, error: errorSend, done: true } : r
+          )
+          return { ...t, responses }
+        })
+      )
+    }
+
+    finish()
+  }, [])
+
+  return { isRunning, chatHistory, send, retryResponse, clearHistory, loadHistory, removeTurn }
 }

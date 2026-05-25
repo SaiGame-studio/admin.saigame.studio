@@ -190,7 +190,7 @@ export function LLMConversationPanel() {
   const justCreatedConvIdRef = useRef<string | null>(null)
 
   // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
-  const { isRunning: isStreaming, chatHistory, send: runPipeline, clearHistory, loadHistory, removeTurn } = useChatPipeline()
+  const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn } = useChatPipeline()
 
   // Request type selector
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([])
@@ -783,7 +783,7 @@ export function LLMConversationPanel() {
             <div ref={sidebarBodyRef} id="conv-panel-sidebar-body" className="flex flex-1 flex-col min-h-0 overflow-hidden">
               {/* Active section */}
               <div id="conv-panel-active-section" className={`flex flex-col overflow-hidden ${isArchivedCollapsed ? 'flex-1' : ''}`} style={isArchivedCollapsed ? undefined : { height: activeSectionHeight }}>
-                <div id="conv-panel-active-header" className="flex h-7 shrink-0 items-center border-b bg-muted/40 px-2">
+                <div id="conv-panel-active-header" className="flex h-7 shrink-0 items-center border-b bg-muted/40 px-2 ml-1">
                   <span id="conv-panel-active-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {t('llmConversation.tabActive')}
                   </span>
@@ -838,7 +838,7 @@ export function LLMConversationPanel() {
               {/* Archived section */}
               <div id="conv-panel-archived-section" className={`flex flex-col overflow-hidden ${isArchivedCollapsed ? 'shrink-0' : 'flex-1 min-h-0'}`}>
                 <div id="conv-panel-archived-header" className="flex h-7 shrink-0 items-center border-b bg-muted/40 px-2">
-                  <span id="conv-panel-archived-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span id="conv-panel-archived-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground ml-1">
                     {t('llmConversation.tabArchived')}
                   </span>
                   {isLoadingArchived && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
@@ -1087,7 +1087,29 @@ export function LLMConversationPanel() {
                                     {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
                                   </span>
                                   {response.error ? (
-                                    <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
+                                    <div id={`conv-panel-ai-response-error-wrap-${turn.id}-${idx}`} className="flex items-center gap-2 flex-wrap">
+                                      <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
+                                      <button
+                                        id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`}
+                                        onClick={() => retryResponse(
+                                          gameId!,
+                                          activeConvId!,
+                                          turn.id,
+                                          idx,
+                                          response.intentType,
+                                          response.entityType,
+                                          turn.userMessage,
+                                          turn.detectedLanguage ?? '',
+                                          t('llmConversation.errorSend'),
+                                        )}
+                                        disabled={isStreaming || !activeConvId}
+                                        className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                                        title="Retry"
+                                      >
+                                        <RotateCcw className="h-3 w-3" />
+                                        Retry
+                                      </button>
+                                    </div>
                                   ) : response.responseText ? (
                                     <p id={`conv-panel-ai-response-text-${turn.id}-${idx}`} className="text-xs leading-relaxed whitespace-pre-wrap">
                                       {response.responseText}
