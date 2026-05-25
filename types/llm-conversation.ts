@@ -82,6 +82,15 @@ export interface CreateLoreRecordsResponse {
 
 export type ConversationStatus = 'active' | 'archived' | 'deleted'
 
+export interface ConversationContentLink {
+  id: string
+  conversation_id: string
+  content_type: string
+  content_id: string
+  linked_by: string | null
+  created_at: string
+}
+
 export function getConversationStatus(conv: Conversation): ConversationStatus {
   if (conv.DeletedAt) return 'deleted'
   if (conv.ArchivedAt) return 'archived'

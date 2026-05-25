@@ -15,7 +15,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   Info,
+  Link2,
   Loader2,
   Minus,
   MoreVertical,
@@ -77,10 +79,13 @@ import {
   deleteConversation,
   createRecordsFromConversation,
   listRequestTypes,
+  linkConversationContent,
+  listConversationContent,
 } from '@/lib/llm-conversation-api'
-import { createLoreEntry } from '@/lib/lore-api'
+import { createLoreEntry, getLoreEntry } from '@/lib/lore-api'
+import type { LoreEntry } from '@/types/lore'
 import { useChatPipeline, ChatTurn, IntentResponse } from '@/hooks/use-chat-pipeline'
-import type { Conversation, RequestType } from '@/types/llm-conversation'
+import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation'
 
 // ---------------------------------------------------------------------------
 // localStorage keys
@@ -92,6 +97,7 @@ const LS_SIDEBAR_WIDTH = 'ss_conv_sidebar_width'
 const LS_SIDEBAR_SPLIT = 'ss_conv_sidebar_split'
 const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`
 const lsConvHistory = (convId: string) => `ss_conv_history_${convId}`
+const lsLoreLinks = (convId: string) => `ss_conv_lore_links_${convId}`
 
 const PANEL_MIN_WIDTH = 320
 const PANEL_MAX_WIDTH = 1200
@@ -203,10 +209,18 @@ export function LLMConversationPanel() {
   const [isCreatingLoreRecords, setIsCreatingLoreRecords] = useState(false)
   const [loreDraftReviewOpen, setLoreDraftReviewOpen] = useState(false)
   const [loreDraftReviewTurn, setLoreDraftReviewTurn] = useState<ChatTurn | null>(null)
+  const [loreDraftReviewResponseIdx, setLoreDraftReviewResponseIdx] = useState<number>(-1)
   const [loreDraftForm, setLoreDraftForm] = useState({ lore_type: '', title: '', summary: '', content: '' })
+  // savedLoreIds: "turnId:responseIdx" → loreId, persisted per conversation
+  const [savedLoreIds, setSavedLoreIds] = useState<Record<string, string>>({})
 
   // Detail dialog
   const [detailOpen, setDetailOpen] = useState(false)
+
+  // Linked content for the active conversation
+  const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
+  const [isLoadingLinkedContent, setIsLoadingLinkedContent] = useState(false)
+  const [loreDetails, setLoreDetails] = useState<Record<string, LoreEntry>>({})
 
   // Panel width (horizontal resize)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -421,11 +435,17 @@ export function LLMConversationPanel() {
   useEffect(() => {
     if (!gameId || !activeConvId) {
       setActiveConv(null)
+      setLinkedContent([])
+      setLoreDetails({})
+      setSavedLoreIds({})
       clearHistory()
       if (gameId) safeRemoveItem(lsActiveConv(gameId))
       return
     }
     safeSetItem(lsActiveConv(gameId), activeConvId)
+    // Restore saved lore links for this conversation
+    const rawLoreLinks = safeGetItem(lsLoreLinks(activeConvId))
+    setSavedLoreIds(rawLoreLinks ? (JSON.parse(rawLoreLinks) as Record<string, string>) : {})
     // Skip re-fetching when the conversation was just created by handleSend
     if (justCreatedConvIdRef.current === activeConvId) {
       justCreatedConvIdRef.current = null
@@ -440,6 +460,7 @@ export function LLMConversationPanel() {
       loadHistory([])
     }
     loadConversation(gameId, activeConvId)
+    loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConvId, gameId])
 
@@ -487,6 +508,30 @@ export function LLMConversationPanel() {
       setActiveConvId(null)
     } finally {
       setIsLoadingConv(false)
+    }
+  }
+
+  async function loadLinkedContent(gId: string, convId: string) {
+    setIsLoadingLinkedContent(true)
+    try {
+      const items = await listConversationContent(gId, convId)
+      setLinkedContent(items)
+      // Fetch lore entry details for lore_entry links
+      const loreLinks = items.filter((l) => l.content_type === 'lore_entry')
+      if (loreLinks.length > 0) {
+        const results = await Promise.allSettled(
+          loreLinks.map((l) => getLoreEntry(gId, l.content_id))
+        )
+        const map: Record<string, LoreEntry> = {}
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') map[loreLinks[i].content_id] = r.value
+        })
+        setLoreDetails((prev) => ({ ...prev, ...map }))
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setIsLoadingLinkedContent(false)
     }
   }
 
@@ -632,8 +677,9 @@ export function LLMConversationPanel() {
     try {
       const result = await createRecordsFromConversation(gameId, activeConvId)
       toast({ title: t('llmConversation.recordsCreated').replace('{count}', String(result.created_count)) })
-      // Refresh conversation to reflect updated AccumulatedContent
+      // Refresh conversation and linked content
       await loadConversation(gameId, activeConvId)
+      void loadLinkedContent(gameId, activeConvId)
     } catch {
       toast({ title: t('llmConversation.errorCreateRecords'), variant: 'destructive' })
     } finally {
@@ -652,10 +698,31 @@ export function LLMConversationPanel() {
         summary: loreDraftForm.summary,
         content: loreDraftForm.content,
       })
+      if (activeConvId) {
+        try {
+          await linkConversationContent(gameId, activeConvId, 'lore_entry', lore.ID)
+          // Refresh the linked content list so the new entry appears immediately
+          void loadLinkedContent(gameId, activeConvId)
+        } catch {
+          // Non-fatal — lore was created successfully, linking is best-effort
+        }
+      }
+      // Persist the turn→lore mapping in localStorage
+      if (loreDraftReviewTurn && activeConvId) {
+        const linkKey = `${loreDraftReviewTurn.id}:${loreDraftReviewResponseIdx}`
+        const updated = { ...savedLoreIds, [linkKey]: lore.ID }
+        setSavedLoreIds(updated)
+        safeSetItem(lsLoreLinks(activeConvId), JSON.stringify(updated))
+      }
       toast({ title: t('llmConversation.loreRecordsCreated').replace('{count}', '1') })
       router.push(`/games/${gameId}/lore?lore_id=${lore.ID}`)
-    } catch {
-      toast({ title: t('llmConversation.errorCreateLoreRecords'), variant: 'destructive' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : null
+      toast({
+        title: t('llmConversation.errorCreateLoreRecords'),
+        description: msg ?? undefined,
+        variant: 'destructive',
+      })
     } finally {
       setIsCreatingLoreRecords(false)
     }
@@ -1026,25 +1093,39 @@ export function LLMConversationPanel() {
                                         </button>
                                       )}
                                       {response.intentType === 'lore_building' && (
-                                        <button
-                                          id={`conv-panel-turn-create-lore-btn-${turn.id}-${idx}`}
-                                          onClick={() => {
-                                            const parsed = parseLoreResponse(response.responseText)
-                                            setLoreDraftForm({
-                                              lore_type: response.entityType,
-                                              title: parsed.title,
-                                              summary: parsed.summary,
-                                              content: parsed.content,
-                                            })
-                                            setLoreDraftReviewTurn(turn)
-                                            setLoreDraftReviewOpen(true)
-                                          }}
-                                          disabled={!response.done}
-                                          className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
-                                        >
-                                          <BookOpen className="h-3 w-3" />
-                                          {t('llmConversation.saveAsLore')}
-                                        </button>
+                                        <span id={`conv-panel-turn-lore-wrap-${turn.id}-${idx}`} className="inline-flex items-center gap-1.5">
+                                          <button
+                                            id={`conv-panel-turn-create-lore-btn-${turn.id}-${idx}`}
+                                            onClick={() => {
+                                              const parsed = parseLoreResponse(response.responseText)
+                                              setLoreDraftForm({
+                                                lore_type: response.entityType,
+                                                title: parsed.title,
+                                                summary: parsed.summary,
+                                                content: parsed.content,
+                                              })
+                                              setLoreDraftReviewTurn(turn)
+                                              setLoreDraftReviewResponseIdx(idx)
+                                              setLoreDraftReviewOpen(true)
+                                            }}
+                                            disabled={!response.done || !!savedLoreIds[`${turn.id}:${idx}`]}
+                                            className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                          >
+                                            <BookOpen className="h-3 w-3" />
+                                            {t('llmConversation.saveAsLore')}
+                                          </button>
+                                          {savedLoreIds[`${turn.id}:${idx}`] && (
+                                            <button
+                                              id={`conv-panel-turn-lore-link-${turn.id}-${idx}`}
+                                              type="button"
+                                              onClick={() => router.push(`/games/${gameId}/lore?lore_id=${savedLoreIds[`${turn.id}:${idx}`]}`)}
+                                              className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                            >
+                                              <BookOpen className="h-2.5 w-2.5" />
+                                              {loreDetails[savedLoreIds[`${turn.id}:${idx}`]]?.Title ?? t('llmConversation.contentType.lore_entry')}
+                                            </button>
+                                          )}
+                                        </span>
                                       )}
                                     </div>
                                   )}
@@ -1077,25 +1158,39 @@ export function LLMConversationPanel() {
                                     </button>
                                   )}
                                   {intent.type === 'lore_building' && (
-                                    <button
-                                      id={`conv-panel-turn-create-lore-btn-${turn.id}`}
-                                      onClick={() => {
-                                        const parsed = parseLoreResponse(turn.responseText)
-                                        setLoreDraftForm({
-                                          lore_type: intent.entityType,
-                                          title: parsed.title,
-                                          summary: parsed.summary,
-                                          content: parsed.content,
-                                        })
-                                        setLoreDraftReviewTurn(turn)
-                                        setLoreDraftReviewOpen(true)
-                                      }}
-                                      disabled={!turn.done}
-                                      className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
-                                    >
-                                      <BookOpen className="h-3 w-3" />
-                                      {t('llmConversation.saveAsLore')}
-                                    </button>
+                                    <span id={`conv-panel-turn-lore-wrap-${turn.id}-legacy`} className="inline-flex items-center gap-1.5">
+                                      <button
+                                        id={`conv-panel-turn-create-lore-btn-${turn.id}`}
+                                        onClick={() => {
+                                          const parsed = parseLoreResponse(turn.responseText)
+                                          setLoreDraftForm({
+                                            lore_type: intent.entityType,
+                                            title: parsed.title,
+                                            summary: parsed.summary,
+                                            content: parsed.content,
+                                          })
+                                          setLoreDraftReviewTurn(turn)
+                                          setLoreDraftReviewResponseIdx(-1)
+                                          setLoreDraftReviewOpen(true)
+                                        }}
+                                        disabled={!turn.done || !!savedLoreIds[`${turn.id}:-1`]}
+                                        className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                      >
+                                        <BookOpen className="h-3 w-3" />
+                                        {t('llmConversation.saveAsLore')}
+                                      </button>
+                                      {savedLoreIds[`${turn.id}:-1`] && (
+                                        <button
+                                          id={`conv-panel-turn-lore-link-${turn.id}-legacy`}
+                                          type="button"
+                                          onClick={() => router.push(`/games/${gameId}/lore?lore_id=${savedLoreIds[`${turn.id}:-1`]}`)}
+                                          className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                          <BookOpen className="h-2.5 w-2.5" />
+                                          {loreDetails[savedLoreIds[`${turn.id}:-1`]]?.Title ?? t('llmConversation.contentType.lore_entry')}
+                                        </button>
+                                      )}
+                                    </span>
                                   )}
                                 </span>
                               ))}
@@ -1109,6 +1204,67 @@ export function LLMConversationPanel() {
                 </ScrollArea>
 
               </>
+            )}
+
+            {/* Linked content strip — shown above the input when there are links */}
+            {activeConvId && (linkedContent.length > 0 || isLoadingLinkedContent) && (
+              <div id="conv-panel-linked-content" className="shrink-0 border-t px-2 pt-1.5 pb-1">
+                <div id="conv-panel-linked-content-header" className="flex items-center gap-1 mb-1">
+                  <Link2 className="h-3 w-3 text-muted-foreground" />
+                  <span id="conv-panel-linked-content-label" className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    {t('llmConversation.linkedContent')}
+                  </span>
+                  {isLoadingLinkedContent && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
+                </div>
+                <div id="conv-panel-linked-content-list" className="flex flex-wrap gap-1">
+                  {linkedContent.map((link) => {
+                    const href =
+                      link.content_type === 'lore_entry'
+                        ? `/games/${gameId}/lore?lore_id=${link.content_id}`
+                        : `/games/${gameId}/items/${link.content_id}`
+                    return (
+                      <span
+                        key={link.id}
+                        id={`conv-panel-linked-item-${link.id}`}
+                        className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+                        title={
+                          link.content_type === 'lore_entry' && loreDetails[link.content_id]
+                            ? `${loreDetails[link.content_id].LoreType} · ${loreDetails[link.content_id].Title} · ${link.content_id}`
+                            : `${link.content_type} · ${link.content_id}`
+                        }
+                      >
+                        {link.content_type === 'lore_entry' ? (
+                          <BookOpen className="h-2.5 w-2.5 shrink-0" />
+                        ) : (
+                          <PackagePlus className="h-2.5 w-2.5 shrink-0" />
+                        )}
+                        {link.content_type === 'lore_entry' && loreDetails[link.content_id] ? (
+                          <>
+                            <span id={`conv-panel-linked-item-lore-type-${link.id}`} className="font-medium opacity-70">
+                              {loreDetails[link.content_id].LoreType}
+                            </span>
+                            <span id={`conv-panel-linked-item-lore-title-${link.id}`} className="font-medium max-w-[120px] truncate">
+                              {loreDetails[link.content_id].Title}
+                            </span>
+                          </>
+                        ) : (
+                          <span id={`conv-panel-linked-item-type-${link.id}`} className="font-medium">
+                            {t(`llmConversation.contentType.${link.content_type}`) || link.content_type}
+                          </span>
+                        )}
+                        <button
+                          id={`conv-panel-linked-item-link-${link.id}`}
+                          type="button"
+                          className="ml-0.5 opacity-50 hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); router.push(href) }}
+                        >
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
             )}
 
             {/* Message input — always visible */}

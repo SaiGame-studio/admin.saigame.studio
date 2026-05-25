@@ -3480,6 +3480,13 @@ export const ja = {
     errorDelete: "会話の削除に失敗しました。",
     errorCreateRecords: "アイテムレコードの作成に失敗しました。",
     errorLoadRequestTypes: "リクエストタイプの読み込みに失敗しました。",
+    linkedContent: "リンクされたコンテンツ",
+    linkedAuto: "自動",
+    linkedManual: "手動",
+    contentType: {
+      lore_entry: "ロア",
+      item_definition: "アイテム",
+    },
     send: "送信",
   },
 };

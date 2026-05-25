@@ -11,6 +11,7 @@ import type {
   CreateRecordsResponse,
   CreateLoreRecordsResponse,
   RequestType,
+  ConversationContentLink,
 } from '@/types/llm-conversation'
 
 const base = (gameId: string) => `/api/v1/games/${gameId}/llm/conversations`
@@ -90,6 +91,26 @@ export async function createLoreRecordsFromConversation(
   conversationId: string,
 ): Promise<CreateLoreRecordsResponse> {
   return api.post(`${base(gameId)}/${conversationId}/create-lore-records`)
+}
+
+export async function linkConversationContent(
+  gameId: string,
+  conversationId: string,
+  contentType: string,
+  contentId: string,
+): Promise<void> {
+  return api.post(`${base(gameId)}/${conversationId}/content`, {
+    content_type: contentType,
+    content_id: contentId,
+  })
+}
+
+export async function listConversationContent(
+  gameId: string,
+  conversationId: string,
+): Promise<ConversationContentLink[]> {
+  const res = await api.get(`${base(gameId)}/${conversationId}/content`)
+  return (res?.items ?? []) as ConversationContentLink[]
 }
 
 export async function listRequestTypes(): Promise<string[]> {

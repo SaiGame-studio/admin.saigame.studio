@@ -3552,6 +3552,13 @@ export const en = {
     errorDelete: "Failed to delete conversation.",
     errorCreateRecords: "Failed to create item records.",
     errorLoadRequestTypes: "Failed to load request types.",
+    linkedContent: "Linked Content",
+    linkedAuto: "auto",
+    linkedManual: "manual",
+    contentType: {
+      lore_entry: "Lore",
+      item_definition: "Item",
+    },
     send: "Send",
   },
 };

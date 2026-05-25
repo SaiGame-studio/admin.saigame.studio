@@ -3492,6 +3492,13 @@ export const vi = {
     errorDelete: "Không thể xóa cuộc hội thoại.",
     errorCreateRecords: "Không thể tạo bản ghi vật phẩm.",
     errorLoadRequestTypes: "Không thể tải loại yêu cầu.",
+    linkedContent: "Nội dung liên kết",
+    linkedAuto: "tự động",
+    linkedManual: "thủ công",
+    contentType: {
+      lore_entry: "Lore",
+      item_definition: "Vật phẩm",
+    },
     send: "Gửi",
   },
 };
