@@ -3510,6 +3510,8 @@ export const en = {
       auto: "Auto",
       item_generation: "Generate Items",
       lore_building: "Build Lore",
+      lore_analyzing: "Analyze Lore",
+      lore_updating: "Update Lore",
     },
     entityTypes: {
       world: "World",

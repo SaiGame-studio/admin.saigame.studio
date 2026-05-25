@@ -3450,6 +3450,8 @@ export const vi = {
       auto: "Tự động",
       item_generation: "Tạo Vật Phẩm",
       lore_building: "Xây Dựng Lore",
+      lore_analyzing: "Phân Tích Lore",
+      lore_updating: "Cập Nhật Lore",
     },
     entityTypes: {
       world: "Thế giới",

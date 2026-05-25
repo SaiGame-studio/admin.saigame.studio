@@ -3438,6 +3438,8 @@ export const ja = {
       auto: "自動",
       item_generation: "アイテム生成",
       lore_building: "ロア構築",
+      lore_analyzing: "ロア分析",
+      lore_updating: "ロア更新",
     },
     entityTypes: {
       world: "世界",
