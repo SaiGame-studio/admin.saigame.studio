@@ -26,9 +26,10 @@ export interface ItemDraft {
 }
 
 export interface LoreDraft {
-  name: string
-  era?: string
-  description: string
+  lore_type: string
+  title: string
+  summary?: string
+  content: string
 }
 
 export interface ListConversationsResponse {
@@ -72,6 +73,11 @@ export interface SubmitRequestResponse {
 export interface CreateRecordsResponse {
   created_count: number
   item_definition_ids: string[]
+}
+
+export interface CreateLoreRecordsResponse {
+  created_count: number
+  lore_entry_ids: string[]
 }
 
 export type ConversationStatus = 'active' | 'archived' | 'deleted'

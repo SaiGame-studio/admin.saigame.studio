@@ -6,10 +6,11 @@ import {
   useRef,
   useState,
 } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Archive,
   ArchiveRestore,
+  BookOpen,
   Bot,
   ChevronDown,
   ChevronLeft,
@@ -18,6 +19,7 @@ import {
   Loader2,
   Minus,
   MoreVertical,
+  PackagePlus,
   Pencil,
   RotateCcw,
   Send,
@@ -58,6 +60,8 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -71,9 +75,11 @@ import {
   archiveConversation,
   unarchiveConversation,
   deleteConversation,
+  createRecordsFromConversation,
   listRequestTypes,
 } from '@/lib/llm-conversation-api'
-import { useChatPipeline } from '@/hooks/use-chat-pipeline'
+import { createLoreEntry } from '@/lib/lore-api'
+import { useChatPipeline, ChatTurn, IntentResponse } from '@/hooks/use-chat-pipeline'
 import type { Conversation, RequestType } from '@/types/llm-conversation'
 
 // ---------------------------------------------------------------------------
@@ -107,10 +113,35 @@ function extractGameId(pathname: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Parse title= / summary= lines from the top of a lore building response.
+// Returns { title, summary, content } where content is everything after those lines.
+// ---------------------------------------------------------------------------
+function parseLoreResponse(text: string): { title: string; summary: string; content: string } {
+  let remaining = text
+  let title = ''
+  let summary = ''
+
+  const titleMatch = remaining.match(/^title=(.+?)(?:\r?\n|$)/m)
+  if (titleMatch) {
+    title = titleMatch[1].trim()
+    remaining = remaining.slice(remaining.indexOf(titleMatch[0]) + titleMatch[0].length)
+  }
+
+  const summaryMatch = remaining.match(/^summary=(.+?)(?:\r?\n|$)/m)
+  if (summaryMatch) {
+    summary = summaryMatch[1].trim()
+    remaining = remaining.slice(remaining.indexOf(summaryMatch[0]) + summaryMatch[0].length)
+  }
+
+  return { title, summary, content: remaining.trim() }
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 export function LLMConversationPanel() {
   const pathname = usePathname()
+  const router = useRouter()
   const { toast } = useToast()
   const { t } = useTranslation()
 
@@ -163,6 +194,16 @@ export function LLMConversationPanel() {
 
   // Archive/delete dialogs
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
+
+  // Create records
+  const [isCreatingRecords, setIsCreatingRecords] = useState(false)
+  const [createRecordsConfirmOpen, setCreateRecordsConfirmOpen] = useState(false)
+
+  // Create lore records
+  const [isCreatingLoreRecords, setIsCreatingLoreRecords] = useState(false)
+  const [loreDraftReviewOpen, setLoreDraftReviewOpen] = useState(false)
+  const [loreDraftReviewTurn, setLoreDraftReviewTurn] = useState<ChatTurn | null>(null)
+  const [loreDraftForm, setLoreDraftForm] = useState({ lore_type: '', title: '', summary: '', content: '' })
 
   // Detail dialog
   const [detailOpen, setDetailOpen] = useState(false)
@@ -585,6 +626,41 @@ export function LLMConversationPanel() {
     }
   }
 
+  async function handleCreateRecords() {
+    if (!gameId || !activeConvId) return
+    setIsCreatingRecords(true)
+    try {
+      const result = await createRecordsFromConversation(gameId, activeConvId)
+      toast({ title: t('llmConversation.recordsCreated').replace('{count}', String(result.created_count)) })
+      // Refresh conversation to reflect updated AccumulatedContent
+      await loadConversation(gameId, activeConvId)
+    } catch {
+      toast({ title: t('llmConversation.errorCreateRecords'), variant: 'destructive' })
+    } finally {
+      setIsCreatingRecords(false)
+      setCreateRecordsConfirmOpen(false)
+    }
+  }
+
+  async function handleCreateLoreRecords() {
+    if (!gameId) return
+    setIsCreatingLoreRecords(true)
+    try {
+      const lore = await createLoreEntry(gameId, {
+        lore_type: loreDraftForm.lore_type,
+        title: loreDraftForm.title,
+        summary: loreDraftForm.summary,
+        content: loreDraftForm.content,
+      })
+      toast({ title: t('llmConversation.loreRecordsCreated').replace('{count}', '1') })
+      router.push(`/games/${gameId}/lore?lore_id=${lore.ID}`)
+    } catch {
+      toast({ title: t('llmConversation.errorCreateLoreRecords'), variant: 'destructive' })
+    } finally {
+      setIsCreatingLoreRecords(false)
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Don't render when not on a game page, or before client hydration
   // ---------------------------------------------------------------------------
@@ -919,6 +995,62 @@ export function LLMConversationPanel() {
                                 Retry
                               </button>
                             </div>
+                          ) : (turn.responses?.length ?? 0) > 0 ? (
+                            <div id={`conv-panel-ai-responses-${turn.id}`} className="flex flex-col gap-3">
+                              {turn.responses!.map((response, idx) => (
+                                <div key={idx} id={`conv-panel-ai-response-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                                  <span id={`conv-panel-ai-response-type-${turn.id}-${idx}`} className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
+                                  </span>
+                                  {response.error ? (
+                                    <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
+                                  ) : response.responseText ? (
+                                    <p id={`conv-panel-ai-response-text-${turn.id}-${idx}`} className="text-xs leading-relaxed whitespace-pre-wrap">
+                                      {response.responseText}
+                                      {!response.done && <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />}
+                                    </p>
+                                  ) : !response.done ? (
+                                    <Loader2 id={`conv-panel-ai-response-spinner-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                                  ) : null}
+                                  {!response.error && response.responseText && (
+                                    <div id={`conv-panel-response-actions-${turn.id}-${idx}`} className="flex flex-wrap gap-1 mt-1">
+                                      {response.intentType === 'item_generation' && (
+                                        <button
+                                          id={`conv-panel-turn-create-items-btn-${turn.id}-${idx}`}
+                                          onClick={() => setCreateRecordsConfirmOpen(true)}
+                                          disabled={isCreatingRecords || !response.done}
+                                          className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                        >
+                                          <PackagePlus className="h-3 w-3" />
+                                          {t('llmConversation.saveToGame')}
+                                        </button>
+                                      )}
+                                      {response.intentType === 'lore_building' && (
+                                        <button
+                                          id={`conv-panel-turn-create-lore-btn-${turn.id}-${idx}`}
+                                          onClick={() => {
+                                            const parsed = parseLoreResponse(response.responseText)
+                                            setLoreDraftForm({
+                                              lore_type: response.entityType,
+                                              title: parsed.title,
+                                              summary: parsed.summary,
+                                              content: parsed.content,
+                                            })
+                                            setLoreDraftReviewTurn(turn)
+                                            setLoreDraftReviewOpen(true)
+                                          }}
+                                          disabled={!response.done}
+                                          className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                        >
+                                          <BookOpen className="h-3 w-3" />
+                                          {t('llmConversation.saveAsLore')}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           ) : turn.responseText ? (
                             <p id={`conv-panel-ai-text-${turn.id}`} className="text-xs leading-relaxed whitespace-pre-wrap">
                               {turn.responseText}
@@ -927,6 +1059,48 @@ export function LLMConversationPanel() {
                           ) : !turn.done ? (
                             <Loader2 id={`conv-panel-ai-spinner-${turn.id}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                           ) : null}
+
+                          {/* Legacy action buttons for turns loaded from localStorage without responses[] */}
+                          {!turn.error && !(turn.responses?.length) && (turn.detectedIntents?.length || turn.detectedType) && turn.responseText && (
+                            <div id={`conv-panel-turn-actions-${turn.id}`} className="flex flex-wrap gap-1 mt-2">
+                              {(turn.detectedIntents ?? (turn.detectedType ? [{ type: turn.detectedType, entityType: turn.detectedEntityType ?? '', goal: '' }] : [])).map((intent) => (
+                                <span key={intent.type}>
+                                  {intent.type === 'item_generation' && (
+                                    <button
+                                      id={`conv-panel-turn-create-items-btn-${turn.id}`}
+                                      onClick={() => setCreateRecordsConfirmOpen(true)}
+                                      disabled={isCreatingRecords || !turn.done}
+                                      className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                    >
+                                      <PackagePlus className="h-3 w-3" />
+                                      {t('llmConversation.saveToGame')}
+                                    </button>
+                                  )}
+                                  {intent.type === 'lore_building' && (
+                                    <button
+                                      id={`conv-panel-turn-create-lore-btn-${turn.id}`}
+                                      onClick={() => {
+                                        const parsed = parseLoreResponse(turn.responseText)
+                                        setLoreDraftForm({
+                                          lore_type: intent.entityType,
+                                          title: parsed.title,
+                                          summary: parsed.summary,
+                                          content: parsed.content,
+                                        })
+                                        setLoreDraftReviewTurn(turn)
+                                        setLoreDraftReviewOpen(true)
+                                      }}
+                                      disabled={!turn.done}
+                                      className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                                    >
+                                      <BookOpen className="h-3 w-3" />
+                                      {t('llmConversation.saveAsLore')}
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1013,7 +1187,7 @@ export function LLMConversationPanel() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent id="conv-panel-detail-dialog" className="max-w-lg">
           <DialogHeader>
-            <DialogTitle id="conv-panel-detail-dialog-title">Conversation Detail</DialogTitle>
+            <DialogTitle>Conversation Detail</DialogTitle>
           </DialogHeader>
           <ScrollArea id="conv-panel-detail-scroll" className="max-h-[65vh] pr-2">
             <div id="conv-panel-detail-body" className="space-y-4 text-xs">
@@ -1113,6 +1287,108 @@ export function LLMConversationPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ── Create records confirmation ── */}
+      <AlertDialog open={createRecordsConfirmOpen} onOpenChange={(o) => { if (!o) setCreateRecordsConfirmOpen(false) }}>
+        <AlertDialogContent id="conv-panel-create-records-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle id="conv-panel-create-records-dialog-title">{t('llmConversation.createRecordsTitle')}</AlertDialogTitle>
+            <AlertDialogDescription id="conv-panel-create-records-dialog-desc">
+              {t('llmConversation.createRecordsDesc').replace('{count}', String(activeConv?.AccumulatedContent?.items?.length ?? 0))}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel id="conv-panel-create-records-cancel-btn" disabled={isCreatingRecords}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction id="conv-panel-create-records-confirm-btn" onClick={handleCreateRecords} disabled={isCreatingRecords}>
+              {isCreatingRecords ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackagePlus className="h-3.5 w-3.5" />}
+              {t('llmConversation.saveToGame')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Lore draft review dialog ── */}
+      <Dialog open={loreDraftReviewOpen} onOpenChange={(o) => { if (!o) setLoreDraftReviewOpen(false) }}>
+        <DialogContent id="conv-panel-lore-review-dialog" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('llmConversation.createLoreRecordsTitle')}</DialogTitle>
+          </DialogHeader>
+
+          <div id="conv-panel-lore-review-form" className="flex flex-col gap-3">
+            {/* lore_type */}
+            <div id="conv-panel-lore-review-type-row" className="flex flex-col gap-1">
+              <label id="conv-panel-lore-review-type-label" className="text-xs font-medium text-muted-foreground">
+                {t('llmConversation.loreType')}
+              </label>
+              <input
+                id="conv-panel-lore-review-type-input"
+                value={loreDraftForm.lore_type}
+                onChange={(e) => setLoreDraftForm((f) => ({ ...f, lore_type: e.target.value }))}
+                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* title */}
+            <div id="conv-panel-lore-review-title-row" className="flex flex-col gap-1">
+              <label id="conv-panel-lore-review-title-label" className="text-xs font-medium text-muted-foreground">
+                {t('common.title')}
+              </label>
+              <input
+                id="conv-panel-lore-review-title-input"
+                value={loreDraftForm.title}
+                onChange={(e) => setLoreDraftForm((f) => ({ ...f, title: e.target.value }))}
+                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* summary */}
+            <div id="conv-panel-lore-review-summary-row" className="flex flex-col gap-1">
+              <label id="conv-panel-lore-review-summary-label" className="text-xs font-medium text-muted-foreground">
+                {t('common.summary')}
+              </label>
+              <input
+                id="conv-panel-lore-review-summary-input"
+                value={loreDraftForm.summary}
+                onChange={(e) => setLoreDraftForm((f) => ({ ...f, summary: e.target.value }))}
+                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* content */}
+            <div id="conv-panel-lore-review-content-row" className="flex flex-col gap-1">
+              <label id="conv-panel-lore-review-content-label" className="text-xs font-medium text-muted-foreground">
+                {t('common.content')}
+              </label>
+              <textarea
+                id="conv-panel-lore-review-content-input"
+                rows={6}
+                value={loreDraftForm.content}
+                onChange={(e) => setLoreDraftForm((f) => ({ ...f, content: e.target.value }))}
+                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter id="conv-panel-lore-review-footer">
+            <button
+              id="conv-panel-lore-review-cancel-btn"
+              onClick={() => setLoreDraftReviewOpen(false)}
+              disabled={isCreatingLoreRecords}
+              className="inline-flex items-center rounded border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              id="conv-panel-lore-review-confirm-btn"
+              onClick={async () => { await handleCreateLoreRecords(); setLoreDraftReviewOpen(false) }}
+              disabled={isCreatingLoreRecords || !loreDraftForm.title || !loreDraftForm.lore_type}
+              className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+            >
+              {isCreatingLoreRecords ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+              {t('llmConversation.saveAsLore')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </>
   )

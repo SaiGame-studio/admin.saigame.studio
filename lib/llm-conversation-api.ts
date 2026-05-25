@@ -9,6 +9,7 @@ import type {
   SubmitRequestBody,
   SubmitRequestResponse,
   CreateRecordsResponse,
+  CreateLoreRecordsResponse,
   RequestType,
 } from '@/types/llm-conversation'
 
@@ -84,6 +85,13 @@ export async function createRecordsFromConversation(
   return api.post(`${base(gameId)}/${conversationId}/create-records`)
 }
 
+export async function createLoreRecordsFromConversation(
+  gameId: string,
+  conversationId: string,
+): Promise<CreateLoreRecordsResponse> {
+  return api.post(`${base(gameId)}/${conversationId}/create-lore-records`)
+}
+
 export async function listRequestTypes(): Promise<string[]> {
   const res = await api.get('/api/v1/llm/request-types')
   const arr: unknown = Array.isArray(res) ? res : (res?.request_types ?? res?.data ?? [])
@@ -95,8 +103,8 @@ export async function streamDetectIntent(
   conversationId: string,
   userPrompt: string,
   onChunk: (text: string) => void,
-  onPartial: (fields: { detectedType?: string; detectedLanguage?: string; detectedEntityType?: string; detectedGoal?: string }) => void,
-  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string) => void,
+  onPartial: (fields: { detectedType?: string; detectedLanguage?: string; detectedEntityType?: string; detectedGoal?: string; detectedIntents?: { type: string; entityType: string; goal: string }[] }) => void,
+  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string, detectedIntents: { type: string; entityType: string; goal: string }[]) => void,
   onError: (message: string) => void,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -141,18 +149,42 @@ export async function streamDetectIntent(
         accText += chunk
         onChunk(chunk)
         try {
-          const p = parse(accText, STR | OBJ) as Record<string, string>
+          const p = parse(accText, STR | OBJ) as Record<string, unknown>
           if (p && typeof p === 'object') {
+            const rawIntents = Array.isArray(p.intents)
+              ? (p.intents as { type?: string; entity_type?: string; goal?: string }[])
+              : []
+            const first = rawIntents[0]
+            const detectedIntents = rawIntents.map((i) => ({
+              type: i.type ?? '',
+              entityType: i.entity_type ?? '',
+              goal: i.goal ?? '',
+            }))
             onPartial({
-              ...(p.type        ? { detectedType:       p.type }        : {}),
-              ...(p.language    ? { detectedLanguage:   p.language }    : {}),
-              ...(p.entity_type ? { detectedEntityType: p.entity_type } : {}),
-              ...(p.goal        ? { detectedGoal:       p.goal }        : {}),
+              ...(p.language                       ? { detectedLanguage:   String(p.language) }          : {}),
+              ...(first?.type                      ? { detectedType:       first.type }                  : {}),
+              ...(first?.entity_type               ? { detectedEntityType: first.entity_type }           : {}),
+              ...(first?.goal                      ? { detectedGoal:       first.goal }                  : {}),
+              ...(detectedIntents.length > 0       ? { detectedIntents }                                 : {}),
             })
           }
         } catch { /* partial parse failed — ignore */ }
       } else if (evt.type === 'done') {
-        onDone(evt.detected_request_type ?? '', evt.detected_language ?? '', evt.detected_entity_type ?? '', evt.detected_goal ?? '')
+        const rawIntents: { Type?: string; EntityType?: string; Goal?: string }[] =
+          Array.isArray(evt.detected_intents) ? evt.detected_intents : []
+        const firstIntent = rawIntents[0] ?? {}
+        const detectedIntents = rawIntents.map((i) => ({
+          type: i.Type ?? '',
+          entityType: i.EntityType ?? '',
+          goal: i.Goal ?? '',
+        }))
+        onDone(
+          firstIntent.Type ?? '',
+          evt.detected_language ?? '',
+          firstIntent.EntityType ?? '',
+          firstIntent.Goal ?? '',
+          detectedIntents,
+        )
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')
