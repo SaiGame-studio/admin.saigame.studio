@@ -3383,6 +3383,33 @@ export const vi = {
     typeEvent: "Sự kiện",
     typeCreature: "Sinh vật",
     typeCustom: "Tùy chỉnh",
+
+    // Lore entity types (from lore_* intents)
+    entityTypeWorld: "Thế giới",
+    entityTypeRegion: "Vùng",
+    entityTypeFaction: "Phe phái",
+    entityTypeItemLore: "Vật phẩm Lore",
+    entityTypeEvent: "Sự kiện",
+    entityTypeCreature: "Sinh vật",
+    entityTypeCustom: "Tùy chỉnh",
+
+    // Item entity types (from item_generation intents)
+    entityTypeArmor: "Giáp",
+    entityTypeCard: "Thẻ bài",
+    entityTypeCharacter: "Nhân vật",
+    entityTypeConsumable: "Vật phẩm tiêu hao",
+    entityTypeContainer: "Vật chứa",
+    entityTypeCurrency: "Tiền tệ",
+    entityTypeDecoration: "Trang trí",
+    entityTypeGachaPack: "Gói gacha",
+    entityTypeGenerator: "Bộ sinh vật phẩm",
+    entityTypeKey: "Chìa khóa",
+    entityTypeMaterial: "Nguyên liệu",
+    entityTypeQuest: "Nhiệm vụ",
+    entityTypeRecipe: "Công thức",
+    entityTypeWeapon: "Vũ khí",
+    entityTypeOther: "Khác",
+
     tableHeaderTitle: "Tiêu đề",
     tableHeaderType: "Loại",
     tableHeaderSummary: "Tóm tắt",
@@ -3415,6 +3442,10 @@ export const vi = {
     toastFailedUpdate: "Không thể cập nhật mục lore",
     toastFailedDelete: "Không thể xóa mục lore",
     toastFailedLoad: "Không thể tải mục lore",
+    linkToConv: "Liên kết với hội thoại",
+    linkToConvGoal: "Khám phá và phát triển mục lore: {title}",
+    linkToConvSuccess: "Đã liên kết với hội thoại",
+    linkToConvFailed: "Không thể liên kết với hội thoại",
   },
   tutorials: {
     title: "Tài liệu hướng dẫn",
@@ -3445,7 +3476,9 @@ export const vi = {
     requestTypes: {
       auto: "Tự động",
       item_generation: "Tạo Vật Phẩm",
-      lore_building: "Xây Dựng Lore",
+      lore_creating: "Tạo Lore Mới",
+      lore_analyzing: "Phân Tích Lore",
+      lore_updating: "Cập Nhật Lore",
     },
     entityTypes: {
       world: "Thế giới",
@@ -3492,6 +3525,7 @@ export const vi = {
     errorDelete: "Không thể xóa cuộc hội thoại.",
     errorCreateRecords: "Không thể tạo bản ghi vật phẩm.",
     errorLoadRequestTypes: "Không thể tải loại yêu cầu.",
+    mainContent: "Nội dung chính",
     linkedContent: "Nội dung liên kết",
     linkedAuto: "tự động",
     linkedManual: "thủ công",

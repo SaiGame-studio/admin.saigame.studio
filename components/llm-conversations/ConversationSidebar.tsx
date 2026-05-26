@@ -1,0 +1,182 @@
+'use client'
+
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import type { Conversation } from '@/types/llm-conversation'
+
+interface ConversationSidebarProps {
+  sidebarWidth: number
+  sidebarBodyRef: React.RefObject<HTMLDivElement | null>
+  handleSidebarResizeMouseDown: (e: React.MouseEvent) => void
+  activeSectionHeight: number
+  handleSplitResizeMouseDown: (e: React.MouseEvent) => void
+  isArchivedCollapsed: boolean
+  setIsArchivedCollapsed: (updater: ((prev: boolean) => boolean)) => void
+  activeConvs: Conversation[]
+  archivedConvs: Conversation[]
+  activeConvId: string | null
+  isLoadingActive: boolean
+  isLoadingArchived: boolean
+  onSelectConv: (convId: string) => void
+  onArchive: (conv: Conversation) => void
+  onUnarchive: (conv: Conversation) => void
+  t: (key: string) => string
+}
+
+export function ConversationSidebar({
+  sidebarWidth,
+  sidebarBodyRef,
+  handleSidebarResizeMouseDown,
+  activeSectionHeight,
+  handleSplitResizeMouseDown,
+  isArchivedCollapsed,
+  setIsArchivedCollapsed,
+  activeConvs,
+  archivedConvs,
+  activeConvId,
+  isLoadingActive,
+  isLoadingArchived,
+  onSelectConv,
+  onArchive,
+  onUnarchive,
+  t,
+}: ConversationSidebarProps) {
+  return (
+    <div id="conv-panel-sidebar" className="relative flex shrink-0 flex-col border-r" style={{ width: sidebarWidth }}>
+      <div ref={sidebarBodyRef} id="conv-panel-sidebar-body" className="flex flex-1 flex-col min-h-0 overflow-hidden">
+
+        {/* Active section */}
+        <div
+          id="conv-panel-active-section"
+          className={`flex flex-col overflow-hidden ${isArchivedCollapsed ? 'flex-1' : ''}`}
+          style={isArchivedCollapsed ? undefined : { height: activeSectionHeight }}
+        >
+          <div id="conv-panel-active-header" className="flex h-7 shrink-0 items-center border-b bg-muted/40 px-2 ml-1">
+            <span id="conv-panel-active-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('llmConversation.tabActive')}
+            </span>
+            {isLoadingActive && <Loader2 className="ml-auto h-3 w-3 animate-spin text-muted-foreground" />}
+          </div>
+          <ScrollArea className="flex-1">
+            {!isLoadingActive && activeConvs.length === 0 ? (
+              <p id="conv-panel-active-empty" className="p-2.5 text-xs text-muted-foreground">{t('llmConversation.noConversations')}</p>
+            ) : (
+              <ul id="conv-panel-active-list" className="py-0.5 w-full">
+                {activeConvs.map((conv) => (
+                  <li
+                    id={`conv-panel-active-item-${conv.ID}`}
+                    key={conv.ID}
+                    className={['group grid grid-cols-[1fr_auto] w-full', conv.ID === activeConvId ? 'bg-accent' : ''].join(' ')}
+                  >
+                    <button
+                      id={`conv-panel-active-btn-${conv.ID}`}
+                      onClick={() => onSelectConv(conv.ID)}
+                      className={[
+                        'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors',
+                        conv.ID === activeConvId ? 'font-medium' : '',
+                      ].join(' ')}
+                    >
+                      <div id={`conv-panel-active-title-${conv.ID}`} className="truncate">{conv.Title}</div>
+                    </button>
+                    <button
+                      id={`conv-panel-active-archive-btn-${conv.ID}`}
+                      onClick={(e) => { e.stopPropagation(); onArchive(conv) }}
+                      className={[
+                        'mr-1 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                        conv.ID === activeConvId ? 'opacity-100' : '',
+                      ].join(' ')}
+                      title={t('llmConversation.archive')}
+                    >
+                      <Archive className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
+        </div>
+
+        {/* Vertical drag divider */}
+        {!isArchivedCollapsed && (
+          <div
+            id="conv-panel-resize-vertical"
+            onMouseDown={handleSplitResizeMouseDown}
+            className="flex h-1.5 shrink-0 cursor-ns-resize items-center justify-center gap-1 border-y bg-muted hover:bg-primary/30 transition-colors group"
+          >
+            <span id="conv-panel-resize-vertical-dot-1" className="h-0.5 w-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+            <span id="conv-panel-resize-vertical-dot-2" className="h-0.5 w-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+            <span id="conv-panel-resize-vertical-dot-3" className="h-0.5 w-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+          </div>
+        )}
+
+        {/* Archived section */}
+        <div id="conv-panel-archived-section" className={`flex flex-col overflow-hidden ${isArchivedCollapsed ? 'shrink-0' : 'flex-1 min-h-0'}`}>
+          <div id="conv-panel-archived-header" className="flex h-7 shrink-0 items-center border-b bg-muted/40 px-2">
+            <span id="conv-panel-archived-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground ml-1">
+              {t('llmConversation.tabArchived')}
+            </span>
+            {isLoadingArchived && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
+            <button
+              id="conv-panel-archived-toggle-btn"
+              onClick={() => setIsArchivedCollapsed((prev) => !prev)}
+              className="ml-auto flex items-center text-muted-foreground hover:text-foreground transition-colors"
+              title={isArchivedCollapsed ? t('common.expand') : t('common.collapse')}
+            >
+              {isArchivedCollapsed ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+          </div>
+          {!isArchivedCollapsed && (
+            <ScrollArea className="flex-1">
+              {!isLoadingArchived && archivedConvs.length === 0 ? (
+                <p id="conv-panel-archived-empty" className="p-2.5 text-xs text-muted-foreground">{t('llmConversation.noConversations')}</p>
+              ) : (
+                <ul id="conv-panel-archived-list" className="py-0.5 w-full">
+                  {archivedConvs.map((conv) => (
+                    <li
+                      id={`conv-panel-archived-item-${conv.ID}`}
+                      key={conv.ID}
+                      className={['group grid grid-cols-[1fr_auto] w-full', conv.ID === activeConvId ? 'bg-accent' : ''].join(' ')}
+                    >
+                      <button
+                        id={`conv-panel-archived-btn-${conv.ID}`}
+                        onClick={() => onSelectConv(conv.ID)}
+                        className={[
+                          'min-w-0 overflow-hidden text-left pl-2.5 py-1.5 text-xs leading-tight hover:bg-accent transition-colors opacity-70',
+                          conv.ID === activeConvId ? 'font-medium opacity-100' : '',
+                        ].join(' ')}
+                      >
+                        <div id={`conv-panel-archived-title-${conv.ID}`} className="truncate">{conv.Title}</div>
+                      </button>
+                      <button
+                        id={`conv-panel-archived-unarchive-btn-${conv.ID}`}
+                        onClick={(e) => { e.stopPropagation(); onUnarchive(conv) }}
+                        className={[
+                          'mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                          conv.ID === activeConvId ? 'opacity-100' : '',
+                        ].join(' ')}
+                        title={t('llmConversation.unarchive')}
+                      >
+                        <ArchiveRestore className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ScrollArea>
+          )}
+        </div>
+      </div>
+
+      {/* Horizontal resize handle (right edge) */}
+      <div
+        id="conv-panel-resize-right"
+        onMouseDown={handleSidebarResizeMouseDown}
+        className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize bg-muted border-l border-r hover:bg-primary/40 transition-colors z-10 flex flex-col items-center justify-center gap-1 group"
+      >
+        <span id="conv-panel-resize-right-dot-1" className="w-0.5 h-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+        <span id="conv-panel-resize-right-dot-2" className="w-0.5 h-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+        <span id="conv-panel-resize-right-dot-3" className="w-0.5 h-2.5 rounded-full bg-muted-foreground/30 group-hover:bg-primary/60 transition-colors" />
+      </div>
+    </div>
+  )
+}

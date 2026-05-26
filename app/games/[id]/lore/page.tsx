@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, BookOpen, Pencil, Trash2, ChevronDown, ChevronRight, Search, X,
+  ArrowLeft, Plus, RefreshCw, Loader2, BookOpen, Pencil, Trash2, ChevronDown, ChevronRight, Search, X, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -38,6 +39,8 @@ import {
   getLoreTypes,
   getLoreEntry,
 } from "@/lib/lore-api"
+import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api"
+import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
 import type { Game } from "@/types/game"
 import type { LoreEntry, CreateLoreEntryRequest, UpdateLoreEntryRequest } from "@/types/lore"
 
@@ -51,9 +54,12 @@ interface LoreRowProps {
   onDeleteRequested: (e: LoreEntry) => void
   locale: string
   t: (key: string) => string
+  convPanelOpen?: boolean
+  linkingEntryId?: string | null
+  onLinkToConversation?: (e: LoreEntry) => void
 }
 
-function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested, locale, t }: LoreRowProps) {
+function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested, locale, t, convPanelOpen, linkingEntryId, onLinkToConversation }: LoreRowProps) {
   return (
     <div className="bg-card border-b last:border-b-0">
       <div
@@ -67,6 +73,42 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
         </div>
 
+        {/* Link to conversation button (when panel is open) */}
+        {convPanelOpen && (
+          <div
+            id={`lore-row-${entry.ID}-link-conv-col`}
+            className="w-[32px] shrink-0 flex justify-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    id={`lore-row-${entry.ID}-link-conv-btn`}
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                    disabled={linkingEntryId === entry.ID}
+                    onClick={() => onLinkToConversation?.(entry)}
+                  >
+                    {linkingEntryId === entry.ID
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : (
+                        <span id={`lore-row-${entry.ID}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                          <Bot className="h-3.5 w-3.5" />
+                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                        </span>
+                      )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent id={`lore-row-${entry.ID}-link-conv-tooltip`}>
+                  {t("lore.linkToConv")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+
         {/* Type badge */}
         <div className="w-[110px] shrink-0">
           <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full border font-medium bg-muted text-muted-foreground border-border truncate max-w-full">
@@ -75,25 +117,17 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
         </div>
 
         {/* Title */}
-        <div className="w-[220px] shrink-0 min-w-0 flex items-center gap-1">
+        <div className="flex-1 min-w-0 flex items-center gap-1">
           <p className="font-semibold text-sm truncate">{entry.Title}</p>
           <CopyButton text={entry.Title} />
         </div>
 
-        {/* Summary */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-muted-foreground truncate">
-            {entry.Summary || <span className="italic opacity-50">—</span>}
-          </p>
-        </div>
-
-        {/* Updated at */}
-        <div className="w-[130px] shrink-0 text-xs text-muted-foreground tabular-nums">
-          {new Date(entry.UpdatedAt).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
-        </div>
-
         {/* Actions */}
-        <div className="w-16 shrink-0 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+        <div
+          id={`lore-row-${entry.ID}-actions`}
+          className="w-16 shrink-0 flex items-center justify-end gap-1"
+          onClick={e => e.stopPropagation()}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -118,10 +152,20 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
       {/* Expanded content */}
       {expanded && (
         <div className="px-4 pb-4 pt-0">
-          <div id={`lore-row-${entry.ID}-id-row`} className="flex items-center gap-1 mb-2">
-            <p className="text-xs text-muted-foreground font-mono">ID: {entry.ID}</p>
-            <CopyButton text={entry.ID} />
+          <div id={`lore-row-${entry.ID}-meta-row`} className="flex items-center gap-3 mb-2">
+            <div id={`lore-row-${entry.ID}-id-row`} className="flex items-center gap-1">
+              <p className="text-xs text-muted-foreground font-mono">ID: {entry.ID}</p>
+              <CopyButton text={entry.ID} />
+            </div>
+            <p id={`lore-row-${entry.ID}-updated-at`} className="text-xs text-muted-foreground tabular-nums">
+              {t("lore.tableHeaderUpdatedAt")}: {new Date(entry.UpdatedAt).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
+            </p>
           </div>
+          {entry.Summary && (
+            <p id={`lore-row-${entry.ID}-summary`} className="text-sm text-muted-foreground mb-3 leading-relaxed">
+              {entry.Summary}
+            </p>
+          )}
           <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed rounded border bg-muted/30 p-3 max-h-96 overflow-y-auto">
             {entry.Content || <span className="italic opacity-50">— no content —</span>}
           </div>
@@ -200,6 +244,26 @@ export default function LorePage() {
 
   // Accordion
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // Conversation panel integration
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
+  const [convActiveId, setConvActiveId] = useState<string | null>(null)
+  const [linkingEntryId, setLinkingEntryId] = useState<string | null>(null)
+
+  useEffect(() => {
+    function readPanelState() {
+      setConvPanelOpen(safeGetItem('ss_conv_panel_open') === 'true')
+      setConvActiveId(safeGetItem(`ss_conv_active_${gameId}`) ?? null)
+    }
+    readPanelState()
+    const handler = () => readPanelState()
+    window.addEventListener('storage', handler)
+    window.addEventListener('ss:conv-state-changed', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+      window.removeEventListener('ss:conv-state-changed', handler)
+    }
+  }, [gameId])
 
   // Spotlight: a single entry highlighted via ?lore_id= URL param
   const [spotlightEntry, setSpotlightEntry] = useState<LoreEntry | null>(null)
@@ -330,6 +394,34 @@ export default function LorePage() {
       setFormError(err instanceof Error ? err.message : (editingEntry ? t("lore.toastFailedUpdate") : t("lore.toastFailedCreate")))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleLinkToConversation(entry: LoreEntry) {
+    setLinkingEntryId(entry.ID)
+    try {
+      let convId = convActiveId
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Lore: ${entry.Title}`,
+          goal: t('lore.linkToConvGoal').replace('{title}', entry.Title),
+        })
+        convId = newConv.ID
+        safeSetItem(`ss_conv_active_${gameId}`, convId)
+        setConvActiveId(convId)
+        window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      }
+      await linkConversationContent(gameId, convId, 'lore_entry', entry.ID)
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId } }))
+      toast({ title: t('lore.linkToConvSuccess'), description: entry.Title })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('lore.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingEntryId(null)
     }
   }
 
@@ -467,10 +559,9 @@ export default function LorePage() {
       {!loading && !spotlightLoading && filteredEntries.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground font-medium border-b bg-muted/30 rounded-t">
           <div className="w-[20px] shrink-0" />
+          {convPanelOpen && <div id="lore-table-header-link-conv" className="w-[32px] shrink-0" />}
           <div className="w-[110px] shrink-0">{t("lore.tableHeaderType")}</div>
-          <div className="w-[220px] shrink-0">{t("lore.tableHeaderTitle")}</div>
-          <div className="flex-1">{t("lore.tableHeaderSummary")}</div>
-          <div className="w-[130px] shrink-0">{t("lore.tableHeaderUpdatedAt")}</div>
+          <div className="flex-1">{t("lore.tableHeaderTitle")}</div>
           <div className="w-16 shrink-0" />
         </div>
       )}
@@ -508,6 +599,9 @@ export default function LorePage() {
               onDeleteRequested={setDeletingEntry}
               locale={locale}
               t={t}
+              convPanelOpen={convPanelOpen}
+              linkingEntryId={linkingEntryId}
+              onLinkToConversation={handleLinkToConversation}
             />
           ))}
         </div>
