@@ -36,6 +36,7 @@ import {
   lsConvHistory,
   lsLoreLinks,
   parseLoreResponse,
+  parseGeneratedItemsResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -125,6 +126,8 @@ export function LLMConversationPanel() {
 
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
+  // Tracks the last completed item_generation response parsed as array
+  const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -199,9 +202,27 @@ export function LLMConversationPanel() {
     setConvMainContent(lastContent)
   }, [chatHistory])
 
+  // Keep the last completed item_generation response parsed as generated items array
+  useEffect(() => {
+    let lastGeneratedItems: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'item_generation' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedItemsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedItems = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedItems(lastGeneratedItems)
+  }, [chatHistory])
+
   // Reset main content when switching conversations
   useEffect(() => {
     setConvMainContent('')
+    setConvGeneratedItems([])
   }, [activeConvId])
 
   // ---------------------------------------------------------------------------
@@ -398,6 +419,9 @@ export function LLMConversationPanel() {
       .flatMap(t => t.responses ?? [])
       .filter(r => r.entityType)
     const fallbackEntityType = allResponses[allResponses.length - 1]?.entityType
+    const generatedItemsForRequest = convGeneratedItems.length > 0
+      ? convGeneratedItems
+      : (activeConv?.AccumulatedContent?.items ?? [])
     removeTurn(turn.id)
     void runPipeline(
       gameId,
@@ -419,6 +443,8 @@ export function LLMConversationPanel() {
       convMainContent || undefined,
       undefined,
       fallbackEntityType || undefined,
+      undefined,
+      generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
     )
   }
 
@@ -433,6 +459,9 @@ export function LLMConversationPanel() {
     // doesn't produce one (e.g. "update the current content" follow-up requests)
     const allResponses = chatHistory.flatMap(t => t.responses ?? []).filter(r => r.entityType)
     const fallbackEntityType = allResponses[allResponses.length - 1]?.entityType
+    const generatedItemsForRequest = convGeneratedItems.length > 0
+      ? convGeneratedItems
+      : (activeConv?.AccumulatedContent?.items ?? [])
     // Build history context from completed turns to help intent detection
     const historyContext = chatHistory
       .filter(t => t.done && t.detectedType && !t.error)
@@ -461,6 +490,7 @@ export function LLMConversationPanel() {
       linkedLoreIds.length > 0 ? linkedLoreIds : undefined,
       fallbackEntityType || undefined,
       historyContext.length > 0 ? historyContext : undefined,
+      generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -582,6 +612,9 @@ export function LLMConversationPanel() {
     userMessage: string,
   ) {
     if (!gameId || !activeConvId) return
+    const generatedItemsForRequest = convGeneratedItems.length > 0
+      ? convGeneratedItems
+      : (activeConv?.AccumulatedContent?.items ?? [])
     void retryResponse(
       gameId,
       activeConvId,
@@ -591,6 +624,7 @@ export function LLMConversationPanel() {
       userMessage,
       t('llmConversation.errorSend'),
       convMainContent || undefined,
+      generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
     )
   }
 
@@ -755,10 +789,8 @@ export function LLMConversationPanel() {
                   activeConvId={activeConvId}
                   savedLoreIds={savedLoreIds}
                   loreEntryTitles={loreEntryTitles}
-                  isCreatingRecords={isCreatingRecords}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
-                  onSaveToGame={() => setCreateRecordsConfirmOpen(true)}
                   onOpenLoreReview={handleOpenLoreReview}
                   t={t}
                 />
@@ -799,6 +831,7 @@ export function LLMConversationPanel() {
         chatHistory={chatHistory}
         activeConv={activeConv}
         convMainContent={convMainContent}
+        convGeneratedItems={convGeneratedItems}
         deleteTarget={deleteTarget}
         setDeleteTarget={setDeleteTarget}
         onDelete={handleDelete}

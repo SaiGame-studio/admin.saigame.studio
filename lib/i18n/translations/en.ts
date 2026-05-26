@@ -3535,6 +3535,7 @@ export const en = {
     requestTypes: {
       auto: "Auto",
       item_generation: "Generate Items",
+      item_modify: "Modify Items",
       lore_creating: "Create Lore",
       lore_analyzing: "Analyze Lore",
       lore_updating: "Update Lore",
@@ -3615,6 +3616,7 @@ export const en = {
     detailStatusActive: "active",
     detailStatusArchived: "archived",
     detailMainContentLabel: "Main Content (Last Lore)",
+    detailGeneratedItemsLabel: "Generated Items",
     detailTurnsLabel: "Turn history ({count})",
     detailTurnType: "Type",
     send: "Send",

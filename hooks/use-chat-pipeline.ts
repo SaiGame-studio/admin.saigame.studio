@@ -51,6 +51,7 @@ export function useChatPipeline() {
     loreEntryIds?: string[],
     fallbackEntityType?: string,
     historyContext?: DetectIntentHistoryEntry[],
+    generatedItems?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -176,9 +177,10 @@ export function useChatPipeline() {
             )
           },
           intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
-          (intent.type === 'lore_creating' || intent.type === 'item_generation') ? loreEntryIds : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'item_generation' || intent.type === 'item_modify') ? loreEntryIds : undefined,
           intent.type === 'lore_creating' ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          intent.type === 'item_generation' ? intent.goals : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify') ? intent.goals : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
         )
       }
 
@@ -232,6 +234,7 @@ export function useChatPipeline() {
     userMessage: string,
     errorSend: string,
     mainContent?: string,
+    generatedItems?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -293,6 +296,10 @@ export function useChatPipeline() {
           )
         },
         intentType === 'lore_analyzing' && mainContent ? mainContent : undefined,
+        undefined,
+        undefined,
+        undefined,
+        (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
       )
     } catch {
       setChatHistory((prev) =>

@@ -53,6 +53,7 @@ interface ConversationDialogsProps {
   chatHistory: ChatTurn[]
   activeConv: Conversation | null
   convMainContent: string
+  convGeneratedItems: unknown[]
   // Delete dialog
   deleteTarget: Conversation | null
   setDeleteTarget: (v: Conversation | null) => void
@@ -94,6 +95,7 @@ export function ConversationDialogs({
   chatHistory,
   activeConv,
   convMainContent,
+  convGeneratedItems,
   deleteTarget,
   setDeleteTarget,
   onDelete,
@@ -111,6 +113,9 @@ export function ConversationDialogs({
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
+  const detailGeneratedItems = convGeneratedItems.length > 0
+    ? convGeneratedItems
+    : (activeConv?.AccumulatedContent?.items ?? [])
 
   // ── Title combobox state ──
   const [titleInput, setTitleInput] = useState('')
@@ -202,7 +207,10 @@ export function ConversationDialogs({
                   {t('llmConversation.detailGoalsLabel')}
                 </p>
                 {(() => {
-                  const goals = [...new Set(chatHistory.filter((turn) => turn.detectedGoal).map((turn) => turn.detectedGoal!))]
+                  const goals = [...new Set(chatHistory
+                    .map((turn) => (turn as ChatTurn & { detectedGoal?: string }).detectedGoal)
+                    .filter((goal): goal is string => typeof goal === 'string' && goal.trim().length > 0)
+                  )]
                   return goals.length === 0 ? (
                     <p id="conv-panel-detail-goals-empty" className="text-muted-foreground italic">{t('llmConversation.detailGoalsEmpty')}</p>
                   ) : (
@@ -247,6 +255,13 @@ export function ConversationDialogs({
                 <section id="conv-panel-detail-main-content-section">
                   <p id="conv-panel-detail-main-content-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailMainContentLabel')}</p>
                   <pre id="conv-panel-detail-main-content-val" className="whitespace-pre-wrap break-words text-xs bg-muted rounded p-2 leading-relaxed">{convMainContent}</pre>
+                </section>
+              )}
+
+              {detailGeneratedItems.length > 0 && (
+                <section id="conv-panel-detail-generated-items-section">
+                  <p id="conv-panel-detail-generated-items-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailGeneratedItemsLabel')}</p>
+                  <pre id="conv-panel-detail-generated-items-val" className="whitespace-pre-wrap break-words text-xs bg-muted rounded p-2 leading-relaxed">{JSON.stringify(detailGeneratedItems, null, 2)}</pre>
                 </section>
               )}
 

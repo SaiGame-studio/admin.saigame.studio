@@ -3464,6 +3464,7 @@ export const ja = {
     requestTypes: {
       auto: "自動",
       item_generation: "アイテム生成",
+      item_modify: "アイテム編集",
       lore_creating: "ロア作成",
       lore_analyzing: "ロア分析",
       lore_updating: "ロア更新",
@@ -3544,6 +3545,7 @@ export const ja = {
     detailStatusActive: "アクティブ",
     detailStatusArchived: "アーカイブ済み",
     detailMainContentLabel: "メインコンテンツ（最新のロア）",
+    detailGeneratedItemsLabel: "生成アイテム",
     detailTurnsLabel: "ターン履歴（{count}件）",
     detailTurnType: "タイプ",
     send: "送信",

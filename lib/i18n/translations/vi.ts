@@ -3476,6 +3476,7 @@ export const vi = {
     requestTypes: {
       auto: "Tự động",
       item_generation: "Tạo Vật Phẩm",
+      item_modify: "Chỉnh Sửa Vật Phẩm",
       lore_creating: "Tạo Lore Mới",
       lore_analyzing: "Phân Tích Lore",
       lore_updating: "Cập Nhật Lore",
@@ -3556,6 +3557,7 @@ export const vi = {
     detailStatusActive: "hoạt động",
     detailStatusArchived: "đã lưu trữ",
     detailMainContentLabel: "Nội dung chính (Lore mới nhất)",
+    detailGeneratedItemsLabel: "Vật phẩm đã tạo",
     detailTurnsLabel: "Lịch sử lượt ({count})",
     detailTurnType: "Loại",
     send: "Gửi",

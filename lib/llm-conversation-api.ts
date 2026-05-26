@@ -236,6 +236,7 @@ export async function streamRequest(
   loreEntryIds?: string[],
   entityType?: string,
   goals?: string[],
+  generatedItems?: unknown[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -247,16 +248,19 @@ export async function streamRequest(
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
-  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating' && requestType !== 'item_generation') {
+  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating' && requestType !== 'item_generation' && requestType !== 'item_modify') {
     body.lore_entry_ids = []
-  } else if ((requestType === 'lore_creating' || requestType === 'item_generation') && loreEntryIds && loreEntryIds.length > 0) {
+  } else if ((requestType === 'lore_creating' || requestType === 'item_generation' || requestType === 'item_modify') && loreEntryIds && loreEntryIds.length > 0) {
     body.lore_entry_ids = loreEntryIds
   }
   if (requestType === 'lore_creating' && entityType) {
     body.entity_type = entityType
   }
-  if (requestType === 'item_generation' && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify') && goals && goals.length > 0) {
     body.goals = goals
+  }
+  if ((requestType === 'item_generation' || requestType === 'item_modify') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+    body.generated_items = generatedItems
   }
   if (mainContent) {
     body.main_content = mainContent

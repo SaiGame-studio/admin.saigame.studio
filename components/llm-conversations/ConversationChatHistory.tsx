@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot, BookOpen, Loader2, PackagePlus, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, BookOpen, Loader2, RotateCcw, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
@@ -15,10 +15,8 @@ interface ConversationChatHistoryProps {
   activeConvId: string | null
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
-  isCreatingRecords: boolean
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
-  onSaveToGame: () => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   t: (key: string) => string
 }
@@ -45,10 +43,8 @@ export function ConversationChatHistory({
   activeConvId,
   savedLoreIds,
   loreEntryTitles,
-  isCreatingRecords,
   onRetry,
   onRetryResponse,
-  onSaveToGame,
   onOpenLoreReview,
   t,
 }: ConversationChatHistoryProps) {
@@ -146,17 +142,6 @@ export function ConversationChatHistory({
 
                       {!response.error && response.responseText && (
                         <div id={`conv-panel-response-actions-${turn.id}-${idx}`} className="flex flex-wrap gap-1 mt-1">
-                          {response.intentType === 'item_generation' && (
-                            <button
-                              id={`conv-panel-turn-create-items-btn-${turn.id}-${idx}`}
-                              onClick={onSaveToGame}
-                              disabled={isCreatingRecords || !response.done}
-                              className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
-                            >
-                              <PackagePlus className="h-3 w-3" />
-                              {t('llmConversation.saveToGame')}
-                            </button>
-                          )}
                           {response.intentType === 'lore_creating' && (() => {
                             const linkKey = `${turn.id}:${idx}`
                             const savedLoreId = savedLoreIds[linkKey]
