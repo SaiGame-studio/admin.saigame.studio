@@ -218,7 +218,7 @@ export async function streamRequest(
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
-  if (requestType !== 'lore_analyzing') {
+  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating') {
     body.lore_entry_ids = []
   }
   if (mainContent) {

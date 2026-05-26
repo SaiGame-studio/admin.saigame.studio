@@ -6,6 +6,9 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -33,7 +36,7 @@ import {
 import type { Conversation } from '@/types/llm-conversation'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
 
-interface LoreDraftForm {
+export interface LoreDraftForm {
   lore_type: string
   title: string
   summary: string
@@ -56,13 +59,13 @@ interface ConversationDialogsProps {
   setCreateRecordsConfirmOpen: (v: boolean) => void
   isCreatingRecords: boolean
   onCreateRecords: () => void
-  // Lore review dialog
+  // Lore draft review dialog
   loreDraftReviewOpen: boolean
   setLoreDraftReviewOpen: (v: boolean) => void
   loreDraftForm: LoreDraftForm
-  setLoreDraftForm: (updater: (f: LoreDraftForm) => LoreDraftForm) => void
+  setLoreDraftForm: (v: LoreDraftForm) => void
   isCreatingLoreRecords: boolean
-  onCreateLoreRecords: () => Promise<void>
+  onCreateLoreRecords: () => void
   t: (key: string) => string
 }
 
@@ -94,35 +97,19 @@ export function ConversationDialogs({
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent id="conv-panel-detail-dialog" className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Conversation Detail</DialogTitle>
+            <DialogTitle>{t('llmConversation.detailTitle')}</DialogTitle>
           </DialogHeader>
           <ScrollArea id="conv-panel-detail-scroll" className="max-h-[65vh] pr-2">
             <div id="conv-panel-detail-body" className="space-y-4 text-xs">
 
-              {/* Main content — accumulated lore_creating responses */}
-              {convMainContent && (
-                <section id="conv-panel-detail-main-content-section">
-                  <p id="conv-panel-detail-main-content-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                    {t('llmConversation.mainContent')}
-                  </p>
-                  <div
-                    id="conv-panel-detail-main-content-body"
-                    className={`prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_p]:text-xs [&_li]:text-xs${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
-                  >
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                      {convMainContent}
-                    </ReactMarkdown>
-                  </div>
-                </section>
-              )}
               <section id="conv-panel-detail-goals-section">
                 <p id="conv-panel-detail-goals-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                  Goals sent with each request
+                  {t('llmConversation.detailGoalsLabel')}
                 </p>
                 {(() => {
                   const goals = [...new Set(chatHistory.filter((turn) => turn.detectedGoal).map((turn) => turn.detectedGoal!))]
                   return goals.length === 0 ? (
-                    <p id="conv-panel-detail-goals-empty" className="text-muted-foreground italic">No goals detected yet.</p>
+                    <p id="conv-panel-detail-goals-empty" className="text-muted-foreground italic">{t('llmConversation.detailGoalsEmpty')}</p>
                   ) : (
                     <ol id="conv-panel-detail-goals-list" className="space-y-1 list-decimal list-inside">
                       {goals.map((g, i) => (
@@ -135,36 +122,43 @@ export function ConversationDialogs({
 
               {activeConv && (
                 <section id="conv-panel-detail-meta-section">
-                  <p id="conv-panel-detail-meta-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Conversation</p>
+                  <p id="conv-panel-detail-meta-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailMetaLabel')}</p>
                   <div id="conv-panel-detail-meta-grid" className="space-y-1">
                     <div id="conv-panel-detail-meta-id" className="flex gap-2">
                       <span id="conv-panel-detail-meta-id-key" className="text-muted-foreground w-16 shrink-0">ID</span>
                       <span id="conv-panel-detail-meta-id-val" className="font-mono break-all">{activeConv.ID}</span>
                     </div>
                     <div id="conv-panel-detail-meta-title" className="flex gap-2">
-                      <span id="conv-panel-detail-meta-title-key" className="text-muted-foreground w-16 shrink-0">Title</span>
+                      <span id="conv-panel-detail-meta-title-key" className="text-muted-foreground w-16 shrink-0">{t('llmConversation.detailFieldTitle')}</span>
                       <span id="conv-panel-detail-meta-title-val">{activeConv.Title}</span>
                     </div>
                     <div id="conv-panel-detail-meta-goal" className="flex gap-2">
-                      <span id="conv-panel-detail-meta-goal-key" className="text-muted-foreground w-16 shrink-0">Goal</span>
+                      <span id="conv-panel-detail-meta-goal-key" className="text-muted-foreground w-16 shrink-0">{t('llmConversation.detailFieldGoal')}</span>
                       <span id="conv-panel-detail-meta-goal-val">{activeConv.Goal || '—'}</span>
                     </div>
                     <div id="conv-panel-detail-meta-status" className="flex gap-2">
-                      <span id="conv-panel-detail-meta-status-key" className="text-muted-foreground w-16 shrink-0">Status</span>
-                      <span id="conv-panel-detail-meta-status-val">{activeConv.ArchivedAt ? 'archived' : 'active'}</span>
+                      <span id="conv-panel-detail-meta-status-key" className="text-muted-foreground w-16 shrink-0">{t('llmConversation.detailFieldStatus')}</span>
+                      <span id="conv-panel-detail-meta-status-val">{activeConv.ArchivedAt ? t('llmConversation.detailStatusArchived') : t('llmConversation.detailStatusActive')}</span>
                     </div>
                     <div id="conv-panel-detail-meta-created" className="flex gap-2">
-                      <span id="conv-panel-detail-meta-created-key" className="text-muted-foreground w-16 shrink-0">Created</span>
+                      <span id="conv-panel-detail-meta-created-key" className="text-muted-foreground w-16 shrink-0">{t('llmConversation.detailFieldCreated')}</span>
                       <span id="conv-panel-detail-meta-created-val">{new Date(activeConv.CreatedAt).toLocaleString()}</span>
                     </div>
                   </div>
                 </section>
               )}
 
+              {convMainContent && (
+                <section id="conv-panel-detail-main-content-section">
+                  <p id="conv-panel-detail-main-content-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailMainContentLabel')}</p>
+                  <pre id="conv-panel-detail-main-content-val" className="whitespace-pre-wrap break-words text-xs bg-muted rounded p-2 leading-relaxed">{convMainContent}</pre>
+                </section>
+              )}
+
               {chatHistory.length > 0 && (
                 <section id="conv-panel-detail-turns-section">
                   <p id="conv-panel-detail-turns-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                    Turn history ({chatHistory.length})
+                    {t('llmConversation.detailTurnsLabel').replace('{count}', String(chatHistory.length))}
                   </p>
                   <div id="conv-panel-detail-turns-list" className="space-y-2">
                     {chatHistory.map((turn, i) => (
@@ -172,7 +166,7 @@ export function ConversationDialogs({
                         <p id={`conv-panel-detail-turn-user-${turn.id}`} className="font-medium truncate">{i + 1}. {turn.userMessage}</p>
                         {turn.detectedType && (
                           <p id={`conv-panel-detail-turn-type-${turn.id}`} className="text-muted-foreground">
-                            Type: <span className="text-foreground">{turn.detectedType}</span>
+                            {t('llmConversation.detailTurnType')}: <span className="text-foreground">{turn.detectedType}</span>
                           </p>
                         )}
                       </div>
@@ -232,94 +226,83 @@ export function ConversationDialogs({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Lore draft review dialog ── */}
-      <Dialog open={loreDraftReviewOpen} onOpenChange={(o) => { if (!o) setLoreDraftReviewOpen(false) }}>
-        <DialogContent id="conv-panel-lore-review-dialog" className="max-w-lg">
+      {/* ── Lore draft review ── */}
+      <Dialog open={loreDraftReviewOpen} onOpenChange={setLoreDraftReviewOpen}>
+        <DialogContent id="conv-panel-lore-review-dialog" className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t('llmConversation.createLoreRecordsTitle')}</DialogTitle>
+            <DialogTitle id="conv-panel-lore-review-title">{t('llmConversation.loreDraftReviewTitle')}</DialogTitle>
           </DialogHeader>
-
-          <div id="conv-panel-lore-review-form" className="flex flex-col gap-3">
-            <div id="conv-panel-lore-review-type-row" className="flex flex-col gap-1">
-              <label id="conv-panel-lore-review-type-label" className="text-xs font-medium text-muted-foreground">
-                {t('llmConversation.loreType')}
-              </label>
-              <Select
-                value={loreDraftForm.lore_type}
-                onValueChange={(v) => setLoreDraftForm((f) => ({ ...f, lore_type: v }))}
-              >
-                <SelectTrigger id="conv-panel-lore-review-type-trigger">
-                  <SelectValue placeholder={t('lore.placeholderType')} />
-                </SelectTrigger>
-                <SelectContent id="conv-panel-lore-review-type-content">
-                  {['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom'].map((type) => (
-                    <SelectItem id={`conv-panel-lore-review-type-${type}`} key={type} value={type}>
-                      {t(`lore.type${type.charAt(0).toUpperCase() + type.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`) || type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <ScrollArea id="conv-panel-lore-review-scroll" className="max-h-[60vh] pr-2">
+            <div id="conv-panel-lore-review-body" className="space-y-3 text-xs">
+              <div id="conv-panel-lore-review-type-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-lore-review-type-label" className="text-[11px]">{t('llmConversation.loreType')}</Label>
+                <Select
+                  value={loreDraftForm.lore_type}
+                  onValueChange={(v) => setLoreDraftForm({ ...loreDraftForm, lore_type: v })}
+                >
+                  <SelectTrigger id="conv-panel-lore-review-type-trigger" className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent id="conv-panel-lore-review-type-content">
+                    {['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom'].map((type) => (
+                      <SelectItem id={`conv-panel-lore-review-type-${type}`} key={type} value={type} className="text-xs">{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div id="conv-panel-lore-review-title-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-lore-review-title-label" className="text-[11px]">{t('llmConversation.loreTitle')}</Label>
+                <Input
+                  id="conv-panel-lore-review-title-input"
+                  value={loreDraftForm.title}
+                  onChange={(e) => setLoreDraftForm({ ...loreDraftForm, title: e.target.value })}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div id="conv-panel-lore-review-summary-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-lore-review-summary-label" className="text-[11px]">{t('llmConversation.loreSummary')}</Label>
+                <Textarea
+                  id="conv-panel-lore-review-summary-input"
+                  value={loreDraftForm.summary}
+                  onChange={(e) => setLoreDraftForm({ ...loreDraftForm, summary: e.target.value })}
+                  className="text-xs min-h-[60px]"
+                />
+              </div>
+              <div id="conv-panel-lore-review-content-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-lore-review-content-label" className="text-[11px]">{t('llmConversation.loreContent')}</Label>
+                <div
+                  id="conv-panel-lore-review-content-preview"
+                  className={`prose prose-sm max-w-none text-xs border rounded p-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                    {loreDraftForm.content}
+                  </ReactMarkdown>
+                </div>
+              </div>
             </div>
-
-            <div id="conv-panel-lore-review-title-row" className="flex flex-col gap-1">
-              <label id="conv-panel-lore-review-title-label" className="text-xs font-medium text-muted-foreground">
-                {t('common.title')}
-              </label>
-              <input
-                id="conv-panel-lore-review-title-input"
-                value={loreDraftForm.title}
-                onChange={(e) => setLoreDraftForm((f) => ({ ...f, title: e.target.value }))}
-                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div id="conv-panel-lore-review-summary-row" className="flex flex-col gap-1">
-              <label id="conv-panel-lore-review-summary-label" className="text-xs font-medium text-muted-foreground">
-                {t('common.summary')}
-              </label>
-              <input
-                id="conv-panel-lore-review-summary-input"
-                value={loreDraftForm.summary}
-                onChange={(e) => setLoreDraftForm((f) => ({ ...f, summary: e.target.value }))}
-                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div id="conv-panel-lore-review-content-row" className="flex flex-col gap-1">
-              <label id="conv-panel-lore-review-content-label" className="text-xs font-medium text-muted-foreground">
-                {t('common.content')}
-              </label>
-              <textarea
-                id="conv-panel-lore-review-content-input"
-                rows={6}
-                value={loreDraftForm.content}
-                onChange={(e) => setLoreDraftForm((f) => ({ ...f, content: e.target.value }))}
-                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-            </div>
-          </div>
-
+          </ScrollArea>
           <DialogFooter id="conv-panel-lore-review-footer">
             <button
               id="conv-panel-lore-review-cancel-btn"
               onClick={() => setLoreDraftReviewOpen(false)}
               disabled={isCreatingLoreRecords}
-              className="inline-flex items-center rounded border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
             >
               {t('common.cancel')}
             </button>
             <button
               id="conv-panel-lore-review-confirm-btn"
-              onClick={async () => { await onCreateLoreRecords(); setLoreDraftReviewOpen(false) }}
-              disabled={isCreatingLoreRecords || !loreDraftForm.title || !loreDraftForm.lore_type}
-              className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+              onClick={onCreateLoreRecords}
+              disabled={isCreatingLoreRecords || !loreDraftForm.title.trim()}
+              className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-3 py-1.5 text-xs hover:bg-primary/90 transition-colors disabled:opacity-40"
             >
-              {isCreatingLoreRecords ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-              {t('llmConversation.saveAsLore')}
+              {isCreatingLoreRecords ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
+              {t('llmConversation.saveLore')}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </>
   )
 }

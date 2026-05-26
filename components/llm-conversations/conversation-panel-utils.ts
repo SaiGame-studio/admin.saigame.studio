@@ -62,3 +62,4 @@ export function parseLoreResponse(text: string): { title: string; summary: strin
 
   return { title, summary, content: remaining.trim() }
 }
+

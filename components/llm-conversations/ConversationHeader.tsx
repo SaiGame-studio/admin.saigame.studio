@@ -98,7 +98,7 @@ export function ConversationHeader({
               </DropdownMenuItem>
               <DropdownMenuItem id="conv-panel-menu-detail" onClick={onOpenDetail}>
                 <Info className="mr-2 h-3.5 w-3.5" />
-                Full detail
+                {t('llmConversation.fullDetail')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {!activeConv.ArchivedAt && (

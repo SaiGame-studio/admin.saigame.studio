@@ -49,7 +49,6 @@ export function useChatPipeline() {
     errorSend: string,
     mainContent?: string,
   ): Promise<void> => {
-    if (!gameId || !userPrompt.trim() || isRunningRef.current) return
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
     isRunningRef.current = true

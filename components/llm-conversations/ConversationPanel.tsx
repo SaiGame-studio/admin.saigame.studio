@@ -25,8 +25,6 @@ import {
   listConversationContent,
   unlinkConversationContent,
 } from '@/lib/llm-conversation-api'
-import { createLoreEntry, getLoreEntry } from '@/lib/lore-api'
-import type { LoreEntry } from '@/types/lore'
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline'
 import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation'
 import { useConvPanelResize } from '@/hooks/use-conv-panel-resize'
@@ -37,8 +35,8 @@ import {
   lsActiveConv,
   lsConvHistory,
   lsLoreLinks,
-  extractGameId,
   parseLoreResponse,
+  extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
 import { ConversationHeader } from './ConversationHeader'
@@ -46,6 +44,8 @@ import { ConversationChatHistory } from './ConversationChatHistory'
 import { ConversationLinkedContent } from './ConversationLinkedContent'
 import { ConversationInputArea } from './ConversationInputArea'
 import { ConversationDialogs } from './ConversationDialogs'
+import type { LoreDraftForm } from './ConversationDialogs'
+import { createLoreEntry, getLoreEntry } from '@/lib/lore-api'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -109,26 +109,27 @@ export function LLMConversationPanel() {
   const [isCreatingRecords, setIsCreatingRecords] = useState(false)
   const [createRecordsConfirmOpen, setCreateRecordsConfirmOpen] = useState(false)
 
-  // Create lore records
-  const [isCreatingLoreRecords, setIsCreatingLoreRecords] = useState(false)
-  const [loreDraftReviewOpen, setLoreDraftReviewOpen] = useState(false)
-  const [loreDraftReviewTurn, setLoreDraftReviewTurn] = useState<ChatTurn | null>(null)
-  const [loreDraftReviewResponseIdx, setLoreDraftReviewResponseIdx] = useState<number>(-1)
-  const [loreDraftForm, setLoreDraftForm] = useState({ lore_type: '', title: '', summary: '', content: '' })
-  // savedLoreIds: "turnId:responseIdx" → loreId, persisted per conversation
-  const [savedLoreIds, setSavedLoreIds] = useState<Record<string, string>>({})
-
   // Detail dialog
   const [detailOpen, setDetailOpen] = useState(false)
 
-  // Conversation main content — accumulated text from all completed lore_creating responses
-  const [convMainContent, setConvMainContent] = useState<string>('')
+  // Saved lore IDs per turn response (keyed as "turnId:responseIdx")
+  const [savedLoreIds, setSavedLoreIds] = useState<Record<string, string>>({})
+
+  // Lore draft review
+  const [loreDraftReviewOpen, setLoreDraftReviewOpen] = useState(false)
+  const [loreDraftReviewTurn, setLoreDraftReviewTurn] = useState<ChatTurn | null>(null)
+  const [loreDraftReviewResponseIdx, setLoreDraftReviewResponseIdx] = useState(0)
+  const [loreDraftForm, setLoreDraftForm] = useState<LoreDraftForm>({ lore_type: 'custom', title: '', summary: '', content: '' })
+  const [isCreatingLoreRecords, setIsCreatingLoreRecords] = useState(false)
+
+  // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
+  const [convMainContent, setConvMainContent] = useState('')
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
   const [isLoadingLinkedContent, setIsLoadingLinkedContent] = useState(false)
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
-  const [loreDetails, setLoreDetails] = useState<Record<string, LoreEntry>>({})
+  const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -183,7 +184,7 @@ export function LLMConversationPanel() {
     }
   }, [chatHistory, activeConvId])
 
-  // Keep only the last completed lore_creating response as conversation main content
+  // Keep the last completed lore_creating response as conversation main content
   useEffect(() => {
     let lastContent = ''
     for (const turn of chatHistory) {
@@ -247,16 +248,13 @@ export function LLMConversationPanel() {
     if (!gameId || !activeConvId) {
       setActiveConv(null)
       setLinkedContent([])
-      setLoreDetails({})
-      setSavedLoreIds({})
+      setLoreEntryTitles({})
       clearHistory()
+      setSavedLoreIds({})
       if (gameId) safeRemoveItem(lsActiveConv(gameId))
       return
     }
     safeSetItem(lsActiveConv(gameId), activeConvId)
-    // Restore saved lore links for this conversation
-    const rawLoreLinks = safeGetItem(lsLoreLinks(activeConvId))
-    setSavedLoreIds(rawLoreLinks ? (JSON.parse(rawLoreLinks) as Record<string, string>) : {})
     // Skip re-fetching when the conversation was just created by handleSend
     if (justCreatedConvIdRef.current === activeConvId) {
       justCreatedConvIdRef.current = null
@@ -270,6 +268,9 @@ export function LLMConversationPanel() {
     } else {
       loadHistory([])
     }
+    // Restore saved lore IDs from localStorage
+    const rawLoreLinks = safeGetItem(lsLoreLinks(activeConvId))
+    setSavedLoreIds(rawLoreLinks ? JSON.parse(rawLoreLinks) : {})
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,17 +353,17 @@ export function LLMConversationPanel() {
     try {
       const items = await listConversationContent(gId, convId)
       setLinkedContent(items)
-      // Fetch lore entry details for lore_entry links
-      const loreLinks = items.filter((l) => l.content_type === 'lore_entry')
+      const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       if (loreLinks.length > 0) {
-        const results = await Promise.allSettled(
-          loreLinks.map((l) => getLoreEntry(gId, l.content_id))
+        const entries = await Promise.allSettled(
+          loreLinks.map(l => getLoreEntry(gId, l.content_id))
         )
-        const map: Record<string, LoreEntry> = {}
-        results.forEach((r, i) => {
-          if (r.status === 'fulfilled') map[loreLinks[i].content_id] = r.value
+        const titles: Record<string, string> = {}
+        loreLinks.forEach((l, i) => {
+          const result = entries[i]
+          if (result.status === 'fulfilled') titles[l.content_id] = result.value.Title
         })
-        setLoreDetails((prev) => ({ ...prev, ...map }))
+        setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       }
     } catch {
       // silently ignore
@@ -502,11 +503,13 @@ export function LLMConversationPanel() {
     try {
       await deleteConversation(gameId, deleteTarget.ID)
       safeRemoveItem(lsConvHistory(deleteTarget.ID))
+      safeRemoveItem(lsLoreLinks(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
       setArchivedConvs(remainingArchived)
       if (activeConvId === deleteTarget.ID) {
+        safeRemoveItem(lsActiveConv(gameId))
         const fallback = remainingActive[0] ?? remainingArchived[0]
         setActiveConvId(fallback?.ID ?? null)
         setActiveConv(null)
@@ -536,48 +539,6 @@ export function LLMConversationPanel() {
     }
   }
 
-  async function handleCreateLoreRecords() {
-    if (!gameId) return
-    setIsCreatingLoreRecords(true)
-    try {
-      const lore = await createLoreEntry(gameId, {
-        lore_type: loreDraftForm.lore_type,
-        title: loreDraftForm.title,
-        summary: loreDraftForm.summary,
-        content: loreDraftForm.content,
-      })
-      if (activeConvId) {
-        try {
-          await linkConversationContent(gameId, activeConvId, 'lore_entry', lore.ID)
-          // Refresh the linked content list so the new entry appears immediately
-          void loadLinkedContent(gameId, activeConvId)
-        } catch {
-          // Non-fatal — lore was created successfully, linking is best-effort
-        }
-      }
-      // Persist the turn→lore mapping in localStorage
-      if (loreDraftReviewTurn && activeConvId) {
-        const linkKey = `${loreDraftReviewTurn.id}:${loreDraftReviewResponseIdx}`
-        const updated = { ...savedLoreIds, [linkKey]: lore.ID }
-        setSavedLoreIds(updated)
-        safeSetItem(lsLoreLinks(activeConvId), JSON.stringify(updated))
-      }
-      toast({ title: t('llmConversation.loreRecordsCreated').replace('{count}', '1') })
-      router.push(`/games/${gameId}/lore?lore_id=${lore.ID}`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : null
-      toast({
-        title: t('llmConversation.errorCreateLoreRecords'),
-        description: msg ?? undefined,
-        variant: 'destructive',
-      })
-    } finally {
-      setIsCreatingLoreRecords(false)
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Don't render when not on a game page, or before client hydration
   // ---------------------------------------------------------------------------
   // Wrapper handlers for sub-components
   // ---------------------------------------------------------------------------
@@ -602,21 +563,46 @@ export function LLMConversationPanel() {
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
 
-  function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string) {
+  function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string, entityType: string) {
     const parsed = parseLoreResponse(responseText)
-    const response = turn.responses?.[idx]
-    const isLoreIntent = (response?.intentType ?? '').startsWith('lore_')
-    const rawEntityType = response?.entityType ?? ''
-    const loreType = isLoreIntent && VALID_LORE_TYPES.includes(rawEntityType) ? rawEntityType : 'custom'
+    const defaultType = VALID_LORE_TYPES.includes(entityType) ? entityType : 'custom'
+    setLoreDraftReviewTurn(turn)
+    setLoreDraftReviewResponseIdx(idx)
     setLoreDraftForm({
-      lore_type: loreType,
+      lore_type: defaultType,
       title: parsed.title,
       summary: parsed.summary,
       content: parsed.content,
     })
-    setLoreDraftReviewTurn(turn)
-    setLoreDraftReviewResponseIdx(idx)
     setLoreDraftReviewOpen(true)
+  }
+
+  async function handleCreateLoreRecords() {
+    if (!gameId || !activeConvId || !loreDraftReviewTurn) return
+    setIsCreatingLoreRecords(true)
+    try {
+      const entry = await createLoreEntry(gameId, {
+        lore_type: VALID_LORE_TYPES.includes(loreDraftForm.lore_type) ? loreDraftForm.lore_type : 'custom',
+        title: loreDraftForm.title,
+        summary: loreDraftForm.summary,
+        content: loreDraftForm.content,
+      })
+      // Link lore to conversation
+      await linkConversationContent(gameId, activeConvId, 'lore', entry.ID)
+      // Persist the lore ID link
+      const linkKey = `${loreDraftReviewTurn.id}:${loreDraftReviewResponseIdx}`
+      const updated = { ...savedLoreIds, [linkKey]: entry.ID }
+      setSavedLoreIds(updated)
+      safeSetItem(lsLoreLinks(activeConvId), JSON.stringify(updated))
+      // Refresh linked content
+      void loadLinkedContent(gameId, activeConvId)
+      toast({ title: t('llmConversation.loreCreated') })
+      setLoreDraftReviewOpen(false)
+    } catch {
+      toast({ title: t('llmConversation.errorCreateLore'), variant: 'destructive' })
+    } finally {
+      setIsCreatingLoreRecords(false)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -732,7 +718,7 @@ export function LLMConversationPanel() {
                   gameId={gameId}
                   activeConvId={activeConvId}
                   savedLoreIds={savedLoreIds}
-                  loreDetails={loreDetails}
+                  loreEntryTitles={loreEntryTitles}
                   isCreatingRecords={isCreatingRecords}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
@@ -748,8 +734,8 @@ export function LLMConversationPanel() {
                 gameId={gameId}
                 linkedContent={linkedContent}
                 isLoadingLinkedContent={isLoadingLinkedContent}
-                loreDetails={loreDetails}
                 unlinkingId={unlinkingId}
+                loreEntryTitles={loreEntryTitles}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />
