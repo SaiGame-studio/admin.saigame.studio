@@ -45,7 +45,8 @@ import { ConversationLinkedContent } from './ConversationLinkedContent'
 import { ConversationInputArea } from './ConversationInputArea'
 import { ConversationDialogs } from './ConversationDialogs'
 import type { LoreDraftForm } from './ConversationDialogs'
-import { createLoreEntry, getLoreEntry } from '@/lib/lore-api'
+import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
+import type { LoreEntry } from '@/types/lore'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -391,6 +392,12 @@ export function LLMConversationPanel() {
     // If detect-intent already succeeded, skip it and use the resolved type directly.
     // Otherwise fall back to the current selector (may re-run detect-intent).
     const retryType = turn.detectedType ?? selectedRequestType
+    // Derive fallback entityType from history (excluding the turn being retried)
+    const allResponses = chatHistory
+      .filter(t => t.id !== turn.id)
+      .flatMap(t => t.responses ?? [])
+      .filter(r => r.entityType)
+    const fallbackEntityType = allResponses[allResponses.length - 1]?.entityType
     removeTurn(turn.id)
     void runPipeline(
       gameId,
@@ -410,6 +417,8 @@ export function LLMConversationPanel() {
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
       convMainContent || undefined,
+      undefined,
+      fallbackEntityType || undefined,
     )
   }
 
@@ -417,6 +426,20 @@ export function LLMConversationPanel() {
     if (!gameId || !message.trim() || isStreaming) return
     const userPrompt = message.trim()
     setMessage('')
+    const linkedLoreIds = linkedContent
+      .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    // Fall back to the last known entityType from history when the current turn
+    // doesn't produce one (e.g. "update the current content" follow-up requests)
+    const allResponses = chatHistory.flatMap(t => t.responses ?? []).filter(r => r.entityType)
+    const fallbackEntityType = allResponses[allResponses.length - 1]?.entityType
+    // Build history context from completed turns to help intent detection
+    const historyContext = chatHistory
+      .filter(t => t.done && t.detectedType && !t.error)
+      .map(t => ({
+        user_prompt: t.userMessage,
+        request_type: t.detectedType!,
+      }))
     void runPipeline(
       gameId,
       userPrompt,
@@ -435,6 +458,9 @@ export function LLMConversationPanel() {
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
       convMainContent || undefined,
+      linkedLoreIds.length > 0 ? linkedLoreIds : undefined,
+      fallbackEntityType || undefined,
+      historyContext.length > 0 ? historyContext : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -526,7 +552,14 @@ export function LLMConversationPanel() {
     if (!gameId || !activeConvId) return
     setIsCreatingRecords(true)
     try {
-      const result = await createRecordsFromConversation(gameId, activeConvId)
+      const loreEntryIds = linkedContent
+        .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+        .map(l => l.content_id)
+      const result = await createRecordsFromConversation(
+        gameId,
+        activeConvId,
+        loreEntryIds.length > 0 ? loreEntryIds : undefined,
+      )
       toast({ title: t('llmConversation.recordsCreated').replace('{count}', String(result.created_count)) })
       // Refresh conversation and linked content
       await loadConversation(gameId, activeConvId)
@@ -577,16 +610,19 @@ export function LLMConversationPanel() {
     setLoreDraftReviewOpen(true)
   }
 
-  async function handleCreateLoreRecords() {
+  async function handleCreateLoreRecords(matchedLoreId?: string) {
     if (!gameId || !activeConvId || !loreDraftReviewTurn) return
     setIsCreatingLoreRecords(true)
     try {
-      const entry = await createLoreEntry(gameId, {
+      const loreBody = {
         lore_type: VALID_LORE_TYPES.includes(loreDraftForm.lore_type) ? loreDraftForm.lore_type : 'custom',
         title: loreDraftForm.title,
         summary: loreDraftForm.summary,
         content: loreDraftForm.content,
-      })
+      }
+      const entry: LoreEntry = matchedLoreId
+        ? await updateLoreEntry(gameId, matchedLoreId, loreBody)
+        : await createLoreEntry(gameId, loreBody)
       // Link lore to conversation
       await linkConversationContent(gameId, activeConvId, 'lore', entry.ID)
       // Persist the lore ID link
@@ -770,6 +806,7 @@ export function LLMConversationPanel() {
         setCreateRecordsConfirmOpen={setCreateRecordsConfirmOpen}
         isCreatingRecords={isCreatingRecords}
         onCreateRecords={handleCreateRecords}
+        gameId={gameId}
         loreDraftReviewOpen={loreDraftReviewOpen}
         setLoreDraftReviewOpen={setLoreDraftReviewOpen}
         loreDraftForm={loreDraftForm}

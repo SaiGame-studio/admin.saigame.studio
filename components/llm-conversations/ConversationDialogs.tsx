@@ -1,6 +1,7 @@
 'use client'
 
-import { BookOpen, Loader2, PackagePlus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { BookOpen, Loader2, PackagePlus, Search } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -9,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { listLoreEntries } from '@/lib/lore-api'
+import type { LoreEntry } from '@/types/lore'
 import {
   Select,
   SelectContent,
@@ -60,13 +63,29 @@ interface ConversationDialogsProps {
   isCreatingRecords: boolean
   onCreateRecords: () => void
   // Lore draft review dialog
+  gameId: string
   loreDraftReviewOpen: boolean
   setLoreDraftReviewOpen: (v: boolean) => void
   loreDraftForm: LoreDraftForm
   setLoreDraftForm: (v: LoreDraftForm) => void
   isCreatingLoreRecords: boolean
-  onCreateLoreRecords: () => void
+  onCreateLoreRecords: (matchedLoreId?: string) => void
   t: (key: string) => string
+}
+
+const MARKDOWN_COMPONENTS = {
+  pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => (
+    <div id="conv-panel-dialog-md-pre-scroll-wrap" className="overflow-x-auto w-full my-2 rounded">
+      <pre {...props} style={{ overflowWrap: 'normal', wordBreak: 'normal', whiteSpace: 'pre', minWidth: 0 }} className="m-0">
+        {children}
+      </pre>
+    </div>
+  ),
+  a: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...props} style={{ wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+      {children}
+    </a>
+  ),
 }
 
 export function ConversationDialogs({
@@ -82,6 +101,7 @@ export function ConversationDialogs({
   setCreateRecordsConfirmOpen,
   isCreatingRecords,
   onCreateRecords,
+  gameId,
   loreDraftReviewOpen,
   setLoreDraftReviewOpen,
   loreDraftForm,
@@ -91,6 +111,81 @@ export function ConversationDialogs({
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
+
+  // ── Title combobox state ──
+  const [titleInput, setTitleInput] = useState('')
+  const [titleResults, setTitleResults] = useState<LoreEntry[]>([])
+  const [isTitleSearching, setIsTitleSearching] = useState(false)
+  const [showTitleDropdown, setShowTitleDropdown] = useState(false)
+  const [matchedLoreEntry, setMatchedLoreEntry] = useState<LoreEntry | null>(null)
+  const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync titleInput when dialog opens and auto-detect if title already matches an existing lore
+  useEffect(() => {
+    if (loreDraftReviewOpen) {
+      setTitleInput(loreDraftForm.title)
+      setMatchedLoreEntry(null)
+      setTitleResults([])
+      setShowTitleDropdown(false)
+      // Silently check if the pre-filled title matches an existing lore (no dropdown shown)
+      if (loreDraftForm.title.trim()) {
+        listLoreEntries(gameId, { q: loreDraftForm.title.trim(), limit: 8 })
+          .then((res) => {
+            const results = res.data ?? []
+            const compareTitle = loreDraftForm.title.trim().toLowerCase()
+            const exactMatch = results.find((e) => e.Title.trim().toLowerCase() === compareTitle)
+            if (exactMatch) setMatchedLoreEntry(exactMatch)
+          })
+          .catch(() => {/* ignore */})
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loreDraftReviewOpen])
+
+  async function searchLoreTitles(q: string, currentTitle?: string) {
+    setIsTitleSearching(true)
+    setShowTitleDropdown(true)
+    try {
+      const res = await listLoreEntries(gameId, { q: q.trim() || undefined, limit: 8 })
+      const results = res.data ?? []
+      setTitleResults(results)
+      // Auto-detect exact title match to enable "Update Lore" mode
+      const compareTitle = (currentTitle ?? q).trim().toLowerCase()
+      const exactMatch = results.find((e) => e.Title.trim().toLowerCase() === compareTitle)
+      if (exactMatch) setMatchedLoreEntry(exactMatch)
+    } catch {
+      setTitleResults([])
+    } finally {
+      setIsTitleSearching(false)
+    }
+  }
+
+  function handleTitleInput(value: string) {
+    setTitleInput(value)
+    setLoreDraftForm({ ...loreDraftForm, title: value })
+    setMatchedLoreEntry(null)
+    setShowTitleDropdown(true)
+    if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current)
+    titleDebounceRef.current = setTimeout(() => searchLoreTitles(value, value), 350)
+  }
+
+  function handleTitleFocus() {
+    if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current)
+    searchLoreTitles(titleInput, titleInput)
+  }
+
+  function handleSelectLore(entry: LoreEntry) {
+    setTitleInput(entry.Title)
+    setLoreDraftForm({
+      ...loreDraftForm,
+      title: entry.Title,
+      lore_type: entry.LoreType,
+      // Keep draft summary and content — they are the new content to update into the selected lore
+    })
+    setMatchedLoreEntry(entry)
+    setShowTitleDropdown(false)
+    setTitleResults([])
+  }
   return (
     <>
       {/* ── Full detail dialog ── */}
@@ -252,12 +347,42 @@ export function ConversationDialogs({
               </div>
               <div id="conv-panel-lore-review-title-row" className="flex flex-col gap-1">
                 <Label id="conv-panel-lore-review-title-label" className="text-[11px]">{t('llmConversation.loreTitle')}</Label>
-                <Input
-                  id="conv-panel-lore-review-title-input"
-                  value={loreDraftForm.title}
-                  onChange={(e) => setLoreDraftForm({ ...loreDraftForm, title: e.target.value })}
-                  className="h-7 text-xs"
-                />
+                <div id="conv-panel-lore-review-title-combobox" className="relative">
+                  <Search id="conv-panel-lore-review-title-icon" className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="conv-panel-lore-review-title-input"
+                    value={titleInput}
+                    onChange={(e) => handleTitleInput(e.target.value)}
+                    onFocus={handleTitleFocus}
+                    onBlur={() => setTimeout(() => setShowTitleDropdown(false), 150)}
+                    className="h-7 text-xs pl-7 pr-6"
+                    autoComplete="off"
+                  />
+                  {isTitleSearching && (
+                    <Loader2 id="conv-panel-lore-review-title-spinner" className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground pointer-events-none" />
+                  )}
+                  {showTitleDropdown && (
+                    <div
+                      id="conv-panel-lore-review-title-dropdown"
+                      className="absolute z-50 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-y-auto"
+                    >
+                      {titleResults.length > 0 ? titleResults.map((entry) => (
+                        <button
+                          id={`conv-panel-lore-title-option-${entry.ID}`}
+                          key={entry.ID}
+                          type="button"
+                          onMouseDown={() => handleSelectLore(entry)}
+                          className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent flex items-center gap-2"
+                        >
+                          <span id={`conv-panel-lore-title-option-name-${entry.ID}`} className="flex-1 truncate font-medium">{entry.Title}</span>
+                          <span id={`conv-panel-lore-title-option-type-${entry.ID}`} className="shrink-0 text-[10px] text-muted-foreground">{entry.LoreType}</span>
+                        </button>
+                      )) : !isTitleSearching ? (
+                        <p id="conv-panel-lore-title-no-results" className="px-2.5 py-2 text-xs text-muted-foreground italic">No existing lore found — will save as new.</p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
               </div>
               <div id="conv-panel-lore-review-summary-row" className="flex flex-col gap-1">
                 <Label id="conv-panel-lore-review-summary-label" className="text-[11px]">{t('llmConversation.loreSummary')}</Label>
@@ -272,9 +397,9 @@ export function ConversationDialogs({
                 <Label id="conv-panel-lore-review-content-label" className="text-[11px]">{t('llmConversation.loreContent')}</Label>
                 <div
                   id="conv-panel-lore-review-content-preview"
-                  className={`prose prose-sm max-w-none text-xs border rounded p-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                  className={`prose prose-sm max-w-none text-xs border rounded p-2 break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:break-words [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
                 >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                     {loreDraftForm.content}
                   </ReactMarkdown>
                 </div>
@@ -292,12 +417,12 @@ export function ConversationDialogs({
             </button>
             <button
               id="conv-panel-lore-review-confirm-btn"
-              onClick={onCreateLoreRecords}
+              onClick={() => onCreateLoreRecords(matchedLoreEntry?.ID)}
               disabled={isCreatingLoreRecords || !loreDraftForm.title.trim()}
               className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-3 py-1.5 text-xs hover:bg-primary/90 transition-colors disabled:opacity-40"
             >
               {isCreatingLoreRecords ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
-              {t('llmConversation.saveLore')}
+              {matchedLoreEntry ? t('llmConversation.updateLore') : t('llmConversation.saveNewLore')}
             </button>
           </DialogFooter>
         </DialogContent>

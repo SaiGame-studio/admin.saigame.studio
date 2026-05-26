@@ -3486,6 +3486,8 @@ export const ja = {
     saveAsLore: "ロアとして保存",
     viewLore: "ロアを見る",
     saveLore: "ロアを保存",
+    saveNewLore: "新しいロアを保存",
+    updateLore: "ロアを更新",
     loreDraftReviewTitle: "ロア下書きを確認",
     loreTitle: "タイトル",
     loreSummary: "概要",

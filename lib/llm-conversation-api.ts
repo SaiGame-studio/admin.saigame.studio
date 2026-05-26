@@ -81,8 +81,11 @@ export async function deleteConversation(
 export async function createRecordsFromConversation(
   gameId: string,
   conversationId: string,
+  loreEntryIds?: string[],
 ): Promise<CreateRecordsResponse> {
-  return api.post(`${base(gameId)}/${conversationId}/create-records`)
+  return api.post(`${base(gameId)}/${conversationId}/create-records`, {
+    ...(loreEntryIds && loreEntryIds.length > 0 ? { lore_entry_ids: loreEntryIds } : {}),
+  })
 }
 
 export async function createLoreRecordsFromConversation(
@@ -130,12 +133,20 @@ export async function listRequestTypes(): Promise<string[]> {
 export interface DetectedIntent {
   type: string
   entityType?: string
+  goals?: string[]
+}
+
+export interface DetectIntentHistoryEntry {
+  user_prompt: string
+  request_type: string
+  goal?: string
 }
 
 export async function streamDetectIntent(
   gameId: string,
   conversationId: string,
   userPrompt: string,
+  history: DetectIntentHistoryEntry[],
   onChunk: (text: string) => void,
   onDone: (intents: DetectedIntent[]) => void,
   onError: (message: string) => void,
@@ -154,7 +165,10 @@ export async function streamDetectIntent(
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ user_prompt: userPrompt }),
+      body: JSON.stringify({
+        user_prompt: userPrompt,
+        ...(history.length > 0 ? { history } : {}),
+      }),
     },
   )
 
@@ -182,10 +196,22 @@ export async function streamDetectIntent(
         // Support both new format (detected_request_type) and old format (detected_intents array)
         let intents: DetectedIntent[] = []
         if (evt.detected_request_type) {
-          intents = [{ type: evt.detected_request_type as string }]
+          const detectedGoals = Array.isArray(evt.goals)
+            ? (evt.goals as unknown[]).filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+            : (typeof evt.goal === 'string' && evt.goal.trim().length > 0 ? [evt.goal] : [])
+          intents = [{ type: evt.detected_request_type as string, ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}) }]
         } else if (Array.isArray(evt.detected_intents) && evt.detected_intents.length > 0) {
-          intents = (evt.detected_intents as Array<{ Type?: string; EntityType?: string }>)
-            .map((i) => ({ type: i.Type ?? '', entityType: i.EntityType ?? '' }))
+          intents = (evt.detected_intents as Array<{ Type?: string; EntityType?: string; Goal?: string; Goals?: string[] }>)
+            .map((i) => {
+              const detectedGoals = Array.isArray(i.Goals)
+                ? i.Goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+                : (typeof i.Goal === 'string' && i.Goal.trim().length > 0 ? [i.Goal] : [])
+              return {
+                type: i.Type ?? '',
+                entityType: i.EntityType ?? '',
+                ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}),
+              }
+            })
             .filter((i) => i.type)
         }
         onDone(intents)
@@ -207,6 +233,9 @@ export async function streamRequest(
   onDone: (requestId: string) => void,
   onError: (message: string) => void,
   mainContent?: string,
+  loreEntryIds?: string[],
+  entityType?: string,
+  goals?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -218,8 +247,16 @@ export async function streamRequest(
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
-  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating') {
+  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating' && requestType !== 'item_generation') {
     body.lore_entry_ids = []
+  } else if ((requestType === 'lore_creating' || requestType === 'item_generation') && loreEntryIds && loreEntryIds.length > 0) {
+    body.lore_entry_ids = loreEntryIds
+  }
+  if (requestType === 'lore_creating' && entityType) {
+    body.entity_type = entityType
+  }
+  if (requestType === 'item_generation' && goals && goals.length > 0) {
+    body.goals = goals
   }
   if (mainContent) {
     body.main_content = mainContent

@@ -3557,6 +3557,8 @@ export const en = {
     saveAsLore: "Save as Lore",
     viewLore: "View Lore",
     saveLore: "Save Lore",
+    saveNewLore: "Save New Lore",
+    updateLore: "Update Lore",
     loreDraftReviewTitle: "Review Lore Draft",
     loreTitle: "Title",
     loreSummary: "Summary",

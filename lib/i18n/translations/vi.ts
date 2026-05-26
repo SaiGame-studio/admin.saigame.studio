@@ -3498,6 +3498,8 @@ export const vi = {
     saveAsLore: "Lưu Là Lore",
     viewLore: "Xem Lore",
     saveLore: "Lưu Lore",
+    saveNewLore: "Lưu Lore Mới",
+    updateLore: "Cập Nhật Lore",
     loreDraftReviewTitle: "Xem Lại Bản Nháp Lore",
     loreTitle: "Tiêu đề",
     loreSummary: "Tóm tắt",

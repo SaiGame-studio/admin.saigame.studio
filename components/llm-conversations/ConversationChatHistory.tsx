@@ -6,7 +6,6 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
 
 interface ConversationChatHistoryProps {
@@ -22,6 +21,21 @@ interface ConversationChatHistoryProps {
   onSaveToGame: () => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   t: (key: string) => string
+}
+
+const MARKDOWN_COMPONENTS = {
+  pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => (
+    <div id="conv-panel-md-pre-scroll-wrap" className="overflow-x-auto w-full my-2 rounded">
+      <pre {...props} style={{ overflowWrap: 'normal', wordBreak: 'normal', whiteSpace: 'pre', minWidth: 0 }} className="m-0">
+        {children}
+      </pre>
+    </div>
+  ),
+  a: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...props} style={{ wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+      {children}
+    </a>
+  ),
 }
 
 export function ConversationChatHistory({
@@ -41,7 +55,7 @@ export function ConversationChatHistory({
   const { resolvedTheme } = useTheme()
 
   return (
-    <ScrollArea id="conv-panel-content-scroll" className="flex-1 px-3 py-2">
+    <div id="conv-panel-content-scroll" className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2">
       {chatHistory.map((turn) => (
         <div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
@@ -117,9 +131,9 @@ export function ConversationChatHistory({
                       ) : response.responseText ? (
                         <div
                           id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
-                          className={`prose prose-sm max-w-none text-xs [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_li]:text-xs${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                          className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
                         >
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                             {response.responseText}
                           </ReactMarkdown>
                           {!response.done && (
@@ -180,6 +194,6 @@ export function ConversationChatHistory({
           </div>
         </div>
       ))}
-    </ScrollArea>
+    </div>
   )
 }

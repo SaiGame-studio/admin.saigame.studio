@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
-import type { DetectedIntent } from '@/lib/llm-conversation-api'
+import type { DetectedIntent, DetectIntentHistoryEntry } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 
 export interface IntentResponse {
@@ -48,6 +48,9 @@ export function useChatPipeline() {
     errorCreate: string,
     errorSend: string,
     mainContent?: string,
+    loreEntryIds?: string[],
+    fallbackEntityType?: string,
+    historyContext?: DetectIntentHistoryEntry[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -90,6 +93,7 @@ export function useChatPipeline() {
           gameId,
           resolvedConvId,
           userPrompt,
+          historyContext ?? [],
           (chunk) =>
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
@@ -172,6 +176,9 @@ export function useChatPipeline() {
             )
           },
           intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'item_generation') ? loreEntryIds : undefined,
+          intent.type === 'lore_creating' ? (intent.entityType || fallbackEntityType || undefined) : undefined,
+          intent.type === 'item_generation' ? intent.goals : undefined,
         )
       }
 
