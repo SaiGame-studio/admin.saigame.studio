@@ -1,14 +1,12 @@
 'use client'
 
-import { BookOpen, Bot, Loader2, PackagePlus, RotateCcw, Sparkles } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Bot, BookOpen, Loader2, RotateCcw, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import type { LoreEntry } from '@/types/lore'
 
 interface ConversationChatHistoryProps {
   chatHistory: ChatTurn[]
@@ -16,13 +14,26 @@ interface ConversationChatHistoryProps {
   gameId: string
   activeConvId: string | null
   savedLoreIds: Record<string, string>
-  loreDetails: Record<string, LoreEntry>
-  isCreatingRecords: boolean
+  loreEntryTitles: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
-  onSaveToGame: () => void
-  onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string) => void
+  onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   t: (key: string) => string
+}
+
+const MARKDOWN_COMPONENTS = {
+  pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => (
+    <div id="conv-panel-md-pre-scroll-wrap" className="overflow-x-auto w-full my-2 rounded">
+      <pre {...props} style={{ overflowWrap: 'normal', wordBreak: 'normal', whiteSpace: 'pre', minWidth: 0 }} className="m-0">
+        {children}
+      </pre>
+    </div>
+  ),
+  a: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={href} {...props} style={{ wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+      {children}
+    </a>
+  ),
 }
 
 export function ConversationChatHistory({
@@ -31,19 +42,16 @@ export function ConversationChatHistory({
   gameId,
   activeConvId,
   savedLoreIds,
-  loreDetails,
-  isCreatingRecords,
+  loreEntryTitles,
   onRetry,
   onRetryResponse,
-  onSaveToGame,
   onOpenLoreReview,
   t,
 }: ConversationChatHistoryProps) {
-  const router = useRouter()
   const { resolvedTheme } = useTheme()
 
   return (
-    <ScrollArea id="conv-panel-content-scroll" className="flex-1 px-3 py-2">
+    <div id="conv-panel-content-scroll" className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2">
       {chatHistory.map((turn) => (
         <div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
@@ -80,10 +88,10 @@ export function ConversationChatHistory({
                     onClick={() => onRetry(turn)}
                     disabled={isStreaming}
                     className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                    title="Retry"
+                    title={t('common.retry')}
                   >
                     <RotateCcw className="h-3 w-3" />
-                    Retry
+                    {t('common.retry')}
                   </button>
                 </div>
               ) : (turn.responses?.length ?? 0) > 0 ? (
@@ -92,9 +100,9 @@ export function ConversationChatHistory({
                     <div key={idx} id={`conv-panel-ai-response-${turn.id}-${idx}`} className="flex flex-col gap-1">
                       <span id={`conv-panel-ai-response-type-${turn.id}-${idx}`} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                         {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
-                        {(response.intentType.startsWith('item_') || (response.intentType.startsWith('lore_') && response.intentType !== 'lore_analyzing')) && response.entityType && (
+                        {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating') && response.entityType && (
                           <span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] normal-case tracking-normal text-muted-foreground border">
-                            {t(`lore.entityType${response.entityType.charAt(0).toUpperCase() + response.entityType.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`) || response.entityType}
+                            {response.entityType}
                           </span>
                         )}
                       </span>
@@ -110,18 +118,18 @@ export function ConversationChatHistory({
                             )}
                             disabled={isStreaming || !activeConvId}
                             className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                            title="Retry"
+                            title={t('common.retry')}
                           >
                             <RotateCcw className="h-3 w-3" />
-                            Retry
+                            {t('common.retry')}
                           </button>
                         </div>
                       ) : response.responseText ? (
                         <div
                           id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
-                          className={`prose prose-sm max-w-none text-xs [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_li]:text-xs${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                          className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
                         >
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                             {response.responseText}
                           </ReactMarkdown>
                           {!response.done && (
@@ -134,41 +142,31 @@ export function ConversationChatHistory({
 
                       {!response.error && response.responseText && (
                         <div id={`conv-panel-response-actions-${turn.id}-${idx}`} className="flex flex-wrap gap-1 mt-1">
-                          {response.intentType === 'item_generation' && (
-                            <button
-                              id={`conv-panel-turn-create-items-btn-${turn.id}-${idx}`}
-                              onClick={onSaveToGame}
-                              disabled={isCreatingRecords || !response.done}
-                              className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
-                            >
-                              <PackagePlus className="h-3 w-3" />
-                              {t('llmConversation.saveToGame')}
-                            </button>
-                          )}
-                          {response.intentType === 'lore_creating' && (
-                            <span id={`conv-panel-turn-lore-wrap-${turn.id}-${idx}`} className="inline-flex items-center gap-1.5">
+                          {response.intentType === 'lore_creating' && (() => {
+                            const linkKey = `${turn.id}:${idx}`
+                            const savedLoreId = savedLoreIds[linkKey]
+                            return savedLoreId ? (
+                              <Link
+                                id={`conv-panel-lore-link-${turn.id}-${idx}`}
+                                href={`/games/${gameId}/lore?lore_id=${savedLoreId}`}
+                                className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                title={loreEntryTitles[savedLoreId] ?? t('llmConversation.viewLore')}
+                              >
+                                <BookOpen className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{loreEntryTitles[savedLoreId] ?? t('llmConversation.viewLore')}</span>
+                              </Link>
+                            ) : (
                               <button
-                                id={`conv-panel-turn-create-lore-btn-${turn.id}-${idx}`}
-                                onClick={() => onOpenLoreReview(turn, idx, response.responseText)}
-                                disabled={!response.done || !!savedLoreIds[`${turn.id}:${idx}`]}
+                                id={`conv-panel-save-lore-btn-${turn.id}-${idx}`}
+                                onClick={() => onOpenLoreReview(turn, idx, response.responseText, response.entityType)}
+                                disabled={!response.done}
                                 className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
                               >
                                 <BookOpen className="h-3 w-3" />
                                 {t('llmConversation.saveAsLore')}
                               </button>
-                              {savedLoreIds[`${turn.id}:${idx}`] && (
-                                <button
-                                  id={`conv-panel-turn-lore-link-${turn.id}-${idx}`}
-                                  type="button"
-                                  onClick={() => router.push(`/games/${gameId}/lore?lore_id=${savedLoreIds[`${turn.id}:${idx}`]}`)}
-                                  className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                  <BookOpen className="h-2.5 w-2.5" />
-                                  {loreDetails[savedLoreIds[`${turn.id}:${idx}`]]?.Title ?? t('llmConversation.contentType.lore_entry')}
-                                </button>
-                              )}
-                            </span>
-                          )}
+                            )
+                          })()}
                         </div>
                       )}
                     </div>
@@ -181,6 +179,6 @@ export function ConversationChatHistory({
           </div>
         </div>
       ))}
-    </ScrollArea>
+    </div>
   )
 }

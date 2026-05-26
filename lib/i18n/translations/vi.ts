@@ -344,7 +344,7 @@ export const vi = {
     navAnalytic: "Phân tích",
     navUpgrade: "Nâng cấp",
     navMailbox: "Hộp thư",
-    navScripts: "Script",
+    navScripts: "Kịch bản",
     navLore: "Lore",
     scripts: "Kịch bản",
     compactNav: "Thu gọn",
@@ -1711,7 +1711,7 @@ export const vi = {
   analytic: {
     // Page
     pageTitle: "Phân tích",
-    breadcrumbStudios: "Studios",
+    breadcrumbStudios: "Studio",
     breadcrumbStudio: "Studio",
 
     // Tabs
@@ -3230,13 +3230,13 @@ export const vi = {
   scripts: {
     // Page
     pageTitle: "Kịch bản",
-    breadcrumbGames: "Games",
-    breadcrumbScripts: "Scripts",
+    breadcrumbGames: "Game",
+    breadcrumbScripts: "Kịch bản",
 
     // Header
     scriptCount: "kịch bản",
     scriptCountPlural: "kịch bản",
-    scriptsUnit: "scripts",
+    scriptsUnit: "kịch bản",
 
     // Toolbar
     scriptsDefinedSingular: "kịch bản đã định nghĩa",
@@ -3366,7 +3366,7 @@ export const vi = {
   },
   lore: {
     pageTitle: "Lore",
-    breadcrumbGames: "Games",
+    breadcrumbGames: "Game",
     breadcrumbLore: "Lore",
     entryCount: "mục",
     entryCountPlural: "mục",
@@ -3476,6 +3476,7 @@ export const vi = {
     requestTypes: {
       auto: "Tự động",
       item_generation: "Tạo Vật Phẩm",
+      item_modify: "Chỉnh Sửa Vật Phẩm",
       lore_creating: "Tạo Lore Mới",
       lore_analyzing: "Phân Tích Lore",
       lore_updating: "Cập Nhật Lore",
@@ -3496,6 +3497,16 @@ export const vi = {
     generatedLore: "Lore Đã Tạo",
     saveToGame: "Lưu Vào Game",
     saveAsLore: "Lưu Là Lore",
+    viewLore: "Xem Lore",
+    saveLore: "Lưu Lore",
+    saveNewLore: "Lưu Lore Mới",
+    updateLore: "Cập Nhật Lore",
+    loreDraftReviewTitle: "Xem Lại Bản Nháp Lore",
+    loreTitle: "Tiêu đề",
+    loreSummary: "Tóm tắt",
+    loreContent: "Nội dung",
+    loreCreated: "Đã lưu mục lore thành công.",
+    errorCreateLore: "Không thể lưu mục lore.",
     loreType: "Loại Lore",
     editTitle: "Sửa tiêu đề",
     editGoal: "Sửa mục tiêu",
@@ -3530,9 +3541,25 @@ export const vi = {
     linkedAuto: "tự động",
     linkedManual: "thủ công",
     contentType: {
-      lore_entry: "Lore",
+      lore: "Mục lore",
+      lore_entry: "Mục lore",
       item_definition: "Vật phẩm",
     },
+    fullDetail: "Chi tiết đầy đủ",
+    detailTitle: "Chi tiết cuộc hội thoại",
+    detailGoalsLabel: "Mục tiêu gửi với mỗi yêu cầu",
+    detailGoalsEmpty: "Chưa phát hiện mục tiêu nào.",
+    detailMetaLabel: "Cuộc hội thoại",
+    detailFieldTitle: "Tiêu đề",
+    detailFieldGoal: "Mục tiêu",
+    detailFieldStatus: "Trạng thái",
+    detailFieldCreated: "Ngày tạo",
+    detailStatusActive: "hoạt động",
+    detailStatusArchived: "đã lưu trữ",
+    detailMainContentLabel: "Nội dung chính (Lore mới nhất)",
+    detailGeneratedItemsLabel: "Vật phẩm đã tạo",
+    detailTurnsLabel: "Lịch sử lượt ({count})",
+    detailTurnType: "Loại",
     send: "Gửi",
   },
 };

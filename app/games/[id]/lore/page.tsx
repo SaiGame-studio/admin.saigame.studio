@@ -269,6 +269,14 @@ export default function LorePage() {
   const [spotlightEntry, setSpotlightEntry] = useState<LoreEntry | null>(null)
   const [spotlightLoading, setSpotlightLoading] = useState(false)
 
+  // When lore_id param changes, auto-fill search input and trigger API search
+  useEffect(() => {
+    if (loreIdParam) {
+      setSearchInput(loreIdParam)
+      setSearchQuery(loreIdParam)
+    }
+  }, [loreIdParam])
+
   useEffect(() => {
     if (!loreIdParam) {
       setSpotlightEntry(null)

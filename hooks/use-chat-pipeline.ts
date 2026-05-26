@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
-import type { DetectedIntent } from '@/lib/llm-conversation-api'
+import type { DetectedIntent, DetectIntentHistoryEntry } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 
 export interface IntentResponse {
@@ -48,8 +48,11 @@ export function useChatPipeline() {
     errorCreate: string,
     errorSend: string,
     mainContent?: string,
+    loreEntryIds?: string[],
+    fallbackEntityType?: string,
+    historyContext?: DetectIntentHistoryEntry[],
+    generatedItems?: unknown[],
   ): Promise<void> => {
-    if (!gameId || !userPrompt.trim() || isRunningRef.current) return
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
     isRunningRef.current = true
@@ -91,6 +94,7 @@ export function useChatPipeline() {
           gameId,
           resolvedConvId,
           userPrompt,
+          historyContext ?? [],
           (chunk) =>
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
@@ -173,6 +177,10 @@ export function useChatPipeline() {
             )
           },
           intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'item_generation' || intent.type === 'item_modify') ? loreEntryIds : undefined,
+          intent.type === 'lore_creating' ? (intent.entityType || fallbackEntityType || undefined) : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify') ? intent.goals : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
         )
       }
 
@@ -226,6 +234,7 @@ export function useChatPipeline() {
     userMessage: string,
     errorSend: string,
     mainContent?: string,
+    generatedItems?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -287,6 +296,10 @@ export function useChatPipeline() {
           )
         },
         intentType === 'lore_analyzing' && mainContent ? mainContent : undefined,
+        undefined,
+        undefined,
+        undefined,
+        (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
       )
     } catch {
       setChatHistory((prev) =>

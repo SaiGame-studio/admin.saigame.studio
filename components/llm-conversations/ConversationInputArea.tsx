@@ -70,7 +70,7 @@ export function ConversationInputArea({
               {(() => {
                 if (autoDetectedType && selectedRequestType === 'auto') {
                   const detectedLabel = t(`llmConversation.requestTypes.${autoDetectedType}`) || (requestTypes.find((rt) => rt.key === autoDetectedType)?.label ?? autoDetectedType)
-                  return `Auto - ${detectedLabel}`
+                  return `${t('llmConversation.requestTypes.auto')} - ${detectedLabel}`
                 }
                 return t(`llmConversation.requestTypes.${selectedRequestType}`) || (requestTypes.find((rt) => rt.key === selectedRequestType)?.label ?? selectedRequestType)
               })()}

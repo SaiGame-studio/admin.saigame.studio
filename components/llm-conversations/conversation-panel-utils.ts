@@ -62,3 +62,56 @@ export function parseLoreResponse(text: string): { title: string; summary: strin
 
   return { title, summary, content: remaining.trim() }
 }
+
+// ---------------------------------------------------------------------------
+// Parse generated items from item_generation response text.
+// Supports raw JSON arrays, JSON objects with items/generated_items, and
+// fenced code blocks containing JSON.
+// ---------------------------------------------------------------------------
+export function parseGeneratedItemsResponse(text: string): unknown[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const tryParse = (input: string): unknown[] | null => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) return parsed
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.generated_items)) return record.generated_items
+        if (Array.isArray(record.items)) return record.items
+      }
+    } catch {
+      // ignore parse failures
+    }
+    return null
+  }
+
+  // 1) Parse full response directly.
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  // 2) Parse fenced code blocks first (```json ... ``` or ``` ... ```).
+  const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  for (const block of fencedBlocks) {
+    const parsed = tryParse(block)
+    if (parsed) return parsed
+  }
+
+  // 3) Parse first JSON array substring.
+  const arrayCandidate = trimmed.match(/\[[\s\S]*\]/)
+  if (arrayCandidate) {
+    const parsed = tryParse(arrayCandidate[0])
+    if (parsed) return parsed
+  }
+
+  // 4) Parse first JSON object substring.
+  const objectCandidate = trimmed.match(/\{[\s\S]*\}/)
+  if (objectCandidate) {
+    const parsed = tryParse(objectCandidate[0])
+    if (parsed) return parsed
+  }
+
+  return []
+}
+
