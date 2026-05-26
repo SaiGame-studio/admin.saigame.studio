@@ -94,7 +94,7 @@ function getStatus(conv: Conversation): 'active' | 'archived' | 'deleted' {
 {
   "request_id": "uuid",
   "conversation_id": "uuid",
-  "detected_request_type": "item_generation",   // or "lore_building"
+  "detected_request_type": "item_generation",   // see table below
   "resolved_system_prompt_id": "uuid",           // null = backend used built-in fallback
   "status": "processing"
 }
@@ -253,12 +253,24 @@ POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests
 | Field | Required | Description |
 |---|---|---|
 | `user_prompt` | Yes | The user's message |
-| `request_type` | No | `"item_generation"` or `"lore_building"`. If omitted, the backend auto-detects intent from the message. |
+| `request_type` | No | One of the values in the table below. If omitted, the backend auto-detects intent from the message. |
 | `lore_entry_ids` | No | Array of lore entry UUIDs to inject as additional context. Pass `[]` or omit if unused. |
 
+**Request type → API path mapping**
+
+| `request_type` | Streaming endpoint path | When to use |
+|---|---|---|
+| `item_generation` | `.../requests/item-generation` | User wants to generate new item definitions |
+| `lore_creating` | `.../requests/lore-creating` | User wants to write brand-new lore |
+| `lore_updating` | `.../requests/lore-updating` | User wants to revise or extend existing lore |
+| `lore_analyzing` | `.../requests/lore-analyzing` | User wants feedback on existing lore quality/consistency |
+| *(omit)* | backend auto-detects | Free-text chat with no explicit action button |
+
 **When to include `request_type` explicitly:**
-- User clicked a "Generate items" button → `"item_generation"`  
-- User clicked a "Build lore" button → `"lore_building"`  
+- User clicked a "Generate items" button → `"item_generation"`
+- User clicked a "Create lore" button → `"lore_creating"`
+- User clicked an "Update lore" button → `"lore_updating"`
+- User clicked an "Analyze lore" button → `"lore_analyzing"`
 - Free-text chat with no intent button → omit (let the backend detect)
 
 **Response 202**
@@ -458,7 +470,7 @@ const content = conv.AccumulatedContent;
 // Items from item_generation requests
 const items: ItemDraft[] = content?.items ?? [];
 
-// Lore from lore_building requests
+// Lore from lore_creating / lore_updating / lore_analyzing requests (all accumulate under the same "lore" key)
 const loreEntries: LoreDraft[] = content?.lore ?? [];
 
 // Show "Create items" button only when items exist

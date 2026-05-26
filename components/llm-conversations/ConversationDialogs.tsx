@@ -1,7 +1,18 @@
 'use client'
 
 import { BookOpen, Loader2, PackagePlus } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +46,7 @@ interface ConversationDialogsProps {
   setDetailOpen: (v: boolean) => void
   chatHistory: ChatTurn[]
   activeConv: Conversation | null
+  convMainContent: string
   // Delete dialog
   deleteTarget: Conversation | null
   setDeleteTarget: (v: Conversation | null) => void
@@ -59,6 +71,7 @@ export function ConversationDialogs({
   setDetailOpen,
   chatHistory,
   activeConv,
+  convMainContent,
   deleteTarget,
   setDeleteTarget,
   onDelete,
@@ -74,6 +87,7 @@ export function ConversationDialogs({
   onCreateLoreRecords,
   t,
 }: ConversationDialogsProps) {
+  const { resolvedTheme } = useTheme()
   return (
     <>
       {/* ── Full detail dialog ── */}
@@ -84,6 +98,23 @@ export function ConversationDialogs({
           </DialogHeader>
           <ScrollArea id="conv-panel-detail-scroll" className="max-h-[65vh] pr-2">
             <div id="conv-panel-detail-body" className="space-y-4 text-xs">
+
+              {/* Main content — accumulated lore_creating responses */}
+              {convMainContent && (
+                <section id="conv-panel-detail-main-content-section">
+                  <p id="conv-panel-detail-main-content-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                    {t('llmConversation.mainContent')}
+                  </p>
+                  <div
+                    id="conv-panel-detail-main-content-body"
+                    className={`prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_p]:text-xs [&_li]:text-xs${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                      {convMainContent}
+                    </ReactMarkdown>
+                  </div>
+                </section>
+              )}
               <section id="conv-panel-detail-goals-section">
                 <p id="conv-panel-detail-goals-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
                   Goals sent with each request
@@ -142,21 +173,6 @@ export function ConversationDialogs({
                         {turn.detectedType && (
                           <p id={`conv-panel-detail-turn-type-${turn.id}`} className="text-muted-foreground">
                             Type: <span className="text-foreground">{turn.detectedType}</span>
-                          </p>
-                        )}
-                        {turn.detectedGoal && (
-                          <p id={`conv-panel-detail-turn-goal-${turn.id}`} className="text-muted-foreground">
-                            Goal: <span className="text-foreground">{turn.detectedGoal}</span>
-                          </p>
-                        )}
-                        {turn.detectedLanguage && (
-                          <p id={`conv-panel-detail-turn-lang-${turn.id}`} className="text-muted-foreground">
-                            Language: <span className="text-foreground">{turn.detectedLanguage}</span>
-                          </p>
-                        )}
-                        {turn.detectedEntityType && (
-                          <p id={`conv-panel-detail-turn-entity-${turn.id}`} className="text-muted-foreground">
-                            Entity: <span className="text-foreground">{turn.detectedEntityType}</span>
                           </p>
                         )}
                       </div>
@@ -228,12 +244,21 @@ export function ConversationDialogs({
               <label id="conv-panel-lore-review-type-label" className="text-xs font-medium text-muted-foreground">
                 {t('llmConversation.loreType')}
               </label>
-              <input
-                id="conv-panel-lore-review-type-input"
+              <Select
                 value={loreDraftForm.lore_type}
-                onChange={(e) => setLoreDraftForm((f) => ({ ...f, lore_type: e.target.value }))}
-                className="rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+                onValueChange={(v) => setLoreDraftForm((f) => ({ ...f, lore_type: v }))}
+              >
+                <SelectTrigger id="conv-panel-lore-review-type-trigger">
+                  <SelectValue placeholder={t('lore.placeholderType')} />
+                </SelectTrigger>
+                <SelectContent id="conv-panel-lore-review-type-content">
+                  {['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom'].map((type) => (
+                    <SelectItem id={`conv-panel-lore-review-type-${type}`} key={type} value={type}>
+                      {t(`lore.type${type.charAt(0).toUpperCase() + type.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`) || type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div id="conv-panel-lore-review-title-row" className="flex flex-col gap-1">

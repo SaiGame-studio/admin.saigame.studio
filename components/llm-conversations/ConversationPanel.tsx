@@ -101,10 +101,6 @@ export function LLMConversationPanel() {
   // When selectedRequestType was resolved by auto-detection, stores the detected key so
   // the trigger can display "Auto - [label]" instead of just the label.
   const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null)
-  const [autoDetectedEntityType, setAutoDetectedEntityType] = useState<string | null>(null)
-  // Tracks whether the most recent send used auto mode, so the chatHistory watcher
-  // knows when to apply the auto-detection label update.
-  const sentWithAutoRef = useRef(false)
 
   // Archive/delete dialogs
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null)
@@ -124,6 +120,9 @@ export function LLMConversationPanel() {
 
   // Detail dialog
   const [detailOpen, setDetailOpen] = useState(false)
+
+  // Conversation main content — accumulated text from all completed lore_creating responses
+  const [convMainContent, setConvMainContent] = useState<string>('')
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -160,12 +159,9 @@ export function LLMConversationPanel() {
   // selectedRequestType stays 'auto' so every send re-runs detect-intent.
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!sentWithAutoRef.current) return
     const lastTurn = chatHistory[chatHistory.length - 1]
     if (lastTurn?.done && lastTurn.detectedType && !lastTurn.error) {
       setAutoDetectedType(lastTurn.detectedType)
-      setAutoDetectedEntityType(lastTurn.detectedEntityType ?? null)
-      sentWithAutoRef.current = false
     }
   }, [chatHistory])
 
@@ -186,6 +182,25 @@ export function LLMConversationPanel() {
       safeSetItem(lsConvHistory(activeConvId), JSON.stringify(completedTurns))
     }
   }, [chatHistory, activeConvId])
+
+  // Keep only the last completed lore_creating response as conversation main content
+  useEffect(() => {
+    let lastContent = ''
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'lore_creating' && response.done && !response.error && response.responseText) {
+          lastContent = response.responseText
+        }
+      }
+    }
+    setConvMainContent(lastContent)
+  }, [chatHistory])
+
+  // Reset main content when switching conversations
+  useEffect(() => {
+    setConvMainContent('')
+  }, [activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -370,14 +385,12 @@ export function LLMConversationPanel() {
     }
   }
 
-  function handleRetry(turn: { id: string; userMessage: string; detectedType: string | null; detectedEntityType: string | null }) {
+  function handleRetry(turn: { id: string; userMessage: string; detectedType: string | null }) {
     if (!gameId || isStreaming) return
     // If detect-intent already succeeded, skip it and use the resolved type directly.
     // Otherwise fall back to the current selector (may re-run detect-intent).
     const retryType = turn.detectedType ?? selectedRequestType
-    const retryEntityType = turn.detectedEntityType ?? undefined
     removeTurn(turn.id)
-    sentWithAutoRef.current = retryType === 'auto'
     void runPipeline(
       gameId,
       turn.userMessage,
@@ -395,14 +408,13 @@ export function LLMConversationPanel() {
       },
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
-      retryEntityType,
+      convMainContent || undefined,
     )
   }
 
   function handleSend() {
     if (!gameId || !message.trim() || isStreaming) return
     const userPrompt = message.trim()
-    sentWithAutoRef.current = selectedRequestType === 'auto'
     setMessage('')
     void runPipeline(
       gameId,
@@ -421,6 +433,7 @@ export function LLMConversationPanel() {
       },
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
+      convMainContent || undefined,
     )
   }
   async function handleSaveTitle() {
@@ -572,9 +585,7 @@ export function LLMConversationPanel() {
     turnId: string,
     responseIdx: number,
     intentType: string,
-    entityType: string,
     userMessage: string,
-    detectedLanguage: string,
   ) {
     if (!gameId || !activeConvId) return
     void retryResponse(
@@ -583,17 +594,22 @@ export function LLMConversationPanel() {
       turnId,
       responseIdx,
       intentType,
-      entityType,
       userMessage,
-      detectedLanguage,
       t('llmConversation.errorSend'),
+      convMainContent || undefined,
     )
   }
 
-  function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string, entityType: string) {
+  const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
+
+  function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string) {
     const parsed = parseLoreResponse(responseText)
+    const response = turn.responses?.[idx]
+    const isLoreIntent = (response?.intentType ?? '').startsWith('lore_')
+    const rawEntityType = response?.entityType ?? ''
+    const loreType = isLoreIntent && VALID_LORE_TYPES.includes(rawEntityType) ? rawEntityType : 'custom'
     setLoreDraftForm({
-      lore_type: entityType,
+      lore_type: loreType,
       title: parsed.title,
       summary: parsed.summary,
       content: parsed.content,
@@ -747,9 +763,7 @@ export function LLMConversationPanel() {
               selectedRequestType={selectedRequestType}
               setSelectedRequestType={setSelectedRequestType}
               autoDetectedType={autoDetectedType}
-              autoDetectedEntityType={autoDetectedEntityType}
               setAutoDetectedType={setAutoDetectedType}
-              setAutoDetectedEntityType={setAutoDetectedEntityType}
               onSend={handleSend}
               t={t}
             />
@@ -762,6 +776,7 @@ export function LLMConversationPanel() {
         setDetailOpen={setDetailOpen}
         chatHistory={chatHistory}
         activeConv={activeConv}
+        convMainContent={convMainContent}
         deleteTarget={deleteTarget}
         setDeleteTarget={setDeleteTarget}
         onDelete={handleDelete}

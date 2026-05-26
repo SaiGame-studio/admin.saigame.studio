@@ -6,13 +6,17 @@ Frontend guide for consuming the SSE (Server-Sent Events) endpoints that stream 
 
 ## Endpoints
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` | Detect intent from a user prompt (SSE) |
-| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation` | Stream an item generation response |
-| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/lore-building` | Stream a lore building response |
+| Method | Path | `detected_request_type` | Purpose |
+|--------|------|-------------------------|---------|
+| `POST` | `.../detect-intent` | — | Classify a free-text prompt (SSE) |
+| `POST` | `.../requests/item-generation` | `item_generation` | Generate new item definitions |
+| `POST` | `.../requests/lore-creating` | `lore_creating` | Write new lore from scratch |
+| `POST` | `.../requests/lore-updating` | `lore_updating` | Revise / extend existing lore |
+| `POST` | `.../requests/lore-analyzing` | `lore_analyzing` | Analyze lore for quality and consistency |
 
-Both endpoints behave identically — only the request type differs.
+All request endpoints behave identically — only the URL path (and therefore the system prompt used) differs.
+
+**Path prefix:** `/api/v1/games/{game_id}/llm/conversations/{conversation_id}`
 
 **Auth:** JWT required (`Authorization: Bearer <token>`)
 
@@ -56,7 +60,7 @@ Content-Type: application/json
 {"type": "error", "message": "intent undetectable"}
 ```
 
-Possible values for `detected_request_type`: `item_generation`, `lore_building`.
+Possible values for `detected_request_type`: `item_generation`, `lore_creating`, `lore_updating`, `lore_analyzing`.
 
 ---
 
@@ -131,8 +135,9 @@ Sent if the LLM call fails mid-stream. Close the connection after receiving this
 ### Using `fetch` + `ReadableStream`
 
 ```javascript
-async function streamLLMRequest(gameId, conversationId, userPrompt) {
-  const url = `/api/v1/games/${gameId}/llm/conversations/${conversationId}/requests/item-generation`;
+// type: 'item-generation' | 'lore-creating' | 'lore-updating' | 'lore-analyzing'
+async function streamLLMRequest(gameId, conversationId, userPrompt, type) {
+  const url = `/api/v1/games/${gameId}/llm/conversations/${conversationId}/requests/${type}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -207,7 +212,7 @@ function useLLMStream(gameId: string, conversationId: string) {
     requestId: null,
   });
 
-  const submit = useCallback(async (userPrompt: string, type: 'item-generation' | 'lore-building') => {
+  const submit = useCallback(async (userPrompt: string, type: 'item-generation' | 'lore-creating' | 'lore-updating' | 'lore-analyzing') => {
     setState({ text: '', loading: true, error: null, requestId: null });
 
     try {
@@ -273,10 +278,16 @@ function LLMResponsePanel({ gameId, conversationId }) {
       <textarea value={prompt} onChange={e => setPrompt(e.target.value)} />
 
       <button onClick={() => submit(prompt, 'item-generation')} disabled={loading}>
-        {loading ? 'Generating...' : 'Generate Item'}
+        {loading ? 'Generating...' : 'Generate Items'}
       </button>
-      <button onClick={() => submit(prompt, 'lore-building')} disabled={loading}>
-        {loading ? 'Generating...' : 'Build Lore'}
+      <button onClick={() => submit(prompt, 'lore-creating')} disabled={loading}>
+        {loading ? 'Generating...' : 'Create Lore'}
+      </button>
+      <button onClick={() => submit(prompt, 'lore-updating')} disabled={loading}>
+        {loading ? 'Generating...' : 'Update Lore'}
+      </button>
+      <button onClick={() => submit(prompt, 'lore-analyzing')} disabled={loading}>
+        {loading ? 'Generating...' : 'Analyze Lore'}
       </button>
 
       {error && <p className="error">{error}</p>}

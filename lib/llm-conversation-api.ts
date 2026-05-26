@@ -1,6 +1,5 @@
 import { api } from '@/lib/api-client'
 import { getValidToken } from '@/lib/auth-utils'
-import { parse, STR, OBJ } from 'partial-json'
 import type {
   Conversation,
   ListConversationsResponse,
@@ -128,13 +127,17 @@ export async function listRequestTypes(): Promise<string[]> {
   return (Array.isArray(arr) ? arr : []) as string[]
 }
 
+export interface DetectedIntent {
+  type: string
+  entityType?: string
+}
+
 export async function streamDetectIntent(
   gameId: string,
   conversationId: string,
   userPrompt: string,
   onChunk: (text: string) => void,
-  onPartial: (fields: { detectedType?: string; detectedLanguage?: string; detectedEntityType?: string; detectedGoal?: string; detectedIntents?: { type: string; entityType: string; goal: string }[] }) => void,
-  onDone: (detectedType: string, detectedLanguage: string, detectedEntityType: string, detectedGoal: string, detectedIntents: { type: string; entityType: string; goal: string }[]) => void,
+  onDone: (intents: DetectedIntent[]) => void,
   onError: (message: string) => void,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -160,7 +163,6 @@ export async function streamDetectIntent(
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buf = ''
-  let accText = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -175,46 +177,18 @@ export async function streamDetectIntent(
       const evt = JSON.parse(part.slice(6))
 
       if (evt.type === 'chunk') {
-        const chunk = evt.text ?? ''
-        accText += chunk
-        onChunk(chunk)
-        try {
-          const p = parse(accText, STR | OBJ) as Record<string, unknown>
-          if (p && typeof p === 'object') {
-            const rawIntents = Array.isArray(p.intents)
-              ? (p.intents as { type?: string; entity_type?: string; goal?: string }[])
-              : []
-            const first = rawIntents[0]
-            const detectedIntents = rawIntents.map((i) => ({
-              type: i.type ?? '',
-              entityType: i.entity_type ?? '',
-              goal: i.goal ?? '',
-            }))
-            onPartial({
-              ...(p.language                       ? { detectedLanguage:   String(p.language) }          : {}),
-              ...(first?.type                      ? { detectedType:       first.type }                  : {}),
-              ...(first?.entity_type               ? { detectedEntityType: first.entity_type }           : {}),
-              ...(first?.goal                      ? { detectedGoal:       first.goal }                  : {}),
-              ...(detectedIntents.length > 0       ? { detectedIntents }                                 : {}),
-            })
-          }
-        } catch { /* partial parse failed — ignore */ }
+        onChunk(evt.text ?? '')
       } else if (evt.type === 'done') {
-        const rawIntents: { Type?: string; EntityType?: string; Goal?: string }[] =
-          Array.isArray(evt.detected_intents) ? evt.detected_intents : []
-        const firstIntent = rawIntents[0] ?? {}
-        const detectedIntents = rawIntents.map((i) => ({
-          type: i.Type ?? '',
-          entityType: i.EntityType ?? '',
-          goal: i.Goal ?? '',
-        }))
-        onDone(
-          firstIntent.Type ?? '',
-          evt.detected_language ?? '',
-          firstIntent.EntityType ?? '',
-          firstIntent.Goal ?? '',
-          detectedIntents,
-        )
+        // Support both new format (detected_request_type) and old format (detected_intents array)
+        let intents: DetectedIntent[] = []
+        if (evt.detected_request_type) {
+          intents = [{ type: evt.detected_request_type as string }]
+        } else if (Array.isArray(evt.detected_intents) && evt.detected_intents.length > 0) {
+          intents = (evt.detected_intents as Array<{ Type?: string; EntityType?: string }>)
+            .map((i) => ({ type: i.Type ?? '', entityType: i.EntityType ?? '' }))
+            .filter((i) => i.type)
+        }
+        onDone(intents)
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')
@@ -232,9 +206,7 @@ export async function streamRequest(
   onChunk: (text: string) => void,
   onDone: (requestId: string) => void,
   onError: (message: string) => void,
-  entityType?: string,
-  language?: string,
-  goals?: string[],
+  mainContent?: string,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -243,6 +215,15 @@ export async function streamRequest(
   if (!token) throw new Error('Not authenticated.')
 
   const urlType = requestType.replace(/_/g, '-')
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+  }
+  if (requestType !== 'lore_analyzing') {
+    body.lore_entry_ids = []
+  }
+  if (mainContent) {
+    body.main_content = mainContent
+  }
   const res = await fetch(
     `${apiUrl}${base(gameId)}/${conversationId}/requests/${urlType}`,
     {
@@ -251,13 +232,7 @@ export async function streamRequest(
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        user_prompt: userPrompt,
-        entity_type: entityType ?? 'custom',
-        language: language ?? '',
-        lore_entry_ids: [],
-        ...(goals && goals.length > 0 ? { goals } : {}),
-      }),
+      body: JSON.stringify(body),
     },
   )
 

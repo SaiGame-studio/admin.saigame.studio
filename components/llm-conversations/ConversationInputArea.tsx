@@ -20,9 +20,7 @@ interface ConversationInputAreaProps {
   selectedRequestType: string
   setSelectedRequestType: (v: string) => void
   autoDetectedType: string | null
-  autoDetectedEntityType: string | null
   setAutoDetectedType: (v: string | null) => void
-  setAutoDetectedEntityType: (v: string | null) => void
   onSend: () => void
   t: (key: string) => string
 }
@@ -35,9 +33,7 @@ export function ConversationInputArea({
   selectedRequestType,
   setSelectedRequestType,
   autoDetectedType,
-  autoDetectedEntityType,
   setAutoDetectedType,
-  setAutoDetectedEntityType,
   onSend,
   t,
 }: ConversationInputAreaProps) {
@@ -66,7 +62,6 @@ export function ConversationInputArea({
           onValueChange={(v) => {
             setSelectedRequestType(v)
             setAutoDetectedType(null)
-            setAutoDetectedEntityType(null)
           }}
           disabled={isStreaming || requestTypes.length === 0}
         >
@@ -75,10 +70,7 @@ export function ConversationInputArea({
               {(() => {
                 if (autoDetectedType && selectedRequestType === 'auto') {
                   const detectedLabel = t(`llmConversation.requestTypes.${autoDetectedType}`) || (requestTypes.find((rt) => rt.key === autoDetectedType)?.label ?? autoDetectedType)
-                  const entityLabel = autoDetectedEntityType
-                    ? (t(`llmConversation.entityTypes.${autoDetectedEntityType}`) || autoDetectedEntityType)
-                    : null
-                  return entityLabel ? `Auto - ${detectedLabel} - ${entityLabel}` : `Auto - ${detectedLabel}`
+                  return `Auto - ${detectedLabel}`
                 }
                 return t(`llmConversation.requestTypes.${selectedRequestType}`) || (requestTypes.find((rt) => rt.key === selectedRequestType)?.label ?? selectedRequestType)
               })()}

@@ -3432,6 +3432,32 @@ export const en = {
     typeCreature: "Creature",
     typeCustom: "Custom",
 
+    // Lore entity types (from lore_* intents)
+    entityTypeWorld: "World",
+    entityTypeRegion: "Region",
+    entityTypeFaction: "Faction",
+    entityTypeItemLore: "Item Lore",
+    entityTypeEvent: "Event",
+    entityTypeCreature: "Creature",
+    entityTypeCustom: "Custom",
+
+    // Item entity types (from item_generation intents)
+    entityTypeArmor: "Armor",
+    entityTypeCard: "Card",
+    entityTypeCharacter: "Character",
+    entityTypeConsumable: "Consumable",
+    entityTypeContainer: "Container",
+    entityTypeCurrency: "Currency",
+    entityTypeDecoration: "Decoration",
+    entityTypeGachaPack: "Gacha Pack",
+    entityTypeGenerator: "Generator",
+    entityTypeKey: "Key",
+    entityTypeMaterial: "Material",
+    entityTypeQuest: "Quest",
+    entityTypeRecipe: "Recipe",
+    entityTypeWeapon: "Weapon",
+    entityTypeOther: "Other",
+
     // Table headers
     tableHeaderTitle: "Title",
     tableHeaderType: "Type",
@@ -3509,7 +3535,7 @@ export const en = {
     requestTypes: {
       auto: "Auto",
       item_generation: "Generate Items",
-      lore_building: "Build Lore",
+      lore_creating: "Create Lore",
       lore_analyzing: "Analyze Lore",
       lore_updating: "Update Lore",
     },
@@ -3558,6 +3584,7 @@ export const en = {
     errorDelete: "Failed to delete conversation.",
     errorCreateRecords: "Failed to create item records.",
     errorLoadRequestTypes: "Failed to load request types.",
+    mainContent: "Main Content",
     linkedContent: "Linked Content",
     linkedAuto: "auto",
     linkedManual: "manual",

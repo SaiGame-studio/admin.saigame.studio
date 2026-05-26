@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, streamDetectIntent, streamRequest, updateConversation } from '@/lib/llm-conversation-api'
+import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import type { DetectedIntent } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 
 export interface IntentResponse {
   intentType: string
   entityType: string
-  goal: string
   responseText: string
   done: boolean
   error: string | null
@@ -15,12 +15,7 @@ export interface ChatTurn {
   id: string
   userMessage: string
   aiText: string
-  responseText: string
   detectedType: string | null
-  detectedLanguage: string | null
-  detectedEntityType: string | null
-  detectedGoal: string | null
-  detectedIntents: { type: string; entityType: string; goal: string }[] | null
   responses?: IntentResponse[]
   done: boolean
   error: string | null
@@ -43,9 +38,6 @@ export function useChatPipeline() {
   // even if the closure captured a stale `isRunning` snapshot.
   const isRunningRef = useRef(false)
 
-  // Accumulated goals from all detect-intent calls in this conversation session.
-  const accumulatedGoalsRef = useRef<string[]>([])
-
   const send = useCallback(async (
     gameId: string,
     userPrompt: string,
@@ -55,7 +47,7 @@ export function useChatPipeline() {
     onConvUpdated: (conv: Conversation) => void,
     errorCreate: string,
     errorSend: string,
-    entityType?: string,
+    mainContent?: string,
   ): Promise<void> => {
     if (!gameId || !userPrompt.trim() || isRunningRef.current) return
 
@@ -70,7 +62,6 @@ export function useChatPipeline() {
 
     try {
       // ── Step 1: ensure conversation exists (regular REST) ────────────────────
-      const isNewConversation = !convId
       let resolvedConvId = convId
       if (!resolvedConvId) {
         const newConv = await createConversation(gameId, {
@@ -83,18 +74,17 @@ export function useChatPipeline() {
         setChatHistory([])
       }
 
+      // Suppress unused-callback warning — onConvUpdated is kept in signature for callers
+      void onConvUpdated
+
       // Append user turn immediately so the UI feels responsive
       setChatHistory((prev) => [
         ...prev,
-        { id: turnId, userMessage: userPrompt, aiText: '', responseText: '', detectedType: null, detectedLanguage: null, detectedEntityType: null, detectedGoal: null, detectedIntents: null, done: false, error: null },
+        { id: turnId, userMessage: userPrompt, aiText: '', detectedType: null, done: false, error: null },
       ])
 
       // ── Step 2: detect intent (SSE) or use explicit type ────────────────────
-      let resolvedType = requestType
-      let resolvedLanguage = ''
-      let resolvedEntityType = ''
-      let resolvedGoal = ''
-      let resolvedIntents: { type: string; entityType: string; goal: string }[] = []
+      let resolvedIntents: DetectedIntent[] = []
       if (requestType === 'auto') {
         let detectError = ''
         await streamDetectIntent(
@@ -105,39 +95,11 @@ export function useChatPipeline() {
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
             ),
-          (fields) => {
-            if (fields.detectedType)       resolvedType         = fields.detectedType
-            if (fields.detectedLanguage)   resolvedLanguage     = fields.detectedLanguage
-            if (fields.detectedEntityType) resolvedEntityType   = fields.detectedEntityType
-            if (fields.detectedGoal)       resolvedGoal         = fields.detectedGoal
-            if (fields.detectedGoal && !accumulatedGoalsRef.current.includes(fields.detectedGoal)) {
-              accumulatedGoalsRef.current = [...accumulatedGoalsRef.current, fields.detectedGoal]
-            }
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                return {
-                  ...t,
-                  ...(fields.detectedType       ? { detectedType:       fields.detectedType }             : {}),
-                  ...(fields.detectedLanguage   ? { detectedLanguage:   fields.detectedLanguage }         : {}),
-                  ...(fields.detectedEntityType ? { detectedEntityType: fields.detectedEntityType }       : {}),
-                  ...(fields.detectedGoal       ? { detectedGoal:       fields.detectedGoal }             : {}),
-                  ...(fields.detectedIntents    ? { detectedIntents:    fields.detectedIntents }          : {}),
-                }
-              })
-            )
-          },
-          (detectedType, detectedLanguage, detectedEntityType, detectedGoal, detectedIntents) => {
-            resolvedType = detectedType
-            resolvedLanguage = detectedLanguage
-            resolvedEntityType = detectedEntityType
-            resolvedGoal = detectedGoal
+          (detectedIntents) => {
             resolvedIntents = detectedIntents
-            if (detectedGoal && !accumulatedGoalsRef.current.includes(detectedGoal)) {
-              accumulatedGoalsRef.current = [...accumulatedGoalsRef.current, detectedGoal]
-            }
+            const firstType = detectedIntents[0]?.type ?? null
             setChatHistory((prev) =>
-              prev.map((t) => (t.id === turnId ? { ...t, detectedType, detectedLanguage, detectedEntityType: detectedEntityType || null, detectedGoal: detectedGoal || null, detectedIntents: detectedIntents.length > 0 ? detectedIntents : null } : t))
+              prev.map((t) => (t.id === turnId ? { ...t, detectedType: firstType } : t))
             )
           },
           (errMsg) => {
@@ -148,38 +110,22 @@ export function useChatPipeline() {
           },
         )
         if (detectError) { finish(); return }
-        // Update conversation title & goal from detected goal — only for the first detect-intent
-        if (resolvedGoal && resolvedConvId && isNewConversation) {
-          try {
-            const updatedConv = await updateConversation(gameId, resolvedConvId, {
-              title: resolvedGoal.slice(0, 80),
-              goal: resolvedGoal,
-            })
-            onConvUpdated(updatedConv)
-          } catch {
-            // Non-fatal — pipeline continues
-          }
-        }
       } else {
+        resolvedIntents = [{ type: requestType }]
         // Type explicitly chosen — set immediately, skip detect-intent
         setChatHistory((prev) =>
           prev.map((t) => (t.id === turnId ? { ...t, detectedType: requestType } : t))
         )
       }
 
-      // ── Step 3: stream one request per detected intent, sequentially ────────
-      const intentsToProcess = resolvedIntents.length > 0
-        ? resolvedIntents
-        : [{ type: resolvedType, entityType: entityType ?? resolvedEntityType ?? '', goal: resolvedGoal }]
-
-      // Pre-initialise response slots so the UI shows spinners immediately
+      // ── Step 3: stream each intent sequentially ──────────────────────────────
+      // Pre-initialise all response slots so the UI shows spinners immediately
       setChatHistory((prev) =>
         prev.map((t) => t.id !== turnId ? t : {
           ...t,
-          responses: intentsToProcess.map((intent) => ({
+          responses: resolvedIntents.map((intent) => ({
             intentType: intent.type,
-            entityType: intent.entityType,
-            goal: intent.goal,
+            entityType: intent.entityType ?? '',
             responseText: '',
             done: false,
             error: null,
@@ -187,8 +133,8 @@ export function useChatPipeline() {
         })
       )
 
-      for (let i = 0; i < intentsToProcess.length; i++) {
-        const intent = intentsToProcess[i]
+      for (let i = 0; i < resolvedIntents.length; i++) {
+        const intent = resolvedIntents[i]
         await streamRequest(
           gameId,
           resolvedConvId,
@@ -226,13 +172,11 @@ export function useChatPipeline() {
               })
             )
           },
-          intent.entityType || (entityType ?? undefined),
-          resolvedLanguage,
-          accumulatedGoalsRef.current.length > 0 ? [...accumulatedGoalsRef.current] : undefined,
+          intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
         )
       }
 
-      // All intents done — mark the whole turn complete
+      // Mark the turn complete
       setChatHistory((prev) =>
         prev.map((t) => (t.id === turnId ? { ...t, done: true } : t))
       )
@@ -253,12 +197,7 @@ export function useChatPipeline() {
             id: turnId,
             userMessage: userPrompt,
             aiText: '',
-            responseText: '',
             detectedType: null,
-            detectedLanguage: null,
-            detectedEntityType: null,
-            detectedGoal: null,
-            detectedIntents: null,
             done: true,
             error: errorCreate,
           },
@@ -270,23 +209,12 @@ export function useChatPipeline() {
 
   const clearHistory = useCallback(() => {
     setChatHistory([])
-    accumulatedGoalsRef.current = []
   }, [])
   const removeTurn = useCallback((id: string) => {
     setChatHistory((prev) => prev.filter((t) => t.id !== id))
   }, [])
   const loadHistory = useCallback((turns: ChatTurn[]) => {
     setChatHistory(turns)
-    // Repopulate accumulated goals so they are sent on the next request
-    const seen = new Set<string>()
-    const restored: string[] = []
-    for (const turn of turns) {
-      if (turn.detectedGoal && !seen.has(turn.detectedGoal)) {
-        seen.add(turn.detectedGoal)
-        restored.push(turn.detectedGoal)
-      }
-    }
-    accumulatedGoalsRef.current = restored
   }, [])
 
   const retryResponse = useCallback(async (
@@ -295,10 +223,9 @@ export function useChatPipeline() {
     turnId: string,
     responseIdx: number,
     intentType: string,
-    entityType: string,
     userMessage: string,
-    language: string,
     errorSend: string,
+    mainContent?: string,
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -359,9 +286,7 @@ export function useChatPipeline() {
             })
           )
         },
-        entityType || undefined,
-        language,
-        accumulatedGoalsRef.current.length > 0 ? [...accumulatedGoalsRef.current] : undefined,
+        intentType === 'lore_analyzing' && mainContent ? mainContent : undefined,
       )
     } catch {
       setChatHistory((prev) =>
