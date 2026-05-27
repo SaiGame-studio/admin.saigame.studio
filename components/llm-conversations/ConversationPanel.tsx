@@ -46,10 +46,10 @@ import { ConversationChatHistory } from './ConversationChatHistory'
 import { ConversationLinkedContent } from './ConversationLinkedContent'
 import { ConversationInputArea } from './ConversationInputArea'
 import { ConversationDialogs } from './ConversationDialogs'
-import type { LoreDraftForm, ItemDraftForm } from './ConversationDialogs'
+import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
-import { createItemDefinition } from '@/lib/inventory-api'
+import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -138,8 +138,7 @@ export function LLMConversationPanel() {
   const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
   const [itemDefReviewResponseIdx, setItemDefReviewResponseIdx] = useState(0)
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
-  const [itemDefForm, setItemDefForm] = useState<ItemDraftForm>({ name: '', category: 'other', rarity: 'common', description: '', base_stats: {} })
-  const [isSavingItemDef, setIsSavingItemDef] = useState(false)
+  const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
 
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
@@ -722,44 +721,41 @@ export function LLMConversationPanel() {
   ) {
     const name = typeof item.name === 'string' ? item.name : ''
     const rarity = typeof item.rarity === 'string' ? item.rarity : 'common'
-    const description = typeof item.description === 'string' ? item.description : ''
-    const base_stats = (item.attributes && typeof item.attributes === 'object' && !Array.isArray(item.attributes))
-      ? item.attributes as Record<string, number>
-      : {}
     const category = typeof item.category === 'string' ? item.category : 'other'
+    const description =
+      typeof item.description === 'string' ? item.description
+      : typeof (item.metadata as Record<string, unknown>)?.description === 'string'
+        ? (item.metadata as Record<string, unknown>).description as string
+        : ''
+    const rawStats = (item.base_stats ?? item.attributes)
+    const stats = rawStats && typeof rawStats === 'object' && !Array.isArray(rawStats)
+      ? Object.entries(rawStats as Record<string, unknown>).map(([k, v]) => ({ key: k, value: String(v) }))
+      : []
+    const item_code = typeof item.item_code === 'string' ? item.item_code : undefined
     setItemDefReviewItem(item)
     setItemDefReviewTurnId(turnId)
     setItemDefReviewResponseIdx(responseIdx)
     setItemDefReviewItemIdx(itemIdx)
-    setItemDefForm({ name, category, rarity, description, base_stats })
+    setItemInitialValues({
+      name, item_code, category: category as never, rarity: rarity as never,
+      is_stackable: typeof item.is_stackable === 'boolean' ? item.is_stackable : false,
+      max_stack_size: item.max_stack_size != null ? String(item.max_stack_size) : '99',
+      grid_width: item.grid_width != null ? String(item.grid_width) : '1',
+      grid_height: item.grid_height != null ? String(item.grid_height) : '1',
+      stats, description,
+      client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
+      allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
+    })
     setItemDefReviewOpen(true)
   }
 
-  async function handleSaveItemDefinition() {
-    if (!gameId || !activeConvId || !itemDefReviewTurnId) return
-    setIsSavingItemDef(true)
-    try {
-      const result = await createItemDefinition(
-        { gameId },
-        {
-          name: itemDefForm.name,
-          category: itemDefForm.category as never,
-          rarity: itemDefForm.rarity as never,
-          base_stats: Object.keys(itemDefForm.base_stats).length > 0 ? itemDefForm.base_stats : undefined,
-          metadata: itemDefForm.description ? { description: itemDefForm.description } : undefined,
-        },
-      )
-      const itemKey = `${itemDefReviewTurnId}:${itemDefReviewResponseIdx}:${itemDefReviewItemIdx}`
-      const updated = { ...savedItemDefinitionIds, [itemKey]: result.item.id }
-      setSavedItemDefinitionIds(updated)
-      safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
-      toast({ title: t('llmConversation.itemDefSaved') })
-      setItemDefReviewOpen(false)
-    } catch {
-      toast({ title: t('llmConversation.errorSaveItemDefinition'), variant: 'destructive' })
-    } finally {
-      setIsSavingItemDef(false)
-    }
+  function handleItemDefCreated(itemId: string) {
+    if (!activeConvId || !itemDefReviewTurnId) return
+    const itemKey = `${itemDefReviewTurnId}:${itemDefReviewResponseIdx}:${itemDefReviewItemIdx}`
+    const updated = { ...savedItemDefinitionIds, [itemKey]: itemId }
+    setSavedItemDefinitionIds(updated)
+    safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
+    setItemDefReviewOpen(false)
   }
 
   // ---------------------------------------------------------------------------
@@ -937,10 +933,8 @@ export function LLMConversationPanel() {
         onCreateLoreRecords={handleCreateLoreRecords}
         itemDefReviewOpen={itemDefReviewOpen}
         setItemDefReviewOpen={setItemDefReviewOpen}
-        itemDefForm={itemDefForm}
-        setItemDefForm={setItemDefForm}
-        isSavingItemDef={isSavingItemDef}
-        onSaveItemDef={handleSaveItemDefinition}
+        itemInitialValues={itemInitialValues}
+        onItemDefCreated={handleItemDefCreated}
         t={t}
       />
     </>

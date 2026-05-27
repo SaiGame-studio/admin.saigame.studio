@@ -73,14 +73,24 @@ export function parseGeneratedItemsResponse(text: string): unknown[] {
   const trimmed = text.trim()
   if (!trimmed) return []
 
+  const looksLikeItem = (obj: Record<string, unknown>) =>
+    typeof obj.name === 'string' && (obj.category !== undefined || obj.rarity !== undefined || obj.item_code !== undefined)
+
   const tryParse = (input: string): unknown[] | null => {
     try {
       const parsed: unknown = JSON.parse(input)
-      if (Array.isArray(parsed)) return parsed
+      if (Array.isArray(parsed)) {
+        // Filter out non-item entries if it looks like a mixed array
+        const items = parsed.filter((el) => el && typeof el === 'object' && looksLikeItem(el as Record<string, unknown>))
+        if (items.length > 0) return items
+        return parsed
+      }
       if (parsed && typeof parsed === 'object') {
         const record = parsed as Record<string, unknown>
         if (Array.isArray(record.generated_items)) return record.generated_items
         if (Array.isArray(record.items)) return record.items
+        // Single item object — wrap in array
+        if (looksLikeItem(record)) return [record]
       }
     } catch {
       // ignore parse failures
