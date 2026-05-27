@@ -563,7 +563,7 @@ export default function ItemDefinitionDetailPage() {
     )
   }
 
-  const c = RARITY_COLORS[item.rarity]
+  const c = RARITY_COLORS[item.rarity] ?? RARITY_COLORS['common']
   const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[]
   const craftInputIds = (Array.isArray(item.metadata?.craft_recipe_input_ids) ? item.metadata.craft_recipe_input_ids : []) as string[]
   const craftOutputIds = (Array.isArray(item.metadata?.craft_recipe_output_ids) ? item.metadata.craft_recipe_output_ids : []) as string[]
