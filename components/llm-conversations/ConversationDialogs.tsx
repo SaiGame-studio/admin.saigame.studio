@@ -304,7 +304,7 @@ export function ConversationDialogs({
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
         <AlertDialogContent id="conv-panel-delete-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle id="conv-panel-delete-dialog-title">{t('llmConversation.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('llmConversation.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription id="conv-panel-delete-dialog-desc">
               {t('llmConversation.deleteDesc').replace('{title}', deleteTarget?.Title ?? '')}
             </AlertDialogDescription>
@@ -326,7 +326,7 @@ export function ConversationDialogs({
       <AlertDialog open={createRecordsConfirmOpen} onOpenChange={(o) => { if (!o) setCreateRecordsConfirmOpen(false) }}>
         <AlertDialogContent id="conv-panel-create-records-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle id="conv-panel-create-records-dialog-title">{t('llmConversation.createRecordsTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('llmConversation.createRecordsTitle')}</AlertDialogTitle>
             <AlertDialogDescription id="conv-panel-create-records-dialog-desc">
               {t('llmConversation.createRecordsDesc').replace('{count}', String(activeConv?.AccumulatedContent?.items?.length ?? 0))}
             </AlertDialogDescription>
@@ -351,7 +351,7 @@ export function ConversationDialogs({
       <Dialog open={loreDraftReviewOpen} onOpenChange={setLoreDraftReviewOpen}>
         <DialogContent id="conv-panel-lore-review-dialog" className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle id="conv-panel-lore-review-title">{t('llmConversation.loreDraftReviewTitle')}</DialogTitle>
+            <DialogTitle>{t('llmConversation.loreDraftReviewTitle')}</DialogTitle>
           </DialogHeader>
           <ScrollArea id="conv-panel-lore-review-scroll" className="max-h-[60vh] pr-2">
             <div id="conv-panel-lore-review-body" className="space-y-3 text-xs">

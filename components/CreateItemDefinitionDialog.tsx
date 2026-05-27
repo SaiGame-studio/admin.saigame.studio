@@ -375,7 +375,7 @@ export function CreateItemDefinitionDialog({
     >
       <SheetContent id="create-item-def-sheet" side="right" className="sm:max-w-[560px] flex flex-col p-0">
         <SheetHeader id="create-item-def-sheet-header" className="px-6 pt-6 pb-4 border-b shrink-0">
-          <SheetTitle id="create-item-def-sheet-title">{t('items.newItemDefinition')}</SheetTitle>
+          <SheetTitle>{t('items.newItemDefinition')}</SheetTitle>
         </SheetHeader>
 
         <div id="create-item-def-body" className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
