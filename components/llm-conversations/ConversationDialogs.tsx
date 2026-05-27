@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Loader2, PackagePlus, Search } from 'lucide-react'
+import { BookOpen, Loader2, Package, PackagePlus, Search } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -46,6 +46,14 @@ export interface LoreDraftForm {
   content: string
 }
 
+export interface ItemDraftForm {
+  name: string
+  category: string
+  rarity: string
+  description: string
+  base_stats: Record<string, number>
+}
+
 interface ConversationDialogsProps {
   // Detail dialog
   detailOpen: boolean
@@ -71,6 +79,13 @@ interface ConversationDialogsProps {
   setLoreDraftForm: (v: LoreDraftForm) => void
   isCreatingLoreRecords: boolean
   onCreateLoreRecords: (matchedLoreId?: string) => void
+  // Item definition draft review dialog
+  itemDefReviewOpen: boolean
+  setItemDefReviewOpen: (v: boolean) => void
+  itemDefForm: ItemDraftForm
+  setItemDefForm: (v: ItemDraftForm) => void
+  isSavingItemDef: boolean
+  onSaveItemDef: () => void
   t: (key: string) => string
 }
 
@@ -110,6 +125,12 @@ export function ConversationDialogs({
   setLoreDraftForm,
   isCreatingLoreRecords,
   onCreateLoreRecords,
+  itemDefReviewOpen,
+  setItemDefReviewOpen,
+  itemDefForm,
+  setItemDefForm,
+  isSavingItemDef,
+  onSaveItemDef,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -438,6 +459,103 @@ export function ConversationDialogs({
             >
               {isCreatingLoreRecords ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
               {matchedLoreEntry ? t('llmConversation.updateLore') : t('llmConversation.saveNewLore')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Item definition draft review ── */}
+      <Dialog open={itemDefReviewOpen} onOpenChange={setItemDefReviewOpen}>
+        <DialogContent id="conv-panel-item-def-review-dialog" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle id="conv-panel-item-def-review-title">{t('llmConversation.itemDefReviewTitle')}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea id="conv-panel-item-def-review-scroll" className="max-h-[60vh] pr-2">
+            <div id="conv-panel-item-def-review-body" className="space-y-3 text-xs">
+              <div id="conv-panel-item-def-review-name-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-item-def-review-name-label" className="text-[11px]">{t('llmConversation.itemDefName')}</Label>
+                <Input
+                  id="conv-panel-item-def-review-name-input"
+                  value={itemDefForm.name}
+                  onChange={(e) => setItemDefForm({ ...itemDefForm, name: e.target.value })}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div id="conv-panel-item-def-review-fields-row" className="grid grid-cols-2 gap-3">
+                <div id="conv-panel-item-def-review-category-row" className="flex flex-col gap-1">
+                  <Label id="conv-panel-item-def-review-category-label" className="text-[11px]">{t('llmConversation.itemDefCategory')}</Label>
+                  <Select
+                    value={itemDefForm.category}
+                    onValueChange={(v) => setItemDefForm({ ...itemDefForm, category: v })}
+                  >
+                    <SelectTrigger id="conv-panel-item-def-review-category-trigger" className="h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent id="conv-panel-item-def-review-category-content">
+                      {['weapon', 'armor', 'consumable', 'currency', 'material', 'card', 'container', 'decoration', 'other'].map((cat) => (
+                        <SelectItem id={`conv-panel-item-def-cat-${cat}`} key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div id="conv-panel-item-def-review-rarity-row" className="flex flex-col gap-1">
+                  <Label id="conv-panel-item-def-review-rarity-label" className="text-[11px]">{t('llmConversation.itemDefRarity')}</Label>
+                  <Select
+                    value={itemDefForm.rarity}
+                    onValueChange={(v) => setItemDefForm({ ...itemDefForm, rarity: v })}
+                  >
+                    <SelectTrigger id="conv-panel-item-def-review-rarity-trigger" className="h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent id="conv-panel-item-def-review-rarity-content">
+                      {['common', 'uncommon', 'rare', 'epic', 'legendary'].map((r) => (
+                        <SelectItem id={`conv-panel-item-def-rarity-${r}`} key={r} value={r} className="text-xs">{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div id="conv-panel-item-def-review-desc-row" className="flex flex-col gap-1">
+                <Label id="conv-panel-item-def-review-desc-label" className="text-[11px]">{t('llmConversation.itemDefDescription')}</Label>
+                <Textarea
+                  id="conv-panel-item-def-review-desc-input"
+                  value={itemDefForm.description}
+                  onChange={(e) => setItemDefForm({ ...itemDefForm, description: e.target.value })}
+                  className="text-xs min-h-[60px]"
+                />
+              </div>
+              {Object.keys(itemDefForm.base_stats).length > 0 && (
+                <div id="conv-panel-item-def-review-attrs-row" className="flex flex-col gap-1">
+                  <Label id="conv-panel-item-def-review-attrs-label" className="text-[11px]">{t('llmConversation.itemDefAttributes')}</Label>
+                  <div id="conv-panel-item-def-review-attrs-list" className="grid grid-cols-2 gap-1">
+                    {Object.entries(itemDefForm.base_stats).map(([k, v]) => (
+                      <div id={`conv-panel-item-def-attr-${k}`} key={k} className="flex items-center justify-between rounded border bg-muted/30 px-2 py-1">
+                        <span id={`conv-panel-item-def-attr-key-${k}`} className="text-muted-foreground capitalize">{k}</span>
+                        <span id={`conv-panel-item-def-attr-val-${k}`} className="font-medium tabular-nums">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter id="conv-panel-item-def-review-footer">
+            <button
+              id="conv-panel-item-def-review-cancel-btn"
+              onClick={() => setItemDefReviewOpen(false)}
+              disabled={isSavingItemDef}
+              className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              id="conv-panel-item-def-review-confirm-btn"
+              onClick={onSaveItemDef}
+              disabled={isSavingItemDef || !itemDefForm.name.trim()}
+              className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-3 py-1.5 text-xs hover:bg-primary/90 transition-colors disabled:opacity-40"
+            >
+              {isSavingItemDef ? <Loader2 className="h-3 w-3 animate-spin" /> : <Package className="h-3 w-3" />}
+              {t('llmConversation.saveItemDefinition')}
             </button>
           </DialogFooter>
         </DialogContent>

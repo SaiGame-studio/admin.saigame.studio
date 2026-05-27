@@ -10,6 +10,7 @@ export const LS_ARCHIVED_COLLAPSED = 'ss_conv_archived_collapsed'
 export const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`
 export const lsConvHistory = (convId: string) => `ss_conv_history_${convId}`
 export const lsLoreLinks = (convId: string) => `ss_conv_lore_links_${convId}`
+export const lsItemLinks = (convId: string) => `ss_conv_item_links_${convId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions

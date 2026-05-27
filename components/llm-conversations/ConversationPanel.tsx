@@ -35,6 +35,7 @@ import {
   lsActiveConv,
   lsConvHistory,
   lsLoreLinks,
+  lsItemLinks,
   parseLoreResponse,
   parseGeneratedItemsResponse,
   extractGameId,
@@ -45,9 +46,10 @@ import { ConversationChatHistory } from './ConversationChatHistory'
 import { ConversationLinkedContent } from './ConversationLinkedContent'
 import { ConversationInputArea } from './ConversationInputArea'
 import { ConversationDialogs } from './ConversationDialogs'
-import type { LoreDraftForm } from './ConversationDialogs'
+import type { LoreDraftForm, ItemDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
+import { createItemDefinition } from '@/lib/inventory-api'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -94,6 +96,11 @@ export function LLMConversationPanel() {
   // When we create a conversation ourselves in handleSend, skip loadConversation in the useEffect
   const justCreatedConvIdRef = useRef<string | null>(null)
 
+  // Tracks which convId "owns" the current chatHistory.
+  // Prevents the persist effect from writing a previous conversation's turns
+  // into a different conversation's localStorage key when switching.
+  const chatHistoryConvIdRef = useRef<string | null>(null)
+
   // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
   const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn } = useChatPipeline()
 
@@ -123,6 +130,16 @@ export function LLMConversationPanel() {
   const [loreDraftReviewResponseIdx, setLoreDraftReviewResponseIdx] = useState(0)
   const [loreDraftForm, setLoreDraftForm] = useState<LoreDraftForm>({ lore_type: 'custom', title: '', summary: '', content: '' })
   const [isCreatingLoreRecords, setIsCreatingLoreRecords] = useState(false)
+
+  // Item definition draft review
+  const [savedItemDefinitionIds, setSavedItemDefinitionIds] = useState<Record<string, string>>({})
+  const [itemDefReviewOpen, setItemDefReviewOpen] = useState(false)
+  const [itemDefReviewItem, setItemDefReviewItem] = useState<Record<string, unknown> | null>(null)
+  const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
+  const [itemDefReviewResponseIdx, setItemDefReviewResponseIdx] = useState(0)
+  const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
+  const [itemDefForm, setItemDefForm] = useState<ItemDraftForm>({ name: '', category: 'other', rarity: 'common', description: '', base_stats: {} })
+  const [isSavingItemDef, setIsSavingItemDef] = useState(false)
 
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
@@ -182,6 +199,10 @@ export function LLMConversationPanel() {
   // Persist completed chat turns for the active conversation
   useEffect(() => {
     if (!activeConvId || chatHistory.length === 0) return
+    // Guard: only persist when chatHistory actually belongs to the active conversation.
+    // When switching to an empty conv the previous conv's turns are still in chatHistory
+    // (preserved for context) — skip writing so we don't corrupt the new conv's key.
+    if (chatHistoryConvIdRef.current !== activeConvId) return
     const completedTurns = chatHistory.filter((t) => t.done)
     if (completedTurns.length > 0) {
       safeSetItem(lsConvHistory(activeConvId), JSON.stringify(completedTurns))
@@ -219,7 +240,7 @@ export function LLMConversationPanel() {
     setConvGeneratedItems(lastGeneratedItems)
   }, [chatHistory])
 
-  // Reset main content when switching conversations
+  // Reset main content when switching conversations.
   useEffect(() => {
     setConvMainContent('')
     setConvGeneratedItems([])
@@ -271,28 +292,37 @@ export function LLMConversationPanel() {
       setActiveConv(null)
       setLinkedContent([])
       setLoreEntryTitles({})
+      chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
-      if (gameId) safeRemoveItem(lsActiveConv(gameId))
+      setSavedItemDefinitionIds({})
+      if (gameId) {
+        safeRemoveItem(lsActiveConv(gameId))
+        window.dispatchEvent(new Event('ss:conv-state-changed'))
+      }
       return
     }
     safeSetItem(lsActiveConv(gameId), activeConvId)
+    window.dispatchEvent(new Event('ss:conv-state-changed'))
     // Skip re-fetching when the conversation was just created by handleSend
     if (justCreatedConvIdRef.current === activeConvId) {
       justCreatedConvIdRef.current = null
       return
     }
-    // Restore chat history from localStorage
-    clearHistory()
+    // Restore chat history from localStorage.
+    // Always clear history when switching conversations to avoid showing stale content.
     const raw = safeGetItem(lsConvHistory(activeConvId))
+    chatHistoryConvIdRef.current = activeConvId
+    clearHistory()
     if (raw) {
       try { loadHistory(JSON.parse(raw)) } catch { loadHistory([]) }
-    } else {
-      loadHistory([])
     }
     // Restore saved lore IDs from localStorage
     const rawLoreLinks = safeGetItem(lsLoreLinks(activeConvId))
     setSavedLoreIds(rawLoreLinks ? JSON.parse(rawLoreLinks) : {})
+    // Restore saved item definition IDs from localStorage
+    const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
+    setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -304,6 +334,7 @@ export function LLMConversationPanel() {
       const detail = (e as CustomEvent<{ convId: string; gameId: string }>).detail
       if (detail.gameId === gameId) {
         setActiveConvId(detail.convId)
+        loadActiveConvs(gameId)
       }
     }
     window.addEventListener('ss:conv-external-created', handleExternalConvCreated)
@@ -430,6 +461,7 @@ export function LLMConversationPanel() {
       retryType,
       (newConv) => {
         justCreatedConvIdRef.current = newConv.ID
+        chatHistoryConvIdRef.current = newConv.ID
         setActiveConvs((prev) => [newConv, ...prev])
         setActiveConvId(newConv.ID)
         setActiveConv(newConv)
@@ -452,6 +484,12 @@ export function LLMConversationPanel() {
     if (!gameId || !message.trim() || isStreaming) return
     const userPrompt = message.trim()
     setMessage('')
+    // If chatHistory was preserved from a previous conversation (context browsing),
+    // clear it now and claim ownership for the current conversation before sending.
+    if (chatHistoryConvIdRef.current !== activeConvId) {
+      clearHistory()
+      chatHistoryConvIdRef.current = activeConvId
+    }
     const linkedLoreIds = linkedContent
       .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       .map(l => l.content_id)
@@ -476,6 +514,7 @@ export function LLMConversationPanel() {
       selectedRequestType,
       (newConv) => {
         justCreatedConvIdRef.current = newConv.ID
+        chatHistoryConvIdRef.current = newConv.ID
         setActiveConvs((prev) => [newConv, ...prev])
         setActiveConvId(newConv.ID)
         setActiveConv(newConv)
@@ -675,6 +714,54 @@ export function LLMConversationPanel() {
     }
   }
 
+  function handleOpenItemDefinitionReview(
+    item: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    itemIdx: number,
+  ) {
+    const name = typeof item.name === 'string' ? item.name : ''
+    const rarity = typeof item.rarity === 'string' ? item.rarity : 'common'
+    const description = typeof item.description === 'string' ? item.description : ''
+    const base_stats = (item.attributes && typeof item.attributes === 'object' && !Array.isArray(item.attributes))
+      ? item.attributes as Record<string, number>
+      : {}
+    const category = typeof item.category === 'string' ? item.category : 'other'
+    setItemDefReviewItem(item)
+    setItemDefReviewTurnId(turnId)
+    setItemDefReviewResponseIdx(responseIdx)
+    setItemDefReviewItemIdx(itemIdx)
+    setItemDefForm({ name, category, rarity, description, base_stats })
+    setItemDefReviewOpen(true)
+  }
+
+  async function handleSaveItemDefinition() {
+    if (!gameId || !activeConvId || !itemDefReviewTurnId) return
+    setIsSavingItemDef(true)
+    try {
+      const result = await createItemDefinition(
+        { gameId },
+        {
+          name: itemDefForm.name,
+          category: itemDefForm.category as never,
+          rarity: itemDefForm.rarity as never,
+          base_stats: Object.keys(itemDefForm.base_stats).length > 0 ? itemDefForm.base_stats : undefined,
+          metadata: itemDefForm.description ? { description: itemDefForm.description } : undefined,
+        },
+      )
+      const itemKey = `${itemDefReviewTurnId}:${itemDefReviewResponseIdx}:${itemDefReviewItemIdx}`
+      const updated = { ...savedItemDefinitionIds, [itemKey]: result.item.id }
+      setSavedItemDefinitionIds(updated)
+      safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.itemDefSaved') })
+      setItemDefReviewOpen(false)
+    } catch {
+      toast({ title: t('llmConversation.errorSaveItemDefinition'), variant: 'destructive' })
+    } finally {
+      setIsSavingItemDef(false)
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Don't render when not on a game page, or before client hydration
   // ---------------------------------------------------------------------------
@@ -732,7 +819,7 @@ export function LLMConversationPanel() {
             activeConvId={activeConvId}
             isLoadingActive={isLoadingActive}
             isLoadingArchived={isLoadingArchived}
-            onSelectConv={(convId) => { clearHistory(); setActiveConvId(convId) }}
+            onSelectConv={(convId) => { setActiveConvId(convId) }}
             onArchive={handleArchive}
             onUnarchive={handleUnarchive}
             t={t}
@@ -789,9 +876,11 @@ export function LLMConversationPanel() {
                   activeConvId={activeConvId}
                   savedLoreIds={savedLoreIds}
                   loreEntryTitles={loreEntryTitles}
+                  savedItemDefinitionIds={savedItemDefinitionIds}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
+                  onSaveItemDefinition={handleOpenItemDefinitionReview}
                   t={t}
                 />
               </>
@@ -846,6 +935,12 @@ export function LLMConversationPanel() {
         setLoreDraftForm={setLoreDraftForm}
         isCreatingLoreRecords={isCreatingLoreRecords}
         onCreateLoreRecords={handleCreateLoreRecords}
+        itemDefReviewOpen={itemDefReviewOpen}
+        setItemDefReviewOpen={setItemDefReviewOpen}
+        itemDefForm={itemDefForm}
+        setItemDefForm={setItemDefForm}
+        isSavingItemDef={isSavingItemDef}
+        onSaveItemDef={handleSaveItemDefinition}
         t={t}
       />
     </>

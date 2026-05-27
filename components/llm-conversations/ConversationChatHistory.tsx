@@ -1,12 +1,13 @@
 'use client'
 
-import { Bot, BookOpen, Loader2, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, BookOpen, Loader2, Package, RotateCcw, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
+import { parseGeneratedItemsResponse } from './conversation-panel-utils'
 
 interface ConversationChatHistoryProps {
   chatHistory: ChatTurn[]
@@ -15,9 +16,11 @@ interface ConversationChatHistoryProps {
   activeConvId: string | null
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
+  savedItemDefinitionIds: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
+  onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
   t: (key: string) => string
 }
 
@@ -43,9 +46,11 @@ export function ConversationChatHistory({
   activeConvId,
   savedLoreIds,
   loreEntryTitles,
+  savedItemDefinitionIds,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
+  onSaveItemDefinition,
   t,
 }: ConversationChatHistoryProps) {
   const { resolvedTheme } = useTheme()
@@ -125,22 +130,109 @@ export function ConversationChatHistory({
                           </button>
                         </div>
                       ) : response.responseText ? (
-                        <div
-                          id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
-                          className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
-                        >
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
-                            {response.responseText}
-                          </ReactMarkdown>
-                          {!response.done && (
-                            <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />
+                        <>
+                          {response.intentType === 'item_generation' && response.done ? (
+                            (() => {
+                              const parsedItems = parseGeneratedItemsResponse(response.responseText)
+                              if (parsedItems.length > 0) {
+                                const RARITY_COLORS: Record<string, string> = {
+                                  common: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                                  uncommon: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                                  rare: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                                  epic: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+                                  legendary: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+                                }
+                                return (
+                                  <div id={`conv-panel-item-cards-${turn.id}-${idx}`} className="flex flex-col gap-2">
+                                    {parsedItems.map((rawItem, itemIdx) => {
+                                      const item = rawItem as Record<string, unknown>
+                                      const name = typeof item.name === 'string' ? item.name : 'Unnamed'
+                                      const rarity = typeof item.rarity === 'string' ? item.rarity : 'common'
+                                      const description = typeof item.description === 'string' ? item.description : ''
+                                      const attributes = (item.attributes && typeof item.attributes === 'object' && !Array.isArray(item.attributes))
+                                        ? item.attributes as Record<string, number>
+                                        : {}
+                                      const itemKey = `${turn.id}:${idx}:${itemIdx}`
+                                      const savedItemId = savedItemDefinitionIds[itemKey]
+                                      const rarityClass = RARITY_COLORS[rarity] ?? RARITY_COLORS.common
+                                      return (
+                                        <div
+                                          id={`conv-panel-item-card-${turn.id}-${idx}-${itemIdx}`}
+                                          key={itemIdx}
+                                          className="rounded border bg-card/60 p-2.5 text-xs"
+                                        >
+                                          <div id={`conv-panel-item-card-header-${turn.id}-${idx}-${itemIdx}`} className="flex items-center gap-2 mb-1">
+                                            <span id={`conv-panel-item-card-name-${turn.id}-${idx}-${itemIdx}`} className="font-semibold truncate">{name}</span>
+                                            <span id={`conv-panel-item-card-rarity-${turn.id}-${idx}-${itemIdx}`} className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium capitalize ${rarityClass}`}>{rarity}</span>
+                                          </div>
+                                          {description && (
+                                            <p id={`conv-panel-item-card-desc-${turn.id}-${idx}-${itemIdx}`} className="text-muted-foreground mb-1.5 leading-relaxed">{description}</p>
+                                          )}
+                                          {Object.keys(attributes).length > 0 && (
+                                            <div id={`conv-panel-item-card-attrs-${turn.id}-${idx}-${itemIdx}`} className="grid grid-cols-2 gap-1 mb-2">
+                                              {Object.entries(attributes).map(([k, v]) => (
+                                                <div id={`conv-panel-item-card-attr-${turn.id}-${idx}-${itemIdx}-${k}`} key={k} className="flex items-center justify-between rounded border bg-muted/30 px-1.5 py-0.5">
+                                                  <span id={`conv-panel-item-card-attr-key-${turn.id}-${idx}-${itemIdx}-${k}`} className="text-muted-foreground capitalize">{k}</span>
+                                                  <span id={`conv-panel-item-card-attr-val-${turn.id}-${idx}-${itemIdx}-${k}`} className="font-medium tabular-nums">{v}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {savedItemId ? (
+                                            <Link
+                                              id={`conv-panel-item-link-${turn.id}-${idx}-${itemIdx}`}
+                                              href={`/games/${gameId}/items/${savedItemId}`}
+                                              className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors"
+                                            >
+                                              <Package className="h-3 w-3 shrink-0" />
+                                              {t('llmConversation.viewItemDefinition')}
+                                            </Link>
+                                          ) : (
+                                            <button
+                                              id={`conv-panel-save-item-btn-${turn.id}-${idx}-${itemIdx}`}
+                                              onClick={() => onSaveItemDefinition(item, turn.id, idx, itemIdx)}
+                                              className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                                            >
+                                              <Package className="h-3 w-3" />
+                                              {t('llmConversation.saveAsItemDefinition')}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )
+                              }
+                              return null
+                            })() ?? (
+                              <div
+                                id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
+                                className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                              >
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                  {response.responseText}
+                                </ReactMarkdown>
+                              </div>
+                            )
+                          ) : (
+                            <div
+                              id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
+                              className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                            >
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                {response.responseText}
+                              </ReactMarkdown>
+                              {!response.done && (
+                                <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />
+                              )}
+                            </div>
                           )}
-                        </div>
+                        </>
                       ) : !response.done ? (
                         <Loader2 id={`conv-panel-ai-response-spinner-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                       ) : null}
 
-                      {!response.error && response.responseText && (
+                      {!response.error && response.responseText && response.intentType !== 'item_generation' && (
                         <div id={`conv-panel-response-actions-${turn.id}-${idx}`} className="flex flex-wrap gap-1 mt-1">
                           {response.intentType === 'lore_creating' && (() => {
                             const linkKey = `${turn.id}:${idx}`
