@@ -275,6 +275,9 @@ export function CreateItemDefinitionDialog({
     if (!name.trim() || name.trim().length < 3) {
       e.name = t('items.nameMustBe3Chars')
     }
+    if (!itemCode.trim()) {
+      e.itemCode = t('items.itemCodeRequired')
+    }
     if (isStackable && maxStack !== '' && Number(maxStack) < 1) {
       e.maxStack = t('items.maxStackInvalid')
     }
@@ -325,7 +328,7 @@ export function CreateItemDefinitionDialog({
       }
 
       const body: CreateItemRequest = {
-        ...(itemCode.trim() && { item_code: itemCode.trim() }),
+        item_code: itemCode.trim(),
         name: name.trim(),
         category,
         rarity,
@@ -397,7 +400,7 @@ export function CreateItemDefinitionDialog({
 
           {/* Item Code */}
           <div id="create-item-def-code-section" className="space-y-1">
-            <Label id="create-item-def-code-label" htmlFor="create-item-def-code-input">{t('items.itemCode')} <span className="text-muted-foreground text-xs">({t('items.itemCodeHint')})</span></Label>
+            <Label id="create-item-def-code-label" htmlFor="create-item-def-code-input">{t('items.itemCode')} <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">({t('items.itemCodeHint')})</span></Label>
             <div id="create-item-def-code-row" className="flex gap-2">
               <Input
                 id="create-item-def-code-input"
@@ -418,6 +421,7 @@ export function CreateItemDefinitionDialog({
                 <Wand2 className="h-4 w-4" />
               </Button>
             </div>
+            {errors.itemCode && <p id="create-item-def-code-error" className="text-xs text-destructive">{errors.itemCode}</p>}
           </div>
 
           {/* Category + Rarity */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Loader2, Package, PackagePlus, Search } from 'lucide-react'
+import { BookOpen, ExternalLink, Loader2, Package, PackagePlus, Search } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,7 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 import { listLoreEntries } from '@/lib/lore-api'
+import { listItemDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
+import type { ItemDefinition } from '@/types/inventory'
 import {
   Select,
   SelectContent,
@@ -78,6 +80,13 @@ interface ConversationDialogsProps {
   setItemDefReviewOpen: (v: boolean) => void
   itemInitialValues: CreateItemInitialValues | null
   onItemDefCreated: (itemId: string) => void
+  // Item code conflict dialog
+  itemCodeConflictOpen: boolean
+  setItemCodeConflictOpen: (v: boolean) => void
+  itemCodeConflictExisting: ItemDefinition | null
+  isApplyingConflict: boolean
+  onItemCodeConflictUpdate: () => void
+  onItemCodeConflictSaveNew: (newItemCode: string) => void
   t: (key: string) => string
 }
 
@@ -121,6 +130,12 @@ export function ConversationDialogs({
   setItemDefReviewOpen,
   itemInitialValues,
   onItemDefCreated,
+  itemCodeConflictOpen,
+  setItemCodeConflictOpen,
+  itemCodeConflictExisting,
+  isApplyingConflict,
+  onItemCodeConflictUpdate,
+  onItemCodeConflictSaveNew,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -135,6 +150,45 @@ export function ConversationDialogs({
   const [showTitleDropdown, setShowTitleDropdown] = useState(false)
   const [matchedLoreEntry, setMatchedLoreEntry] = useState<LoreEntry | null>(null)
   const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Item code conflict dialog state ──
+  const [newItemCodeInput, setNewItemCodeInput] = useState('')
+  const [newItemCodeDuplicate, setNewItemCodeDuplicate] = useState<ItemDefinition | null>(null)
+  const [isCheckingNewItemCode, setIsCheckingNewItemCode] = useState(false)
+  const newItemCodeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (itemCodeConflictOpen && itemCodeConflictExisting?.item_code) {
+      setNewItemCodeInput(`${itemCodeConflictExisting.item_code}_2`)
+    } else if (!itemCodeConflictOpen) {
+      setNewItemCodeInput('')
+      setNewItemCodeDuplicate(null)
+    }
+  }, [itemCodeConflictOpen, itemCodeConflictExisting?.item_code])
+
+  useEffect(() => {
+    if (newItemCodeDebounceRef.current) clearTimeout(newItemCodeDebounceRef.current)
+    const code = newItemCodeInput.trim()
+    if (!code || !itemCodeConflictOpen) {
+      setNewItemCodeDuplicate(null)
+      setIsCheckingNewItemCode(false)
+      return
+    }
+    setIsCheckingNewItemCode(true)
+    newItemCodeDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+        // Exact match only — any item with this code blocks Save as New
+        const found = res.items?.find(i => i.item_code === code) ?? null
+        setNewItemCodeDuplicate(found)
+      } catch {
+        setNewItemCodeDuplicate(null)
+      } finally {
+        setIsCheckingNewItemCode(false)
+      }
+    }, 400)
+    return () => { if (newItemCodeDebounceRef.current) clearTimeout(newItemCodeDebounceRef.current) }
+  }, [newItemCodeInput, itemCodeConflictOpen, gameId, itemCodeConflictExisting?.id])
 
   // Sync titleInput when dialog opens and auto-detect if title already matches an existing lore
   useEffect(() => {
@@ -463,6 +517,100 @@ export function ConversationDialogs({
         initialValues={itemInitialValues ?? undefined}
       />
 
+      {/* Item code conflict dialog */}
+      <Dialog
+        open={itemCodeConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') } }}
+      >
+        <DialogContent id="item-code-conflict-dialog-root">
+          <DialogHeader id="item-code-conflict-dialog-header">
+            <DialogTitle id="item-code-conflict-dialog-title">{t('llmConversation.itemCodeConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="item-code-conflict-dialog-body" className="space-y-3">
+            <p id="item-code-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.itemCodeConflictDesc')
+                .replace('{code}', itemCodeConflictExisting?.item_code ?? '')}
+            </p>
+            {itemCodeConflictExisting && (
+              <a
+                id="item-code-conflict-existing-link"
+                href={`/games/${gameId}/items/${itemCodeConflictExisting.id}?noconvpanel=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Package id="item-code-conflict-existing-link-pkg-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="item-code-conflict-existing-link-name" className="flex-1 truncate">{itemCodeConflictExisting.name}</span>
+                <ExternalLink id="item-code-conflict-existing-link-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+
+          {/* Update existing — primary action */}
+          <button
+            id="item-code-conflict-update-btn"
+            type="button"
+            disabled={isApplyingConflict}
+            onClick={onItemCodeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isApplyingConflict
+              ? <><Loader2 id="item-code-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.itemCodeConflictUpdating')}</>
+              : <><Package id="item-code-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.itemCodeConflictUpdate')}</>
+            }
+          </button>
+
+          <div id="item-code-conflict-divider" className="relative flex items-center gap-2">
+            <div id="item-code-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="item-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="item-code-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          {/* Save as new — secondary action */}
+          <div id="item-code-conflict-save-new-section" className="space-y-2">
+            <Label id="item-code-conflict-new-code-label" htmlFor="item-code-conflict-new-code-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.itemCodeConflictNewCodeLabel')}
+            </Label>
+            <div id="item-code-conflict-new-code-input-wrap" className="relative">
+              <Input
+                id="item-code-conflict-new-code-input"
+                value={newItemCodeInput}
+                onChange={(e) => setNewItemCodeInput(e.target.value)}
+                required
+                disabled={isApplyingConflict}
+                className={newItemCodeDuplicate ? 'border-destructive focus-visible:ring-destructive pr-8' : isCheckingNewItemCode ? 'pr-8' : ''}
+              />
+              {isCheckingNewItemCode && (
+                <Loader2 id="item-code-conflict-new-code-checking-spinner" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {newItemCodeDuplicate ? (
+              <a
+                id="item-code-conflict-new-code-duplicate-link"
+                href={`/games/${gameId}/items/${newItemCodeDuplicate.id}?noconvpanel=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors"
+              >
+                <Package id="item-code-conflict-new-code-duplicate-link-icon" className="h-4 w-4 shrink-0" />
+                <span id="item-code-conflict-new-code-duplicate-link-name" className="flex-1 truncate">{newItemCodeDuplicate.name}</span>
+                <ExternalLink id="item-code-conflict-new-code-duplicate-link-ext-icon" className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            ) : (
+              <button
+                id="item-code-conflict-save-new-btn"
+                type="button"
+                disabled={isApplyingConflict || !newItemCodeInput.trim() || isCheckingNewItemCode}
+                onClick={() => { onItemCodeConflictSaveNew(newItemCodeInput); setNewItemCodeInput('') }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                <PackagePlus id="item-code-conflict-save-new-icon" className="h-4 w-4" />
+                {t('llmConversation.itemCodeConflictSaveNew')}
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </>
   )

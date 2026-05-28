@@ -51,6 +51,7 @@ export interface ListItemsParams {
   category?: ItemCategory
   rarity?: ItemRarity
   name?: string
+  item_code?: string
   tags?: string[]
   allow_client_update_qty?: boolean
 }
@@ -66,6 +67,7 @@ export async function listItemDefinitions(
   if (params.category)         qs.set('category', params.category)
   if (params.rarity)           qs.set('rarity',   params.rarity)
   if (params.name)             qs.set('name',     params.name)
+  if (params.item_code)        qs.set('item_code', params.item_code)
   if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
   if (params.allow_client_update_qty != null) qs.set('allow_client_update_qty', String(params.allow_client_update_qty))
 

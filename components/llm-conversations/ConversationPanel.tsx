@@ -50,6 +50,8 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
+import { listItemDefinitions, updateItemDefinition } from '@/lib/inventory-api'
+import type { ItemDefinition } from '@/types/inventory'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -66,8 +68,11 @@ export function LLMConversationPanel() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
-  // Panel visibility state
-  const [isOpen, setIsOpen] = useState(() => safeGetItem(LS_PANEL_OPEN) === 'true')
+  // Panel visibility state — suppress if URL contains noconvpanel=1 (e.g. links opened from the panel itself)
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('noconvpanel') === '1') return false
+    return safeGetItem(LS_PANEL_OPEN) === 'true'
+  })
   const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true')
 
   // Sidebar state — two separate lists
@@ -139,6 +144,12 @@ export function LLMConversationPanel() {
   const [itemDefReviewResponseIdx, setItemDefReviewResponseIdx] = useState(0)
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
   const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
+
+  // Item code conflict dialog (shown when item_code already exists in backend)
+  const [itemCodeConflictOpen, setItemCodeConflictOpen] = useState(false)
+  const [itemCodeConflictExisting, setItemCodeConflictExisting] = useState<ItemDefinition | null>(null)
+  const [itemCodeConflictInitialValues, setItemCodeConflictInitialValues] = useState<CreateItemInitialValues | null>(null)
+  const [isApplyingConflict, setIsApplyingConflict] = useState(false)
 
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
@@ -713,7 +724,7 @@ export function LLMConversationPanel() {
     }
   }
 
-  function handleOpenItemDefinitionReview(
+  async function handleOpenItemDefinitionReview(
     item: Record<string, unknown>,
     turnId: string,
     responseIdx: number,
@@ -731,12 +742,8 @@ export function LLMConversationPanel() {
     const stats = rawStats && typeof rawStats === 'object' && !Array.isArray(rawStats)
       ? Object.entries(rawStats as Record<string, unknown>).map(([k, v]) => ({ key: k, value: String(v) }))
       : []
-    const item_code = typeof item.item_code === 'string' ? item.item_code : undefined
-    setItemDefReviewItem(item)
-    setItemDefReviewTurnId(turnId)
-    setItemDefReviewResponseIdx(responseIdx)
-    setItemDefReviewItemIdx(itemIdx)
-    setItemInitialValues({
+    const item_code = typeof item.item_code === 'string' ? item.item_code.trim() : undefined
+    const initialValues: CreateItemInitialValues = {
       name, item_code, category: category as never, rarity: rarity as never,
       is_stackable: typeof item.is_stackable === 'boolean' ? item.is_stackable : false,
       max_stack_size: item.max_stack_size != null ? String(item.max_stack_size) : '99',
@@ -745,7 +752,85 @@ export function LLMConversationPanel() {
       stats, description,
       client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
       allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
-    })
+    }
+
+    // If item_code is provided, check whether an item with this code already exists via API.
+    if (item_code && gameId) {
+      try {
+        const res = await listItemDefinitions({ gameId }, { item_code, limit: 1 })
+        const existing = (res.items ?? [])[0]
+        if (existing) {
+          // Show confirmation dialog — let user choose update vs save as new
+          setItemCodeConflictExisting(existing)
+          setItemCodeConflictInitialValues(initialValues)
+          setItemCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // If check fails, fall through to create dialog
+      }
+    }
+
+    setItemDefReviewItem(item)
+    setItemDefReviewTurnId(turnId)
+    setItemDefReviewResponseIdx(responseIdx)
+    setItemDefReviewItemIdx(itemIdx)
+    setItemInitialValues(initialValues)
+    setItemDefReviewOpen(true)
+  }
+
+  /** User chose to update the existing item with SSE data then navigate to it */
+  async function handleItemCodeConflictUpdate() {
+    if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
+    const values = itemCodeConflictInitialValues
+    const existing = itemCodeConflictExisting
+    const patch: Record<string, unknown> = {}
+    if (values.name?.trim())                patch.name = values.name.trim()
+    if (values.item_code !== undefined)     patch.item_code = values.item_code?.trim() || undefined
+    if (values.category)                    patch.category = values.category
+    if (values.rarity)                      patch.rarity = values.rarity
+    if (values.is_stackable !== undefined)  patch.is_stackable = values.is_stackable
+    if (values.max_stack_size != null && values.max_stack_size !== '') {
+      patch.max_stack_size = Number(values.max_stack_size) || null
+    }
+    if (values.grid_width != null)          patch.grid_width = Number(values.grid_width) || 1
+    if (values.grid_height != null)         patch.grid_height = Number(values.grid_height) || 1
+    if (values.client_writable !== undefined)        patch.client_writable = values.client_writable
+    if (values.allow_client_update_qty !== undefined) patch.allow_client_update_qty = values.allow_client_update_qty
+    if (values.stats && values.stats.length > 0) {
+      const base_stats: Record<string, number> = {}
+      values.stats.forEach(({ key, value }) => {
+        if (key.trim()) base_stats[key.trim()] = Number(value) || 0
+      })
+      patch.base_stats = base_stats
+    }
+    if (values.description?.trim()) {
+      patch.metadata = { ...(existing.metadata ?? {}), description: values.description.trim() }
+    }
+    setIsApplyingConflict(true)
+    try {
+      await updateItemDefinition({ gameId }, existing.id, patch)
+      setItemCodeConflictOpen(false)
+      setIsOpen(false)
+      router.push(`/games/${gameId}/items/${existing.id}`)
+      router.refresh()
+      toast({ title: t('llmConversation.sseUpdateApplied'), description: existing.name })
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: t('llmConversation.sseUpdateFailed'), description: err?.message })
+    } finally {
+      setIsApplyingConflict(false)
+    }
+  }
+
+  /** User chose to save as a new item (optionally with a different item_code) */
+  function handleItemCodeConflictSaveNew(newItemCode: string) {
+    if (!itemCodeConflictInitialValues) return
+    const updatedValues: CreateItemInitialValues = {
+      ...itemCodeConflictInitialValues,
+      item_code: newItemCode.trim() || undefined,
+    }
+    setItemCodeConflictOpen(false)
+    setItemInitialValues(updatedValues)
     setItemDefReviewOpen(true)
   }
 
@@ -935,6 +1020,12 @@ export function LLMConversationPanel() {
         setItemDefReviewOpen={setItemDefReviewOpen}
         itemInitialValues={itemInitialValues}
         onItemDefCreated={handleItemDefCreated}
+        itemCodeConflictOpen={itemCodeConflictOpen}
+        setItemCodeConflictOpen={setItemCodeConflictOpen}
+        itemCodeConflictExisting={itemCodeConflictExisting}
+        isApplyingConflict={isApplyingConflict}
+        onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
+        onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
         t={t}
       />
     </>
