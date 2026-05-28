@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { LogOut, Menu, User, ShieldAlert } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -32,6 +32,7 @@ export function TopNav() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-[240px] sm:w-[300px] p-0">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SideNav mobile />
         </SheetContent>
       </Sheet>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -57,6 +57,8 @@ import { RARITY_COLORS } from "@/types/inventory"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ITEMS_TABS } from "@/lib/items-tabs"
+import { SseUpdateSheet } from "@/components/SseUpdateSheet"
+import type { CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -147,9 +149,14 @@ function CopyIconButton({ value }: { value: string }) {
 export default function ItemDefinitionDetailPage() {
   const params = useParams() as { id: string; itemId: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t } = useTranslation()
   const { toast } = useToast()
   const { id: gameId, itemId } = params
+
+  // SSE prefill data from URL param (opened from ConversationPanel when item_code already exists)
+  const [ssePrefillData, setSsePrefillData] = useState<CreateItemInitialValues | null>(null)
+  const [sseSheetOpen, setSseSheetOpen] = useState(false)
 
   const [item, setItem] = useState<ItemDefinition | null>(null)
   const [gameName, setGameName] = useState("")
@@ -284,6 +291,18 @@ export default function ItemDefinitionDetailPage() {
         setGameName(game.name)
         const data = await getItemDefinition({ gameId }, itemId)
         setItem(data.item)
+        // Parse SSE prefill data from URL param (when opened from AI panel with existing item_code)
+        const rawSseData = searchParams.get('sse_data')
+        if (rawSseData) {
+          try {
+            const decoded = decodeURIComponent(escape(atob(rawSseData)))
+            const parsed = JSON.parse(decoded) as CreateItemInitialValues
+            setSsePrefillData(parsed)
+            setSseSheetOpen(true)
+          } catch {
+            // ignore malformed param
+          }
+        }
         // resolve gacha pack names
         const packIds = Array.isArray(data.item.metadata?.gacha_pack_ids)
           ? (data.item.metadata.gacha_pack_ids as string[])
@@ -563,7 +582,7 @@ export default function ItemDefinitionDetailPage() {
     )
   }
 
-  const c = RARITY_COLORS[item.rarity]
+  const c = RARITY_COLORS[item.rarity] ?? RARITY_COLORS['common']
   const linkedPackIds = (Array.isArray(item.metadata?.gacha_pack_ids) ? item.metadata.gacha_pack_ids : []) as string[]
   const craftInputIds = (Array.isArray(item.metadata?.craft_recipe_input_ids) ? item.metadata.craft_recipe_input_ids : []) as string[]
   const craftOutputIds = (Array.isArray(item.metadata?.craft_recipe_output_ids) ? item.metadata.craft_recipe_output_ids : []) as string[]
@@ -1769,6 +1788,16 @@ export default function ItemDefinitionDetailPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+      {item && ssePrefillData && (
+        <SseUpdateSheet
+          open={sseSheetOpen}
+          onClose={() => { setSseSheetOpen(false); setSsePrefillData(null) }}
+          onApplied={(updated) => { setItem(updated); setSseSheetOpen(false); setSsePrefillData(null) }}
+          item={item}
+          gameId={gameId}
+          sseData={ssePrefillData}
+        />
+      )}
     </div>
   )
 }

@@ -1,12 +1,13 @@
 'use client'
 
-import { Bot, BookOpen, Loader2, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, BookOpen, Loader2, Package, RotateCcw, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
+import { parseGeneratedItemsResponse } from './conversation-panel-utils'
 
 interface ConversationChatHistoryProps {
   chatHistory: ChatTurn[]
@@ -15,9 +16,11 @@ interface ConversationChatHistoryProps {
   activeConvId: string | null
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
+  savedItemDefinitionIds: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
+  onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
   t: (key: string) => string
 }
 
@@ -43,9 +46,11 @@ export function ConversationChatHistory({
   activeConvId,
   savedLoreIds,
   loreEntryTitles,
+  savedItemDefinitionIds,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
+  onSaveItemDefinition,
   t,
 }: ConversationChatHistoryProps) {
   const { resolvedTheme } = useTheme()
@@ -125,23 +130,56 @@ export function ConversationChatHistory({
                           </button>
                         </div>
                       ) : response.responseText ? (
-                        <div
-                          id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
-                          className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
-                        >
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
-                            {response.responseText}
-                          </ReactMarkdown>
-                          {!response.done && (
-                            <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />
-                          )}
-                        </div>
+                        <>
+                          <div
+                            id={`conv-panel-ai-response-text-${turn.id}-${idx}`}
+                            className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+                          >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                              {response.responseText}
+                            </ReactMarkdown>
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="inline h-3 w-3 animate-spin ml-1 align-middle text-muted-foreground" />
+                            )}
+                          </div>
+                        </>
                       ) : !response.done ? (
                         <Loader2 id={`conv-panel-ai-response-spinner-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                       ) : null}
 
-                      {!response.error && response.responseText && (
+                      {!response.error && response.responseText && response.done && (
                         <div id={`conv-panel-response-actions-${turn.id}-${idx}`} className="flex flex-wrap gap-1 mt-1">
+                          {(response.intentType === 'item_generation' || response.intentType === 'item_modify') && (() => {
+                            const parsedItems = parseGeneratedItemsResponse(response.responseText)
+                            return parsedItems.map((rawItem, itemIdx) => {
+                              const item = rawItem as Record<string, unknown>
+                              const itemKey = `${turn.id}:${idx}:${itemIdx}`
+                              const savedItemId = savedItemDefinitionIds[itemKey]
+                              const itemName = typeof item.name === 'string' ? item.name : `Item ${itemIdx + 1}`
+                              return savedItemId ? (
+                                <Link
+                                  id={`conv-panel-item-link-${turn.id}-${idx}-${itemIdx}`}
+                                  key={itemIdx}
+                                  href={`/games/${gameId}/items/${savedItemId}`}
+                                  className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                  title={itemName}
+                                >
+                                  <Package className="h-3 w-3 shrink-0" />
+                                  <span id={`conv-panel-item-link-label-${turn.id}-${idx}-${itemIdx}`} className="truncate">{itemName}</span>
+                                </Link>
+                              ) : (
+                                <button
+                                  id={`conv-panel-save-item-btn-${turn.id}-${idx}-${itemIdx}`}
+                                  key={itemIdx}
+                                  onClick={() => onSaveItemDefinition(item, turn.id, idx, itemIdx)}
+                                  className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                                >
+                                  <Package className="h-3 w-3" />
+                                  <span id={`conv-panel-save-item-btn-label-${turn.id}-${idx}-${itemIdx}`}>{t('llmConversation.saveAsItemDefinition')}: {itemName}</span>
+                                </button>
+                              )
+                            })
+                          })()}
                           {response.intentType === 'lore_creating' && (() => {
                             const linkKey = `${turn.id}:${idx}`
                             const savedLoreId = savedLoreIds[linkKey]

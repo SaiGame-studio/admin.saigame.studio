@@ -39,7 +39,7 @@ import {
   getLoreTypes,
   getLoreEntry,
 } from "@/lib/lore-api"
-import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api"
+import { createConversation, linkConversationContent, listConversations, listConversationContent } from "@/lib/llm-conversation-api"
 import { safeGetItem, safeSetItem } from "@/lib/storage-utils"
 import type { Game } from "@/types/game"
 import type { LoreEntry, CreateLoreEntryRequest, UpdateLoreEntryRequest } from "@/types/lore"
@@ -408,17 +408,46 @@ export default function LorePage() {
   async function handleLinkToConversation(entry: LoreEntry) {
     setLinkingEntryId(entry.ID)
     try {
-      let convId = convActiveId
+      let convId: string | null = null
+
+      // Find an existing active conversation that has no requests yet and already has lore links.
+      // Check localStorage history as a proxy for "no requests" (fast, no extra API call).
+      try {
+        const { conversations } = await listConversations(gameId, { status: 'active', limit: 20 })
+        const emptyConvs = conversations.filter(c => {
+          const raw = safeGetItem(`ss_conv_history_${c.ID}`)
+          if (!raw) return true
+          try { const arr = JSON.parse(raw); return !Array.isArray(arr) || arr.length === 0 }
+          catch { return true }
+        })
+        if (emptyConvs.length > 0) {
+          const candidates = emptyConvs.slice(0, 5)
+          const contentResults = await Promise.allSettled(
+            candidates.map(c => listConversationContent(gameId, c.ID))
+          )
+          const match = candidates.find((_, i) => {
+            const r = contentResults[i]
+            return r.status === 'fulfilled' && r.value.some(
+              l => l.content_type === 'lore' || l.content_type === 'lore_entry'
+            )
+          })
+          if (match) convId = match.ID
+        }
+      } catch {
+        // Ignore — fall through to create new
+      }
+
       if (!convId) {
         const newConv = await createConversation(gameId, {
           title: `Lore: ${entry.Title}`,
           goal: t('lore.linkToConvGoal').replace('{title}', entry.Title),
         })
         convId = newConv.ID
-        safeSetItem(`ss_conv_active_${gameId}`, convId)
-        setConvActiveId(convId)
-        window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
       }
+
+      safeSetItem(`ss_conv_active_${gameId}`, convId)
+      setConvActiveId(convId)
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
       await linkConversationContent(gameId, convId, 'lore_entry', entry.ID)
       window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId } }))
       toast({ title: t('lore.linkToConvSuccess'), description: entry.Title })
