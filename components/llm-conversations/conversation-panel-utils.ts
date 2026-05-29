@@ -68,9 +68,37 @@ export function parseLoreResponse(text: string): { title: string; summary: strin
 
 // ---------------------------------------------------------------------------
 // Parse generated items from item_generation response text.
-// Supports raw JSON arrays, JSON objects with items/generated_items, and
-// fenced code blocks containing JSON.
+// Supports raw JSON arrays, JSON objects with items/generated_items, fenced
+// code blocks containing JSON, and multiple concatenated JSON objects.
 // ---------------------------------------------------------------------------
+
+/** Extract all top-level JSON objects from a string using bracket counting. */
+function extractTopLevelJsonObjects(text: string): unknown[] {
+  const results: unknown[] = []
+  let depth = 0
+  let start = -1
+  let inString = false
+  let escape = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (escape) { escape = false; continue }
+    if (ch === '\\' && inString) { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0 && start !== -1) {
+        try { results.push(JSON.parse(text.slice(start, i + 1))) } catch { /* ignore */ }
+        start = -1
+      }
+    }
+  }
+  return results
+}
+
 export function parseGeneratedItemsResponse(text: string): unknown[] {
   const trimmed = text.trim()
   if (!trimmed) return []
@@ -104,12 +132,15 @@ export function parseGeneratedItemsResponse(text: string): unknown[] {
   const direct = tryParse(trimmed)
   if (direct) return direct
 
-  // 2) Parse fenced code blocks first (```json ... ``` or ``` ... ```).
+  // 2) Collect items from ALL fenced code blocks (```json ... ``` or ``` ... ```).
+  //    Each block may contain a single item object or a JSON array. Accumulate all.
   const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  const fencedItems: unknown[] = []
   for (const block of fencedBlocks) {
     const parsed = tryParse(block)
-    if (parsed) return parsed
+    if (parsed) fencedItems.push(...parsed)
   }
+  if (fencedItems.length > 0) return fencedItems
 
   // 3) Parse first JSON array substring.
   const arrayCandidate = trimmed.match(/\[[\s\S]*\]/)
@@ -118,7 +149,16 @@ export function parseGeneratedItemsResponse(text: string): unknown[] {
     if (parsed) return parsed
   }
 
-  // 4) Parse first JSON object substring.
+  // 4) Extract all top-level JSON objects scattered across the text
+  //    (handles concatenated objects and objects separated by markdown prose).
+  const extracted = extractTopLevelJsonObjects(trimmed)
+  if (extracted.length > 0) {
+    const items = extracted.filter((el) => el && typeof el === 'object' && !Array.isArray(el) && looksLikeItem(el as Record<string, unknown>))
+    if (items.length > 0) return items
+    if (extracted.length > 1) return extracted
+  }
+
+  // 5) Fallback: parse first JSON object substring.
   const objectCandidate = trimmed.match(/\{[\s\S]*\}/)
   if (objectCandidate) {
     const parsed = tryParse(objectCandidate[0])

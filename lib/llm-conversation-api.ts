@@ -237,6 +237,7 @@ export async function streamRequest(
   entityType?: string,
   goals?: string[],
   generatedItems?: unknown[],
+  itemDefinitionIds?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -248,11 +249,10 @@ export async function streamRequest(
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
-  if (requestType !== 'lore_analyzing' && requestType !== 'lore_creating' && requestType !== 'item_generation' && requestType !== 'item_modify') {
-    body.lore_entry_ids = []
-  } else if ((requestType === 'lore_creating' || requestType === 'item_generation' || requestType === 'item_modify') && loreEntryIds && loreEntryIds.length > 0) {
-    body.lore_entry_ids = loreEntryIds
-  }
+  // Always send lore_entry_ids so the backend has full linked lore context
+  body.lore_entry_ids = (loreEntryIds && loreEntryIds.length > 0) ? loreEntryIds : []
+  // Always send item_definition_ids so the backend has full linked item context
+  body.item_definition_ids = (itemDefinitionIds && itemDefinitionIds.length > 0) ? itemDefinitionIds : []
   if (requestType === 'lore_creating' && entityType) {
     body.entity_type = entityType
   }

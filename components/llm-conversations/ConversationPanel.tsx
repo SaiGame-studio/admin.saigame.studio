@@ -547,6 +547,12 @@ export function LLMConversationPanel() {
       ? convGeneratedItems
       : (activeConv?.AccumulatedContent?.items ?? [])
     removeTurn(turn.id)
+    const retryLinkedLoreIds = linkedContent
+      .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const retryLinkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
     void runPipeline(
       gameId,
       turn.userMessage,
@@ -566,10 +572,11 @@ export function LLMConversationPanel() {
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
       convMainContent || undefined,
-      undefined,
+      retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       fallbackEntityType || undefined,
       undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
     )
   }
 
@@ -585,6 +592,9 @@ export function LLMConversationPanel() {
     }
     const linkedLoreIds = linkedContent
       .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const linkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
     // Fall back to the last known entityType from history when the current turn
     // doesn't produce one (e.g. "update the current content" follow-up requests)
@@ -623,6 +633,7 @@ export function LLMConversationPanel() {
       fallbackEntityType || undefined,
       historyContext.length > 0 ? historyContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      linkedItemIds.length > 0 ? linkedItemIds : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -771,6 +782,12 @@ export function LLMConversationPanel() {
     const generatedItemsForRequest = convGeneratedItems.length > 0
       ? convGeneratedItems
       : (activeConv?.AccumulatedContent?.items ?? [])
+    const retryLinkedLoreIds = linkedContent
+      .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const retryLinkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
     void retryResponse(
       gameId,
       activeConvId,
@@ -781,6 +798,8 @@ export function LLMConversationPanel() {
       t('llmConversation.errorSend'),
       convMainContent || undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
+      retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
     )
   }
 
