@@ -25,6 +25,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+import { useTheme } from 'next-themes'
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import { useToast } from "@/hooks/use-toast"
@@ -60,6 +64,7 @@ interface LoreRowProps {
 }
 
 function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested, locale, t, convPanelOpen, linkingEntryId, onLinkToConversation }: LoreRowProps) {
+  const { resolvedTheme } = useTheme()
   return (
     <div className="bg-card border-b last:border-b-0">
       <div
@@ -166,8 +171,14 @@ function LoreRow({ entry, expanded, onToggle, onEditRequested, onDeleteRequested
               {entry.Summary}
             </p>
           )}
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed rounded border bg-muted/30 p-3 max-h-96 overflow-y-auto">
-            {entry.Content || <span className="italic opacity-50">— no content —</span>}
+          <div
+            id={`lore-row-${entry.ID}-content`}
+            className={`prose prose-sm max-w-none rounded border bg-muted/30 p-3 max-h-96 overflow-y-auto text-sm break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}
+          >
+            {entry.Content
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{entry.Content}</ReactMarkdown>
+              : <span id={`lore-row-${entry.ID}-content-empty`} className="italic opacity-50">— no content —</span>
+            }
           </div>
         </div>
       )}
