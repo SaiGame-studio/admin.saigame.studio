@@ -169,6 +169,7 @@ export function CreateItemDefinitionDialog({
   const { toast } = useToast()
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
+  const scrollBodyRef = useRef<HTMLDivElement>(null)
 
   const [name, setName] = useState('')
   const [itemCode, setItemCode] = useState('')
@@ -291,8 +292,44 @@ export function CreateItemDefinitionDialog({
     return Object.keys(e).length === 0
   }
 
+  function scrollToFirstError(e: Record<string, string>) {
+    const ORDER = [
+      { key: 'name',         id: 'create-item-def-name-section' },
+      { key: 'itemCode',     id: 'create-item-def-code-section' },
+      { key: 'maxStack',     id: 'create-item-def-stackable-section' },
+      { key: 'genOutputPool', id: 'create-item-def-gen-pool-card' },
+      { key: 'genInterval',  id: 'create-item-def-gen-interval-section' },
+      { key: 'genTickCapacity', id: 'create-item-def-gen-tick-section' },
+    ]
+    const first = ORDER.find((o) => e[o.key])
+    if (!first) return
+    const el = document.getElementById(first.id)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   async function handleSubmit() {
-    if (!validate()) return
+    const e: Record<string, string> = {}
+    if (!name.trim() || name.trim().length < 3) {
+      e.name = t('items.nameMustBe3Chars')
+    }
+    if (!itemCode.trim()) {
+      e.itemCode = t('items.itemCodeRequired')
+    }
+    if (isStackable && maxStack !== '' && Number(maxStack) < 1) {
+      e.maxStack = t('items.maxStackInvalid')
+    }
+    if (category === 'generator') {
+      const validPoolEntries = genOutputPool.filter(p => p.item_definition_id.trim())
+      if (validPoolEntries.length === 0) e.genOutputPool = t('items.outputPoolRequired')
+      if (!genInterval || Number(genInterval) < 1) e.genInterval = t('items.intervalMustBe')
+      if (!genTickCapacity || Number(genTickCapacity) < 1) e.genTickCapacity = t('items.tickCapMustBe')
+    }
+    if (Object.keys(e).length > 0) {
+      setErrors(e)
+      scrollToFirstError(e)
+      return
+    }
     setLoading(true)
     try {
       const base_stats: Record<string, number> = {}
