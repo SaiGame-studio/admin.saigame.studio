@@ -84,7 +84,10 @@ DialogFooter.displayName = "DialogFooter"
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
->(({ className, ...props }, ref) => (
+// Strip custom `id` so Radix keeps its internal titleId, which TitleWarning
+// checks via document.getElementById. Passing a custom id overrides the
+// Radix-generated id and causes the "requires a DialogTitle" warning.
+>(({ className, id: _id, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
     className={cn(

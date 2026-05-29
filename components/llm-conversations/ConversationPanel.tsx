@@ -962,6 +962,10 @@ export function LLMConversationPanel() {
     setSavedItemDefinitionIds(updated)
     safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
     setItemDefReviewOpen(false)
+    // Link the created item definition to the active conversation
+    linkConversationContent(gameId!, activeConvId, 'item_definition', itemId)
+      .then(() => loadLinkedContent(gameId!, activeConvId))
+      .catch(() => {/* silent — linking is best-effort */})
   }
 
   // ---------------------------------------------------------------------------
