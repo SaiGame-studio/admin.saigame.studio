@@ -10,6 +10,7 @@ interface ConversationLinkedContentProps {
   isLoadingLinkedContent: boolean
   unlinkingId: string | null
   loreEntryTitles: Record<string, string>
+  itemDefinitionNames: Record<string, string>
   onUnlink: (linkId: string, contentType: string, contentId: string) => void
   t: (key: string) => string
 }
@@ -20,6 +21,7 @@ export function ConversationLinkedContent({
   isLoadingLinkedContent,
   unlinkingId,
   loreEntryTitles,
+  itemDefinitionNames,
   onUnlink,
   t,
 }: ConversationLinkedContentProps) {
@@ -37,8 +39,11 @@ export function ConversationLinkedContent({
       <div id="conv-panel-linked-content-list" className="grid grid-cols-3 gap-1">
         {linkedContent.map((link, idx) => {
           const refNum = `#${idx + 1}`
-          const href = `/games/${gameId}/lore?lore_id=${link.content_id}`
-          const displayName = loreEntryTitles[link.content_id]
+          const href = link.content_type === 'item_definition'
+            ? `/games/${gameId}/items/${link.content_id}`
+            : `/games/${gameId}/lore?lore_id=${link.content_id}`
+          const displayName = itemDefinitionNames[link.content_id]
+            ?? loreEntryTitles[link.content_id]
             ?? (t(`llmConversation.contentType.${link.content_type}`) || link.content_type)
           return (
             <span

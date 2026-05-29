@@ -50,7 +50,7 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition } from '@/lib/inventory-api'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
 
 // ---------------------------------------------------------------------------
@@ -161,6 +161,7 @@ export function LLMConversationPanel() {
   const [isLoadingLinkedContent, setIsLoadingLinkedContent] = useState(false)
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
+  const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -324,6 +325,7 @@ export function LLMConversationPanel() {
       setActiveConv(null)
       setLinkedContent([])
       setLoreEntryTitles({})
+      setItemDefinitionNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
@@ -449,6 +451,18 @@ export function LLMConversationPanel() {
           if (result.status === 'fulfilled') titles[l.content_id] = result.value.Title
         })
         setLoreEntryTitles(prev => ({ ...prev, ...titles }))
+      }
+      const itemLinks = items.filter(l => l.content_type === 'item_definition')
+      if (itemLinks.length > 0) {
+        const results = await Promise.allSettled(
+          itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id))
+        )
+        const names: Record<string, string> = {}
+        itemLinks.forEach((l, i) => {
+          const result = results[i]
+          if (result.status === 'fulfilled') names[l.content_id] = result.value.item.name
+        })
+        setItemDefinitionNames(prev => ({ ...prev, ...names }))
       }
     } catch {
       // silently ignore
@@ -1006,6 +1020,7 @@ export function LLMConversationPanel() {
                 isLoadingLinkedContent={isLoadingLinkedContent}
                 unlinkingId={unlinkingId}
                 loreEntryTitles={loreEntryTitles}
+                itemDefinitionNames={itemDefinitionNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />
