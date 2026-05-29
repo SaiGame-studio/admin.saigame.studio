@@ -168,3 +168,83 @@ export function parseGeneratedItemsResponse(text: string): unknown[] {
   return []
 }
 
+// ---------------------------------------------------------------------------
+// Split item response text into interleaved text/item segments so each item
+// block can have its save button rendered immediately after it.
+// ---------------------------------------------------------------------------
+export type ResponseSegment =
+  | { type: 'text'; text: string }
+  | { type: 'item'; text: string; item: Record<string, unknown>; itemIdx: number }
+
+export function splitItemResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeItem = (obj: Record<string, unknown>) =>
+    typeof obj.name === 'string' && (obj.category !== undefined || obj.rarity !== undefined || obj.item_code !== undefined)
+
+  const boundaries: Array<{ start: number; end: number; item: Record<string, unknown> }> = []
+
+  // 1. Fenced code blocks that contain a single item JSON object.
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeItem(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, item: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  // 2. If no fenced item blocks found, fall back to bare JSON objects.
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeItem(obj)) boundaries.push({ start, end: i + 1, item: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let itemIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({ type: 'item', text: text.slice(boundary.start, boundary.end), item: boundary.item, itemIdx: itemIdx++ })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
+
