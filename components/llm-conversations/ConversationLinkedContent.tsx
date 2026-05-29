@@ -1,6 +1,6 @@
 'use client'
 
-import { BookOpen, Link2, Loader2, PackagePlus, Trash2 } from 'lucide-react'
+import { BookOpen, Link2, Loader2, PackagePlus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ConversationContentLink } from '@/types/llm-conversation'
 
@@ -72,7 +72,7 @@ export function ConversationLinkedContent({
         >
           {unlinkingId === link.id
             ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            : <Trash2 className="h-2.5 w-2.5" />}
+            : <X className="h-2.5 w-2.5" />}
         </button>
       </span>
     )
