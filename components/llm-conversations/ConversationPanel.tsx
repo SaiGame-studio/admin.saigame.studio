@@ -378,15 +378,32 @@ export function LLMConversationPanel() {
   // Reload linked content when an external action links new content to the active conversation
   useEffect(() => {
     function handleContentLinked(e: Event) {
-      const detail = (e as CustomEvent<{ convId: string; gameId: string }>).detail
-      if (detail.gameId === gameId && detail.convId === activeConvId) {
-        void loadLinkedContent(gameId, activeConvId)
+      const detail = (e as CustomEvent<{ convId: string; gameId: string; contentType?: string; contentId?: string; contentName?: string }>).detail
+      if (detail.gameId !== gameId) return
+      if (detail.contentType === 'item_definition' && detail.contentId && detail.contentName) {
+        // Cache the name immediately so it's available when linkedContent renders
+        setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        // Inject a synthetic link entry so the item shows with its name right away,
+        // before loadLinkedContent returns. The API call replaces it with the real entry.
+        setLinkedContent(prev => {
+          if (prev.some(l => l.content_id === detail.contentId && l.content_type === 'item_definition')) return prev
+          return [...prev, {
+            id: `synth-${detail.contentId!}`,
+            conversation_id: detail.convId,
+            content_type: 'item_definition',
+            content_id: detail.contentId!,
+            linked_by: null,
+            created_at: new Date().toISOString(),
+          }]
+        })
       }
+      // Use detail.convId directly — avoids race where activeConvId hasn't updated yet
+      void loadLinkedContent(gameId, detail.convId)
     }
     window.addEventListener('ss:conv-content-linked', handleContentLinked)
     return () => window.removeEventListener('ss:conv-content-linked', handleContentLinked)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, activeConvId])
+  }, [gameId])
 
   // ---------------------------------------------------------------------------
   // API calls
@@ -439,31 +456,38 @@ export function LLMConversationPanel() {
     setIsLoadingLinkedContent(true)
     try {
       const items = await listConversationContent(gId, convId)
-      setLinkedContent(items)
+
+      // Fetch lore titles and item names in parallel BEFORE calling setLinkedContent.
+      // This way setLinkedContent and the name setters fire synchronously in the same
+      // React batch → a single render that already has names, no "Item" flash.
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
-      if (loreLinks.length > 0) {
-        const entries = await Promise.allSettled(
-          loreLinks.map(l => getLoreEntry(gId, l.content_id))
-        )
-        const titles: Record<string, string> = {}
-        loreLinks.forEach((l, i) => {
-          const result = entries[i]
-          if (result.status === 'fulfilled') titles[l.content_id] = result.value.Title
-        })
-        setLoreEntryTitles(prev => ({ ...prev, ...titles }))
-      }
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
-      if (itemLinks.length > 0) {
-        const results = await Promise.allSettled(
-          itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id))
-        )
-        const names: Record<string, string> = {}
-        itemLinks.forEach((l, i) => {
-          const result = results[i]
-          if (result.status === 'fulfilled') names[l.content_id] = result.value.item.name
-        })
-        setItemDefinitionNames(prev => ({ ...prev, ...names }))
-      }
+
+      const [loreResults, itemResults] = await Promise.all([
+        loreLinks.length > 0
+          ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
+        itemLinks.length > 0
+          ? Promise.allSettled(itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
+      ])
+
+      // Build name maps synchronously (no more awaits after this point)
+      const titles: Record<string, string> = {}
+      loreLinks.forEach((l, i) => {
+        const result = loreResults[i]
+        if (result?.status === 'fulfilled') titles[l.content_id] = result.value.Title
+      })
+
+      const names: Record<string, string> = {}
+      itemLinks.forEach((l, i) => {
+        const result = itemResults[i]
+        if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
+      })
+
+      // All three setters fire synchronously → one React render with everything ready      if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
+      if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
+      setLinkedContent(items)
     } catch {
       // silently ignore
     } finally {

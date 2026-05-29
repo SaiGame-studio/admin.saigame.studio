@@ -127,7 +127,7 @@ import { CopyButton } from "@/components/CopyButton"
 import { CraftingTab } from "@/components/crafting/crafting-tab"
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab'
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog'
-import { createConversation, linkConversationContent, listConversations, listConversationContent } from '@/lib/llm-conversation-api'
+import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
@@ -1711,33 +1711,7 @@ export default function GameItemsPage() {
     try {
       let convId: string | null = convActiveId
       if (!convId) {
-        // Find an existing empty conversation that already has item_definition links
-        try {
-          const { conversations } = await listConversations(gameId, { status: 'active', limit: 20 })
-          const emptyConvs = conversations.filter(c => {
-            const raw = safeGetItem(`ss_conv_history_${c.ID}`)
-            if (!raw) return true
-            try { const arr = JSON.parse(raw); return !Array.isArray(arr) || arr.length === 0 }
-            catch { return true }
-          })
-          if (emptyConvs.length > 0) {
-            const candidates = emptyConvs.slice(0, 5)
-            const contentResults = await Promise.allSettled(
-              candidates.map(c => listConversationContent(gameId, c.ID))
-            )
-            const match = candidates.find((_, i) => {
-              const r = contentResults[i]
-              return r.status === 'fulfilled' && r.value.some(
-                l => l.content_type === 'item_definition'
-              )
-            })
-            if (match) convId = match.ID
-          }
-        } catch {
-          // Ignore — fall through to create new
-        }
-      }
-      if (!convId) {
+        // No active conversation — create a new one
         const newConv = await createConversation(gameId, {
           title: `Item: ${item.name}`,
           goal: t('items.linkToConvGoal').replace('{name}', item.name),
@@ -1746,9 +1720,10 @@ export default function GameItemsPage() {
       }
       safeSetItem(`ss_conv_active_${gameId}`, convId)
       setConvActiveId(convId)
-      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
       await linkConversationContent(gameId, convId, 'item_definition', item.id)
-      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId } }))
+      // Dispatch AFTER linking so the useEffect([activeConvId]) in the panel loads already-linked content
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'item_definition', contentId: item.id, contentName: item.name } }))
       toast({ title: t('items.linkToConvSuccess'), description: item.name })
     } catch (err: unknown) {
       toast({
