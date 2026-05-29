@@ -599,10 +599,14 @@ export interface WorkerMeta {
   description?: string
   collects_data?: string[]
   telegram_preview?: WorkerTelegramPreview
+  no_trigger_reason?: string
 }
+
+export type WorkerState = "running" | "idle" | "pending" | "disabled"
 
 export interface Worker {
   name: string
+  state: WorkerState
   running: boolean
   last_event_at?: string
   last_run?: string
@@ -618,6 +622,11 @@ export interface WorkersStatusResult {
 
 export async function getWorkersStatus(): Promise<WorkersStatusResult> {
   return api.get(`/api/v1/admin/workers/status`)
+}
+
+// Trigger: Generic worker run-now
+export async function triggerWorker(name: string): Promise<void> {
+  return api.post(`/api/v1/admin/workers/${encodeURIComponent(name)}/trigger`)
 }
 
 // Trigger: System Monitor — send CPU/RAM report via Telegram

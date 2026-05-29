@@ -38,11 +38,14 @@ import {
   Plus,
   Pencil,
   Eye,
+  Lock,
 } from "lucide-react"
 import {
   getWorkersStatus,
   WorkersStatusResult,
   Worker,
+  WorkerState,
+  triggerWorker,
   triggerSystemMonitorNotify,
   triggerPlatformReport,
   triggerReportBackfill,
@@ -90,6 +93,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,19 +130,88 @@ function formatISORelative(iso?: string): string {
   return d.toLocaleString()
 }
 
+/** Returns a human-readable relative string like "15 minutes ago" */
+function formatRelativeTime(iso?: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const diffMs = Date.now() - d.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  if (diffSec < 60) return `${diffSec}s ago`
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
+  return `${Math.floor(diffSec / 86400)}d ago`
+}
+
+/** Returns a countdown string like "Next alert in 42 min" */
+function formatCountdown(iso?: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const diffMs = d.getTime() - Date.now()
+  if (diffMs <= 0) return "Imminent"
+  const diffMin = Math.ceil(diffMs / 60000)
+  if (diffMin < 60) return `Next alert in ${diffMin} min`
+  return `Next alert in ${Math.ceil(diffMin / 60)}h`
+}
+
+// ---------------------------------------------------------------------------
+// Worker state badge
+// ---------------------------------------------------------------------------
+
+function WorkerStateBadge({ state }: { state?: WorkerState }) {
+  switch (state) {
+    case "running":
+      return (
+        <Badge id="worker-state-badge-running" className="bg-green-500 text-white flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />
+          Running
+        </Badge>
+      )
+    case "idle":
+      return (
+        <Badge id="worker-state-badge-idle" className="bg-blue-400 text-white flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />
+          Idle
+        </Badge>
+      )
+    case "pending":
+      return (
+        <Badge id="worker-state-badge-pending" className="bg-amber-400 text-white flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-white inline-block" />
+          Pending
+        </Badge>
+      )
+    case "disabled":
+      return (
+        <Badge id="worker-state-badge-disabled" variant="secondary" className="text-gray-400 flex items-center gap-1 shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-400 inline-block" />
+          Disabled
+        </Badge>
+      )
+    default:
+      return (
+        <Badge id="worker-state-badge-unknown" variant="secondary" className="flex items-center gap-1 shrink-0">
+          <XCircle className="h-3 w-3" />
+          Unknown
+        </Badge>
+      )
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Worker name → API trigger mapping
 // ---------------------------------------------------------------------------
 
-const TRIGGERABLE_WORKERS: Record<string, { label: string; type: "simple" | "date" | "backfill" }> = {
+const SPECIFIC_TRIGGER_WORKERS: Record<string, { label: string; type: "simple" | "date" | "backfill" }> = {
   system_monitor: { label: "Send Notify", type: "simple" },
   activity_summary: { label: "Send Report", type: "date" },
   aggregation_cron: { label: "Backfill", type: "backfill" },
 }
 
-function getTriggerConfig(workerName: string) {
+function getSpecificTriggerConfig(workerName: string) {
   const key = workerName.toLowerCase().replace(/[\s-]+/g, "_")
-  for (const [pattern, config] of Object.entries(TRIGGERABLE_WORKERS)) {
+  for (const [pattern, config] of Object.entries(SPECIFIC_TRIGGER_WORKERS)) {
     if (key.includes(pattern)) return config
   }
   return null
@@ -161,7 +234,7 @@ function SimpleTriggerButton({ workerName }: { workerName: string }) {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleTrigger} disabled={loading} className="flex items-center gap-1.5">
+    <Button id={`worker-trigger-simple-${workerName}`} variant="outline" size="sm" onClick={handleTrigger} disabled={loading} className="flex items-center gap-1.5">
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
       Send Notify
     </Button>
@@ -190,7 +263,7 @@ function DateTriggerButton({ workerName }: { workerName: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+        <Button id={`worker-trigger-date-${workerName}`} variant="outline" size="sm" className="flex items-center gap-1.5">
           <CalendarDays className="h-3.5 w-3.5" />
           Send Report
         </Button>
@@ -207,7 +280,7 @@ function DateTriggerButton({ workerName }: { workerName: string }) {
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
+          <Button id="report-date-send-btn" onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Send
           </Button>
@@ -275,7 +348,7 @@ function BackfillTriggerButton({ workerName }: { workerName: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+        <Button id={`worker-trigger-backfill-${workerName}`} variant="outline" size="sm" className="flex items-center gap-1.5">
           <Database className="h-3.5 w-3.5" />
           Backfill
         </Button>
@@ -287,11 +360,11 @@ function BackfillTriggerButton({ workerName }: { workerName: string }) {
         </DialogHeader>
         <div className="space-y-3 py-2">
           {/* Studio searchable dropdown */}
-          <div className="space-y-1.5">
+          <div id="backfill-studio-field" className="space-y-1.5">
             <Label>Studio</Label>
             <Popover open={studioOpen} onOpenChange={setStudioOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={studioOpen} className="w-full justify-between font-normal">
+                <Button id="backfill-studio-trigger" variant="outline" role="combobox" aria-expanded={studioOpen} className="w-full justify-between font-normal">
                   {selectedStudio ? selectedStudio.name : "Select a studio..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -324,11 +397,12 @@ function BackfillTriggerButton({ workerName }: { workerName: string }) {
           </div>
 
           {/* Game searchable dropdown */}
-          <div className="space-y-1.5">
+          <div id="backfill-game-field" className="space-y-1.5">
             <Label>Game</Label>
             <Popover open={gameOpen} onOpenChange={setGameOpen}>
               <PopoverTrigger asChild>
                 <Button
+                  id="backfill-game-trigger"
                   variant="outline"
                   role="combobox"
                   aria-expanded={gameOpen}
@@ -367,13 +441,13 @@ function BackfillTriggerButton({ workerName }: { workerName: string }) {
           </div>
 
           {/* Dates */}
-          <div className="space-y-1.5">
+          <div id="backfill-dates-field" className="space-y-1.5">
             <Label htmlFor="backfill-dates">Dates (comma-separated, YYYY-MM-DD)</Label>
             <Input id="backfill-dates" placeholder="2026-03-25, 2026-03-24" value={dates} onChange={(e) => setDates(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
+          <Button id="backfill-trigger-btn" onClick={handleTrigger} disabled={loading} className="flex items-center gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Trigger
           </Button>
@@ -383,81 +457,136 @@ function BackfillTriggerButton({ workerName }: { workerName: string }) {
   )
 }
 
-function WorkerTriggerButton({ worker }: { worker: Worker }) {
-  const config = getTriggerConfig(worker.name)
-  if (!config) return null
+// Generic "Run Now" button using meta.no_trigger_reason
+function GenericTriggerButton({ worker }: { worker: Worker }) {
+  const [loading, setLoading] = useState(false)
+  const noTriggerReason = worker.meta?.no_trigger_reason
 
-  switch (config.type) {
-    case "simple":
-      return <SimpleTriggerButton workerName={worker.name} />
-    case "date":
-      return <DateTriggerButton workerName={worker.name} />
-    case "backfill":
-      return <BackfillTriggerButton workerName={worker.name} />
-    default:
-      return null
+  // non-empty reason → locked
+  if (noTriggerReason !== "") {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span id={`worker-trigger-locked-${worker.name}`} className="inline-flex items-center gap-1 text-muted-foreground cursor-default text-sm">
+              <Lock className="h-4 w-4" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[220px] text-xs">
+            {noTriggerReason}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
   }
+
+  async function handleRunNow() {
+    setLoading(true)
+    try {
+      await triggerWorker(worker.name)
+      toast({ title: "Triggered", description: `${worker.name} run initiated.` })
+    } catch (err) {
+      toast({ title: "Error", description: String(err), variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button id={`worker-trigger-run-${worker.name}`} variant="outline" size="sm" onClick={handleRunNow} disabled={loading} className="flex items-center gap-1.5">
+      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+      Run Now
+    </Button>
+  )
+}
+
+function WorkerTriggerButton({ worker }: { worker: Worker }) {
+  const specificConfig = getSpecificTriggerConfig(worker.name)
+
+  if (specificConfig) {
+    switch (specificConfig.type) {
+      case "simple":
+        return <SimpleTriggerButton workerName={worker.name} />
+      case "date":
+        return <DateTriggerButton workerName={worker.name} />
+      case "backfill":
+        return <BackfillTriggerButton workerName={worker.name} />
+    }
+  }
+
+  // Fall back to generic trigger based on meta.no_trigger_reason
+  if (worker.meta?.no_trigger_reason !== undefined) {
+    return <GenericTriggerButton worker={worker} />
+  }
+
+  return null
 }
 
 function WorkerCard({ worker }: { worker: Worker }) {
   const details = worker.details
   const meta = worker.meta
   const detailEntries = details ? Object.entries(details) : []
+  const lastRunLabel = worker.last_run ?? worker.last_event_at
+  const countdown = formatCountdown(worker.next_notify_at)
 
   return (
-    <Card className="flex flex-col">
+    <Card id={`worker-card-${worker.name}`} className="flex flex-col">
       {/* Header: name + status badge */}
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
+        <div id={`worker-card-header-${worker.name}`} className="flex items-start justify-between gap-2">
+          <div id={`worker-card-title-wrap-${worker.name}`} className="min-w-0">
             <CardTitle className="text-base font-semibold font-mono">{worker.name}</CardTitle>
-            <div className="flex flex-col gap-0.5 mt-1">
-              {(worker.last_run ?? worker.last_event_at) && (
-                <CardDescription className="flex items-center gap-1 text-xs">
-                  <Clock className="h-3 w-3 shrink-0" />
-                  Last run: {formatISORelative(worker.last_run ?? worker.last_event_at)}
-                </CardDescription>
-              )}
-              {worker.next_notify_at && (
-                <CardDescription className="flex items-center gap-1 text-xs">
+            <div id={`worker-card-meta-${worker.name}`} className="flex flex-col gap-0.5 mt-1">
+              <CardDescription id={`worker-card-last-run-${worker.name}`} className="flex items-center gap-1 text-xs">
+                <Clock className="h-3 w-3 shrink-0" />
+                Last run:&nbsp;
+                {lastRunLabel ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span id={`worker-last-run-rel-${worker.name}`} className="cursor-default underline-offset-2 decoration-dotted underline">
+                          {formatRelativeTime(lastRunLabel)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs font-mono">
+                        {new Date(lastRunLabel).toISOString().replace("T", " ").slice(0, 19)} UTC
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <span id={`worker-last-run-never-${worker.name}`}>Never</span>
+                )}
+              </CardDescription>
+              {countdown && (
+                <CardDescription id={`worker-card-next-notify-${worker.name}`} className="flex items-center gap-1 text-xs">
                   <Clock className="h-3 w-3 shrink-0 text-blue-400" />
-                  Next notify: {formatISORelative(worker.next_notify_at)}
+                  {countdown}
                 </CardDescription>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+          <div id={`worker-card-actions-${worker.name}`} className="flex items-center gap-2 shrink-0 mt-0.5">
             <WorkerTriggerButton worker={worker} />
-            {worker.running ? (
-              <Badge variant="default" className="bg-green-600/90 text-white flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                Running
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
-                Stopped
-              </Badge>
-            )}
+            <WorkerStateBadge state={worker.state} />
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 flex flex-col gap-4">
+      <CardContent id={`worker-card-content-${worker.name}`} className="pt-0 flex flex-col gap-4">
 
         {/* Description */}
         {meta?.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">{meta.description}</p>
+          <p id={`worker-desc-${worker.name}`} className="text-sm text-muted-foreground leading-relaxed">{meta.description}</p>
         )}
 
         {/* Runtime details key-value */}
         {detailEntries.length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Runtime Config</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-muted/40 px-3 py-2 text-xs font-mono">
+          <div id={`worker-details-${worker.name}`}>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Runtime Details</p>
+            <div id={`worker-details-grid-${worker.name}`} className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-muted/40 px-3 py-2 text-xs font-mono">
               {detailEntries.map(([k, v]) => (
                 <div key={k} className="contents">
-                  <span className="text-muted-foreground">{k}</span>
+                  <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
                   <span className="text-foreground break-all">{v}</span>
                 </div>
               ))}
@@ -467,13 +596,13 @@ function WorkerCard({ worker }: { worker: Worker }) {
 
         {/* Collects data */}
         {meta?.collects_data && meta.collects_data.length > 0 && (
-          <div>
+          <div id={`worker-data-sources-${worker.name}`}>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
               <Database className="h-3 w-3" /> Data Sources
             </p>
-            <ul className="space-y-1">
+            <ul id={`worker-data-sources-list-${worker.name}`} className="space-y-1">
               {meta.collects_data.map((item, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-xs">
+                <li key={i} id={`worker-data-source-${worker.name}-${i}`} className="flex items-start gap-1.5 text-xs">
                   <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
                   <span className="text-muted-foreground font-mono">{item}</span>
                 </li>
@@ -484,12 +613,12 @@ function WorkerCard({ worker }: { worker: Worker }) {
 
         {/* Telegram preview */}
         {meta?.telegram_preview && (
-          <div>
+          <div id={`worker-telegram-${worker.name}`}>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
               <MessageSquare className="h-3 w-3" /> Telegram Preview
-              <span className="ml-1 font-mono font-normal normal-case text-muted-foreground/60">{meta.telegram_preview.chat_id}</span>
+              <span id={`worker-telegram-chat-${worker.name}`} className="ml-1 font-mono font-normal normal-case text-muted-foreground/60">{meta.telegram_preview.chat_id}</span>
             </p>
-            <pre className="whitespace-pre-wrap break-words rounded-md bg-muted/50 border px-3 py-2 text-xs leading-relaxed font-mono text-foreground/80">
+            <pre id={`worker-telegram-text-${worker.name}`} className="whitespace-pre-wrap break-words rounded-md bg-muted/50 border px-3 py-2 text-xs leading-relaxed font-mono text-foreground/80">
               {meta.telegram_preview.text}
             </pre>
           </div>
@@ -662,10 +791,14 @@ function CCUTab() {
 // Workers Tab
 // ---------------------------------------------------------------------------
 
+const WORKERS_POLL_INTERVAL = 30_000 // 30 seconds
+
 function WorkersTab() {
   const [data, setData] = useState<WorkersStatusResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
+  const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -673,6 +806,7 @@ function WorkersTab() {
     try {
       const result = await getWorkersStatus()
       setData(result)
+      setLastUpdatedAt(Date.now())
     } catch (err) {
       console.error("Failed to load workers status", err)
       setError("Failed to load worker status")
@@ -685,59 +819,155 @@ function WorkersTab() {
     load()
   }, [load])
 
-  const running = data?.workers.filter((w) => w.running).length ?? 0
-  const stopped = data?.workers.filter((w) => !w.running).length ?? 0
+  // Auto-poll every 30 seconds, pause when tab is hidden
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    function startPolling() {
+      if (intervalId) return
+      intervalId = setInterval(() => {
+        if (!document.hidden) load()
+      }, WORKERS_POLL_INTERVAL)
+    }
+
+    function stopPolling() {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        stopPolling()
+      } else {
+        load()
+        startPolling()
+      }
+    }
+
+    startPolling()
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      stopPolling()
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [load])
+
+  // Tick "last updated X seconds ago"
+  useEffect(() => {
+    if (lastUpdatedAt === null) return
+    const tick = setInterval(() => {
+      setSecondsSinceUpdate(Math.floor((Date.now() - lastUpdatedAt) / 1000))
+    }, 5000)
+    setSecondsSinceUpdate(0)
+    return () => clearInterval(tick)
+  }, [lastUpdatedAt])
+
+  const [stateFilter, setStateFilter] = useState<"all" | WorkerState>("all")
+
+  const countByState = useMemo(() => {
+    const counts: Record<string, number> = { running: 0, idle: 0, pending: 0, disabled: 0 }
+    data?.workers.forEach((w) => {
+      const s = w.state ?? (w.running ? "running" : "idle")
+      counts[s] = (counts[s] ?? 0) + 1
+    })
+    return counts
+  }, [data])
+
+  const filteredWorkers = useMemo(() => {
+    if (!data) return []
+    if (stateFilter === "all") return data.workers
+    return data.workers.filter((w) => (w.state ?? (w.running ? "running" : "idle")) === stateFilter)
+  }, [data, stateFilter])
 
   return (
-    <div className="space-y-4">
+    <div id="workers-tab-root" className="space-y-4">
       {/* Header row */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Worker Status</h2>
+      <div id="workers-tab-header" className="flex flex-wrap items-center justify-between gap-3">
+        <div id="workers-tab-header-left" className="flex items-center gap-3">
+          <h2 id="workers-tab-title" className="text-lg font-semibold">Worker Status</h2>
           {data && !loading && (
-            <span className="text-xs text-muted-foreground">
-              Collected at {formatISORelative(data.collected_at)}
+            <span id="workers-tab-collected-at" className="text-xs text-muted-foreground">
+              {secondsSinceUpdate !== null
+                ? `Last updated ${secondsSinceUpdate === 0 ? "just now" : `${secondsSinceUpdate}s ago`}`
+                : `Collected at ${formatISORelative(data.collected_at)}`}
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex items-center gap-2">
+        <Button id="workers-tab-refresh-btn" variant="outline" size="sm" onClick={load} disabled={loading} className="flex items-center gap-2">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Summary badges */}
+      {/* State filter tabs */}
       {!loading && !error && data && (
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+        <div id="workers-state-filter" className="flex flex-wrap gap-1.5">
+          <button
+            id="workers-filter-all"
+            onClick={() => setStateFilter("all")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+              stateFilter === "all"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-transparent text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+            }`}
+          >
             <Server className="h-3 w-3" />
-            {data.workers.length} workers
-          </Badge>
-          <Badge variant="default" className="bg-green-600/90 text-white flex items-center gap-1 text-xs">
-            <CheckCircle2 className="h-3 w-3" />
-            {running} running
-          </Badge>
-          {stopped > 0 && (
-            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-              <XCircle className="h-3 w-3" />
-              {stopped} stopped
-            </Badge>
-          )}
+            All
+            <span id="workers-filter-all-count" className={`ml-0.5 rounded-full px-1.5 py-0 text-[10px] font-semibold ${stateFilter === "all" ? "bg-background/20" : "bg-muted"}`}>
+              {data.workers.length}
+            </span>
+          </button>
+
+          {(["running", "idle", "pending", "disabled"] as const).map((state) => {
+            if (countByState[state] === 0) return null
+            const activeClass: Record<string, string> = {
+              running: "bg-green-500 text-white border-green-500",
+              idle: "bg-blue-400 text-white border-blue-400",
+              pending: "bg-amber-400 text-white border-amber-400",
+              disabled: "bg-muted text-gray-400 border-border",
+            }
+            const dotClass: Record<string, string> = {
+              running: "bg-white",
+              idle: "bg-white",
+              pending: "bg-white",
+              disabled: "bg-gray-400",
+            }
+            const inactiveClass = "bg-transparent text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+            const isActive = stateFilter === state
+            return (
+              <button
+                key={state}
+                id={`workers-filter-${state}`}
+                onClick={() => setStateFilter(isActive ? "all" : state)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors border capitalize ${
+                  isActive ? activeClass[state] : inactiveClass
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full inline-block ${isActive ? dotClass[state] : "bg-current"}`} />
+                {state}
+                <span id={`workers-filter-${state}-count`} className={`ml-0.5 rounded-full px-1.5 py-0 text-[10px] font-semibold ${isActive ? "bg-white/20" : "bg-muted"}`}>
+                  {countByState[state]}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <Card className="border-destructive/50">
+        <Card id="workers-tab-error" className="border-destructive/50">
           <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
         </Card>
       )}
 
       {/* Skeleton */}
       {loading && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div id="workers-tab-skeleton" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Card key={i}>
+            <Card key={i} id={`workers-skeleton-card-${i}`}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-3 w-24 mt-1" />
@@ -754,10 +984,16 @@ function WorkersTab() {
 
       {/* Workers grid */}
       {!loading && !error && data && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {data.workers.map((worker) => (
-            <WorkerCard key={worker.name} worker={worker} />
-          ))}
+        <div id="workers-tab-grid" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {filteredWorkers.length === 0 ? (
+            <p id="workers-empty-state" className="col-span-2 py-12 text-center text-sm text-muted-foreground">
+              No workers in <span className="font-medium capitalize">{stateFilter}</span> state.
+            </p>
+          ) : (
+            filteredWorkers.map((worker) => (
+              <WorkerCard key={worker.name} worker={worker} />
+            ))
+          )}
         </div>
       )}
     </div>
