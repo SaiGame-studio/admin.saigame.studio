@@ -503,7 +503,8 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
       })
 
-      // All three setters fire synchronously → one React render with everything ready      if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
+      // All three setters fire synchronously → one React render with everything ready
+      if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
       setLinkedContent(items)
     } catch {
@@ -827,6 +828,8 @@ export function LLMConversationPanel() {
       const entry: LoreEntry = matchedLoreId
         ? await updateLoreEntry(gameId, matchedLoreId, loreBody)
         : await createLoreEntry(gameId, loreBody)
+      // Immediately cache the title so the linked content badge shows the name right away
+      setLoreEntryTitles(prev => ({ ...prev, [entry.ID]: entry.Title }))
       // Link lore to conversation
       await linkConversationContent(gameId, activeConvId, 'lore', entry.ID)
       // Persist the lore ID link

@@ -97,7 +97,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
           id="game-nav-conv-btn"
           variant={isConvOpen ? "default" : "outline"}
           size="icon"
-          className={`h-8 w-8 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
+          className={`h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
           onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}
         >
           <Bot className="h-4 w-4" />
@@ -114,7 +114,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
       id="game-nav-conv-btn-expanded"
       variant={isConvOpen ? "default" : "outline"}
       size="sm"
-      className={`flex items-center gap-1.5 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
+      className={`flex items-center gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
       onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}
     >
       <Bot className="h-4 w-4" />
