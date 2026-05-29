@@ -1,8 +1,9 @@
 'use client'
 
-import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Conversation } from '@/types/llm-conversation'
+import { useState, useEffect } from 'react'
 
 interface ConversationSidebarProps {
   sidebarWidth: number
@@ -20,6 +21,7 @@ interface ConversationSidebarProps {
   onSelectConv: (convId: string) => void
   onArchive: (conv: Conversation) => void
   onUnarchive: (conv: Conversation) => void
+  onDelete: (conv: Conversation) => void
   t: (key: string) => string
 }
 
@@ -39,8 +41,21 @@ export function ConversationSidebar({
   onSelectConv,
   onArchive,
   onUnarchive,
+  onDelete,
   t,
 }: ConversationSidebarProps) {
+  const [isShiftHeld, setIsShiftHeld] = useState(false)
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(true) }
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(false) }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
   return (
     <div id="conv-panel-sidebar" className="relative flex shrink-0 flex-col border-r" style={{ width: sidebarWidth }}>
       <div ref={sidebarBodyRef} id="conv-panel-sidebar-body" className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -149,14 +164,19 @@ export function ConversationSidebar({
                       </button>
                       <button
                         id={`conv-panel-archived-unarchive-btn-${conv.ID}`}
-                        onClick={(e) => { e.stopPropagation(); onUnarchive(conv) }}
+                        onClick={(e) => { e.stopPropagation(); isShiftHeld ? onDelete(conv) : onUnarchive(conv) }}
                         className={[
-                          'mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                          'mr-0.5 flex items-center px-1.5 transition-colors',
+                          isShiftHeld
+                            ? 'opacity-100 text-destructive hover:text-destructive'
+                            : 'text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100',
                           conv.ID === activeConvId ? 'opacity-100' : '',
                         ].join(' ')}
-                        title={t('llmConversation.unarchive')}
+                        title={isShiftHeld ? t('common.delete') : t('llmConversation.unarchive')}
                       >
-                        <ArchiveRestore className="h-3 w-3" />
+                        {isShiftHeld
+                          ? <Trash2 className="h-3 w-3" />
+                          : <ArchiveRestore className="h-3 w-3" />}
                       </button>
                     </li>
                   ))}

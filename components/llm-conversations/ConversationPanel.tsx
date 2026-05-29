@@ -206,6 +206,28 @@ export function LLMConversationPanel() {
   }, [isOpen])
   useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
 
+  // External toggle via custom event (e.g. from GameNavButtons)
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen((prev) => {
+        if (!prev) { setIsMinimized(false); return true }
+        return false
+      })
+    }
+    window.addEventListener('ss:conv-toggle', handleToggle)
+    return () => window.removeEventListener('ss:conv-toggle', handleToggle)
+  }, [])
+
+  // Close panel on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   // Persist completed chat turns for the active conversation
   useEffect(() => {
     if (!activeConvId || chatHistory.length === 0) return
@@ -620,10 +642,30 @@ export function LLMConversationPanel() {
         setActiveConv(null)
       }
       toast({ title: t('llmConversation.deleted') })
+      loadArchivedConvs(gameId)
     } catch {
       toast({ title: t('llmConversation.errorDelete'), variant: 'destructive' })
     } finally {
       setDeleteTarget(null)
+    }
+  }
+
+  async function handleDeleteDirect(conv: Conversation) {
+    if (!gameId) return
+    try {
+      await deleteConversation(gameId, conv.ID)
+      safeRemoveItem(lsConvHistory(conv.ID))
+      safeRemoveItem(lsLoreLinks(conv.ID))
+      setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
+      if (activeConvId === conv.ID) {
+        safeRemoveItem(lsActiveConv(gameId))
+        setActiveConvId(null)
+        setActiveConv(null)
+      }
+      toast({ title: t('llmConversation.deleted') })
+      loadArchivedConvs(gameId)
+    } catch {
+      toast({ title: t('llmConversation.errorDelete'), variant: 'destructive' })
     }
   }
 
@@ -849,20 +891,9 @@ export function LLMConversationPanel() {
   if (!gameId || !mounted) return null
 
   // ---------------------------------------------------------------------------
-  // Minimized state — floating button
+  // Minimized / closed — render nothing (open via GameNavButtons)
   // ---------------------------------------------------------------------------
-  if (!isOpen || isMinimized) {
-    return (
-      <button
-        id="conv-panel-minimized-btn"
-        onClick={() => { setIsOpen(true); setIsMinimized(false) }}
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-        title={t('llmConversation.title')}
-      >
-        <Bot className="h-5 w-5" />
-      </button>
-    )
-  }
+  if (!isOpen || isMinimized) return null
 
   // ---------------------------------------------------------------------------
   // Full panel
@@ -903,6 +934,7 @@ export function LLMConversationPanel() {
             onSelectConv={(convId) => { setActiveConvId(convId) }}
             onArchive={handleArchive}
             onUnarchive={handleUnarchive}
+            onDelete={handleDeleteDirect}
             t={t}
           />
 
