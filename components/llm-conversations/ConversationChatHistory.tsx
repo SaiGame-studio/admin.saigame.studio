@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Bot, BookOpen, Loader2, Package, RotateCcw, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
@@ -7,7 +8,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments } from './conversation-panel-utils'
+import { splitItemResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
   chatHistory: ChatTurn[]
@@ -54,9 +56,41 @@ export function ConversationChatHistory({
   t,
 }: ConversationChatHistoryProps) {
   const { resolvedTheme } = useTheme()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Restore scroll position when switching to a different conversation
+  useEffect(() => {
+    if (!activeConvId) return
+    const saved = safeGetItem(lsScrollPos(activeConvId))
+    if (!saved) return
+    const pos = parseInt(saved, 10)
+    if (!Number.isFinite(pos)) return
+    // Wait one animation frame so the list has rendered before scrolling
+    const raf = requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = pos
+    })
+    return () => cancelAnimationFrame(raf)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConvId])
+
+  function handleScroll() {
+    if (isStreaming) return
+    if (!activeConvId || !scrollRef.current) return
+    const pos = scrollRef.current.scrollTop
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      safeSetItem(lsScrollPos(activeConvId), String(pos))
+    }, 300)
+  }
 
   return (
-    <div id="conv-panel-content-scroll" className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2">
+    <div
+      id="conv-panel-content-scroll"
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2"
+    >
       {chatHistory.map((turn) => (
         <div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
