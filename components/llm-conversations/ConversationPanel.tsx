@@ -36,6 +36,8 @@ import {
   lsConvHistory,
   lsLoreLinks,
   lsItemLinks,
+  lsLoreTitles,
+  lsItemNames,
   parseLoreResponse,
   parseGeneratedItemsResponse,
   extractGameId,
@@ -279,6 +281,18 @@ export function LLMConversationPanel() {
     setConvGeneratedItems([])
   }, [activeConvId])
 
+  // Persist lore entry titles to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(loreEntryTitles).length === 0) return
+    safeSetItem(lsLoreTitles(activeConvId), JSON.stringify(loreEntryTitles))
+  }, [loreEntryTitles, activeConvId])
+
+  // Persist item definition names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(itemDefinitionNames).length === 0) return
+    safeSetItem(lsItemNames(activeConvId), JSON.stringify(itemDefinitionNames))
+  }, [itemDefinitionNames, activeConvId])
+
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
   // ---------------------------------------------------------------------------
@@ -357,6 +371,11 @@ export function LLMConversationPanel() {
     // Restore saved item definition IDs from localStorage
     const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
     setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
+    // Restore cached lore titles and item names from localStorage
+    const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
+    if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
+    const rawItemNames = safeGetItem(lsItemNames(activeConvId))
+    if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -380,17 +399,21 @@ export function LLMConversationPanel() {
     function handleContentLinked(e: Event) {
       const detail = (e as CustomEvent<{ convId: string; gameId: string; contentType?: string; contentId?: string; contentName?: string }>).detail
       if (detail.gameId !== gameId) return
-      if (detail.contentType === 'item_definition' && detail.contentId && detail.contentName) {
+      if (detail.contentId && detail.contentName && detail.contentType) {
         // Cache the name immediately so it's available when linkedContent renders
-        setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
-        // Inject a synthetic link entry so the item shows with its name right away,
+        if (detail.contentType === 'item_definition') {
+          setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'lore_entry' || detail.contentType === 'lore') {
+          setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        }
+        // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
         setLinkedContent(prev => {
-          if (prev.some(l => l.content_id === detail.contentId && l.content_type === 'item_definition')) return prev
+          if (prev.some(l => l.content_id === detail.contentId && l.content_type === detail.contentType)) return prev
           return [...prev, {
             id: `synth-${detail.contentId!}`,
             conversation_id: detail.convId,
-            content_type: 'item_definition',
+            content_type: detail.contentType!,
             content_id: detail.contentId!,
             linked_by: null,
             created_at: new Date().toISOString(),
@@ -669,6 +692,8 @@ export function LLMConversationPanel() {
       await deleteConversation(gameId, deleteTarget.ID)
       safeRemoveItem(lsConvHistory(deleteTarget.ID))
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
+      safeRemoveItem(lsLoreTitles(deleteTarget.ID))
+      safeRemoveItem(lsItemNames(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
@@ -694,6 +719,8 @@ export function LLMConversationPanel() {
       await deleteConversation(gameId, conv.ID)
       safeRemoveItem(lsConvHistory(conv.ID))
       safeRemoveItem(lsLoreLinks(conv.ID))
+      safeRemoveItem(lsLoreTitles(conv.ID))
+      safeRemoveItem(lsItemNames(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       if (activeConvId === conv.ID) {
         safeRemoveItem(lsActiveConv(gameId))

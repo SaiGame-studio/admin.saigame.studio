@@ -1,6 +1,6 @@
 'use client'
 
-import { Link2, Loader2, PackagePlus, Trash2 } from 'lucide-react'
+import { BookOpen, Link2, Loader2, PackagePlus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ConversationContentLink } from '@/types/llm-conversation'
 
@@ -27,6 +27,57 @@ export function ConversationLinkedContent({
 }: ConversationLinkedContentProps) {
   const router = useRouter()
 
+  const itemLinks = linkedContent.filter(l => l.content_type === 'item_definition')
+  const loreLinks = linkedContent.filter(l => l.content_type === 'lore_entry' || l.content_type === 'lore')
+
+  function renderBadge(link: ConversationContentLink, refNum: string) {
+    const isItem = link.content_type === 'item_definition'
+    const href = isItem
+      ? `/games/${gameId}/items/${link.content_id}`
+      : `/games/${gameId}/lore?lore_id=${link.content_id}`
+    const displayName = itemDefinitionNames[link.content_id]
+      ?? loreEntryTitles[link.content_id]
+      ?? (t(`llmConversation.contentType.${link.content_type}`) || link.content_type)
+    const badgeClass = isItem
+      ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+      : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+    const TypeIcon = isItem ? PackagePlus : BookOpen
+    return (
+      <span
+        key={link.id}
+        id={`conv-panel-linked-item-${link.id}`}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] min-w-0 overflow-hidden ${badgeClass}`}
+        title={`${refNum} · ${displayName}`}
+      >
+        <span id={`conv-panel-linked-item-ref-${link.id}`} className="font-bold opacity-60 tabular-nums">
+          {refNum}
+        </span>
+        <TypeIcon className="h-2.5 w-2.5 shrink-0" />
+        <button
+          id={`conv-panel-linked-item-name-${link.id}`}
+          type="button"
+          className="font-medium hover:underline hover:text-foreground transition-colors truncate flex-1 min-w-0 text-left"
+          onClick={(e) => { e.stopPropagation(); router.push(href) }}
+        >
+          <span id={`conv-panel-linked-item-type-${link.id}`} className="truncate block">
+            {displayName}
+          </span>
+        </button>
+        <button
+          id={`conv-panel-linked-item-unlink-${link.id}`}
+          type="button"
+          className="opacity-50 hover:opacity-100 hover:text-destructive transition-opacity shrink-0"
+          disabled={unlinkingId === link.id}
+          onClick={(e) => { e.stopPropagation(); onUnlink(link.id, link.content_type, link.content_id) }}
+        >
+          {unlinkingId === link.id
+            ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+            : <Trash2 className="h-2.5 w-2.5" />}
+        </button>
+      </span>
+    )
+  }
+
   return (
     <div id="conv-panel-linked-content" className="shrink-0 border-t px-2 pt-1.5 pb-1">
       <div id="conv-panel-linked-content-header" className="flex items-center gap-1 mb-1">
@@ -36,50 +87,33 @@ export function ConversationLinkedContent({
         </span>
         {isLoadingLinkedContent && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
       </div>
-      <div id="conv-panel-linked-content-list" className="grid grid-cols-3 gap-1">
-        {linkedContent.map((link, idx) => {
-          const refNum = `#${idx + 1}`
-          const href = link.content_type === 'item_definition'
-            ? `/games/${gameId}/items/${link.content_id}`
-            : `/games/${gameId}/lore?lore_id=${link.content_id}`
-          const displayName = itemDefinitionNames[link.content_id]
-            ?? loreEntryTitles[link.content_id]
-            ?? (t(`llmConversation.contentType.${link.content_type}`) || link.content_type)
-          return (
-            <span
-              key={link.id}
-              id={`conv-panel-linked-item-${link.id}`}
-              className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground min-w-0 overflow-hidden"
-              title={`${refNum} · ${displayName}`}
-            >
-              <span id={`conv-panel-linked-item-ref-${link.id}`} className="font-bold text-foreground/60 tabular-nums">
-                {refNum}
+      <div id="conv-panel-linked-content-groups" className="flex flex-col gap-1.5">
+        {itemLinks.length > 0 && (
+          <div id="conv-panel-linked-content-items-group">
+            <div id="conv-panel-linked-content-items-label" className="flex items-center gap-1 mb-0.5">
+              <PackagePlus className="h-2.5 w-2.5 text-blue-400" />
+              <span id="conv-panel-linked-content-items-heading" className="text-[9px] font-semibold text-blue-400/70 uppercase tracking-wider">
+                {t('llmConversation.contentType.item_definition')}
               </span>
-              <PackagePlus className="h-2.5 w-2.5 shrink-0" />
-              <button
-                id={`conv-panel-linked-item-name-${link.id}`}
-                type="button"
-                className="font-medium hover:underline hover:text-foreground transition-colors truncate flex-1 min-w-0 text-left"
-                onClick={(e) => { e.stopPropagation(); router.push(href) }}
-              >
-                <span id={`conv-panel-linked-item-type-${link.id}`} className="truncate block">
-                  {displayName}
-                </span>
-              </button>
-              <button
-                id={`conv-panel-linked-item-unlink-${link.id}`}
-                type="button"
-                className="opacity-50 hover:opacity-100 hover:text-destructive transition-opacity shrink-0"
-                disabled={unlinkingId === link.id}
-                onClick={(e) => { e.stopPropagation(); onUnlink(link.id, link.content_type, link.content_id) }}
-              >
-                {unlinkingId === link.id
-                  ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  : <Trash2 className="h-2.5 w-2.5" />}
-              </button>
-            </span>
-          )
-        })}
+            </div>
+            <div id="conv-panel-linked-content-items-list" className="grid grid-cols-3 gap-1">
+              {itemLinks.map((link, idx) => renderBadge(link, `#${idx + 1}`))}
+            </div>
+          </div>
+        )}
+        {loreLinks.length > 0 && (
+          <div id="conv-panel-linked-content-lore-group">
+            <div id="conv-panel-linked-content-lore-label" className="flex items-center gap-1 mb-0.5">
+              <BookOpen className="h-2.5 w-2.5 text-amber-400" />
+              <span id="conv-panel-linked-content-lore-heading" className="text-[9px] font-semibold text-amber-400/70 uppercase tracking-wider">
+                {t('llmConversation.contentType.lore_entry')}
+              </span>
+            </div>
+            <div id="conv-panel-linked-content-lore-list" className="grid grid-cols-3 gap-1">
+              {loreLinks.map((link, idx) => renderBadge(link, `#${itemLinks.length + idx + 1}`))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

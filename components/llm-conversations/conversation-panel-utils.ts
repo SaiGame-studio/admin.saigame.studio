@@ -11,6 +11,8 @@ export const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`
 export const lsConvHistory = (convId: string) => `ss_conv_history_${convId}`
 export const lsLoreLinks = (convId: string) => `ss_conv_lore_links_${convId}`
 export const lsItemLinks = (convId: string) => `ss_conv_item_links_${convId}`
+export const lsLoreTitles = (convId: string) => `ss_conv_lore_titles_${convId}`
+export const lsItemNames = (convId: string) => `ss_conv_item_names_${convId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions

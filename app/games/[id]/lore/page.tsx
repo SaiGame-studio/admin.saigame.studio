@@ -423,7 +423,7 @@ export default function LorePage() {
       await linkConversationContent(gameId, convId, 'lore_entry', entry.ID)
       // Dispatch AFTER linking so the useEffect([activeConvId]) in the panel loads already-linked content
       window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
-      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'lore_entry', contentId: entry.ID, contentName: entry.Title } }))
       toast({ title: t('lore.linkToConvSuccess'), description: entry.Title })
     } catch (err: unknown) {
       toast({
