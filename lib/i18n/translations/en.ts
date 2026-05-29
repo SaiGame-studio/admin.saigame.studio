@@ -2237,6 +2237,7 @@ export const en = {
     noPermissionCreatePreset: "You do not have permission to create preset definitions.",
     noPermissionUpdatePreset: "You do not have permission to update preset definitions.",
     outputPoolRequired: "At least one output pool entry is required",
+    itemDefinitionRequired: "Item definition is required",
     metadataInvalidJson: "Metadata must be valid JSON",
     intervalMustBe: "Interval must be ≥ 1",
     tickCapMustBe: "Tick Capacity must be ≥ 1",

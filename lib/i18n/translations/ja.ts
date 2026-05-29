@@ -2219,6 +2219,7 @@ export const ja = {
     rowsMustBe: "行数は1〜54の範囲である必要があります",
     maxStackInvalid: "有効な最大スタック数を入力してください（≥ 1）",
     outputPoolRequired: "出力プールエントリが少なくとも1つ必要です",
+    itemDefinitionRequired: "アイテム定義は必須です",
     metadataInvalidJson: "メタデータは有効なJSONである必要があります",
     intervalMustBe: "インターバルは≥ 1である必要があります",
     tickCapMustBe: "ティック容量は≥ 1である必要があります",

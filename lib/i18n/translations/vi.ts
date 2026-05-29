@@ -2231,6 +2231,7 @@ export const vi = {
     rowsMustBe: "Số hàng phải từ 1–54",
     maxStackInvalid: "Nhập số xếp chồng tối đa hợp lệ (≥ 1)",
     outputPoolRequired: "Cần ít nhất một mục nhóm đầu ra",
+    itemDefinitionRequired: "Vật phẩm là bắt buộc",
     metadataInvalidJson: "Metadata phải là JSON hợp lệ",
     intervalMustBe: "Khoảng thời gian phải ≥ 1",
     tickCapMustBe: "Giới hạn Tick phải ≥ 1",

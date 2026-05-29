@@ -51,7 +51,7 @@ import { ConversationDialogs } from './ConversationDialogs'
 import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
-import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
+import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
 import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
@@ -867,6 +867,55 @@ export function LLMConversationPanel() {
       ? Object.entries(rawStats as Record<string, unknown>).map(([k, v]) => ({ key: k, value: String(v) }))
       : []
     const item_code = typeof item.item_code === 'string' ? item.item_code.trim() : undefined
+
+    // Resolve generator config — replace __REF:ITEM_CODE with actual item_definition_id
+    let gen_output_pool: CreateItemInitialGenPoolEntry[] | undefined
+    let gen_interval_seconds: string | undefined
+    let gen_tick_capacity: string | undefined
+    let gen_collect_destination: 'mailbox' | 'inventory' | undefined
+    if (category === 'generator' && gameId) {
+      const genCfg = (item.metadata as Record<string, unknown>)?.generator_config as Record<string, unknown> | undefined
+      if (genCfg) {
+        if (genCfg.production_interval_seconds != null) gen_interval_seconds = String(genCfg.production_interval_seconds)
+        if (genCfg.tick_capacity != null) gen_tick_capacity = String(genCfg.tick_capacity)
+        if (genCfg.collect_destination === 'mailbox' || genCfg.collect_destination === 'inventory') {
+          gen_collect_destination = genCfg.collect_destination
+        }
+        const rawPool = Array.isArray(genCfg.output_pool) ? (genCfg.output_pool as Record<string, unknown>[]) : []
+        if (rawPool.length > 0) {
+          // Collect all __REF: item codes that need resolving
+          const refCodes = rawPool
+            .map((e) => String(e.item_definition_id ?? ''))
+            .filter((id) => id.startsWith('__REF:'))
+            .map((id) => id.slice(6))
+          const codeToId: Record<string, string> = {}
+          if (refCodes.length > 0) {
+            await Promise.allSettled(
+              refCodes.map((code) =>
+                listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+                  .then((res) => { const found = (res.items ?? [])[0]; if (found) codeToId[code] = found.id })
+                  .catch(() => {})
+              )
+            )
+          }
+          gen_output_pool = rawPool.map((e) => {
+            const rawId = String(e.item_definition_id ?? '')
+            const resolvedId = rawId.startsWith('__REF:')
+              ? (codeToId[rawId.slice(6)] ?? '')
+              : rawId
+            return {
+              item_definition_id: resolvedId,
+              drop_rate: e.drop_rate != null ? String(e.drop_rate) : '1',
+              quantity_min: e.quantity_min != null ? String(e.quantity_min) : '1',
+              quantity_max: e.quantity_max != null ? String(e.quantity_max) : '1',
+              collect_cap: e.collect_cap != null ? String(e.collect_cap) : '5',
+              initial_output: e.initial_output != null ? String(e.initial_output) : '0',
+            }
+          })
+        }
+      }
+    }
+
     const initialValues: CreateItemInitialValues = {
       name, item_code, category: category as never, rarity: rarity as never,
       is_stackable: typeof item.is_stackable === 'boolean' ? item.is_stackable : false,
@@ -876,6 +925,10 @@ export function LLMConversationPanel() {
       stats, description,
       client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
       allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
+      gen_output_pool,
+      gen_interval_seconds,
+      gen_tick_capacity,
+      gen_collect_destination,
     }
 
     // If item_code is provided, check whether an item with this code already exists via API.

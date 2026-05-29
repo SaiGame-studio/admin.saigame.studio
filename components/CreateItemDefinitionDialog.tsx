@@ -40,6 +40,15 @@ import { RARITY_COLORS } from '@/types/inventory'
 
 export type KVEntry = { key: string; value: string }
 
+export interface CreateItemInitialGenPoolEntry {
+  item_definition_id: string
+  drop_rate: string
+  quantity_min: string
+  quantity_max: string
+  collect_cap: string
+  initial_output: string
+}
+
 export interface CreateItemInitialValues {
   name?: string
   item_code?: string
@@ -55,6 +64,11 @@ export interface CreateItemInitialValues {
   description?: string
   client_writable?: boolean
   allow_client_update_qty?: boolean
+  /** generator config — only used when category === 'generator' */
+  gen_output_pool?: CreateItemInitialGenPoolEntry[]
+  gen_interval_seconds?: string
+  gen_tick_capacity?: string
+  gen_collect_destination?: 'mailbox' | 'inventory'
 }
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
@@ -238,6 +252,10 @@ export function CreateItemDefinitionDialog({
       if (v.description) setMeta([{ key: 'description', value: v.description }])
       if (v.client_writable !== undefined) setClientWritable(v.client_writable)
       if (v.allow_client_update_qty !== undefined) setAllowClientUpdateQty(v.allow_client_update_qty)
+      if (v.gen_output_pool && v.gen_output_pool.length > 0) setGenOutputPool(v.gen_output_pool)
+      if (v.gen_interval_seconds !== undefined) setGenInterval(v.gen_interval_seconds)
+      if (v.gen_tick_capacity !== undefined) setGenTickCapacity(v.gen_tick_capacity)
+      if (v.gen_collect_destination !== undefined) setGenCollectDestination(v.gen_collect_destination)
     }
     prevOpenRef.current = open
   }, [open, initialValues])
@@ -283,8 +301,9 @@ export function CreateItemDefinitionDialog({
       e.maxStack = t('items.maxStackInvalid')
     }
     if (category === 'generator') {
-      const validPoolEntries = genOutputPool.filter(p => p.item_definition_id.trim())
-      if (validPoolEntries.length === 0) e.genOutputPool = t('items.outputPoolRequired')
+      genOutputPool.forEach((p, idx) => {
+        if (!p.item_definition_id.trim()) e[`genPoolItem_${idx}`] = t('items.itemDefinitionRequired')
+      })
       if (!genInterval || Number(genInterval) < 1) e.genInterval = t('items.intervalMustBe')
       if (!genTickCapacity || Number(genTickCapacity) < 1) e.genTickCapacity = t('items.tickCapMustBe')
     }
@@ -297,10 +316,16 @@ export function CreateItemDefinitionDialog({
       { key: 'name',         id: 'create-item-def-name-section' },
       { key: 'itemCode',     id: 'create-item-def-code-section' },
       { key: 'maxStack',     id: 'create-item-def-stackable-section' },
-      { key: 'genOutputPool', id: 'create-item-def-gen-pool-card' },
       { key: 'genInterval',  id: 'create-item-def-gen-interval-section' },
       { key: 'genTickCapacity', id: 'create-item-def-gen-tick-section' },
     ]
+    // Check per-entry pool errors first (scroll to first empty entry)
+    const firstPoolError = Object.keys(e).find((k) => k.startsWith('genPoolItem_'))
+    if (firstPoolError) {
+      const idx = firstPoolError.split('_').pop()
+      const el = document.getElementById(`create-item-def-gen-pool-item-section-${idx}`)
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return }
+    }
     const first = ORDER.find((o) => e[o.key])
     if (!first) return
     const el = document.getElementById(first.id)
@@ -320,8 +345,9 @@ export function CreateItemDefinitionDialog({
       e.maxStack = t('items.maxStackInvalid')
     }
     if (category === 'generator') {
-      const validPoolEntries = genOutputPool.filter(p => p.item_definition_id.trim())
-      if (validPoolEntries.length === 0) e.genOutputPool = t('items.outputPoolRequired')
+      genOutputPool.forEach((p, idx) => {
+        if (!p.item_definition_id.trim()) e[`genPoolItem_${idx}`] = t('items.itemDefinitionRequired')
+      })
       if (!genInterval || Number(genInterval) < 1) e.genInterval = t('items.intervalMustBe')
       if (!genTickCapacity || Number(genTickCapacity) < 1) e.genTickCapacity = t('items.tickCapMustBe')
     }
@@ -809,6 +835,9 @@ export function CreateItemDefinitionDialog({
                             </Command>
                           </PopoverContent>
                         </Popover>
+                        {errors[`genPoolItem_${idx}`] && (
+                          <p id={`create-item-def-gen-pool-item-error-${idx}`} className="text-xs text-destructive">{errors[`genPoolItem_${idx}`]}</p>
+                        )}
                       </div>
 
                       <div id={`create-item-def-gen-pool-nums-row-${idx}`} className="grid grid-cols-3 gap-3">
@@ -839,7 +868,7 @@ export function CreateItemDefinitionDialog({
                   )
                 })}
 
-                {errors.genOutputPool && <p id="create-item-def-gen-pool-error" className="text-xs text-destructive">{errors.genOutputPool}</p>}
+
               </div>
             </div>
           )}
