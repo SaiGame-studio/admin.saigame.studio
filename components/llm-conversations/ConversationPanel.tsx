@@ -54,6 +54,7 @@ import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -221,15 +222,9 @@ export function LLMConversationPanel() {
     return () => window.removeEventListener('ss:conv-toggle', handleToggle)
   }, [])
 
-  // Close panel on Escape key
-  useEffect(() => {
-    if (!isOpen) return
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false)
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
+  // Close panel on Escape — but only when no layered dialog is open.
+  // Each registered layer pops one-at-a-time; see hooks/use-escape-manager.ts.
+  useEscapeLayer(isOpen, () => setIsOpen(false))
 
   // Persist completed chat turns for the active conversation
   useEffect(() => {
