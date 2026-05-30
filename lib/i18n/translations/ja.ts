@@ -3472,6 +3472,7 @@ export const ja = {
     minimize: "最小化",
     tabActive: "アクティブ",
     tabArchived: "アーカイブ",
+    tokenRemaining: "残りトークン",
     noConversations: "会話がまだありません。",
     selectOrCreate: "会話を選択するか、新しく作成してください。",
     titlePlaceholder: "会話のタイトル...",

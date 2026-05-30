@@ -3483,6 +3483,7 @@ export const vi = {
     minimize: "Thu nhỏ",
     tabActive: "Đang hoạt động",
     tabArchived: "Đã lưu trữ",
+    tokenRemaining: "Token còn lại",
     noConversations: "Chưa có cuộc hội thoại nào.",
     selectOrCreate: "Chọn một cuộc hội thoại hoặc tạo mới.",
     titlePlaceholder: "Tiêu đề cuộc hội thoại...",

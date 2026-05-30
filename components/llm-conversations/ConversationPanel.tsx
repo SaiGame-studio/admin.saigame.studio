@@ -24,6 +24,8 @@ import {
   linkConversationContent,
   listConversationContent,
   unlinkConversationContent,
+  getGameLLMTokenBalance,
+  type GameLLMTokenBalance,
 } from '@/lib/llm-conversation-api'
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline'
 import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation'
@@ -77,6 +79,9 @@ export function LLMConversationPanel() {
     return safeGetItem(LS_PANEL_OPEN) === 'true'
   })
   const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true')
+
+  // Token balance
+  const [tokenBalance, setTokenBalance] = useState<GameLLMTokenBalance | null>(null)
 
   // Sidebar state — two separate lists
   const [activeConvs, setActiveConvs] = useState<Conversation[]>([])
@@ -453,6 +458,7 @@ export function LLMConversationPanel() {
   function loadBothLists(gId: string) {
     loadActiveConvs(gId)
     loadArchivedConvs(gId)
+    getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
   }
 
   async function loadConversation(gId: string, convId: string) {
@@ -1074,6 +1080,7 @@ export function LLMConversationPanel() {
             onArchive={handleArchive}
             onUnarchive={handleUnarchive}
             onDelete={handleDeleteDirect}
+            tokenBalance={tokenBalance}
             t={t}
           />
 

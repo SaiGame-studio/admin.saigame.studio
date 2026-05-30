@@ -130,6 +130,16 @@ export async function listRequestTypes(): Promise<string[]> {
   return (Array.isArray(arr) ? arr : []) as string[]
 }
 
+export interface GameLLMTokenBalance {
+  game_id: string
+  free_tokens_remaining: number
+  premium_tokens_remaining: number
+}
+
+export async function getGameLLMTokenBalance(gameId: string): Promise<GameLLMTokenBalance> {
+  return api.get(`/api/v1/games/${gameId}/llm-tokens/balance`)
+}
+
 export interface DetectedIntent {
   type: string
   entityType?: string

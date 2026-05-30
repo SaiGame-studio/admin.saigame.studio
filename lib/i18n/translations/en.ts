@@ -3543,6 +3543,7 @@ export const en = {
     minimize: "Minimize",
     tabActive: "Active",
     tabArchived: "Archived",
+    tokenRemaining: "Tokens left",
     noConversations: "No conversations yet.",
     selectOrCreate: "Select a conversation or create a new one.",
     titlePlaceholder: "Conversation title...",
