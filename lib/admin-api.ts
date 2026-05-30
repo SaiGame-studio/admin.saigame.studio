@@ -1082,3 +1082,41 @@ export async function getLLMTokenStats(
   const params = new URLSearchParams({ period, [mode]: id })
   return api.get(`/api/v1/admin/llm/token-stats?${params}`)
 }
+
+// ---------------------------------------------------------------------------
+// LLM Token Quota (Super Admin only)
+// ---------------------------------------------------------------------------
+
+export interface LLMTokenBalance {
+  game_id: string
+  free_tokens_total: number
+  free_tokens_used: number
+  free_tokens_reserved: number
+  free_tokens_remaining: number
+  premium_tokens_total: number
+  premium_tokens_used: number
+  premium_tokens_reserved: number
+  premium_tokens_remaining: number
+}
+
+export interface LLMTokenTopUpRequest {
+  free_tokens?: number
+  premium_tokens?: number
+}
+
+export interface LLMTokenTopUpResponse {
+  game_id: string
+  free_tokens_total?: number
+  premium_tokens_total?: number
+}
+
+export async function getLLMTokenBalance(gameId: string): Promise<LLMTokenBalance> {
+  return api.get(`/api/v1/admin/games/${gameId}/llm-tokens/balance`)
+}
+
+export async function topUpLLMTokens(
+  gameId: string,
+  body: LLMTokenTopUpRequest,
+): Promise<LLMTokenTopUpResponse> {
+  return api.post(`/api/v1/admin/games/${gameId}/llm-tokens/topup`, body)
+}

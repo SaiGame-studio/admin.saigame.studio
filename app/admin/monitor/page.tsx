@@ -109,6 +109,7 @@ import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { AdminStudioLimitsDialog } from "@/components/AdminStudioLimitsDialog"
 import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog"
+import { LLMTokenQuotaDialog } from "@/components/LLMTokenQuotaDialog"
 import { TokenStatsTab } from "@/components/TokenStatsTab"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import {
@@ -1899,6 +1900,7 @@ function GamesTab() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <AdminGameLimitsDialog game={game} />
+                          <LLMTokenQuotaDialog game={game} />
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={`/games/${game.id}`} className="flex items-center gap-1"><ExternalLink className="h-3.5 w-3.5" />View</Link>
                           </Button>
