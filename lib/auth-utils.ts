@@ -249,6 +249,12 @@ export async function refreshAccessToken(): Promise<string | null> {
 
     return null
   } catch (error) {
+    // Network errors (e.g. server offline) should not log the user out —
+    // only clear tokens on auth failures (handled above via response.ok check).
+    if (error instanceof TypeError) {
+      console.warn('Token refresh skipped: network unavailable')
+      return null
+    }
     console.error('Error refreshing access token:', error)
     clearToken()
     return null

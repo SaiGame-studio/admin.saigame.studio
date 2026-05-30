@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Plus, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
@@ -34,6 +35,7 @@ export function GemBalance() {
   const [error, setError] = useState(false)
   const [visible, setVisible] = useState<boolean | null>(null)
   const [floats, setFloats] = useState<FloatItem[]>([])
+  const anchorRef = useRef<HTMLDivElement | null>(null)
   const prevBalanceRef = useRef<number | null>(null)
   const isFirstLoad = useRef(true)
   const { t } = useTranslation()
@@ -97,21 +99,31 @@ export function GemBalance() {
         }
         .gem-float { animation: gem-float-down 5s ease-out forwards; pointer-events: none; }
       `}</style>
-      <div id="gem-balance-root" className="relative flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
-        {/* Float texts */}
-        {floats.map(({ id, delta }) => (
-          <span
-            key={id}
-            id={`gem-float-${id}`}
-            className="gem-float absolute top-full mt-1 left-1/2 -translate-x-1/2 text-sm font-bold tabular-nums whitespace-nowrap select-none z-50"
-            style={{
-              color: delta > 0 ? "#22c55e" : "#ef4444",
-              textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000",
-            }}
-          >
-            {delta > 0 ? `💎 +${delta.toLocaleString()}` : `💎 ${delta.toLocaleString()}`}
-          </span>
-        ))}
+      <div id="gem-balance-root" ref={anchorRef} className="relative flex items-center gap-1 rounded-md border bg-background px-2 h-10 text-sm">
+        {/* Float texts rendered via portal to escape nav stacking context */}
+        {typeof window !== "undefined" && floats.map(({ id, delta }) => {
+          const rect = anchorRef.current?.getBoundingClientRect()
+          const top = rect ? rect.bottom + window.scrollY + 4 : 0
+          const left = rect ? rect.left + rect.width / 2 + window.scrollX : 0
+          return createPortal(
+            <span
+              key={id}
+              id={`gem-float-${id}`}
+              className="gem-float fixed text-sm font-bold tabular-nums whitespace-nowrap select-none pointer-events-none"
+              style={{
+                top,
+                left,
+                transform: "translateX(-50%)",
+                zIndex: 9999,
+                color: delta > 0 ? "#22c55e" : "#ef4444",
+                textShadow: "0 0 3px #000, 0 0 3px #000, 0 0 3px #000, 0 0 6px #000",
+              }}
+            >
+              {delta > 0 ? `💎 +${delta.toLocaleString()}` : `💎 ${delta.toLocaleString()}`}
+            </span>,
+            document.body
+          )
+        })}
 
         {/* Gem icon + balance — click to toggle */}
         <button

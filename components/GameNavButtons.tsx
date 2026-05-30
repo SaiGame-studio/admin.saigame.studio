@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { LS_PANEL_OPEN } from "@/components/llm-conversations/conversation-panel-utils"
+import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog"
 
 const LS_KEY = "game-nav-expanded"
 
@@ -151,6 +152,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
           <div className="flex gap-1.5 flex-wrap items-center">
             {row2.map(renderBtn)}
             {convBtnExpanded}
+            <LLMTokenPurchaseDialog gameId={gameId} />
             {toggleBtn}
           </div>
         </div>
@@ -185,6 +187,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
           )
         })}
         {convBtnCompact}
+        <LLMTokenPurchaseDialog gameId={gameId} compact />
         {toggleBtn}
       </div>
     </TooltipProvider>
