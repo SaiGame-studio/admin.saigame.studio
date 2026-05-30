@@ -655,6 +655,7 @@ export async function triggerReportBackfill(body: BackfillRequest): Promise<void
 // ---------------------------------------------------------------------------
 
 export type AdminTransactionStatus =
+  | "pending"
   | "completed"
   | "failed"
   | "credit_failed"
@@ -666,17 +667,19 @@ export interface AdminTransaction {
   id: string
   idempotency_key: string
   user_id: string
-  scoin_package_id: string
+  currency_type: "sgem" | "scoin"
+  currency_package_id: string
   payment_method_config_id: string
   provider_key: string
   amount: number
   currency: string
-  scoin_amount: number
+  currency_amount: number
   status: AdminTransactionStatus
   provider_data: Record<string, unknown> & {
     transfer_info?: unknown
     status_reason?: unknown
   }
+  currency_credited_at?: string
   created_at: string
   updated_at: string
 }

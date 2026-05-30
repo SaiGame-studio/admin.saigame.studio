@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -120,6 +120,7 @@ const LIMIT = 20
 type StatusFilter = AdminTransactionStatus | ""
 
 const TX_STATUS_COLORS: Record<AdminTransactionStatus, string> = {
+  pending: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
   completed: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   failed: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
   credit_failed: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
@@ -154,12 +155,12 @@ const TX_LIMIT = 50
 // ---------------------------------------------------------------------------
 const pkgCache = new Map<string, SPackage>()
 
-function PackageInfoRow({ packageId }: { packageId: string }) {
-  const [pkg, setPkg] = useState<SPackage | null>(() => pkgCache.get(packageId) ?? null)
-  const [loading, setLoading] = useState(!pkgCache.has(packageId))
+function PackageInfoRow({ packageId }: { packageId: string | null | undefined }) {
+  const [pkg, setPkg] = useState<SPackage | null>(() => (packageId ? pkgCache.get(packageId) : undefined) ?? null)
+  const [loading, setLoading] = useState(!!packageId && !pkgCache.has(packageId))
 
   useEffect(() => {
-    if (pkgCache.has(packageId)) return
+    if (!packageId || pkgCache.has(packageId)) return
     getSPackage(packageId)
       .then((p) => { pkgCache.set(packageId, p); setPkg(p) })
       .catch(() => {})
@@ -1257,6 +1258,7 @@ function TransactionsTab() {
 
   const STATUS_OPTIONS: { value: string; label: string }[] = [
     { value: "_all", label: t("adminTransactions.filterAll") },
+    { value: "pending", label: t("adminTransactions.filterPending") },
     { value: "awaiting_payment", label: t("adminTransactions.filterAwaitingPayment") },
     { value: "processing", label: t("adminTransactions.filterProcessing") },
     { value: "completed", label: t("adminTransactions.filterCompleted") },
@@ -1347,9 +1349,8 @@ function TransactionsTab() {
                 transactions.map((tx) => {
                   const isExpanded = expandedId === tx.id
                   return (
-                    <>
+                    <Fragment key={tx.id}>
                       <TableRow
-                        key={tx.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => setExpandedId(isExpanded ? null : tx.id)}
                       >
@@ -1377,7 +1378,9 @@ function TransactionsTab() {
                         <TableCell className="text-sm font-medium">
                           {formatTxAmount(tx.amount, tx.currency)}
                         </TableCell>
-                        <TableCell className="text-sm">🪙 {tx.scoin_amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm">
+                          {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                        </TableCell>
                         <TableCell><TxStatusBadge status={tx.status} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(tx.created_at).toLocaleString(undefined, {
@@ -1388,7 +1391,7 @@ function TransactionsTab() {
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
-                        <TableRow key={`${tx.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
                           <TableCell colSpan={7} className="px-6 py-4">
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
                               <div className="space-y-0.5">
@@ -1403,7 +1406,7 @@ function TransactionsTab() {
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">User ID</p>
                                 <p className="font-mono text-xs break-all flex items-center gap-1">{tx.user_id}<CopyButton text={tx.user_id} /></p>
                               </div>
-                              <PackageInfoRow packageId={tx.scoin_package_id} />
+                              {tx.currency_package_id && <PackageInfoRow packageId={tx.currency_package_id} />}
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment Method ID</p>
                                 <p className="font-mono text-xs break-all">{tx.payment_method_config_id}</p>
@@ -1417,9 +1420,19 @@ function TransactionsTab() {
                                 <p className="font-semibold">{formatTxAmount(tx.amount, tx.currency)}</p>
                               </div>
                               <div className="space-y-0.5">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">sCoin</p>
-                                <p className="font-semibold">🪙 {tx.scoin_amount.toLocaleString()}</p>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  {tx.currency_type === "sgem" ? "sGem" : "sCoin"}
+                                </p>
+                                <p className="font-semibold">
+                                  {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                                </p>
                               </div>
+                              {tx.currency_credited_at && (
+                                <div className="space-y-0.5">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Credited At</p>
+                                  <p className="text-xs">{new Date(tx.currency_credited_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+                                </div>
+                              )}
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
                                 <TxStatusBadge status={tx.status} />
@@ -1453,7 +1466,7 @@ function TransactionsTab() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   )
                 })
               )}

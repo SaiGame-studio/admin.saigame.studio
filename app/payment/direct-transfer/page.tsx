@@ -39,6 +39,16 @@ interface CoinPackage {
   base_scoin: number
 }
 
+interface SgemPackage {
+  id: string
+  package_key: string
+  name: string
+  description: string
+  sgem_amount: number
+  price_amount: number
+  price_currency: string
+}
+
 interface DirectTransferTransaction {
   id: string
   status: string
@@ -89,12 +99,14 @@ export default function DirectTransferPage() {
 function DirectTransferPageContent() {
   const searchParams = useSearchParams()
   const packageId = searchParams.get("package_id")
+  const isSgem = searchParams.get("type") === "sgem"
   const { t } = useTranslation()
   const { toast } = useToast()
 
   const [submitted, setSubmitted] = useState(false)
   const [submittedTxId, setSubmittedTxId] = useState<string | null>(null)
   const [pkg, setPkg] = useState<CoinPackage | null>(null)
+  const [sgemPkg, setSgemPkg] = useState<SgemPackage | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [note, setNote] = useState("")
@@ -110,21 +122,33 @@ function DirectTransferPageContent() {
     setLoading(true)
     setLoadError(false)
     try {
-      const data = await api.get(`/api/v1/payments/packages/${packageId}`)
-      setPkg(data)
+      if (isSgem) {
+        const data = await api.get(`/api/v1/payments/sgem-packages/${packageId}`)
+        setSgemPkg(data)
+      } else {
+        const data = await api.get(`/api/v1/payments/packages/${packageId}`)
+        setPkg(data)
+      }
     } catch {
       try {
-        const list = await api.get("/api/v1/payments/packages")
-        const found = (list.packages ?? []).find((p: CoinPackage) => p.id === packageId)
-        if (found) setPkg(found)
-        else setLoadError(true)
+        if (isSgem) {
+          const list = await api.get("/api/v1/payments/sgem-packages")
+          const found = (list.packages ?? []).find((p: SgemPackage) => p.id === packageId)
+          if (found) setSgemPkg(found)
+          else setLoadError(true)
+        } else {
+          const list = await api.get("/api/v1/payments/packages")
+          const found = (list.packages ?? []).find((p: CoinPackage) => p.id === packageId)
+          if (found) setPkg(found)
+          else setLoadError(true)
+        }
       } catch {
         setLoadError(true)
       }
     } finally {
       setLoading(false)
     }
-  }, [packageId])
+  }, [packageId, isSgem])
 
   useEffect(() => { fetchPackage() }, [fetchPackage])
 
@@ -132,7 +156,8 @@ function DirectTransferPageContent() {
   // Submit: initiate then confirm in one go
   // ---------------------------------------------------------------------------
   async function handleSubmit() {
-    if (!pkg || !confirmed) return
+    if (isSgem ? !sgemPkg : !pkg) return
+    if (!confirmed) return
     if (!note.trim()) {
       toast({
         variant: "destructive",
@@ -148,8 +173,10 @@ function DirectTransferPageContent() {
           ? crypto.randomUUID()
           : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
 
+      const packageKey = isSgem ? sgemPkg!.package_key : pkg!.key
+
       const res = await api.post("/api/v1/payments/direct-transfer/initiate", {
-        package_key: pkg.key,
+        package_key: packageKey,
         idempotency_key: uuid,
       })
       const tx: DirectTransferTransaction = res?.transaction
@@ -232,9 +259,32 @@ function DirectTransferPageContent() {
               <Skeleton className="h-4 w-72" />
               <Skeleton className="h-8 w-32" />
             </div>
-          ) : loadError || !pkg ? (
+          ) : loadError || (isSgem ? !sgemPkg : !pkg) ? (
             <p className="text-sm text-destructive">{t("directTransfer.packageNotFound")}</p>
-          ) : (
+          ) : isSgem && sgemPkg ? (
+            <div className="space-y-4">
+              <div className="space-y-0.5">
+                <p className="font-semibold">{sgemPkg.name}</p>
+                <p className="text-sm text-muted-foreground">{sgemPkg.description}</p>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalAmount")}</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatPrice(sgemPkg.price_amount / 100, sgemPkg.price_currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalScoin")}</p>
+                  <p className="text-2xl font-bold">
+                    {sgemPkg.sgem_amount.toLocaleString()}
+                    <span className="text-sm font-normal text-muted-foreground ml-1">💎</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : pkg ? (
             <div className="space-y-4">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -257,7 +307,7 @@ function DirectTransferPageContent() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("directTransfer.totalScoin")}</p>
                   <p className="text-2xl font-bold">
                     {pkg.total_scoin.toLocaleString()}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">sCoin</span>
+                    <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
                   </p>
                   {pkg.bonus_scoin > 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -267,12 +317,12 @@ function DirectTransferPageContent() {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
       {/* Form */}
-      {!loading && !loadError && pkg && (
+      {!loading && !loadError && (isSgem ? !!sgemPkg : !!pkg) && (
         <Card>
           <CardContent className="pt-5 space-y-5">
             <div className="space-y-1.5">

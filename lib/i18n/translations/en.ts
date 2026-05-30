@@ -787,7 +787,7 @@ export const en = {
   payment: {
     title: "Payment",
     subtitle: "Manage your coins, payments and transaction history.",
-    tabPaymentMethod: "Buy Coin",
+    tabPaymentMethod: "Buy sCoin",
     tabTransactions: "Transactions",
     tabRedeemGiftCode: "Gift Code",
     paymentMethods: "Payment Methods",
@@ -852,6 +852,18 @@ export const en = {
     detailUpdated: "Updated",
     detailProviderData: "Provider Data",
     detailLoading: "Loading…",
+
+    // Buy sGem tab
+    tabBuySGem: "Buy sGem",
+    sgemPackages: "sGem Packages",
+    noSgemPackages: "No sGem packages available.",
+    sgemPackagesError: "Failed to load sGem packages.",
+    sgemBalance: "sGem Balance",
+    sgemWalletError: "Failed to load sGem wallet.",
+    sgemCheckoutFailed: "Payment failed",
+    sgemCheckoutFailedDesc: "Could not initiate payment. Please try again.",
+    sgemDuplicatePayment: "This payment has already been processed.",
+    sgemDailyLimitExceeded: "Daily transaction limit reached. Please try again tomorrow.",
 
     // Misc
     back: "Back",
@@ -1090,6 +1102,7 @@ export const en = {
     pageSubtitle: "View all payment transactions across the platform.",
     tabBuyCoin: "Buy Coin",
     filterAll: "All Statuses",
+    filterPending: "Pending",
     filterCompleted: "Completed",
     filterFailed: "Failed",
     filterCreditFailed: "Credit Failed",
@@ -1106,6 +1119,7 @@ export const en = {
     noTransactions: "No transactions found.",
     loadFailed: "Failed to load transactions.",
     refresh: "Refresh",
+    statusPending: "Pending",
     statusCompleted: "Completed",
     statusFailed: "Failed",
     statusCreditFailed: "Credit Failed",

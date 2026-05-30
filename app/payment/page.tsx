@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getUserTimezone } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
+import { BuySGemTab } from "@/components/BuySGemTab"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,8 +211,16 @@ function PaymentPageContent() {
 
   const initTab = searchParams.get("txid")
     ? "transactions"
-    : (["transactions", "redeem"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "payment")
+    : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin")
   const [activeTab, setActiveTab] = useState(initTab)
+
+  // Sync tab when URL changes (e.g. clicking + from header while already on this page)
+  useEffect(() => {
+    const tab = searchParams.get("txid")
+      ? "transactions"
+      : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin")
+    setActiveTab(tab)
+  }, [searchParams])
   const [txSubTab, setTxSubTab] = useState<"buy" | "use">(
     (["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use"
   )
@@ -509,7 +518,8 @@ function PaymentPageContent() {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
             <TabsList className="w-auto inline-flex">
-              <TabsTrigger value="payment">{t('payment.tabPaymentMethod')}</TabsTrigger>
+              <TabsTrigger value="buy-sgem">{t('payment.tabBuySGem')}</TabsTrigger>
+              <TabsTrigger value="buy-scoin">{t('payment.tabPaymentMethod')}</TabsTrigger>
               <TabsTrigger value="redeem">{t('payment.tabRedeemGiftCode')}</TabsTrigger>
               <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
             </TabsList>
@@ -518,7 +528,7 @@ function PaymentPageContent() {
           {/* ============================================================
               TAB 1 – Buy sCoin
           ============================================================ */}
-          <TabsContent value="payment" className="mt-6 space-y-8">
+          <TabsContent value="buy-scoin" className="mt-6 space-y-8">
 
             {/* ---- Packages section ---- */}
             <section className="space-y-3">
@@ -596,7 +606,7 @@ function PaymentPageContent() {
                             <div className="min-w-0">
                               <p className="text-2xl font-bold tabular-nums">
                                 {pkg.total_scoin.toLocaleString()}
-                                <span className="text-sm font-normal text-muted-foreground ml-1">sCoin</span>
+                                <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
                               </p>
                               <div className="min-h-[1.25rem]">
                                 {pkg.bonus_scoin > 0 && (
@@ -781,7 +791,14 @@ function PaymentPageContent() {
           </TabsContent>
 
           {/* ============================================================
-              TAB 2 – Redeem Gift Code
+              TAB 2 – Buy sGem
+          ============================================================ */}
+          <TabsContent value="buy-sgem">
+            <BuySGemTab />
+          </TabsContent>
+
+          {/* ============================================================
+              TAB 3 – Redeem Gift Code
           ============================================================ */}
           <TabsContent value="redeem" className="mt-6">
             <section className="space-y-3 max-w-full lg:max-w-[50%]">
@@ -916,7 +933,7 @@ function PaymentPageContent() {
 
                             <div className="text-right shrink-0">
                               <p className="font-semibold tabular-nums text-primary text-sm sm:text-base">
-                                +{tx.scoin_amount.toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">sCoin</span>
+                                +{(tx.scoin_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">sCoin</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 {tx.amount.toLocaleString()} {tx.currency}
@@ -970,7 +987,7 @@ function PaymentPageContent() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailsCoin')}</p>
-                                  <p className="font-semibold text-primary">+{tx.scoin_amount.toLocaleString()} sCoin</p>
+                                  <p className="font-semibold text-primary">+{(tx.scoin_amount ?? 0).toLocaleString()} sCoin</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailStatus')}</p>
