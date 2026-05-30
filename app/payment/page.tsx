@@ -67,14 +67,16 @@ interface TransactionsResponse {
 interface PaymentTransaction {
   id: string
   user_id: string
-  scoin_package_id?: string
+  currency_type: "sgem" | "scoin"
+  currency_package_id?: string
   payment_method_config_id?: string
   provider_key: string
   amount: number
   currency: string
-  scoin_amount: number
+  currency_amount: number
   status: string
   provider_data?: Record<string, unknown>
+  currency_credited_at?: string
   created_at: string
   updated_at: string
 }
@@ -264,7 +266,7 @@ function PaymentPageContent() {
   // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
   const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({})
 
-  async function resolvePackageName(id: string) {
+  async function resolvePackageName(id: string, currencyType: "sgem" | "scoin" = "scoin") {
     // Already in cache
     if (id in pkgNameCache) return
     // Already in loaded packages list
@@ -272,8 +274,13 @@ function PaymentPageContent() {
     // Fetch individually
     setPkgNameCache((prev) => ({ ...prev, [id]: null }))
     try {
-      const data = await api.get(`/api/v1/payments/packages/${id}`)
-      setPkgNameCache((prev) => ({ ...prev, [id]: data?.name ?? id }))
+      if (currencyType === "sgem") {
+        const data = await api.get(`/api/v1/payments/sgem-packages/${id}`)
+        setPkgNameCache((prev) => ({ ...prev, [id]: (data?.package ?? data)?.name ?? id }))
+      } else {
+        const data = await api.get(`/api/v1/payments/packages/${id}`)
+        setPkgNameCache((prev) => ({ ...prev, [id]: data?.name ?? id }))
+      }
     } catch {
       setPkgNameCache((prev) => ({ ...prev, [id]: id }))
     }
@@ -327,7 +334,7 @@ function PaymentPageContent() {
   useEffect(() => {
     if (expandedPayTxId && payTxData) {
       const tx = payTxData.transactions.find(t => t.id === expandedPayTxId)
-      if (tx?.scoin_package_id) resolvePackageName(tx.scoin_package_id)
+      if (tx?.currency_package_id) resolvePackageName(tx.currency_package_id, tx.currency_type)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payTxData, expandedPayTxId])
@@ -905,13 +912,13 @@ function PaymentPageContent() {
                           onClick={() => {
                             const next = isExpanded ? null : tx.id
                             setExpandedPayTxId(next)
-                            if (next && tx.scoin_package_id) resolvePackageName(tx.scoin_package_id)
+                            if (next && tx.currency_package_id) resolvePackageName(tx.currency_package_id, tx.currency_type)
                           }}
                           id={tx.id}
                         >
                           <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                              <Coins className="h-4 w-4" />
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-base">
+                              {tx.currency_type === "sgem" ? "💎" : <Coins className="h-4 w-4" />}
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -933,7 +940,7 @@ function PaymentPageContent() {
 
                             <div className="text-right shrink-0">
                               <p className="font-semibold tabular-nums text-primary text-sm sm:text-base">
-                                +{(tx.scoin_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">sCoin</span>
+                                +{(tx.currency_amount ?? 0).toLocaleString()} <span className="text-xs font-normal text-muted-foreground sm:text-sm sm:font-semibold sm:text-primary">{tx.currency_type === "sgem" ? "💎" : "🪙"}</span>
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 {tx.amount.toLocaleString()} {tx.currency}
@@ -986,8 +993,8 @@ function PaymentPageContent() {
                                   <p className="font-semibold">{tx.amount.toLocaleString()} {tx.currency}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailsCoin')}</p>
-                                  <p className="font-semibold text-primary">+{(tx.scoin_amount ?? 0).toLocaleString()} sCoin</p>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{tx.currency_type === "sgem" ? "sGem" : "sCoin"}</p>
+                                  <p className="font-semibold text-primary">+{(tx.currency_amount ?? 0).toLocaleString()} {tx.currency_type === "sgem" ? "💎 sGem" : "🪙 sCoin"}</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailStatus')}</p>
@@ -1003,6 +1010,12 @@ function PaymentPageContent() {
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailUpdated')}</p>
                                   <p>{formatDate(tx.updated_at)}</p>
                                 </div>
+                                {tx.currency_credited_at && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Credited At</p>
+                                    <p>{formatDate(tx.currency_credited_at)}</p>
+                                  </div>
+                                )}
                                 {tx.provider_data && Object.keys(tx.provider_data).length > 0 && (
                                   <div className="sm:col-span-2">
                                     <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailProviderData')}</p>

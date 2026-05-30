@@ -395,6 +395,24 @@ export interface SPackage {
   updated_at: string
 }
 
+export interface SGemPackage {
+  id: string
+  package_key: string
+  name: string
+  description: string
+  sgem_amount: number
+  price_amount: number
+  price_currency: string
+  prices: Record<string, number>
+  is_active: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+  available_from: string | null
+  available_until: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface SPackagesResult {
   packages: SPackage[]
 }
@@ -444,6 +462,11 @@ export async function updateSPackage(id: string, body: UpdateSPackageBody): Prom
 
 export async function deleteSPackage(id: string): Promise<void> {
   return api.delete(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+export async function getSGemPackage(id: string): Promise<SGemPackage> {
+  const res: { package: SGemPackage } = await api.get(`/api/v1/payments/sgem-packages/${id}`)
+  return res.package
 }
 
 // ---------------------------------------------------------------------------

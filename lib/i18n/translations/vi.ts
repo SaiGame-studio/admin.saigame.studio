@@ -818,7 +818,7 @@ export const vi = {
     loadError: "Không thể tải giao dịch.",
     tryAgain: "Thử lại",
     noTransactions: "Chưa có giao dịch nào.",
-    subTabBuyCoin: "Mua Coin",
+    subTabBuyCoin: "Lịch sử mua",
     subTabUseCoin: "Giao dịch Coin",
     typeAdminTopup: "Nạp bởi Admin",
     typeGiftCode: "Mã quà tặng",

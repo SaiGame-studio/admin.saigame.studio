@@ -124,7 +124,7 @@ function DirectTransferPageContent() {
     try {
       if (isSgem) {
         const data = await api.get(`/api/v1/payments/sgem-packages/${packageId}`)
-        setSgemPkg(data)
+        setSgemPkg(data.package ?? data)
       } else {
         const data = await api.get(`/api/v1/payments/packages/${packageId}`)
         setPkg(data)

@@ -816,7 +816,7 @@ export const en = {
     loadError: "Failed to load transactions.",
     tryAgain: "Try again",
     noTransactions: "No transactions yet.",
-    subTabBuyCoin: "Buy Coin",
+    subTabBuyCoin: "Purchases",
     subTabUseCoin: "Coin Transactions",
     typeAdminTopup: "Admin Top-up",
     typeGiftCode: "Gift Code",

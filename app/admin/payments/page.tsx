@@ -55,8 +55,10 @@ import {
   listPaymentMethods,
   updatePaymentMethod,
   type SPackage,
+  type SGemPackage,
   listSPackages,
   getSPackage,
+  getSGemPackage,
   createSPackage,
   updateSPackage,
   deleteSPackage,
@@ -154,22 +156,36 @@ const TX_LIMIT = 50
 // Package info fetcher (with module-level cache)
 // ---------------------------------------------------------------------------
 const pkgCache = new Map<string, SPackage>()
+const sgemPkgCache = new Map<string, SGemPackage>()
 
-function PackageInfoRow({ packageId }: { packageId: string | null | undefined }) {
-  const [pkg, setPkg] = useState<SPackage | null>(() => (packageId ? pkgCache.get(packageId) : undefined) ?? null)
-  const [loading, setLoading] = useState(!!packageId && !pkgCache.has(packageId))
+function PackageInfoRow({ packageId, currencyType }: { packageId: string | null | undefined; currencyType: "sgem" | "scoin" }) {
+  const isSGem = currencyType === "sgem"
+  const [scoinPkg, setScoinPkg] = useState<SPackage | null>(() => (!isSGem && packageId ? pkgCache.get(packageId) : undefined) ?? null)
+  const [sgemPkg, setSGemPkg] = useState<SGemPackage | null>(() => (isSGem && packageId ? sgemPkgCache.get(packageId) : undefined) ?? null)
+  const [loading, setLoading] = useState(!!packageId && (isSGem ? !sgemPkgCache.has(packageId) : !pkgCache.has(packageId)))
 
   useEffect(() => {
-    if (!packageId || pkgCache.has(packageId)) return
-    getSPackage(packageId)
-      .then((p) => { pkgCache.set(packageId, p); setPkg(p) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    if (!packageId) return
+    if (isSGem) {
+      if (sgemPkgCache.has(packageId)) return
+      getSGemPackage(packageId)
+        .then((p) => { sgemPkgCache.set(packageId, p); setSGemPkg(p) })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    } else {
+      if (pkgCache.has(packageId)) return
+      getSPackage(packageId)
+        .then((p) => { pkgCache.set(packageId, p); setScoinPkg(p) })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const pkg = isSGem ? sgemPkg : scoinPkg
+
   return (
-    <div className="space-y-0.5 sm:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+    <div id="tx-package-info-row" className="space-y-0.5 sm:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Package</p>
       {loading ? (
         <Skeleton className="h-4 w-48" />
@@ -177,7 +193,10 @@ function PackageInfoRow({ packageId }: { packageId: string | null | undefined })
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
           <span className="font-medium">{pkg.name}</span>
           <span className="text-muted-foreground font-mono">{pkg.package_key}</span>
-          <span>🪙 {pkg.scoin_amount.toLocaleString()}{pkg.bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{pkg.bonus_scoin.toLocaleString()} bonus</span> : null}</span>
+          {isSGem
+            ? <span>💎 {(sgemPkg as SGemPackage).sgem_amount.toLocaleString()}</span>
+            : <span>🪙 {(scoinPkg as SPackage).scoin_amount.toLocaleString()}{(scoinPkg as SPackage).bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{(scoinPkg as SPackage).bonus_scoin.toLocaleString()} bonus</span> : null}</span>
+          }
           <span className="font-semibold">{formatTxAmount(pkg.price_amount, pkg.price_currency)}</span>
         </div>
       ) : (
@@ -1406,7 +1425,7 @@ function TransactionsTab() {
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">User ID</p>
                                 <p className="font-mono text-xs break-all flex items-center gap-1">{tx.user_id}<CopyButton text={tx.user_id} /></p>
                               </div>
-                              {tx.currency_package_id && <PackageInfoRow packageId={tx.currency_package_id} />}
+                              {tx.currency_package_id && <PackageInfoRow packageId={tx.currency_package_id} currencyType={tx.currency_type} />}
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment Method ID</p>
                                 <p className="font-mono text-xs break-all">{tx.payment_method_config_id}</p>

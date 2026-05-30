@@ -806,7 +806,7 @@ export const ja = {
     loadError: "取引の読み込みに失敗しました。",
     tryAgain: "再試行",
     noTransactions: "まだ取引がありません。",
-    subTabBuyCoin: "Coin購入",
+    subTabBuyCoin: "購入履歴",
     subTabUseCoin: "Coin取引",
     typeAdminTopup: "管理者チャージ",
     typeGiftCode: "ギフトコード",
