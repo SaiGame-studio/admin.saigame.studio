@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api-client"
+import { useTranslation } from "@/lib/i18n/use-translation"
 
 // ---------------------------------------------------------------------------
 // Hardcoded packages from guide
@@ -60,6 +61,7 @@ interface PackageCardProps {
 }
 
 function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps) {
+  const { t } = useTranslation()
   const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem
 
   return (
@@ -76,32 +78,36 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
           : "border-border opacity-40 cursor-not-allowed"
       }`}
     >
-      {/* Selected check — absolute so it never shifts layout */}
+      {/* Badge — absolute top-right so it never affects card size */}
+      {pkg.badge && (
+        <Badge
+          id={`llm-purchase-card-badge-${pkg.key}`}
+          variant="outline"
+          className="badge-blink absolute top-2 right-2 text-xs leading-none"
+        >
+          {pkg.badge === "Popular" ? t("llmTokenPurchase.badgePopular") : pkg.badge}
+        </Badge>
+      )}
+
+      {/* Selected check — sits left of badge when both present */}
       {selected && (
         <span
           id={`llm-purchase-card-check-${pkg.key}`}
-          className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          className={`absolute top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ${pkg.badge ? "right-[calc(theme(spacing.2)+3rem)]" : "right-2"}`}
         >
           <Check className="h-2.5 w-2.5" />
         </span>
       )}
 
-      {/* Top row: name + badge */}
-      <div id={`llm-purchase-card-header-${pkg.key}`} className="flex items-center justify-between gap-2">
+      {/* Top row: name only */}
+      <div id={`llm-purchase-card-header-${pkg.key}`} className="flex items-center">
         <span id={`llm-purchase-card-name-${pkg.key}`} className="text-sm font-semibold capitalize">{pkg.key}</span>
-        <div id={`llm-purchase-card-header-right-${pkg.key}`} className="flex items-center gap-1">
-          {pkg.badge && (
-            <Badge id={`llm-purchase-card-badge-${pkg.key}`} variant={pkg.badgeVariant} className="text-xs">
-              {pkg.badge}
-            </Badge>
-          )}
-        </div>
       </div>
 
       {/* Token amount */}
       <div id={`llm-purchase-card-tokens-${pkg.key}`} className="flex items-baseline gap-1">
         <span id={`llm-purchase-card-tokens-val-${pkg.key}`} className="text-2xl font-bold tabular-nums">{fmt(pkg.tokens)}</span>
-        <span id={`llm-purchase-card-tokens-unit-${pkg.key}`} className="text-xs text-muted-foreground">tokens</span>
+        <span id={`llm-purchase-card-tokens-unit-${pkg.key}`} className="text-xs text-muted-foreground">{t("llmTokenPurchase.tokensUnit")}</span>
       </div>
 
       {/* sGem cost */}
@@ -125,6 +131,7 @@ interface Props {
 let _premFloatId = 0
 
 export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [sgemBalance, setSgemBalance] = useState<number | null>(null)
   const [loadingWallet, setLoadingWallet] = useState(false)
@@ -190,8 +197,8 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       const data = await api.post(`/api/v1/games/${gameId}/llm-tokens/purchase`, { package: pkg.key })
       const tokensAdded: number = data.tokens_purchased ?? pkg.tokens
       toast({
-        title: "Purchase successful",
-        description: `+${tokensAdded.toLocaleString("en-US")} premium tokens added.`,
+        title: t("llmTokenPurchase.toastSuccessTitle"),
+        description: `+${tokensAdded.toLocaleString("en-US")} ${t("llmTokenPurchase.toastSuccessDesc")}`,
       })
       await Promise.all([loadWallet(), loadTokenBalance()])
       window.dispatchEvent(new CustomEvent("sgem-wallet:refresh"))
@@ -200,13 +207,13 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       const e = err as { status?: number; data?: { detail?: string } }
       if (e?.status === 402) {
         toast({
-          title: "Insufficient sGem",
-          description: "You don't have enough sGem to purchase this package.",
+          title: t("llmTokenPurchase.toastInsufficientTitle"),
+          description: t("llmTokenPurchase.toastInsufficientDesc"),
           variant: "destructive",
         })
       } else {
-        const msg = e?.data?.detail ?? "Something went wrong. Please try again."
-        toast({ title: "Purchase failed", description: msg, variant: "destructive" })
+        const msg = e?.data?.detail ?? t("llmTokenPurchase.toastFailedDesc")
+        toast({ title: t("llmTokenPurchase.toastFailedTitle"), description: msg, variant: "destructive" })
       }
     } finally {
       setPurchasing(false)
@@ -222,7 +229,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       onClick={() => { setOpen(true); setSelectedKey(null) }}
     >
       <Zap className="h-4 w-4" />
-      {!compact && "LLM Tokens"}
+      {!compact && t("llmTokenPurchase.triggerLabel")}
     </Button>
   )
 
@@ -231,7 +238,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       {compact ? (
         <Tooltip>
           <TooltipTrigger asChild>{triggerButton}</TooltipTrigger>
-          <TooltipContent side="top">LLM Tokens</TooltipContent>
+          <TooltipContent side="top">{t("llmTokenPurchase.triggerLabel")}</TooltipContent>
         </Tooltip>
       ) : triggerButton}
 
@@ -246,6 +253,11 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
               100% { opacity: 0; transform: translateX(-50%) translateY(-48px) scale(0.9); }
             }
             .prem-float { animation: prem-float-up 3s ease-out forwards; pointer-events: none; }
+            @keyframes badge-blink {
+              0%, 100% { opacity: 0.15; }
+              50%       { opacity: 0.7; }
+            }
+            .badge-blink { animation: badge-blink 2.4s ease-in-out infinite; }
           `}</style>
           {typeof window !== "undefined" && premiumFloats.map(({ id, delta, x, y }) =>
             createPortal(
@@ -270,10 +282,10 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
             <SheetHeader>
               <SheetTitle id={`llm-purchase-title-${gameId}`} className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                Buy LLM Tokens
+                {t("llmTokenPurchase.title")}
               </SheetTitle>
               <SheetDescription id={`llm-purchase-desc-${gameId}`}>
-                Purchase premium tokens with sGem. Tokens are added to the premium pool and used before free tokens.
+                {t("llmTokenPurchase.description")}
               </SheetDescription>
             </SheetHeader>
 
@@ -283,7 +295,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
           <div id={`llm-purchase-wallet-${gameId}`} className="flex items-center justify-between rounded-md bg-muted/50 border px-3 py-2 text-sm">
           <div id={`llm-purchase-wallet-label-${gameId}`} className="flex items-center gap-1.5 text-muted-foreground">
             <span id={`llm-purchase-wallet-icon-${gameId}`} aria-hidden="true">💎</span>
-            <span id={`llm-purchase-wallet-text-${gameId}`}>Your sGem balance</span>
+            <span id={`llm-purchase-wallet-text-${gameId}`}>{t("llmTokenPurchase.sgemBalance")}</span>
           </div>
           <div id={`llm-purchase-wallet-value-${gameId}`} className="flex items-center gap-2">
             {loadingWallet ? (
@@ -309,7 +321,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
           {/* Token balances */}
           <div id={`llm-purchase-token-balances-${gameId}`} className="grid grid-cols-2 gap-2">
           <div id={`llm-purchase-premium-bal-${gameId}`} ref={premiumAnchorRef} className="flex flex-col gap-0.5 rounded-md border px-3 py-2">
-            <span id={`llm-purchase-premium-bal-label-${gameId}`} className="text-xs text-muted-foreground">⚡ Premium tokens remaining</span>
+            <span id={`llm-purchase-premium-bal-label-${gameId}`} className="text-xs text-muted-foreground">{t("llmTokenPurchase.premiumTokensRemaining")}</span>
             {loadingTokens ? (
               <Skeleton id={`llm-purchase-premium-bal-skel-${gameId}`} className="h-5 w-20" />
             ) : (
@@ -319,7 +331,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
             )}
           </div>
           <div id={`llm-purchase-free-bal-${gameId}`} className="flex flex-col gap-0.5 rounded-md border px-3 py-2">
-            <span id={`llm-purchase-free-bal-label-${gameId}`} className="text-xs text-muted-foreground">🎈 Free tokens remaining</span>
+            <span id={`llm-purchase-free-bal-label-${gameId}`} className="text-xs text-muted-foreground">{t("llmTokenPurchase.freeTokensRemaining")}</span>
             {loadingTokens ? (
               <Skeleton id={`llm-purchase-free-bal-skel-${gameId}`} className="h-5 w-20" />
             ) : (
@@ -332,7 +344,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
 
           {/* Non-refundable notice */}
           <p id={`llm-purchase-notice-${gameId}`} className="text-xs text-muted-foreground">
-            &#x26a0; Non-refundable &mdash; sGem is deducted immediately and cannot be returned.
+            {t("llmTokenPurchase.nonRefundable")}
           </p>
 
           {/* Package grid */}
@@ -349,7 +361,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
           </div>
 
           <p id={`llm-purchase-select-hint-${gameId}`} className="text-xs text-center text-muted-foreground">
-            Select a package to continue
+            {t("llmTokenPurchase.selectHint")}
           </p>
             </div>
           </div>
@@ -369,16 +381,17 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
                   <div id={`llm-purchase-footer-summary-${gameId}`} className="flex items-center justify-between text-sm">
                     <div id={`llm-purchase-footer-pkg-${gameId}`} className="flex flex-col gap-0.5">
                       <span id={`llm-purchase-footer-pkg-name-${gameId}`} className="font-semibold capitalize">{pkg.key}</span>
-                      <span id={`llm-purchase-footer-pkg-tokens-${gameId}`} className="text-muted-foreground">+{fmt(pkg.tokens)} tokens</span>
+                      <span id={`llm-purchase-footer-pkg-tokens-${gameId}`} className="text-muted-foreground">+{fmt(pkg.tokens)} {t("llmTokenPurchase.tokensUnit")}</span>
                     </div>
                     <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
                       <span aria-hidden="true">💎</span>
                       <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{pkg.sgem.toLocaleString("en-US")}</span>
                       <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">sGem</span>
+                      {/* sGem is a proper brand name — not translated */}
                     </div>
                   </div>
                   <p id={`llm-purchase-footer-warning-${gameId}`} className="text-xs text-muted-foreground">
-                    &#x26a0; Non-refundable &mdash; sGem is deducted immediately and cannot be returned.
+                    {t("llmTokenPurchase.nonRefundable")}
                   </p>
                   <div id={`llm-purchase-footer-actions-${gameId}`} className="flex gap-2">
                     <Button
@@ -388,7 +401,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
                       disabled={purchasing}
                       onClick={() => setSelectedKey(null)}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button
                       id={`llm-purchase-footer-confirm-${gameId}`}
@@ -397,9 +410,9 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
                       onClick={handleConfirmPurchase}
                     >
                       {purchasing ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t("llmTokenPurchase.processing")}</>
                       ) : (
-                        <>Confirm &amp; Pay 💎 {pkg.sgem.toLocaleString("en-US")}</>
+                        <>{t("llmTokenPurchase.confirmPay")} 💸 {pkg.sgem.toLocaleString("en-US")}</>
                       )}
                     </Button>
                   </div>
