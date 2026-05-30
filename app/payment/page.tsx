@@ -602,26 +602,24 @@ function PaymentPageContent() {
                             </Badge>
                           </div>
                         )}
-                        <CardHeader className="pb-2 pt-8">
+                        <CardHeader className={`pb-2 ${pkg.bonus_scoin > 0 ? "pt-8" : "pt-5"}`}>
                           <CardTitle className="text-base">{pkg.name}</CardTitle>
                           <CardDescription className="text-xs line-clamp-2 h-[2.5rem]">
                             {pkg.description}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="pt-0 space-y-3">
+                        <CardContent className="pt-0 space-y-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-2xl font-bold tabular-nums">
                                 {pkg.total_scoin.toLocaleString()}
                                 <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
                               </p>
-                              <div className="min-h-[1.25rem]">
-                                {pkg.bonus_scoin > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {pkg.base_scoin.toLocaleString()} <span className="font-bold text-primary">+{pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
-                                  </p>
-                                )}
-                              </div>
+                              {pkg.bonus_scoin > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  {pkg.base_scoin.toLocaleString()} <span className="font-bold text-primary">+{pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <p className="text-base font-semibold text-primary whitespace-nowrap">
