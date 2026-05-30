@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen } from "lucide-react"
+import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { LS_PANEL_OPEN } from "@/components/llm-conversations/conversation-panel-utils"
+import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog"
 
 const LS_KEY = "game-nav-expanded"
 
@@ -27,12 +29,23 @@ interface NavItem {
 export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
+  const [isConvOpen, setIsConvOpen] = useState(false)
 
   // Load from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     try {
       setExpanded(localStorage.getItem(LS_KEY) === "1")
     } catch {}
+  }, [])
+
+  // Sync conversation panel open state
+  useEffect(() => {
+    const sync = () => {
+      try { setIsConvOpen(localStorage.getItem(LS_PANEL_OPEN) === 'true') } catch {}
+    }
+    sync()
+    window.addEventListener('ss:conv-state-changed', sync)
+    return () => window.removeEventListener('ss:conv-state-changed', sync)
   }, [])
 
   const toggle = () => {
@@ -72,10 +85,42 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
             : <AlignJustify className="h-4 w-4" />}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">
+      <TooltipContent side="top">
         {expanded ? t("game.compactNav") : t("game.expandNav")}
       </TooltipContent>
     </Tooltip>
+  )
+
+  const convBtnCompact = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          id="game-nav-conv-btn"
+          variant={isConvOpen ? "default" : "outline"}
+          size="icon"
+          className={`h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
+          onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}
+        >
+          <Bot className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        AI Agent
+      </TooltipContent>
+    </Tooltip>
+  )
+
+  const convBtnExpanded = (
+    <Button
+      id="game-nav-conv-btn-expanded"
+      variant={isConvOpen ? "default" : "outline"}
+      size="sm"
+      className={`flex items-center gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`}
+      onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}
+    >
+      <Bot className="h-4 w-4" />
+      AI Agent
+    </Button>
   )
 
   if (expanded) {
@@ -106,6 +151,8 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
           </div>
           <div className="flex gap-1.5 flex-wrap items-center">
             {row2.map(renderBtn)}
+            {convBtnExpanded}
+            <LLMTokenPurchaseDialog gameId={gameId} />
             {toggleBtn}
           </div>
         </div>
@@ -139,6 +186,8 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
             </Tooltip>
           )
         })}
+        {convBtnCompact}
+        <LLMTokenPurchaseDialog gameId={gameId} compact />
         {toggleBtn}
       </div>
     </TooltipProvider>

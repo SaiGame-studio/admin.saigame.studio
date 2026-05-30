@@ -1,8 +1,17 @@
 'use client'
 
-import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Conversation } from '@/types/llm-conversation'
+import { useState, useEffect } from 'react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import type { GameLLMTokenBalance } from '@/lib/llm-conversation-api'
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
+  return String(n)
+}
 
 interface ConversationSidebarProps {
   sidebarWidth: number
@@ -20,6 +29,8 @@ interface ConversationSidebarProps {
   onSelectConv: (convId: string) => void
   onArchive: (conv: Conversation) => void
   onUnarchive: (conv: Conversation) => void
+  onDelete: (conv: Conversation) => void
+  tokenBalance: GameLLMTokenBalance | null
   t: (key: string) => string
 }
 
@@ -39,8 +50,22 @@ export function ConversationSidebar({
   onSelectConv,
   onArchive,
   onUnarchive,
+  onDelete,
+  tokenBalance,
   t,
 }: ConversationSidebarProps) {
+  const [isShiftHeld, setIsShiftHeld] = useState(false)
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(true) }
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(false) }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
   return (
     <div id="conv-panel-sidebar" className="relative flex shrink-0 flex-col border-r" style={{ width: sidebarWidth }}>
       <div ref={sidebarBodyRef} id="conv-panel-sidebar-body" className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -55,7 +80,32 @@ export function ConversationSidebar({
             <span id="conv-panel-active-label" className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {t('llmConversation.tabActive')}
             </span>
-            {isLoadingActive && <Loader2 className="ml-auto h-3 w-3 animate-spin text-muted-foreground" />}
+            <div id="conv-panel-active-header-right" className="ml-auto flex items-center gap-1">
+              {tokenBalance && (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        id="conv-panel-active-token-badge"
+                        className="flex items-center gap-1.5 cursor-default"
+                      >
+                        <span id="conv-panel-active-token-free" className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium leading-none bg-muted text-muted-foreground">
+                          🎈 {formatTokenCount(tokenBalance.free_tokens_remaining)}
+                        </span>
+                        <span id="conv-panel-active-token-premium" className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium leading-none bg-muted text-muted-foreground">
+                          ⚡ {formatTokenCount(tokenBalance.premium_tokens_remaining)}
+                        </span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" id="conv-panel-active-token-tooltip">
+                      <p id="conv-panel-active-token-tooltip-free">🎈 Free: {tokenBalance.free_tokens_remaining.toLocaleString()}</p>
+                      <p id="conv-panel-active-token-tooltip-premium">⚡ Premium: {tokenBalance.premium_tokens_remaining.toLocaleString()}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {isLoadingActive && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            </div>
           </div>
           <ScrollArea className="flex-1">
             {!isLoadingActive && activeConvs.length === 0 ? (
@@ -149,14 +199,19 @@ export function ConversationSidebar({
                       </button>
                       <button
                         id={`conv-panel-archived-unarchive-btn-${conv.ID}`}
-                        onClick={(e) => { e.stopPropagation(); onUnarchive(conv) }}
+                        onClick={(e) => { e.stopPropagation(); isShiftHeld ? onDelete(conv) : onUnarchive(conv) }}
                         className={[
-                          'mr-0.5 flex items-center px-1.5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100',
+                          'mr-0.5 flex items-center px-1.5 transition-colors',
+                          isShiftHeld
+                            ? 'opacity-100 text-destructive hover:text-destructive'
+                            : 'text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100',
                           conv.ID === activeConvId ? 'opacity-100' : '',
                         ].join(' ')}
-                        title={t('llmConversation.unarchive')}
+                        title={isShiftHeld ? t('common.delete') : t('llmConversation.unarchive')}
                       >
-                        <ArchiveRestore className="h-3 w-3" />
+                        {isShiftHeld
+                          ? <Trash2 className="h-3 w-3" />
+                          : <ArchiveRestore className="h-3 w-3" />}
                       </button>
                     </li>
                   ))}

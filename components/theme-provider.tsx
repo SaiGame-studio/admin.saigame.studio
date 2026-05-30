@@ -9,6 +9,8 @@ if (typeof window !== "undefined") {
   const _err = console.error.bind(console)
   console.error = (...a: unknown[]) => {
     if (typeof a[0] === "string" && a[0].includes("script tag while rendering")) return
+    // Google GSI origin mismatch on local dev — not a code issue, suppress noise
+    if (typeof a[0] === "string" && a[0].includes("[GSI_LOGGER]")) return
     _err(...a)
   }
 }

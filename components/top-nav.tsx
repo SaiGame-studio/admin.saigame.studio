@@ -11,6 +11,7 @@ import { SideNav } from "@/components/side-nav"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CoinBalance } from "@/components/coin-balance"
+import { GemBalance } from "@/components/gem-balance"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { TipsBanner } from "@/components/TipsBanner"
 import { useServerConfig } from "@/hooks/use-server-config"
@@ -65,6 +66,7 @@ export function TopNav() {
         )}
         {isAuthenticated && (
           <>
+            <GemBalance />
             <CoinBalance />
             <Button variant="ghost" className="flex items-center gap-2 px-1.5 h-9 sm:px-2" asChild>
               <Link href="/profile">

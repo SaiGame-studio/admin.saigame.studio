@@ -24,6 +24,8 @@ import {
   linkConversationContent,
   listConversationContent,
   unlinkConversationContent,
+  getGameLLMTokenBalance,
+  type GameLLMTokenBalance,
 } from '@/lib/llm-conversation-api'
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline'
 import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation'
@@ -36,6 +38,8 @@ import {
   lsConvHistory,
   lsLoreLinks,
   lsItemLinks,
+  lsLoreTitles,
+  lsItemNames,
   parseLoreResponse,
   parseGeneratedItemsResponse,
   extractGameId,
@@ -49,9 +53,10 @@ import { ConversationDialogs } from './ConversationDialogs'
 import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
-import { type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition } from '@/lib/inventory-api'
+import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -74,6 +79,9 @@ export function LLMConversationPanel() {
     return safeGetItem(LS_PANEL_OPEN) === 'true'
   })
   const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true')
+
+  // Token balance
+  const [tokenBalance, setTokenBalance] = useState<GameLLMTokenBalance | null>(null)
 
   // Sidebar state — two separate lists
   const [activeConvs, setActiveConvs] = useState<Conversation[]>([])
@@ -161,6 +169,7 @@ export function LLMConversationPanel() {
   const [isLoadingLinkedContent, setIsLoadingLinkedContent] = useState(false)
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
+  const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -205,6 +214,22 @@ export function LLMConversationPanel() {
     window.dispatchEvent(new Event('ss:conv-state-changed'))
   }, [isOpen])
   useEffect(() => { safeSetItem(LS_PANEL_MINIMIZED, String(isMinimized)) }, [isMinimized])
+
+  // External toggle via custom event (e.g. from GameNavButtons)
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen((prev) => {
+        if (!prev) { setIsMinimized(false); return true }
+        return false
+      })
+    }
+    window.addEventListener('ss:conv-toggle', handleToggle)
+    return () => window.removeEventListener('ss:conv-toggle', handleToggle)
+  }, [])
+
+  // Close panel on Escape — but only when no layered dialog is open.
+  // Each registered layer pops one-at-a-time; see hooks/use-escape-manager.ts.
+  useEscapeLayer(isOpen, () => setIsOpen(false))
 
   // Persist completed chat turns for the active conversation
   useEffect(() => {
@@ -256,6 +281,18 @@ export function LLMConversationPanel() {
     setConvGeneratedItems([])
   }, [activeConvId])
 
+  // Persist lore entry titles to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(loreEntryTitles).length === 0) return
+    safeSetItem(lsLoreTitles(activeConvId), JSON.stringify(loreEntryTitles))
+  }, [loreEntryTitles, activeConvId])
+
+  // Persist item definition names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(itemDefinitionNames).length === 0) return
+    safeSetItem(lsItemNames(activeConvId), JSON.stringify(itemDefinitionNames))
+  }, [itemDefinitionNames, activeConvId])
+
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
   // ---------------------------------------------------------------------------
@@ -302,6 +339,7 @@ export function LLMConversationPanel() {
       setActiveConv(null)
       setLinkedContent([])
       setLoreEntryTitles({})
+      setItemDefinitionNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
@@ -333,6 +371,11 @@ export function LLMConversationPanel() {
     // Restore saved item definition IDs from localStorage
     const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
     setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
+    // Restore cached lore titles and item names from localStorage
+    const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
+    if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
+    const rawItemNames = safeGetItem(lsItemNames(activeConvId))
+    if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,15 +397,36 @@ export function LLMConversationPanel() {
   // Reload linked content when an external action links new content to the active conversation
   useEffect(() => {
     function handleContentLinked(e: Event) {
-      const detail = (e as CustomEvent<{ convId: string; gameId: string }>).detail
-      if (detail.gameId === gameId && detail.convId === activeConvId) {
-        void loadLinkedContent(gameId, activeConvId)
+      const detail = (e as CustomEvent<{ convId: string; gameId: string; contentType?: string; contentId?: string; contentName?: string }>).detail
+      if (detail.gameId !== gameId) return
+      if (detail.contentId && detail.contentName && detail.contentType) {
+        // Cache the name immediately so it's available when linkedContent renders
+        if (detail.contentType === 'item_definition') {
+          setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'lore_entry' || detail.contentType === 'lore') {
+          setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        }
+        // Inject a synthetic link entry so it shows with its name right away,
+        // before loadLinkedContent returns. The API call replaces it with the real entry.
+        setLinkedContent(prev => {
+          if (prev.some(l => l.content_id === detail.contentId && l.content_type === detail.contentType)) return prev
+          return [...prev, {
+            id: `synth-${detail.contentId!}`,
+            conversation_id: detail.convId,
+            content_type: detail.contentType!,
+            content_id: detail.contentId!,
+            linked_by: null,
+            created_at: new Date().toISOString(),
+          }]
+        })
       }
+      // Use detail.convId directly — avoids race where activeConvId hasn't updated yet
+      void loadLinkedContent(gameId, detail.convId)
     }
     window.addEventListener('ss:conv-content-linked', handleContentLinked)
     return () => window.removeEventListener('ss:conv-content-linked', handleContentLinked)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, activeConvId])
+  }, [gameId])
 
   // ---------------------------------------------------------------------------
   // API calls
@@ -394,6 +458,7 @@ export function LLMConversationPanel() {
   function loadBothLists(gId: string) {
     loadActiveConvs(gId)
     loadArchivedConvs(gId)
+    getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
   }
 
   async function loadConversation(gId: string, convId: string) {
@@ -415,19 +480,39 @@ export function LLMConversationPanel() {
     setIsLoadingLinkedContent(true)
     try {
       const items = await listConversationContent(gId, convId)
-      setLinkedContent(items)
+
+      // Fetch lore titles and item names in parallel BEFORE calling setLinkedContent.
+      // This way setLinkedContent and the name setters fire synchronously in the same
+      // React batch → a single render that already has names, no "Item" flash.
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
-      if (loreLinks.length > 0) {
-        const entries = await Promise.allSettled(
-          loreLinks.map(l => getLoreEntry(gId, l.content_id))
-        )
-        const titles: Record<string, string> = {}
-        loreLinks.forEach((l, i) => {
-          const result = entries[i]
-          if (result.status === 'fulfilled') titles[l.content_id] = result.value.Title
-        })
-        setLoreEntryTitles(prev => ({ ...prev, ...titles }))
-      }
+      const itemLinks = items.filter(l => l.content_type === 'item_definition')
+
+      const [loreResults, itemResults] = await Promise.all([
+        loreLinks.length > 0
+          ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
+        itemLinks.length > 0
+          ? Promise.allSettled(itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
+      ])
+
+      // Build name maps synchronously (no more awaits after this point)
+      const titles: Record<string, string> = {}
+      loreLinks.forEach((l, i) => {
+        const result = loreResults[i]
+        if (result?.status === 'fulfilled') titles[l.content_id] = result.value.Title
+      })
+
+      const names: Record<string, string> = {}
+      itemLinks.forEach((l, i) => {
+        const result = itemResults[i]
+        if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
+      })
+
+      // All three setters fire synchronously → one React render with everything ready
+      if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
+      if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
+      setLinkedContent(items)
     } catch {
       // silently ignore
     } finally {
@@ -464,6 +549,12 @@ export function LLMConversationPanel() {
       ? convGeneratedItems
       : (activeConv?.AccumulatedContent?.items ?? [])
     removeTurn(turn.id)
+    const retryLinkedLoreIds = linkedContent
+      .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const retryLinkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
     void runPipeline(
       gameId,
       turn.userMessage,
@@ -483,10 +574,11 @@ export function LLMConversationPanel() {
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
       convMainContent || undefined,
-      undefined,
+      retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       fallbackEntityType || undefined,
       undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
     )
   }
 
@@ -502,6 +594,9 @@ export function LLMConversationPanel() {
     }
     const linkedLoreIds = linkedContent
       .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const linkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
     // Fall back to the last known entityType from history when the current turn
     // doesn't produce one (e.g. "update the current content" follow-up requests)
@@ -540,6 +635,7 @@ export function LLMConversationPanel() {
       fallbackEntityType || undefined,
       historyContext.length > 0 ? historyContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      linkedItemIds.length > 0 ? linkedItemIds : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -609,6 +705,8 @@ export function LLMConversationPanel() {
       await deleteConversation(gameId, deleteTarget.ID)
       safeRemoveItem(lsConvHistory(deleteTarget.ID))
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
+      safeRemoveItem(lsLoreTitles(deleteTarget.ID))
+      safeRemoveItem(lsItemNames(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
@@ -620,10 +718,32 @@ export function LLMConversationPanel() {
         setActiveConv(null)
       }
       toast({ title: t('llmConversation.deleted') })
+      loadArchivedConvs(gameId)
     } catch {
       toast({ title: t('llmConversation.errorDelete'), variant: 'destructive' })
     } finally {
       setDeleteTarget(null)
+    }
+  }
+
+  async function handleDeleteDirect(conv: Conversation) {
+    if (!gameId) return
+    try {
+      await deleteConversation(gameId, conv.ID)
+      safeRemoveItem(lsConvHistory(conv.ID))
+      safeRemoveItem(lsLoreLinks(conv.ID))
+      safeRemoveItem(lsLoreTitles(conv.ID))
+      safeRemoveItem(lsItemNames(conv.ID))
+      setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
+      if (activeConvId === conv.ID) {
+        safeRemoveItem(lsActiveConv(gameId))
+        setActiveConvId(null)
+        setActiveConv(null)
+      }
+      toast({ title: t('llmConversation.deleted') })
+      loadArchivedConvs(gameId)
+    } catch {
+      toast({ title: t('llmConversation.errorDelete'), variant: 'destructive' })
     }
   }
 
@@ -664,6 +784,12 @@ export function LLMConversationPanel() {
     const generatedItemsForRequest = convGeneratedItems.length > 0
       ? convGeneratedItems
       : (activeConv?.AccumulatedContent?.items ?? [])
+    const retryLinkedLoreIds = linkedContent
+      .filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
+      .map(l => l.content_id)
+    const retryLinkedItemIds = linkedContent
+      .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
     void retryResponse(
       gameId,
       activeConvId,
@@ -674,6 +800,8 @@ export function LLMConversationPanel() {
       t('llmConversation.errorSend'),
       convMainContent || undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
+      retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
+      retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
     )
   }
 
@@ -706,6 +834,8 @@ export function LLMConversationPanel() {
       const entry: LoreEntry = matchedLoreId
         ? await updateLoreEntry(gameId, matchedLoreId, loreBody)
         : await createLoreEntry(gameId, loreBody)
+      // Immediately cache the title so the linked content badge shows the name right away
+      setLoreEntryTitles(prev => ({ ...prev, [entry.ID]: entry.Title }))
       // Link lore to conversation
       await linkConversationContent(gameId, activeConvId, 'lore', entry.ID)
       // Persist the lore ID link
@@ -743,6 +873,55 @@ export function LLMConversationPanel() {
       ? Object.entries(rawStats as Record<string, unknown>).map(([k, v]) => ({ key: k, value: String(v) }))
       : []
     const item_code = typeof item.item_code === 'string' ? item.item_code.trim() : undefined
+
+    // Resolve generator config — replace __REF:ITEM_CODE with actual item_definition_id
+    let gen_output_pool: CreateItemInitialGenPoolEntry[] | undefined
+    let gen_interval_seconds: string | undefined
+    let gen_tick_capacity: string | undefined
+    let gen_collect_destination: 'mailbox' | 'inventory' | undefined
+    if (category === 'generator' && gameId) {
+      const genCfg = (item.metadata as Record<string, unknown>)?.generator_config as Record<string, unknown> | undefined
+      if (genCfg) {
+        if (genCfg.production_interval_seconds != null) gen_interval_seconds = String(genCfg.production_interval_seconds)
+        if (genCfg.tick_capacity != null) gen_tick_capacity = String(genCfg.tick_capacity)
+        if (genCfg.collect_destination === 'mailbox' || genCfg.collect_destination === 'inventory') {
+          gen_collect_destination = genCfg.collect_destination
+        }
+        const rawPool = Array.isArray(genCfg.output_pool) ? (genCfg.output_pool as Record<string, unknown>[]) : []
+        if (rawPool.length > 0) {
+          // Collect all __REF: item codes that need resolving
+          const refCodes = rawPool
+            .map((e) => String(e.item_definition_id ?? ''))
+            .filter((id) => id.startsWith('__REF:'))
+            .map((id) => id.slice(6))
+          const codeToId: Record<string, string> = {}
+          if (refCodes.length > 0) {
+            await Promise.allSettled(
+              refCodes.map((code) =>
+                listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+                  .then((res) => { const found = (res.items ?? [])[0]; if (found) codeToId[code] = found.id })
+                  .catch(() => {})
+              )
+            )
+          }
+          gen_output_pool = rawPool.map((e) => {
+            const rawId = String(e.item_definition_id ?? '')
+            const resolvedId = rawId.startsWith('__REF:')
+              ? (codeToId[rawId.slice(6)] ?? '')
+              : rawId
+            return {
+              item_definition_id: resolvedId,
+              drop_rate: e.drop_rate != null ? String(e.drop_rate) : '1',
+              quantity_min: e.quantity_min != null ? String(e.quantity_min) : '1',
+              quantity_max: e.quantity_max != null ? String(e.quantity_max) : '1',
+              collect_cap: e.collect_cap != null ? String(e.collect_cap) : '5',
+              initial_output: e.initial_output != null ? String(e.initial_output) : '0',
+            }
+          })
+        }
+      }
+    }
+
     const initialValues: CreateItemInitialValues = {
       name, item_code, category: category as never, rarity: rarity as never,
       is_stackable: typeof item.is_stackable === 'boolean' ? item.is_stackable : false,
@@ -752,6 +931,10 @@ export function LLMConversationPanel() {
       stats, description,
       client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
       allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
+      gen_output_pool,
+      gen_interval_seconds,
+      gen_tick_capacity,
+      gen_collect_destination,
     }
 
     // If item_code is provided, check whether an item with this code already exists via API.
@@ -841,6 +1024,10 @@ export function LLMConversationPanel() {
     setSavedItemDefinitionIds(updated)
     safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
     setItemDefReviewOpen(false)
+    // Link the created item definition to the active conversation
+    linkConversationContent(gameId!, activeConvId, 'item_definition', itemId)
+      .then(() => loadLinkedContent(gameId!, activeConvId))
+      .catch(() => {/* silent — linking is best-effort */})
   }
 
   // ---------------------------------------------------------------------------
@@ -849,20 +1036,9 @@ export function LLMConversationPanel() {
   if (!gameId || !mounted) return null
 
   // ---------------------------------------------------------------------------
-  // Minimized state — floating button
+  // Minimized / closed — render nothing (open via GameNavButtons)
   // ---------------------------------------------------------------------------
-  if (!isOpen || isMinimized) {
-    return (
-      <button
-        id="conv-panel-minimized-btn"
-        onClick={() => { setIsOpen(true); setIsMinimized(false) }}
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-        title={t('llmConversation.title')}
-      >
-        <Bot className="h-5 w-5" />
-      </button>
-    )
-  }
+  if (!isOpen || isMinimized) return null
 
   // ---------------------------------------------------------------------------
   // Full panel
@@ -903,6 +1079,8 @@ export function LLMConversationPanel() {
             onSelectConv={(convId) => { setActiveConvId(convId) }}
             onArchive={handleArchive}
             onUnarchive={handleUnarchive}
+            onDelete={handleDeleteDirect}
+            tokenBalance={tokenBalance}
             t={t}
           />
 
@@ -974,6 +1152,7 @@ export function LLMConversationPanel() {
                 isLoadingLinkedContent={isLoadingLinkedContent}
                 unlinkingId={unlinkingId}
                 loreEntryTitles={loreEntryTitles}
+                itemDefinitionNames={itemDefinitionNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />

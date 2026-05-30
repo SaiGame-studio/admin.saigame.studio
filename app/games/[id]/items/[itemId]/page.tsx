@@ -1648,15 +1648,14 @@ export default function ItemDefinitionDetailPage() {
                                   <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-xs">{t('items.itemDefinition')}</Label>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex flex-col gap-0.5 min-w-0">
                                     <Link
                                       href={`/games/${gameId}/items/${defId}`}
                                       className="inline-flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors min-w-0"
                                       title={defId}
                                     >
                                       <span className="truncate">
-                                        {genPoolLoading ? "…" : resolvedName || (defId ? defId.slice(0, 20) + "…" : "—")}
+                                        {genPoolLoading ? "…" : resolvedName || "—"}
                                       </span>
                                       <ExternalLink className="h-3 w-3 shrink-0" />
                                     </Link>

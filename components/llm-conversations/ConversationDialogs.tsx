@@ -15,6 +15,7 @@ import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
 import type { ItemDefinition } from '@/types/inventory'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import {
   Select,
   SelectContent,
@@ -189,6 +190,17 @@ export function ConversationDialogs({
     }, 400)
     return () => { if (newItemCodeDebounceRef.current) clearTimeout(newItemCodeDebounceRef.current) }
   }, [newItemCodeInput, itemCodeConflictOpen, gameId, itemCodeConflictExisting?.id])
+
+  // ── Escape key layers ──────────────────────────────────────────────────────
+  // Each dialog registers itself so only the topmost layer closes per Escape press.
+  // The panel itself is the bottom layer (registered in ConversationPanel).
+  useEscapeLayer(detailOpen, () => setDetailOpen(false))
+  useEscapeLayer(loreDraftReviewOpen, () => { if (!isCreatingLoreRecords) setLoreDraftReviewOpen(false) })
+  useEscapeLayer(itemDefReviewOpen, () => setItemDefReviewOpen(false))
+  useEscapeLayer(itemCodeConflictOpen, () => {
+    if (!isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') }
+  })
+  // ──────────────────────────────────────────────────────────────────────────
 
   // Sync titleInput when dialog opens and auto-detect if title already matches an existing lore
   useEffect(() => {

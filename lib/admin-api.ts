@@ -395,6 +395,24 @@ export interface SPackage {
   updated_at: string
 }
 
+export interface SGemPackage {
+  id: string
+  package_key: string
+  name: string
+  description: string
+  sgem_amount: number
+  price_amount: number
+  price_currency: string
+  prices: Record<string, number>
+  is_active: boolean
+  sort_order: number
+  metadata: Record<string, unknown>
+  available_from: string | null
+  available_until: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface SPackagesResult {
   packages: SPackage[]
 }
@@ -444,6 +462,11 @@ export async function updateSPackage(id: string, body: UpdateSPackageBody): Prom
 
 export async function deleteSPackage(id: string): Promise<void> {
   return api.delete(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+export async function getSGemPackage(id: string): Promise<SGemPackage> {
+  const res: { package: SGemPackage } = await api.get(`/api/v1/payments/sgem-packages/${id}`)
+  return res.package
 }
 
 // ---------------------------------------------------------------------------
@@ -599,10 +622,14 @@ export interface WorkerMeta {
   description?: string
   collects_data?: string[]
   telegram_preview?: WorkerTelegramPreview
+  no_trigger_reason?: string
 }
+
+export type WorkerState = "running" | "idle" | "pending" | "disabled"
 
 export interface Worker {
   name: string
+  state: WorkerState
   running: boolean
   last_event_at?: string
   last_run?: string
@@ -618,6 +645,11 @@ export interface WorkersStatusResult {
 
 export async function getWorkersStatus(): Promise<WorkersStatusResult> {
   return api.get(`/api/v1/admin/workers/status`)
+}
+
+// Trigger: Generic worker run-now
+export async function triggerWorker(name: string): Promise<void> {
+  return api.post(`/api/v1/admin/workers/${encodeURIComponent(name)}/trigger`)
 }
 
 // Trigger: System Monitor — send CPU/RAM report via Telegram
@@ -646,6 +678,7 @@ export async function triggerReportBackfill(body: BackfillRequest): Promise<void
 // ---------------------------------------------------------------------------
 
 export type AdminTransactionStatus =
+  | "pending"
   | "completed"
   | "failed"
   | "credit_failed"
@@ -657,17 +690,19 @@ export interface AdminTransaction {
   id: string
   idempotency_key: string
   user_id: string
-  scoin_package_id: string
+  currency_type: "sgem" | "scoin"
+  currency_package_id: string
   payment_method_config_id: string
   provider_key: string
   amount: number
   currency: string
-  scoin_amount: number
+  currency_amount: number
   status: AdminTransactionStatus
   provider_data: Record<string, unknown> & {
     transfer_info?: unknown
     status_reason?: unknown
   }
+  currency_credited_at?: string
   created_at: string
   updated_at: string
 }
@@ -1011,4 +1046,77 @@ export async function createDefaultSystemPrompt(body: CreateSystemPromptBody): P
 
 export async function updateDefaultSystemPrompt(id: string, body: UpdateSystemPromptBody): Promise<SystemPrompt> {
   return api.patch(`/api/v1/admin/system-prompts/${encodeURIComponent(id)}`, body)
+}
+
+// ---------------------------------------------------------------------------
+// LLM Token Stats
+// ---------------------------------------------------------------------------
+
+export type LLMTokenStatsPeriod = "hourly" | "daily" | "weekly" | "monthly"
+export type LLMTokenStatsFilterMode = "studio_id" | "game_id" | "user_id"
+
+export interface LLMTokenStatsBucket {
+  label: string
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+}
+
+export interface LLMTokenStatsResult {
+  period: LLMTokenStatsPeriod
+  buckets: LLMTokenStatsBucket[]
+  total_input_tokens: number
+  total_output_tokens: number
+  total_tokens: number
+}
+
+export async function getLLMTokenStatsPeriods(): Promise<{ periods: LLMTokenStatsPeriod[] }> {
+  return api.get("/api/v1/llm/token-stats/periods")
+}
+
+export async function getLLMTokenStats(
+  period: LLMTokenStatsPeriod,
+  mode: LLMTokenStatsFilterMode,
+  id: string
+): Promise<LLMTokenStatsResult> {
+  const params = new URLSearchParams({ period, [mode]: id })
+  return api.get(`/api/v1/admin/llm/token-stats?${params}`)
+}
+
+// ---------------------------------------------------------------------------
+// LLM Token Quota (Super Admin only)
+// ---------------------------------------------------------------------------
+
+export interface LLMTokenBalance {
+  game_id: string
+  free_tokens_total: number
+  free_tokens_used: number
+  free_tokens_reserved: number
+  free_tokens_remaining: number
+  premium_tokens_total: number
+  premium_tokens_used: number
+  premium_tokens_reserved: number
+  premium_tokens_remaining: number
+}
+
+export interface LLMTokenTopUpRequest {
+  free_tokens?: number
+  premium_tokens?: number
+}
+
+export interface LLMTokenTopUpResponse {
+  game_id: string
+  free_tokens_total?: number
+  premium_tokens_total?: number
+}
+
+export async function getLLMTokenBalance(gameId: string): Promise<LLMTokenBalance> {
+  return api.get(`/api/v1/admin/games/${gameId}/llm-tokens/balance`)
+}
+
+export async function topUpLLMTokens(
+  gameId: string,
+  body: LLMTokenTopUpRequest,
+): Promise<LLMTokenTopUpResponse> {
+  return api.post(`/api/v1/admin/games/${gameId}/llm-tokens/topup`, body)
 }

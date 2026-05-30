@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -55,8 +55,10 @@ import {
   listPaymentMethods,
   updatePaymentMethod,
   type SPackage,
+  type SGemPackage,
   listSPackages,
   getSPackage,
+  getSGemPackage,
   createSPackage,
   updateSPackage,
   deleteSPackage,
@@ -120,6 +122,7 @@ const LIMIT = 20
 type StatusFilter = AdminTransactionStatus | ""
 
 const TX_STATUS_COLORS: Record<AdminTransactionStatus, string> = {
+  pending: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
   completed: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   failed: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
   credit_failed: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
@@ -153,22 +156,36 @@ const TX_LIMIT = 50
 // Package info fetcher (with module-level cache)
 // ---------------------------------------------------------------------------
 const pkgCache = new Map<string, SPackage>()
+const sgemPkgCache = new Map<string, SGemPackage>()
 
-function PackageInfoRow({ packageId }: { packageId: string }) {
-  const [pkg, setPkg] = useState<SPackage | null>(() => pkgCache.get(packageId) ?? null)
-  const [loading, setLoading] = useState(!pkgCache.has(packageId))
+function PackageInfoRow({ packageId, currencyType }: { packageId: string | null | undefined; currencyType: "sgem" | "scoin" }) {
+  const isSGem = currencyType === "sgem"
+  const [scoinPkg, setScoinPkg] = useState<SPackage | null>(() => (!isSGem && packageId ? pkgCache.get(packageId) : undefined) ?? null)
+  const [sgemPkg, setSGemPkg] = useState<SGemPackage | null>(() => (isSGem && packageId ? sgemPkgCache.get(packageId) : undefined) ?? null)
+  const [loading, setLoading] = useState(!!packageId && (isSGem ? !sgemPkgCache.has(packageId) : !pkgCache.has(packageId)))
 
   useEffect(() => {
-    if (pkgCache.has(packageId)) return
-    getSPackage(packageId)
-      .then((p) => { pkgCache.set(packageId, p); setPkg(p) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    if (!packageId) return
+    if (isSGem) {
+      if (sgemPkgCache.has(packageId)) return
+      getSGemPackage(packageId)
+        .then((p) => { sgemPkgCache.set(packageId, p); setSGemPkg(p) })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    } else {
+      if (pkgCache.has(packageId)) return
+      getSPackage(packageId)
+        .then((p) => { pkgCache.set(packageId, p); setScoinPkg(p) })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const pkg = isSGem ? sgemPkg : scoinPkg
+
   return (
-    <div className="space-y-0.5 sm:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+    <div id="tx-package-info-row" className="space-y-0.5 sm:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Package</p>
       {loading ? (
         <Skeleton className="h-4 w-48" />
@@ -176,7 +193,10 @@ function PackageInfoRow({ packageId }: { packageId: string }) {
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
           <span className="font-medium">{pkg.name}</span>
           <span className="text-muted-foreground font-mono">{pkg.package_key}</span>
-          <span>🪙 {pkg.scoin_amount.toLocaleString()}{pkg.bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{pkg.bonus_scoin.toLocaleString()} bonus</span> : null}</span>
+          {isSGem
+            ? <span>💎 {(sgemPkg as SGemPackage).sgem_amount.toLocaleString()}</span>
+            : <span>🪙 {(scoinPkg as SPackage).scoin_amount.toLocaleString()}{(scoinPkg as SPackage).bonus_scoin > 0 ? <span className="text-green-500 ml-1">+{(scoinPkg as SPackage).bonus_scoin.toLocaleString()} bonus</span> : null}</span>
+          }
           <span className="font-semibold">{formatTxAmount(pkg.price_amount, pkg.price_currency)}</span>
         </div>
       ) : (
@@ -1257,6 +1277,7 @@ function TransactionsTab() {
 
   const STATUS_OPTIONS: { value: string; label: string }[] = [
     { value: "_all", label: t("adminTransactions.filterAll") },
+    { value: "pending", label: t("adminTransactions.filterPending") },
     { value: "awaiting_payment", label: t("adminTransactions.filterAwaitingPayment") },
     { value: "processing", label: t("adminTransactions.filterProcessing") },
     { value: "completed", label: t("adminTransactions.filterCompleted") },
@@ -1347,9 +1368,8 @@ function TransactionsTab() {
                 transactions.map((tx) => {
                   const isExpanded = expandedId === tx.id
                   return (
-                    <>
+                    <Fragment key={tx.id}>
                       <TableRow
-                        key={tx.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => setExpandedId(isExpanded ? null : tx.id)}
                       >
@@ -1377,7 +1397,9 @@ function TransactionsTab() {
                         <TableCell className="text-sm font-medium">
                           {formatTxAmount(tx.amount, tx.currency)}
                         </TableCell>
-                        <TableCell className="text-sm">🪙 {tx.scoin_amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm">
+                          {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                        </TableCell>
                         <TableCell><TxStatusBadge status={tx.status} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(tx.created_at).toLocaleString(undefined, {
@@ -1388,7 +1410,7 @@ function TransactionsTab() {
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
-                        <TableRow key={`${tx.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
                           <TableCell colSpan={7} className="px-6 py-4">
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
                               <div className="space-y-0.5">
@@ -1403,7 +1425,7 @@ function TransactionsTab() {
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">User ID</p>
                                 <p className="font-mono text-xs break-all flex items-center gap-1">{tx.user_id}<CopyButton text={tx.user_id} /></p>
                               </div>
-                              <PackageInfoRow packageId={tx.scoin_package_id} />
+                              {tx.currency_package_id && <PackageInfoRow packageId={tx.currency_package_id} currencyType={tx.currency_type} />}
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment Method ID</p>
                                 <p className="font-mono text-xs break-all">{tx.payment_method_config_id}</p>
@@ -1417,9 +1439,19 @@ function TransactionsTab() {
                                 <p className="font-semibold">{formatTxAmount(tx.amount, tx.currency)}</p>
                               </div>
                               <div className="space-y-0.5">
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">sCoin</p>
-                                <p className="font-semibold">🪙 {tx.scoin_amount.toLocaleString()}</p>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  {tx.currency_type === "sgem" ? "sGem" : "sCoin"}
+                                </p>
+                                <p className="font-semibold">
+                                  {tx.currency_type === "sgem" ? "💎" : "🪙"} {tx.currency_amount?.toLocaleString() ?? "—"}
+                                </p>
                               </div>
+                              {tx.currency_credited_at && (
+                                <div className="space-y-0.5">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Credited At</p>
+                                  <p className="text-xs">{new Date(tx.currency_credited_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+                                </div>
+                              )}
                               <div className="space-y-0.5">
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
                                 <TxStatusBadge status={tx.status} />
@@ -1453,7 +1485,7 @@ function TransactionsTab() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   )
                 })
               )}

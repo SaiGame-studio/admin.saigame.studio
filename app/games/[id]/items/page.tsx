@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState, useRef, useCallback } from "react"
 import { toSlug, toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -127,6 +127,8 @@ import { CopyButton } from "@/components/CopyButton"
 import { CraftingTab } from "@/components/crafting/crafting-tab"
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab'
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog'
+import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api'
+import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
@@ -1535,6 +1537,26 @@ export default function GameItemsPage() {
   const [gachaComboSearch, setGachaComboSearch] = useState("")
   const suppressGachaAutoOpenRef = useRef(false)
 
+  // conversation panel integration
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
+  const [convActiveId, setConvActiveId] = useState<string | null>(null)
+  const [linkingItemId, setLinkingItemId] = useState<string | null>(null)
+
+  useEffect(() => {
+    function readPanelState() {
+      setConvPanelOpen(safeGetItem('ss_conv_panel_open') === 'true')
+      setConvActiveId(safeGetItem(`ss_conv_active_${gameId}`) ?? null)
+    }
+    readPanelState()
+    const handler = () => readPanelState()
+    window.addEventListener('storage', handler)
+    window.addEventListener('ss:conv-state-changed', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+      window.removeEventListener('ss:conv-state-changed', handler)
+    }
+  }, [gameId])
+
   // initialize tab from URL params
   useEffect(() => {
     const tab = searchParams.get("tab")
@@ -1682,6 +1704,37 @@ export default function GameItemsPage() {
       setUpdatingItemId(null)
     }
   }, [gameId, toast])
+
+  // Link an item definition to the active (or a newly created) conversation
+  async function handleLinkItemToConversation(item: ItemDefinition) {
+    setLinkingItemId(item.id)
+    try {
+      let convId: string | null = convActiveId
+      if (!convId) {
+        // No active conversation — create a new one
+        const newConv = await createConversation(gameId, {
+          title: `Item: ${item.name}`,
+          goal: t('items.linkToConvGoal').replace('{name}', item.name),
+        })
+        convId = newConv.ID
+      }
+      safeSetItem(`ss_conv_active_${gameId}`, convId)
+      setConvActiveId(convId)
+      await linkConversationContent(gameId, convId, 'item_definition', item.id)
+      // Dispatch AFTER linking so the useEffect([activeConvId]) in the panel loads already-linked content
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'item_definition', contentId: item.id, contentName: item.name } }))
+      toast({ title: t('items.linkToConvSuccess'), description: item.name })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('items.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingItemId(null)
+    }
+  }
 
   // ─── Containers ──────────────────────────────────────────────────────────────
   const fetchContainerDefs = useCallback(async () => {
@@ -2324,6 +2377,7 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {convPanelOpen && <TableHead id="items-table-header-link-conv" className="text-center w-10" />}
                       <TableHead>{t('items.name')}</TableHead>
                       <TableHead>{t('items.itemCode')}</TableHead>
                       <TableHead className="text-center">{t('items.category')}</TableHead>
@@ -2365,13 +2419,43 @@ export default function GameItemsPage() {
                         </div>
                       </TableHead>
                       <TableHead className="text-center">{t('items.stackable')}</TableHead>
-                      <TableHead className="text-center">{t('items.gridHeader')}</TableHead>
-                      <TableHead className="text-center">{t('items.actionsHeader')}</TableHead>
+                      {!convPanelOpen && <TableHead className="text-center">{t('items.gridHeader')}</TableHead>}
+                      {!convPanelOpen && <TableHead className="text-center">{t('items.actionsHeader')}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id} className="hover:bg-muted/40">
+                        {convPanelOpen && (
+                          <TableCell id={`items-row-${item.id}-link-conv-cell`} className="text-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    id={`items-row-${item.id}-link-conv-btn`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                                    disabled={linkingItemId === item.id}
+                                    onClick={() => handleLinkItemToConversation(item)}
+                                  >
+                                    {linkingItemId === item.id
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : (
+                                        <span id={`items-row-${item.id}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                                          <Bot className="h-3.5 w-3.5" />
+                                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                                        </span>
+                                      )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent id={`items-row-${item.id}-link-conv-tooltip`} side="top">
+                                  {t('items.linkToConv')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                        )}
                         <TableCell className="font-medium">
                           <div className="flex flex-col gap-0.5">
                             <Link
@@ -2443,18 +2527,22 @@ export default function GameItemsPage() {
                             <span className="text-muted-foreground text-sm">✗</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center text-sm text-muted-foreground">
-                          {item.grid_width}×{item.grid_height}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button variant="ghost" size="icon" asChild title="Edit">
-                              <Link href={`/games/${gameId}/items/${item.id}`}>
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {!convPanelOpen && (
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {item.grid_width}×{item.grid_height}
+                          </TableCell>
+                        )}
+                        {!convPanelOpen && (
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button variant="ghost" size="icon" asChild title="Edit">
+                                <Link href={`/games/${gameId}/items/${item.id}`}>
+                                  <Pencil className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
