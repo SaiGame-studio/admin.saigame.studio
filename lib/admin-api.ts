@@ -1021,3 +1021,38 @@ export async function createDefaultSystemPrompt(body: CreateSystemPromptBody): P
 export async function updateDefaultSystemPrompt(id: string, body: UpdateSystemPromptBody): Promise<SystemPrompt> {
   return api.patch(`/api/v1/admin/system-prompts/${encodeURIComponent(id)}`, body)
 }
+
+// ---------------------------------------------------------------------------
+// LLM Token Stats
+// ---------------------------------------------------------------------------
+
+export type LLMTokenStatsPeriod = "hourly" | "daily" | "weekly" | "monthly"
+export type LLMTokenStatsFilterMode = "studio_id" | "game_id" | "user_id"
+
+export interface LLMTokenStatsBucket {
+  label: string
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+}
+
+export interface LLMTokenStatsResult {
+  period: LLMTokenStatsPeriod
+  buckets: LLMTokenStatsBucket[]
+  total_input_tokens: number
+  total_output_tokens: number
+  total_tokens: number
+}
+
+export async function getLLMTokenStatsPeriods(): Promise<{ periods: LLMTokenStatsPeriod[] }> {
+  return api.get("/api/v1/llm/token-stats/periods")
+}
+
+export async function getLLMTokenStats(
+  period: LLMTokenStatsPeriod,
+  mode: LLMTokenStatsFilterMode,
+  id: string
+): Promise<LLMTokenStatsResult> {
+  const params = new URLSearchParams({ period, [mode]: id })
+  return api.get(`/api/v1/admin/llm/token-stats?${params}`)
+}

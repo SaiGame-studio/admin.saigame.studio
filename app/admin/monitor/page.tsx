@@ -109,6 +109,7 @@ import { formatTimestamp, formatISODate } from "@/lib/utils/date-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { AdminStudioLimitsDialog } from "@/components/AdminStudioLimitsDialog"
 import { AdminGameLimitsDialog } from "@/components/AdminGameLimitsDialog"
+import { TokenStatsTab } from "@/components/TokenStatsTab"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts"
 import {
   ChartContainer,
@@ -2838,7 +2839,7 @@ function SystemPromptsTab() {
 // Tabs shell
 // ---------------------------------------------------------------------------
 
-const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts"] as const
+const VALID_TABS = ["ccu", "workers", "mailblock", "users", "studios", "games", "charts", "sysprompts", "tokenstats"] as const
 type TabValue = (typeof VALID_TABS)[number]
 
 function MonitorTabs() {
@@ -2907,6 +2908,10 @@ function MonitorTabs() {
             <BotMessageSquare className="h-4 w-4" />
             Sys Prompts
           </TabsTrigger>
+          <TabsTrigger value="tokenstats" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Token Stats
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ccu" className="mt-0">
@@ -2932,6 +2937,9 @@ function MonitorTabs() {
         </TabsContent>
         <TabsContent value="sysprompts" className="mt-0">
           <SystemPromptsTab />
+        </TabsContent>
+        <TabsContent value="tokenstats" className="mt-0">
+          <TokenStatsTab />
         </TabsContent>
       </Tabs>
     </div>
