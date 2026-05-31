@@ -1089,14 +1089,10 @@ export async function getLLMTokenStats(
 
 export interface LLMTokenBalance {
   game_id: string
-  free_tokens_total: number
-  free_tokens_used: number
-  free_tokens_reserved: number
   free_tokens_remaining: number
-  premium_tokens_total: number
-  premium_tokens_used: number
-  premium_tokens_reserved: number
+  free_tokens_used: number
   premium_tokens_remaining: number
+  premium_tokens_used: number
 }
 
 export interface LLMTokenTopUpRequest {
@@ -1106,8 +1102,6 @@ export interface LLMTokenTopUpRequest {
 
 export interface LLMTokenTopUpResponse {
   game_id: string
-  free_tokens_total?: number
-  premium_tokens_total?: number
 }
 
 export async function getLLMTokenBalance(gameId: string): Promise<LLMTokenBalance> {

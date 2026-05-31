@@ -243,7 +243,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       ) : triggerButton}
 
       <Sheet open={open} onOpenChange={(v) => { setOpen(v); setSelectedKey(null) }}>
-        <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="w-full sm:max-w-[622px] flex flex-col overflow-y-auto p-0">
+        <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="w-full sm:max-w-[622px] flex flex-col overflow-y-auto p-0 top-14 lg:top-[60px] h-[calc(100%-3.5rem)] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
           {/* Scrollable area */}
           <style>{`
             @keyframes prem-float-up {
