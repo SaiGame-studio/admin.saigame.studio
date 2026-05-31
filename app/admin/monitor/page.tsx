@@ -2568,6 +2568,9 @@ function SystemPromptsTab() {
   const [editPrompt, setEditPrompt] = useState<SystemPrompt | null>(null)
   const [viewPrompt, setViewPrompt] = useState<SystemPrompt | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [nameFilter, setNameFilter] = useState("")
+  const [providerFilter, setProviderFilter] = useState("all")
+  const [activeFilter, setActiveFilter] = useState("all")
 
   useEffect(() => {
     listRequestTypes().then(setPromptTypes).catch(() => {})
@@ -2667,12 +2670,29 @@ function SystemPromptsTab() {
     }
   }
 
+  const filteredPrompts = prompts.filter((p) => {
+    if (nameFilter && !p.name.toLowerCase().includes(nameFilter.toLowerCase())) return false
+    if (providerFilter !== "all") {
+      if (providerFilter === "none" && p.provider) return false
+      if (providerFilter !== "none" && p.provider !== providerFilter) return false
+    }
+    if (activeFilter === "active" && !p.is_active) return false
+    if (activeFilter === "inactive" && p.is_active) return false
+    return true
+  })
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">System Prompts</h2>
-          {!loading && <span className="text-xs text-muted-foreground">{prompts.length} prompt{prompts.length !== 1 ? "s" : ""}</span>}
+          {!loading && (
+            <span className="text-xs text-muted-foreground">
+              {filteredPrompts.length !== prompts.length
+                ? `${filteredPrompts.length} of ${prompts.length} prompt${prompts.length !== 1 ? "s" : ""}`
+                : `${prompts.length} prompt${prompts.length !== 1 ? "s" : ""}`}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -2697,6 +2717,50 @@ function SystemPromptsTab() {
         </div>
       </div>
 
+      {/* Filter bar */}
+      <div id="sysprompts-filter-bar" className="flex flex-wrap items-center gap-2">
+        <Input
+          id="sysprompts-name-filter"
+          placeholder="Search by name..."
+          value={nameFilter}
+          onChange={(e) => setNameFilter(e.target.value)}
+          className="h-8 text-xs w-[200px]"
+        />
+        <Select value={providerFilter} onValueChange={setProviderFilter}>
+          <SelectTrigger id="sysprompts-provider-filter" className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="All providers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All providers</SelectItem>
+            <SelectItem value="none">Platform default</SelectItem>
+            <SelectItem value="gemini">Gemini</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
+            <SelectItem value="anthropic">Anthropic</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={activeFilter} onValueChange={setActiveFilter}>
+          <SelectTrigger id="sysprompts-active-filter" className="w-[140px] h-8 text-xs">
+            <SelectValue placeholder="All status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All status</SelectItem>
+            <SelectItem value="active">Active only</SelectItem>
+            <SelectItem value="inactive">Inactive only</SelectItem>
+          </SelectContent>
+        </Select>
+        {(nameFilter || providerFilter !== "all" || activeFilter !== "all") && (
+          <Button
+            id="sysprompts-clear-filters-btn"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs px-2"
+            onClick={() => { setNameFilter(""); setProviderFilter("all"); setActiveFilter("all") }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
+
       {error && (
         <Card className="border-destructive/50">
           <CardContent className="pt-4 text-destructive text-sm">{error}</CardContent>
@@ -2714,10 +2778,10 @@ function SystemPromptsTab() {
       {!loading && !error && (
         <Card>
           <CardContent className="p-0">
-            {prompts.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">
+            {filteredPrompts.length === 0 ? (
+              <div id="sysprompts-empty-state" className="py-12 text-center text-muted-foreground">
                 <BotMessageSquare className="h-12 w-12 mx-auto mb-2 opacity-40" />
-                <p>No system prompts found.</p>
+                <p>{prompts.length === 0 ? "No system prompts found." : "No prompts match the current filters."}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -2735,7 +2799,7 @@ function SystemPromptsTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {prompts.map((p) => (
+                    {filteredPrompts.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>
                           <div className="font-medium">{p.name}</div>
