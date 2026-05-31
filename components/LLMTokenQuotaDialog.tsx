@@ -28,11 +28,9 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getBarColor(remaining: number, total: number): string {
-  if (total === 0) return "#6b7280"
-  const pct = remaining / total
-  if (pct >= 0.5) return "#22c55e"
-  if (pct >= 0.2) return "#f59e0b"
+function getBarColor(pct: number): string {
+  if (pct >= 50) return "#22c55e"
+  if (pct >= 20) return "#f59e0b"
   return "#ef4444"
 }
 
@@ -49,19 +47,18 @@ interface PoolRowProps {
   label: string
   remaining: number
   used: number
-  reserved: number
-  total: number
   onTopUp: (amount: number) => Promise<void>
 }
 
-function TokenPoolRow({ id, label, remaining, used, reserved, total, onTopUp }: PoolRowProps) {
+function TokenPoolRow({ id, label, remaining, used, onTopUp }: PoolRowProps) {
   const [topUpOpen, setTopUpOpen] = useState(false)
   const [amount, setAmount] = useState("")
   const [topping, setTopping] = useState(false)
 
+  const total = remaining + used
   const pct = total > 0 ? Math.min(100, (remaining / total) * 100) : 0
-  const barColor = getBarColor(remaining, total)
-  const preview = total + (parseInt(amount, 10) || 0)
+  const barColor = getBarColor(pct)
+  const preview = remaining + (parseInt(amount, 10) || 0)
 
   async function handleConfirm() {
     const n = parseInt(amount, 10)
@@ -115,8 +112,8 @@ function TokenPoolRow({ id, label, remaining, used, reserved, total, onTopUp }: 
               </div>
               <div id={`llm-token-topup-preview-${id}`} className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-1">
                 <div id={`llm-token-preview-current-${id}`} className="flex justify-between">
-                  <span className="text-muted-foreground">Current total</span>
-                  <span className="font-mono">{formatTokens(total)}</span>
+                  <span className="text-muted-foreground">Current remaining</span>
+                  <span className="font-mono">{formatTokens(remaining)}</span>
                 </div>
                 <div id={`llm-token-preview-after-${id}`} className="flex justify-between font-medium">
                   <span>After top-up</span>
@@ -148,14 +145,12 @@ function TokenPoolRow({ id, label, remaining, used, reserved, total, onTopUp }: 
           <span id={`llm-token-remaining-${id}`}>
             <span className="font-semibold text-foreground">{formatTokens(remaining)}</span> remaining
           </span>
-          <span id={`llm-token-total-${id}`}>{formatTokens(total)} total</span>
         </div>
       </div>
 
       {/* Secondary stats */}
       <div id={`llm-token-secondary-${id}`} className="flex gap-4 text-xs text-muted-foreground">
         <span id={`llm-token-used-${id}`}>Used: <span className="text-foreground">{formatTokens(used)}</span></span>
-        <span id={`llm-token-reserved-${id}`}>Reserved: <span className="text-foreground">{formatTokens(reserved)}</span></span>
       </div>
     </div>
   )
@@ -264,8 +259,6 @@ export function LLMTokenQuotaDialog({ game }: Props) {
                 label="💎 Premium Tokens (priority)"
                 remaining={balance.premium_tokens_remaining}
                 used={balance.premium_tokens_used}
-                reserved={balance.premium_tokens_reserved}
-                total={balance.premium_tokens_total}
                 onTopUp={handlePremiumTopUp}
               />
               <TokenPoolRow
@@ -273,8 +266,6 @@ export function LLMTokenQuotaDialog({ game }: Props) {
                 label="🆓 Free Tokens"
                 remaining={balance.free_tokens_remaining}
                 used={balance.free_tokens_used}
-                reserved={balance.free_tokens_reserved}
-                total={balance.free_tokens_total}
                 onTopUp={handleFreeTopUp}
               />
             </>
