@@ -3563,7 +3563,8 @@ export const en = {
       lore_updating: "Update Lore",
       tag_suggestion: "Tag Suggestion",
       preset_generation: "Generate Presets",
-      container_generation: "Generate Containers",
+      container_creating: "Create Container",
+      container_creating: "Create Container",
     },
     entityTypes: {
       world: "World",
@@ -3664,6 +3665,7 @@ export const en = {
       lore: "Lore",
       lore_entry: "Lore",
       item_definition: "Item",
+      container_definition: "Container",
     },
     fullDetail: "Full Detail",
     detailTitle: "Conversation Detail",

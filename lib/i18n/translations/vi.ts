@@ -3503,7 +3503,8 @@ export const vi = {
       lore_updating: "Cập Nhật Lore",
       tag_suggestion: "Gợi Ý Tag",
       preset_generation: "Tạo Preset",
-      container_generation: "Tạo Container",
+      container_creating: "Tạo Container Definition",
+      container_creating: "Tạo Container Definition",
     },
     entityTypes: {
       world: "Thế giới",
@@ -3604,6 +3605,7 @@ export const vi = {
       lore: "Mục lore",
       lore_entry: "Mục lore",
       item_definition: "Vật phẩm",
+      container_definition: "Hộp chứa",
     },
     fullDetail: "Chi tiết đầy đủ",
     detailTitle: "Chi tiết cuộc hội thoại",

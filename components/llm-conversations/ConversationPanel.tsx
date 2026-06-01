@@ -42,6 +42,7 @@ import {
   lsContainerLinks,
   lsLoreTitles,
   lsItemNames,
+  lsContainerNames,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
@@ -60,7 +61,7 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition } from '@/lib/inventory-api'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { updateGame, getGame } from '@/lib/game-api'
@@ -202,6 +203,7 @@ export function LLMConversationPanel() {
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
   const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
+  const [containerDefinitionNames, setContainerDefinitionNames] = useState<Record<string, string>>({})
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -330,7 +332,7 @@ export function LLMConversationPanel() {
     for (const turn of chatHistory) {
       if (!turn.responses) continue
       for (const response of turn.responses) {
-        if (response.intentType === 'container_generation' && response.done && !response.error && response.responseText) {
+        if (response.intentType === 'container_creating' && response.done && !response.error && response.responseText) {
           const parsed = parseGeneratedContainersResponse(response.responseText)
           if (parsed.length > 0) {
             lastGeneratedContainers = parsed
@@ -362,6 +364,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(itemDefinitionNames).length === 0) return
     safeSetItem(lsItemNames(activeConvId), JSON.stringify(itemDefinitionNames))
   }, [itemDefinitionNames, activeConvId])
+
+  // Persist container definition names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(containerDefinitionNames).length === 0) return
+    safeSetItem(lsContainerNames(activeConvId), JSON.stringify(containerDefinitionNames))
+  }, [containerDefinitionNames, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -410,6 +418,7 @@ export function LLMConversationPanel() {
       setLinkedContent([])
       setLoreEntryTitles({})
       setItemDefinitionNames({})
+      setContainerDefinitionNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
@@ -454,6 +463,8 @@ export function LLMConversationPanel() {
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
     const rawItemNames = safeGetItem(lsItemNames(activeConvId))
     if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
+    const rawContainerNames = safeGetItem(lsContainerNames(activeConvId))
+    if (rawContainerNames) { try { setContainerDefinitionNames(JSON.parse(rawContainerNames)) } catch { setContainerDefinitionNames({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -488,6 +499,8 @@ export function LLMConversationPanel() {
           setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'lore_entry' || detail.contentType === 'lore') {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'container_definition') {
+          setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -514,18 +527,26 @@ export function LLMConversationPanel() {
   // Catch successful container creation triggered from the panel, map turn context → container ID
   useEffect(() => {
     function handleContainerCreated(e: Event) {
-      const detail = (e as CustomEvent<{ containerId: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
-      if (!activeConvId) return
+      const detail = (e as CustomEvent<{ containerId: string; containerName?: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
+      if (!activeConvId || !gameId) return
       const containerKey = `${detail.turnId}:${detail.responseIdx}:${detail.containerIdx}`
       setSavedContainerDefinitionIds(prev => {
         const updated = { ...prev, [containerKey]: detail.containerId }
         safeSetItem(lsContainerLinks(activeConvId!), JSON.stringify(updated))
         return updated
       })
+      // Link the container to the conversation (same pattern as items/lore)
+      void linkConversationContent(gameId, activeConvId, 'container_definition', detail.containerId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      // Cache the container name immediately if provided
+      if (detail.containerName) {
+        setContainerDefinitionNames(prev => ({ ...prev, [detail.containerId]: detail.containerName! }))
+      }
     }
     window.addEventListener('ss:container-created', handleContainerCreated)
     return () => window.removeEventListener('ss:container-created', handleContainerCreated)
-  }, [activeConvId])
+  }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
   // API calls
@@ -585,14 +606,18 @@ export function LLMConversationPanel() {
       // React batch → a single render that already has names, no "Item" flash.
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
+      const containerLinks = items.filter(l => l.content_type === 'container_definition')
 
-      const [loreResults, itemResults] = await Promise.all([
+      const [loreResults, itemResults, containerResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
         itemLinks.length > 0
           ? Promise.allSettled(itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
+        containerLinks.length > 0
+          ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
       ])
 
       // Build name maps synchronously (no more awaits after this point)
@@ -608,9 +633,16 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
       })
 
-      // All three setters fire synchronously → one React render with everything ready
+      const containerNames: Record<string, string> = {}
+      containerLinks.forEach((l, i) => {
+        const result = containerResults[i]
+        if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
+      })
+
+      // All setters fire synchronously → one React render with everything ready
       if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
+      if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
       setLinkedContent(items)
     } catch {
       // silently ignore
@@ -699,6 +731,9 @@ export function LLMConversationPanel() {
     const linkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const linkedContainerIds = linkedContent
+      .filter(l => l.content_type === 'container_definition')
+      .map(l => l.content_id)
     // Fall back to the last known entityType from history when the current turn
     // doesn't produce one (e.g. "update the current content" follow-up requests)
     const allResponses = chatHistory.flatMap(t => t.responses ?? []).filter(r => r.entityType)
@@ -739,6 +774,7 @@ export function LLMConversationPanel() {
       linkedItemIds.length > 0 ? linkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -810,6 +846,7 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
       safeRemoveItem(lsLoreTitles(deleteTarget.ID))
       safeRemoveItem(lsItemNames(deleteTarget.ID))
+      safeRemoveItem(lsContainerNames(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -1493,6 +1530,7 @@ export function LLMConversationPanel() {
                 unlinkingId={unlinkingId}
                 loreEntryTitles={loreEntryTitles}
                 itemDefinitionNames={itemDefinitionNames}
+                containerDefinitionNames={containerDefinitionNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />

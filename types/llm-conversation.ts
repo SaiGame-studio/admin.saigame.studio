@@ -73,6 +73,7 @@ export interface SubmitRequestResponse {
 export interface CreateRecordsResponse {
   created_count: number
   item_definition_ids: string[]
+  container_definition_ids?: string[]
 }
 
 export interface CreateLoreRecordsResponse {

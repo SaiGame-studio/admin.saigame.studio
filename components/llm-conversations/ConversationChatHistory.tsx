@@ -471,7 +471,7 @@ export function ConversationChatHistory({
                               <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                             )}
                           </div>
-                        ) : response.intentType === 'container_generation' ? (
+                        ) : response.intentType === 'container_creating' ? (
                           <div id={`conv-panel-ai-response-containers-${turn.id}-${idx}`} className="flex flex-col gap-1">
                             {splitContainerResponseSegments(response.responseText).map((seg, segIdx) =>
                               seg.type === 'text' ? (

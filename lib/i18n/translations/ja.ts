@@ -3492,7 +3492,8 @@ export const ja = {
       lore_updating: "ロア更新",
       tag_suggestion: "タグ提案",
       preset_generation: "プリセット生成",
-      container_generation: "コンテナー生成",
+      container_creating: "コンテナー作成",
+      container_creating: "コンテナー作成",
     },
     entityTypes: {
       world: "世界",
@@ -3593,6 +3594,7 @@ export const ja = {
       lore: "ロア",
       lore_entry: "ロア",
       item_definition: "アイテム",
+      container_definition: "コンテナ",
     },
     fullDetail: "詳細表示",
     detailTitle: "会話の詳細",

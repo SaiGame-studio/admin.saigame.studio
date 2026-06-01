@@ -224,7 +224,19 @@ export async function streamDetectIntent(
             })
             .filter((i) => i.type)
         }
-        onDone(intents)
+        const INTENT_ORDER: Record<string, number> = {
+          lore_creating: 0,
+          lore_analyzing: 0,
+          lore_updating: 0,
+          item_generation: 1,
+          item_modify: 1,
+        }
+        const sortedIntents = [...intents].sort((a, b) => {
+          const rankA = INTENT_ORDER[a.type] ?? 2
+          const rankB = INTENT_ORDER[b.type] ?? 2
+          return rankA - rankB
+        })
+        onDone(sortedIntents)
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')
@@ -248,6 +260,7 @@ export async function streamRequest(
   goals?: string[],
   generatedItems?: unknown[],
   itemDefinitionIds?: string[],
+  containerDefinitionIds?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -263,13 +276,15 @@ export async function streamRequest(
   body.lore_entry_ids = (loreEntryIds && loreEntryIds.length > 0) ? loreEntryIds : []
   // Always send item_definition_ids so the backend has full linked item context
   body.item_definition_ids = (itemDefinitionIds && itemDefinitionIds.length > 0) ? itemDefinitionIds : []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_generation') && entityType) {
+  // Always send container_definition_ids so the backend has full linked container context
+  body.container_definition_ids = (containerDefinitionIds && containerDefinitionIds.length > 0) ? containerDefinitionIds : []
+  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_generation') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_generation') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (mainContent) {
