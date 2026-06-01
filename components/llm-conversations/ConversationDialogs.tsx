@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search } from 'lucide-react'
+import { BookOpen, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -14,7 +14,7 @@ import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/comp
 import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
-import type { ItemDefinition } from '@/types/inventory'
+import type { ItemDefinition, ContainerDefinition } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import {
@@ -96,6 +96,13 @@ interface ConversationDialogsProps {
   isApplyingPresetConflict: boolean
   onPresetCodeConflictUpdate: () => void
   onPresetCodeConflictSaveNew: (newCodeName: string) => void
+  // Container name conflict dialog
+  containerNameConflictOpen: boolean
+  setContainerNameConflictOpen: (v: boolean) => void
+  containerNameConflictExisting: ContainerDefinition | null
+  isApplyingContainerConflict: boolean
+  onContainerNameConflictUpdate: () => void
+  onContainerNameConflictCreateNew: (newName: string) => void
   t: (key: string) => string
 }
 
@@ -151,6 +158,12 @@ export function ConversationDialogs({
   isApplyingPresetConflict,
   onPresetCodeConflictUpdate,
   onPresetCodeConflictSaveNew,
+  containerNameConflictOpen,
+  setContainerNameConflictOpen,
+  containerNameConflictExisting,
+  isApplyingContainerConflict,
+  onContainerNameConflictUpdate,
+  onContainerNameConflictCreateNew,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -177,6 +190,9 @@ export function ConversationDialogs({
   const [newPresetCodeDuplicate, setNewPresetCodeDuplicate] = useState<PresetDefinition | null>(null)
   const [isCheckingNewPresetCode, setIsCheckingNewPresetCode] = useState(false)
   const newPresetCodeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Container name conflict dialog state ──
+  const [newContainerNameInput, setNewContainerNameInput] = useState('')
 
   useEffect(() => {
     if (itemCodeConflictOpen && itemCodeConflictExisting?.item_code) {
@@ -221,6 +237,14 @@ export function ConversationDialogs({
   }, [presetCodeConflictOpen, presetCodeConflictExisting?.code_name])
 
   useEffect(() => {
+    if (containerNameConflictOpen && containerNameConflictExisting?.name) {
+      setNewContainerNameInput(`${containerNameConflictExisting.name} 2`)
+    } else if (!containerNameConflictOpen) {
+      setNewContainerNameInput('')
+    }
+  }, [containerNameConflictOpen, containerNameConflictExisting?.name])
+
+  useEffect(() => {
     if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
     const code = newPresetCodeInput.trim()
     if (!code || !presetCodeConflictOpen) {
@@ -254,6 +278,9 @@ export function ConversationDialogs({
   })
   useEscapeLayer(presetCodeConflictOpen, () => {
     if (!isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') }
+  })
+  useEscapeLayer(containerNameConflictOpen, () => {
+    if (!isApplyingContainerConflict) { setContainerNameConflictOpen(false); setNewContainerNameInput('') }
   })
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -770,6 +797,77 @@ export function ConversationDialogs({
                 {t('llmConversation.presetCodeConflictSaveNew')}
               </button>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={containerNameConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingContainerConflict) { setContainerNameConflictOpen(false); setNewContainerNameInput('') } }}
+      >
+        <DialogContent id="container-name-conflict-dialog-root">
+          <DialogHeader id="container-name-conflict-dialog-header">
+            <DialogTitle id="container-name-conflict-dialog-title">{t('llmConversation.containerNameConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="container-name-conflict-dialog-body" className="space-y-3">
+            <p id="container-name-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.containerNameConflictDesc').replace('{name}', containerNameConflictExisting?.name ?? '')}
+            </p>
+            {containerNameConflictExisting && (
+              <a
+                id="container-name-conflict-existing-link"
+                href={`/games/${gameId}/items?tab=containers&q=${containerNameConflictExisting.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Archive id="container-name-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="container-name-conflict-existing-link-name" className="flex-1 truncate">{containerNameConflictExisting.name}</span>
+                <ExternalLink id="container-name-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+          {/* Update existing — primary action */}
+          <button
+            id="container-name-conflict-update-btn"
+            type="button"
+            disabled={isApplyingContainerConflict}
+            onClick={onContainerNameConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isApplyingContainerConflict
+              ? <><Loader2 id="container-name-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.containerNameConflictUpdating')}</>
+              : <><Archive id="container-name-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.containerNameConflictUpdate')}</>
+            }
+          </button>
+          <div id="container-name-conflict-divider" className="relative flex items-center gap-2">
+            <div id="container-name-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="container-name-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="container-name-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+          {/* Create new with renamed name — secondary action */}
+          <div id="container-name-conflict-create-new-section" className="space-y-2">
+            <Label id="container-name-conflict-new-name-label" htmlFor="container-name-conflict-new-name-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.containerNameConflictNewNameLabel')}
+            </Label>
+            <Input
+              id="container-name-conflict-new-name-input"
+              value={newContainerNameInput}
+              onChange={(e) => setNewContainerNameInput(e.target.value)}
+              disabled={isApplyingContainerConflict}
+            />
+            <button
+              id="container-name-conflict-create-new-btn"
+              type="button"
+              disabled={isApplyingContainerConflict || !newContainerNameInput.trim()}
+              onClick={() => { onContainerNameConflictCreateNew(newContainerNameInput.trim()); setNewContainerNameInput('') }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingContainerConflict
+                ? <><Loader2 id="container-name-conflict-create-new-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.containerNameConflictUpdating')}</>
+                : <><Archive id="container-name-conflict-create-new-icon" className="h-4 w-4" />{t('llmConversation.containerNameConflictCreateNew')}</>
+              }
+            </button>
           </div>
         </DialogContent>
       </Dialog>

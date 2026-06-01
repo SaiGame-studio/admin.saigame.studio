@@ -303,6 +303,7 @@ function CreateContainerDefinitionDialog({
   gameId,
   allItems,
   containerTypeOptions,
+  initialValues,
   onCreated,
   onClose,
 }: {
@@ -310,7 +311,8 @@ function CreateContainerDefinitionDialog({
   gameId: string
   allItems: ItemDefinition[]
   containerTypeOptions: ContainerTypeOption[]
-  onCreated: () => void
+  initialValues?: { name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean }
+  onCreated: (id: string) => void
   onClose: () => void
 }) {
   const { toast } = useToast()
@@ -326,6 +328,17 @@ function CreateContainerDefinitionDialog({
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (open && initialValues) {
+      if (initialValues.name) setName(initialValues.name)
+      if (initialValues.container_type) setContainerType(initialValues.container_type as ContainerType)
+      if (initialValues.grid_cols) setGridCols(String(initialValues.grid_cols))
+      if (initialValues.grid_rows) setGridRows(String(initialValues.grid_rows))
+      if (initialValues.is_portable !== undefined) setIsPortable(initialValues.is_portable)
+    }
+  }, [open, initialValues])
+
   function resetForm() {
     setName("")
     setContainerType("chest")
@@ -363,10 +376,10 @@ function CreateContainerDefinitionDialog({
         ...(linkedItemId ? { linked_item_definition_id: linkedItemId } : {}),
         metadata,
       }
-      await createContainerDefinition({ gameId }, body)
+      const res = await createContainerDefinition({ gameId }, body)
       toast({ title: t('items.containerCreated'), description: `"${name.trim()}" added.` })
       resetForm()
-      onCreated()
+      onCreated(res.container_definition.id)
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
@@ -1468,6 +1481,8 @@ export default function GameItemsPage() {
   const [containerError, setContainerError] = useState<string | null>(null)
   const [containerOffset, setContainerOffset] = useState(0)
   const [showCreateContainer, setShowCreateContainer] = useState(false)
+  const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{ name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean } | undefined>(undefined)
+  const [createContainerConvContext, setCreateContainerConvContext] = useState<{ turnId: string; responseIdx: number; containerIdx: number } | undefined>(undefined)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
   const [containerSearch, setContainerSearch] = useState("")
@@ -1552,9 +1567,30 @@ export default function GameItemsPage() {
     const handler = () => readPanelState()
     window.addEventListener('storage', handler)
     window.addEventListener('ss:conv-state-changed', handler)
+
+    function handleOpenCreateContainer(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      setCreateContainerInitialValues({
+        name: detail.name,
+        container_type: detail.container_type,
+        grid_cols: detail.grid_cols,
+        grid_rows: detail.grid_rows,
+        is_portable: detail.is_portable,
+      })
+      if (detail.turnId !== undefined) {
+        setCreateContainerConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, containerIdx: detail.containerIdx })
+      } else {
+        setCreateContainerConvContext(undefined)
+      }
+      setActiveTab('containers')
+      setShowCreateContainer(true)
+    }
+    window.addEventListener('ss:open-create-container', handleOpenCreateContainer)
+
     return () => {
       window.removeEventListener('storage', handler)
       window.removeEventListener('ss:conv-state-changed', handler)
+      window.removeEventListener('ss:open-create-container', handleOpenCreateContainer)
     }
   }, [gameId])
 
@@ -1572,6 +1608,9 @@ export default function GameItemsPage() {
     // initialize preset search from URL `id` param
     const presetId = searchParams.get("id")
     if (presetId && tab === "preset") setPresetSearch(presetId)
+    // initialize container search from URL `id` param
+    const containerId = searchParams.get("id")
+    if (containerId && tab === "containers") setContainerSearch(containerId)
     // auto-open create preset sheet from URL params
     if (tab === "preset" && searchParams.get("create") === "1") {
       const iv: { name?: string; preset_type?: string; code_name?: string; max_slots?: number } = {}
@@ -1591,9 +1630,7 @@ export default function GameItemsPage() {
   // update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    const newParams = new URLSearchParams(searchParams.toString())
-    newParams.set("tab", value)
-    router.push(`${window.location.pathname}?${newParams.toString()}`)
+    router.push(`${window.location.pathname}?tab=${value}`)
   }
 
   const handleContainerSubTabChange = (value: string) => {
@@ -3885,8 +3922,16 @@ export default function GameItemsPage() {
         gameId={gameId}
         allItems={containerAllItems}
         containerTypeOptions={containerTypeOptions}
-        onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
-        onClose={() => setShowCreateContainer(false)}
+        initialValues={createContainerInitialValues}
+        onCreated={(id) => {
+          fetchContainerDefs()
+          loadGameInfo()
+          if (createContainerConvContext) {
+            const { turnId, responseIdx, containerIdx } = createContainerConvContext
+            window.dispatchEvent(new CustomEvent('ss:container-created', { detail: { containerId: id, turnId, responseIdx, containerIdx } }))
+          }
+        }}
+        onClose={() => { setShowCreateContainer(false); setCreateContainerInitialValues(undefined); setCreateContainerConvContext(undefined) }}
       />
 
 

@@ -54,6 +54,7 @@ export function useChatPipeline() {
     generatedItems?: unknown[],
     itemDefinitionIds?: string[],
     generatedPresets?: unknown[],
+    generatedContainers?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -184,7 +185,9 @@ export function useChatPipeline() {
           (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation') ? intent.goals : undefined,
           intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0
             ? generatedPresets
-            : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
+            : intent.type === 'container_generation' && generatedContainers && generatedContainers.length > 0
+              ? generatedContainers
+              : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
               ? generatedItems
               : undefined,
           itemDefinitionIds,
@@ -245,6 +248,7 @@ export function useChatPipeline() {
     loreEntryIds?: string[],
     itemDefinitionIds?: string[],
     generatedPresets?: unknown[],
+    generatedContainers?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -311,7 +315,9 @@ export function useChatPipeline() {
         undefined,
         intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0
           ? generatedPresets
-          : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
+          : intentType === 'container_generation' && generatedContainers && generatedContainers.length > 0
+            ? generatedContainers
+            : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
             ? generatedItems
             : undefined,
         itemDefinitionIds,

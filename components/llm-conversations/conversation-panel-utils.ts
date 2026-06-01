@@ -181,6 +181,7 @@ export type ResponseSegment =
   | { type: 'text'; text: string }
   | { type: 'item'; text: string; item: Record<string, unknown>; itemIdx: number }
   | { type: 'preset'; text: string; preset: Record<string, unknown>; presetIdx: number }
+  | { type: 'container'; text: string; container: Record<string, unknown>; containerIdx: number }
 
 export function splitItemResponseSegments(text: string): ResponseSegment[] {
   const looksLikeItem = (obj: Record<string, unknown>) =>
@@ -370,6 +371,133 @@ export function splitPresetResponseSegments(text: string): ResponseSegment[] {
       if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
     }
     segments.push({ type: 'preset', text: text.slice(boundary.start, boundary.end), preset: boundary.preset, presetIdx: presetIdx++ })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
+
+export const lsContainerLinks = (convId: string) => `ss_conv_container_links_${convId}`
+
+// ---------------------------------------------------------------------------
+// Parse generated containers from container_generation response text.
+// ---------------------------------------------------------------------------
+
+export function parseGeneratedContainersResponse(text: string): unknown[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const looksLikeContainer = (obj: Record<string, unknown>) =>
+    typeof obj.name === 'string' && typeof obj.container_type === 'string' &&
+    (typeof obj.grid_cols === 'number' || typeof obj.grid_rows === 'number')
+
+  const tryParse = (input: string): unknown[] | null => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) {
+        const containers = parsed.filter((el) => el && typeof el === 'object' && looksLikeContainer(el as Record<string, unknown>))
+        if (containers.length > 0) return containers
+        return parsed
+      }
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.generated_containers)) return record.generated_containers
+        if (Array.isArray(record.containers)) return record.containers
+        if (looksLikeContainer(record)) return [record]
+      }
+    } catch { /* ignore */ }
+    return null
+  }
+
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  const fencedContainers: unknown[] = []
+  for (const block of fencedBlocks) {
+    const parsed = tryParse(block)
+    if (parsed) fencedContainers.push(...parsed)
+  }
+  if (fencedContainers.length > 0) return fencedContainers
+
+  const extracted = extractTopLevelJsonObjects(trimmed)
+  if (extracted.length > 0) {
+    const containers = extracted.filter((el) => el && typeof el === 'object' && !Array.isArray(el) && looksLikeContainer(el as Record<string, unknown>))
+    if (containers.length > 0) return containers
+  }
+
+  return []
+}
+
+// ---------------------------------------------------------------------------
+// Split container response text into interleaved text/container segments.
+// ---------------------------------------------------------------------------
+
+export function splitContainerResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeContainer = (obj: Record<string, unknown>) =>
+    typeof obj.name === 'string' && typeof obj.container_type === 'string' &&
+    (typeof obj.grid_cols === 'number' || typeof obj.grid_rows === 'number')
+
+  const boundaries: Array<{ start: number; end: number; container: Record<string, unknown> }> = []
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeContainer(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, container: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeContainer(obj)) boundaries.push({ start, end: i + 1, container: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let containerIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({ type: 'container', text: text.slice(boundary.start, boundary.end), container: boundary.container, containerIdx: containerIdx++ })
     lastEnd = boundary.end
   }
 
