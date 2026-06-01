@@ -53,6 +53,7 @@ export function useChatPipeline() {
     historyContext?: DetectIntentHistoryEntry[],
     generatedItems?: unknown[],
     itemDefinitionIds?: string[],
+    generatedPresets?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -179,9 +180,13 @@ export function useChatPipeline() {
           },
           intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
           loreEntryIds,
-          intent.type === 'lore_creating' ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify') ? intent.goals : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'preset_generation') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation') ? intent.goals : undefined,
+          intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0
+            ? generatedPresets
+            : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
+              ? generatedItems
+              : undefined,
           itemDefinitionIds,
         )
       }
@@ -239,6 +244,7 @@ export function useChatPipeline() {
     generatedItems?: unknown[],
     loreEntryIds?: string[],
     itemDefinitionIds?: string[],
+    generatedPresets?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -303,7 +309,11 @@ export function useChatPipeline() {
         loreEntryIds,
         undefined,
         undefined,
-        (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0 ? generatedItems : undefined,
+        intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0
+          ? generatedPresets
+          : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
+            ? generatedItems
+            : undefined,
         itemDefinitionIds,
       )
     } catch {

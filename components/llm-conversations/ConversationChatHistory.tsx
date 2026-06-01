@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Gamepad2, Loader2, Package, RotateCcw, Sparkles, Tag, Trash2, X } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Gamepad2, LayoutTemplate, Loader2, Package, RotateCcw, Sparkles, Tag, Trash2, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitPresetResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -19,10 +19,12 @@ interface ConversationChatHistoryProps {
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
   savedItemDefinitionIds: Record<string, string>
+  savedPresetDefinitionIds: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
+  onSavePresetDefinition: (preset: Record<string, unknown>, turnId: string, responseIdx: number, presetIdx: number) => void
   onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
   onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
   onCreateItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
@@ -236,10 +238,12 @@ export function ConversationChatHistory({
   savedLoreIds,
   loreEntryTitles,
   savedItemDefinitionIds,
+  savedPresetDefinitionIds,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
   onSaveItemDefinition,
+  onSavePresetDefinition,
   onApplyTagSuggestion,
   onRemoveGameTag,
   onCreateItemTagFromSuggestion,
@@ -324,7 +328,7 @@ export function ConversationChatHistory({
                           <span className="text-primary font-semibold">
                             {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
                           </span>
-                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating') && response.entityType && (
+                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation') && response.entityType && (
                             <span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded-full bg-muted px-2 py-0.5 text-[10px] normal-case font-medium text-muted-foreground">
                               {response.entityType}
                             </span>
@@ -376,7 +380,7 @@ export function ConversationChatHistory({
                                     {seg.text}
                                   </ReactMarkdown>
                                 </div>
-                              ) : (
+                              ) : seg.type === 'item' ? (
                                 <div key={segIdx} id={`conv-panel-segment-item-${turn.id}-${idx}-${seg.itemIdx}`} className="flex flex-col gap-1">
                                   <div id={`conv-panel-segment-item-json-${turn.id}-${idx}-${seg.itemIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
@@ -409,7 +413,55 @@ export function ConversationChatHistory({
                                     )
                                   })()}
                                 </div>
-                              )
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'preset_generation' ? (
+                          <div id={`conv-panel-ai-response-presets-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitPresetResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-preset-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'preset' ? (
+                                <div key={segIdx} id={`conv-panel-preset-segment-${turn.id}-${idx}-${seg.presetIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-preset-segment-json-${turn.id}-${idx}-${seg.presetIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const presetKey = `${turn.id}:${idx}:${seg.presetIdx}`
+                                    const savedPresetId = savedPresetDefinitionIds[presetKey]
+                                    const presetName = typeof seg.preset.name === 'string' ? seg.preset.name : (typeof seg.preset.code_name === 'string' ? seg.preset.code_name : `Preset ${seg.presetIdx + 1}`)
+                                    return savedPresetId ? (
+                                      <Link
+                                        id={`conv-panel-preset-link-${turn.id}-${idx}-${seg.presetIdx}`}
+                                        href={`/games/${gameId}/items?tab=preset&id=${savedPresetId}`}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        title={presetName}
+                                      >
+                                        <LayoutTemplate className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-preset-link-label-${turn.id}-${idx}-${seg.presetIdx}`} className="truncate">{presetName}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-preset-btn-${turn.id}-${idx}-${seg.presetIdx}`}
+                                        onClick={() => onSavePresetDefinition(seg.preset, turn.id, idx, seg.presetIdx)}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <LayoutTemplate className="h-3 w-3" />
+                                        <span id={`conv-panel-save-preset-btn-label-${turn.id}-${idx}-${seg.presetIdx}`}>{t('llmConversation.saveAsPresetDefinition')}: {presetName}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
                             )}
                             {!response.done && (
                               <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />

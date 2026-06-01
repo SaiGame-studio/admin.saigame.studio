@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ExternalLink, Loader2, Package, PackagePlus, Search } from 'lucide-react'
+import { BookOpen, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 import { listLoreEntries } from '@/lib/lore-api'
-import { listItemDefinitions } from '@/lib/inventory-api'
+import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
 import type { ItemDefinition } from '@/types/inventory'
+import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import {
   Select,
@@ -88,6 +89,13 @@ interface ConversationDialogsProps {
   isApplyingConflict: boolean
   onItemCodeConflictUpdate: () => void
   onItemCodeConflictSaveNew: (newItemCode: string) => void
+  // Preset code conflict dialog
+  presetCodeConflictOpen: boolean
+  setPresetCodeConflictOpen: (v: boolean) => void
+  presetCodeConflictExisting: PresetDefinition | null
+  isApplyingPresetConflict: boolean
+  onPresetCodeConflictUpdate: () => void
+  onPresetCodeConflictSaveNew: (newCodeName: string) => void
   t: (key: string) => string
 }
 
@@ -137,6 +145,12 @@ export function ConversationDialogs({
   isApplyingConflict,
   onItemCodeConflictUpdate,
   onItemCodeConflictSaveNew,
+  presetCodeConflictOpen,
+  setPresetCodeConflictOpen,
+  presetCodeConflictExisting,
+  isApplyingPresetConflict,
+  onPresetCodeConflictUpdate,
+  onPresetCodeConflictSaveNew,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -157,6 +171,12 @@ export function ConversationDialogs({
   const [newItemCodeDuplicate, setNewItemCodeDuplicate] = useState<ItemDefinition | null>(null)
   const [isCheckingNewItemCode, setIsCheckingNewItemCode] = useState(false)
   const newItemCodeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Preset code conflict dialog state ──
+  const [newPresetCodeInput, setNewPresetCodeInput] = useState('')
+  const [newPresetCodeDuplicate, setNewPresetCodeDuplicate] = useState<PresetDefinition | null>(null)
+  const [isCheckingNewPresetCode, setIsCheckingNewPresetCode] = useState(false)
+  const newPresetCodeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (itemCodeConflictOpen && itemCodeConflictExisting?.item_code) {
@@ -191,6 +211,38 @@ export function ConversationDialogs({
     return () => { if (newItemCodeDebounceRef.current) clearTimeout(newItemCodeDebounceRef.current) }
   }, [newItemCodeInput, itemCodeConflictOpen, gameId, itemCodeConflictExisting?.id])
 
+  useEffect(() => {
+    if (presetCodeConflictOpen && presetCodeConflictExisting?.code_name) {
+      setNewPresetCodeInput(`${presetCodeConflictExisting.code_name}_2`)
+    } else if (!presetCodeConflictOpen) {
+      setNewPresetCodeInput('')
+      setNewPresetCodeDuplicate(null)
+    }
+  }, [presetCodeConflictOpen, presetCodeConflictExisting?.code_name])
+
+  useEffect(() => {
+    if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
+    const code = newPresetCodeInput.trim()
+    if (!code || !presetCodeConflictOpen) {
+      setNewPresetCodeDuplicate(null)
+      setIsCheckingNewPresetCode(false)
+      return
+    }
+    setIsCheckingNewPresetCode(true)
+    newPresetCodeDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await listPresetDefinitions({ gameId })
+        const found = (res.definitions ?? []).find(d => d.code_name === code) ?? null
+        setNewPresetCodeDuplicate(found)
+      } catch {
+        setNewPresetCodeDuplicate(null)
+      } finally {
+        setIsCheckingNewPresetCode(false)
+      }
+    }, 400)
+    return () => { if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current) }
+  }, [newPresetCodeInput, presetCodeConflictOpen, gameId, presetCodeConflictExisting?.id])
+
   // ── Escape key layers ──────────────────────────────────────────────────────
   // Each dialog registers itself so only the topmost layer closes per Escape press.
   // The panel itself is the bottom layer (registered in ConversationPanel).
@@ -199,6 +251,9 @@ export function ConversationDialogs({
   useEscapeLayer(itemDefReviewOpen, () => setItemDefReviewOpen(false))
   useEscapeLayer(itemCodeConflictOpen, () => {
     if (!isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') }
+  })
+  useEscapeLayer(presetCodeConflictOpen, () => {
+    if (!isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') }
   })
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -618,6 +673,101 @@ export function ConversationDialogs({
               >
                 <PackagePlus id="item-code-conflict-save-new-icon" className="h-4 w-4" />
                 {t('llmConversation.itemCodeConflictSaveNew')}
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preset code conflict dialog */}
+      <Dialog
+        open={presetCodeConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') } }}
+      >
+        <DialogContent id="preset-code-conflict-dialog-root">
+          <DialogHeader id="preset-code-conflict-dialog-header">
+            <DialogTitle id="preset-code-conflict-dialog-title">{t('llmConversation.presetCodeConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="preset-code-conflict-dialog-body" className="space-y-3">
+            <p id="preset-code-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.presetCodeConflictDesc')
+                .replace('{code}', presetCodeConflictExisting?.code_name ?? '')}
+            </p>
+            {presetCodeConflictExisting && (
+              <a
+                id="preset-code-conflict-existing-link"
+                href={`/games/${gameId}/items?tab=preset&id=${presetCodeConflictExisting.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <LayoutTemplate id="preset-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="preset-code-conflict-existing-link-name" className="flex-1 truncate">{presetCodeConflictExisting.name}</span>
+                <ExternalLink id="preset-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+
+          {/* Update existing — primary action */}
+          <button
+            id="preset-code-conflict-update-btn"
+            type="button"
+            disabled={isApplyingPresetConflict}
+            onClick={onPresetCodeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isApplyingPresetConflict
+              ? <><Loader2 id="preset-code-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.presetCodeConflictUpdating')}</>
+              : <><LayoutTemplate id="preset-code-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.presetCodeConflictUpdate')}</>
+            }
+          </button>
+
+          <div id="preset-code-conflict-divider" className="relative flex items-center gap-2">
+            <div id="preset-code-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="preset-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="preset-code-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          {/* Save as new — secondary action */}
+          <div id="preset-code-conflict-save-new-section" className="space-y-2">
+            <Label id="preset-code-conflict-new-code-label" htmlFor="preset-code-conflict-new-code-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.presetCodeConflictNewCodeLabel')}
+            </Label>
+            <div id="preset-code-conflict-new-code-input-wrap" className="relative">
+              <Input
+                id="preset-code-conflict-new-code-input"
+                value={newPresetCodeInput}
+                onChange={(e) => setNewPresetCodeInput(e.target.value)}
+                required
+                disabled={isApplyingPresetConflict}
+                className={newPresetCodeDuplicate ? 'border-destructive focus-visible:ring-destructive pr-8' : isCheckingNewPresetCode ? 'pr-8' : ''}
+              />
+              {isCheckingNewPresetCode && (
+                <Loader2 id="preset-code-conflict-new-code-checking-spinner" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {newPresetCodeDuplicate ? (
+              <a
+                id="preset-code-conflict-new-code-duplicate-link"
+                href={`/games/${gameId}/items?tab=preset&id=${newPresetCodeDuplicate.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors"
+              >
+                <LayoutTemplate id="preset-code-conflict-new-code-duplicate-link-icon" className="h-4 w-4 shrink-0" />
+                <span id="preset-code-conflict-new-code-duplicate-link-name" className="flex-1 truncate">{newPresetCodeDuplicate.name}</span>
+                <ExternalLink id="preset-code-conflict-new-code-duplicate-link-ext-icon" className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            ) : (
+              <button
+                id="preset-code-conflict-save-new-btn"
+                type="button"
+                disabled={isApplyingPresetConflict || !newPresetCodeInput.trim() || isCheckingNewPresetCode}
+                onClick={() => { onPresetCodeConflictSaveNew(newPresetCodeInput); setNewPresetCodeInput('') }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                <LayoutTemplate id="preset-code-conflict-save-new-icon" className="h-4 w-4" />
+                {t('llmConversation.presetCodeConflictSaveNew')}
               </button>
             )}
           </div>

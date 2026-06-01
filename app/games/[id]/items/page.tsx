@@ -1514,6 +1514,7 @@ export default function GameItemsPage() {
   const [presetSearch, setPresetSearch] = useState("")
   const [presetSearchDebounced, setPresetSearchDebounced] = useState("")
   const [showCreatePreset, setShowCreatePreset] = useState(false)
+  const [createPresetInitialValues, setCreatePresetInitialValues] = useState<{ name?: string; preset_type?: string; code_name?: string; max_slots?: number } | undefined>(undefined)
   const [editingPreset, setEditingPreset] = useState<PresetDefinition | null>(null)
   const [deletingPreset, setDeletingPreset] = useState<PresetDefinition | null>(null)
   const [deletePresetLoading, setDeletePresetLoading] = useState(false)
@@ -1568,6 +1569,23 @@ export default function GameItemsPage() {
     // initialize container search from URL `q` param
     const q = searchParams.get("q")
     if (q) setContainerSearch(q)
+    // initialize preset search from URL `id` param
+    const presetId = searchParams.get("id")
+    if (presetId && tab === "preset") setPresetSearch(presetId)
+    // auto-open create preset sheet from URL params
+    if (tab === "preset" && searchParams.get("create") === "1") {
+      const iv: { name?: string; preset_type?: string; code_name?: string; max_slots?: number } = {}
+      const pName = searchParams.get("preset_name")
+      const pType = searchParams.get("preset_type")
+      const pCode = searchParams.get("code_name")
+      const pSlots = searchParams.get("max_slots")
+      if (pName) iv.name = pName
+      if (pType) iv.preset_type = pType
+      if (pCode) iv.code_name = pCode
+      if (pSlots && !isNaN(Number(pSlots))) iv.max_slots = Number(pSlots)
+      setCreatePresetInitialValues(iv)
+      setShowCreatePreset(true)
+    }
   }, [searchParams])
 
   // update URL when tab changes
@@ -4429,8 +4447,9 @@ export default function GameItemsPage() {
       <CreatePresetDefinitionSheet
         open={showCreatePreset}
         gameId={gameId}
+        initialValues={createPresetInitialValues}
         onCreated={fetchPresetDefs}
-        onClose={() => setShowCreatePreset(false)}
+        onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined) }}
       />
 
       {/* ── Preset Edit Sheet ────────────────────────────────────────────────── */}
@@ -4580,11 +4599,13 @@ export default function GameItemsPage() {
 function CreatePresetDefinitionSheet({
   open,
   gameId,
+  initialValues,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
+  initialValues?: { name?: string; preset_type?: string; code_name?: string; max_slots?: number }
   onCreated: () => void
   onClose: () => void
 }) {
@@ -4598,6 +4619,21 @@ function CreatePresetDefinitionSheet({
   const [maxSlots, setMaxSlots] = useState("20")
   const [meta, setMeta] = useState<{ key: string; value: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Pre-fill form when opened with initial values (e.g. from LLM conversation)
+  useEffect(() => {
+    if (open && initialValues) {
+      if (initialValues.name) setName(initialValues.name)
+      if (initialValues.preset_type) setContainerType(initialValues.preset_type)
+      if (initialValues.code_name) {
+        setCodeName(initialValues.code_name)
+        setAutoSlug(false)
+      } else if (initialValues.name) {
+        setCodeName(toSlugUnderscore(initialValues.name))
+      }
+      if (initialValues.max_slots) setMaxSlots(String(initialValues.max_slots))
+    }
+  }, [open, initialValues])
 
   function resetForm() {
     setName("")

@@ -38,12 +38,14 @@ import {
   lsConvHistory,
   lsLoreLinks,
   lsItemLinks,
+  lsPresetLinks,
   lsLoreTitles,
   lsItemNames,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
   parseGeneratedItemsResponse,
+  parseGeneratedPresetsResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -56,8 +58,9 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag } from '@/lib/inventory-api'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
+import type { PresetDefinition } from '@/lib/inventory-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -149,6 +152,8 @@ export function LLMConversationPanel() {
 
   // Item definition draft review
   const [savedItemDefinitionIds, setSavedItemDefinitionIds] = useState<Record<string, string>>({})
+  // Preset definition saved IDs (keyed as "turnId:responseIdx:presetIdx")
+  const [savedPresetDefinitionIds, setSavedPresetDefinitionIds] = useState<Record<string, string>>({})
   const [itemDefReviewOpen, setItemDefReviewOpen] = useState(false)
   const [itemDefReviewItem, setItemDefReviewItem] = useState<Record<string, unknown> | null>(null)
   const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
@@ -166,10 +171,18 @@ export function LLMConversationPanel() {
   const [itemCodeConflictInitialValues, setItemCodeConflictInitialValues] = useState<CreateItemInitialValues | null>(null)
   const [isApplyingConflict, setIsApplyingConflict] = useState(false)
 
+  // Preset code conflict dialog (shown when code_name already exists in backend)
+  const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
+  const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
+  const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
+  const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
+
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
   // Tracks the last completed item_generation response parsed as array
   const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
+  // Tracks the last completed preset_generation response parsed as array
+  const [convGeneratedPresets, setConvGeneratedPresets] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -282,10 +295,28 @@ export function LLMConversationPanel() {
     setConvGeneratedItems(lastGeneratedItems)
   }, [chatHistory])
 
+  // Keep the last completed preset_generation response parsed as presets array
+  useEffect(() => {
+    let lastGeneratedPresets: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'preset_generation' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedPresetsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedPresets = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedPresets(lastGeneratedPresets)
+  }, [chatHistory])
+
   // Reset main content and applied tag keys when switching conversations.
   useEffect(() => {
     setConvMainContent('')
     setConvGeneratedItems([])
+    setConvGeneratedPresets([])
     setAppliedTagsPerResponse({})
     setCreatedItemTagsPerResponse({})
   }, [activeConvId])
@@ -353,6 +384,7 @@ export function LLMConversationPanel() {
       clearHistory()
       setSavedLoreIds({})
       setSavedItemDefinitionIds({})
+      setSavedPresetDefinitionIds({})
       if (gameId) {
         safeRemoveItem(lsActiveConv(gameId))
         window.dispatchEvent(new Event('ss:conv-state-changed'))
@@ -380,6 +412,9 @@ export function LLMConversationPanel() {
     // Restore saved item definition IDs from localStorage
     const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
     setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
+    // Restore saved preset definition IDs from localStorage
+    const rawPresetLinks = safeGetItem(lsPresetLinks(activeConvId))
+    setSavedPresetDefinitionIds(rawPresetLinks ? JSON.parse(rawPresetLinks) : {})
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
@@ -593,6 +628,7 @@ export function LLMConversationPanel() {
       undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
     )
   }
 
@@ -650,6 +686,7 @@ export function LLMConversationPanel() {
       historyContext.length > 0 ? historyContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       linkedItemIds.length > 0 ? linkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -820,10 +857,79 @@ export function LLMConversationPanel() {
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
     )
   }
 
+  async function handleSavePresetDefinition(
+    preset: Record<string, unknown>,
+    _turnId: string,
+    _responseIdx: number,
+    _presetIdx: number,
+  ) {
+    if (!gameId) return
+    const codeName = typeof preset.code_name === 'string' ? preset.code_name : ''
+
+    // Check if a preset with this code_name already exists
+    if (codeName) {
+      try {
+        const res = await listPresetDefinitions({ gameId })
+        const existing = (res.definitions ?? []).find(d => d.code_name === codeName)
+        if (existing) {
+          setPresetCodeConflictExisting(existing)
+          setPresetCodeConflictPendingPreset(preset)
+          setPresetCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // If check fails, fall through to navigate
+      }
+    }
+
+    navigateToCreatePreset(preset)
+  }
+
+  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string) {
+    if (!gameId) return
+    const params = new URLSearchParams({ tab: 'preset', create: '1' })
+    const name = typeof preset.name === 'string' ? preset.name : (typeof preset.code_name === 'string' ? preset.code_name : '')
+    if (name) params.set('preset_name', name)
+    if (typeof preset.preset_type === 'string' && preset.preset_type) params.set('preset_type', preset.preset_type)
+    const codeName = overrideCodeName ?? (typeof preset.code_name === 'string' ? preset.code_name : '')
+    if (codeName) params.set('code_name', codeName)
+    if (typeof preset.max_slots === 'number') params.set('max_slots', String(preset.max_slots))
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  async function handlePresetCodeConflictUpdate() {
+    if (!presetCodeConflictExisting || !gameId) return
+    const preset = presetCodeConflictPendingPreset ?? {}
+    setIsApplyingPresetConflict(true)
+    try {
+      const patch: Record<string, unknown> = {}
+      if (typeof preset.name === 'string' && preset.name.trim()) patch.name = preset.name.trim()
+      if (typeof preset.max_slots === 'number') patch.max_slots = preset.max_slots
+      if (typeof preset.metadata === 'object' && preset.metadata !== null) patch.metadata = preset.metadata
+      if (Object.keys(patch).length > 0) {
+        await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
+      }
+      setPresetCodeConflictOpen(false)
+      router.push(`/games/${gameId}/items?tab=preset&id=${presetCodeConflictExisting.id}`)
+    } catch {
+      toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
+    } finally {
+      setIsApplyingPresetConflict(false)
+    }
+  }
+
+  function handlePresetCodeConflictSaveNew(newCodeName: string) {
+    if (!presetCodeConflictPendingPreset) return
+    setPresetCodeConflictOpen(false)
+    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName)
+  }
+
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
+
 
   async function handleApplyTagSuggestion(tag: string, turnId: string, responseIdx: number) {
     if (!gameId || !activeConvId) return
@@ -1222,10 +1328,12 @@ export function LLMConversationPanel() {
                   savedLoreIds={savedLoreIds}
                   loreEntryTitles={loreEntryTitles}
                   savedItemDefinitionIds={savedItemDefinitionIds}
+                  savedPresetDefinitionIds={savedPresetDefinitionIds}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
                   onSaveItemDefinition={handleOpenItemDefinitionReview}
+                  onSavePresetDefinition={handleSavePresetDefinition}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
@@ -1297,6 +1405,12 @@ export function LLMConversationPanel() {
         isApplyingConflict={isApplyingConflict}
         onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
         onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
+        presetCodeConflictOpen={presetCodeConflictOpen}
+        setPresetCodeConflictOpen={setPresetCodeConflictOpen}
+        presetCodeConflictExisting={presetCodeConflictExisting}
+        isApplyingPresetConflict={isApplyingPresetConflict}
+        onPresetCodeConflictUpdate={handlePresetCodeConflictUpdate}
+        onPresetCodeConflictSaveNew={handlePresetCodeConflictSaveNew}
         t={t}
       />
     </>
