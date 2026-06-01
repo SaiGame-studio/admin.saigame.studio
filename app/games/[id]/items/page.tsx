@@ -937,7 +937,7 @@ function TagsTab({
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate} disabled={tags.length >= 50}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
+            <Tag className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
           </Button>
         </div>
       </div>
@@ -967,7 +967,7 @@ function TagsTab({
           </p>
           {!search && (
             <Button size="sm" onClick={openCreate}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
+              <Tag className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
             </Button>
           )}
         </div>
@@ -1568,7 +1568,7 @@ export default function GameItemsPage() {
     // initialize container search from URL `q` param
     const q = searchParams.get("q")
     if (q) setContainerSearch(q)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {

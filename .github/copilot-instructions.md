@@ -1,7 +1,17 @@
 ## File Size Rules
 
-### 0. Maximum 1000 Lines Per File
-No source code file (TypeScript, TSX, JavaScript, JSX, HTML, CSS, etc.) may exceed **1000 lines**.
+### 0. Maximum 700 Lines Per TSX File
+No `.tsx` file may exceed **700 lines**.
+
+**Requirements:**
+- If a `.tsx` file grows beyond 700 lines, it **must** be split into smaller, logically cohesive modules before the change is considered complete.
+- Split along natural boundaries: separate sub-components into their own files, extract hooks into `hooks/`, extract API calls into `lib/` or `api/` files, extract types into `types/` files, etc.
+- The root file should remain the thin orchestrator; heavy logic and UI sections belong in dedicated files.
+- When asked to add code to a `.tsx` file that is already close to or over the limit, always refactor first.
+- This rule applies to all new and modified `.tsx` files — do not leave a `.tsx` file over 700 lines after a change.
+
+### 1. Maximum 1000 Lines Per File (Non-TSX)
+No other source code file (TypeScript, JavaScript, JSX, HTML, CSS, etc.) may exceed **1000 lines**.
 
 **Requirements:**
 - If a file grows beyond 1000 lines, it **must** be split into smaller, logically cohesive modules before the change is considered complete.

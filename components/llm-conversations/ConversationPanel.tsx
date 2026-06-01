@@ -40,6 +40,8 @@ import {
   lsItemLinks,
   lsLoreTitles,
   lsItemNames,
+  lsTagApplied,
+  lsItemTagCreated,
   parseLoreResponse,
   parseGeneratedItemsResponse,
   extractGameId,
@@ -54,8 +56,9 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag } from '@/lib/inventory-api'
 import type { ItemDefinition } from '@/types/inventory'
+import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
 // ---------------------------------------------------------------------------
@@ -152,6 +155,10 @@ export function LLMConversationPanel() {
   const [itemDefReviewResponseIdx, setItemDefReviewResponseIdx] = useState(0)
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
   const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
+
+  // Tag suggestion — tracks which individual tags have been applied per response
+  const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
+  const [createdItemTagsPerResponse, setCreatedItemTagsPerResponse] = useState<Record<string, Record<string, string>>>({})
 
   // Item code conflict dialog (shown when item_code already exists in backend)
   const [itemCodeConflictOpen, setItemCodeConflictOpen] = useState(false)
@@ -275,10 +282,12 @@ export function LLMConversationPanel() {
     setConvGeneratedItems(lastGeneratedItems)
   }, [chatHistory])
 
-  // Reset main content when switching conversations.
+  // Reset main content and applied tag keys when switching conversations.
   useEffect(() => {
     setConvMainContent('')
     setConvGeneratedItems([])
+    setAppliedTagsPerResponse({})
+    setCreatedItemTagsPerResponse({})
   }, [activeConvId])
 
   // Persist lore entry titles to localStorage whenever they change (survives F5)
@@ -376,6 +385,11 @@ export function LLMConversationPanel() {
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
     const rawItemNames = safeGetItem(lsItemNames(activeConvId))
     if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
+    // Restore applied game tags and created item tags from localStorage
+    const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
+    setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
+    const rawItemTagCreated = safeGetItem(lsItemTagCreated(activeConvId))
+    setCreatedItemTagsPerResponse(rawItemTagCreated ? JSON.parse(rawItemTagCreated) : {})
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -707,6 +721,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
       safeRemoveItem(lsLoreTitles(deleteTarget.ID))
       safeRemoveItem(lsItemNames(deleteTarget.ID))
+      safeRemoveItem(lsTagApplied(deleteTarget.ID))
+      safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
@@ -734,6 +750,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(conv.ID))
       safeRemoveItem(lsLoreTitles(conv.ID))
       safeRemoveItem(lsItemNames(conv.ID))
+      safeRemoveItem(lsTagApplied(conv.ID))
+      safeRemoveItem(lsItemTagCreated(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       if (activeConvId === conv.ID) {
         safeRemoveItem(lsActiveConv(gameId))
@@ -806,6 +824,74 @@ export function LLMConversationPanel() {
   }
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
+
+  async function handleApplyTagSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const game = await getGame(gameId)
+      const existing = game.tags ?? []
+      const newTags = Array.from(new Set([...existing, tag]))
+      await updateGame(gameId, { tags: newTags })
+      const key = `${turnId}:${responseIdx}`
+      const updated = { ...appliedTagsPerResponse, [key]: { ...(appliedTagsPerResponse[key] ?? {}), [tag]: true as const } }
+      setAppliedTagsPerResponse(updated)
+      safeSetItem(lsTagApplied(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionApplied').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionApplyError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleRemoveGameTag(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const game = await getGame(gameId)
+      const newTags = (game.tags ?? []).filter((t) => t !== tag)
+      await updateGame(gameId, { tags: newTags })
+      const key = `${turnId}:${responseIdx}`
+      const copy = { ...(appliedTagsPerResponse[key] ?? {}) }
+      delete copy[tag]
+      const updated = { ...appliedTagsPerResponse, [key]: copy }
+      setAppliedTagsPerResponse(updated)
+      safeSetItem(lsTagApplied(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionRemovedFromGame').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionRemoveFromGameError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleCreateItemTagFromSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const tagKey = tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      const itemTag = await createItemTag({ gameId }, { tag_key: tagKey, label: tag })
+      const key = `${turnId}:${responseIdx}`
+      const updated = { ...createdItemTagsPerResponse, [key]: { ...(createdItemTagsPerResponse[key] ?? {}), [tag]: itemTag.id } }
+      setCreatedItemTagsPerResponse(updated)
+      safeSetItem(lsItemTagCreated(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionItemTagCreated').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionItemTagCreateError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleDeleteItemTagFromSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    const key = `${turnId}:${responseIdx}`
+    const itemTagId = createdItemTagsPerResponse[key]?.[tag]
+    if (!itemTagId) return
+    try {
+      await deleteItemTag({ gameId }, itemTagId)
+      const copy = { ...(createdItemTagsPerResponse[key] ?? {}) }
+      delete copy[tag]
+      const updated = { ...createdItemTagsPerResponse, [key]: copy }
+      setCreatedItemTagsPerResponse(updated)
+      safeSetItem(lsItemTagCreated(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionItemTagDeleted').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionDeleteItemTagError'), variant: 'destructive' })
+    }
+  }
 
   function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string, entityType: string) {
     const parsed = parseLoreResponse(responseText)
@@ -1140,6 +1226,12 @@ export function LLMConversationPanel() {
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
                   onSaveItemDefinition={handleOpenItemDefinitionReview}
+                  onApplyTagSuggestion={handleApplyTagSuggestion}
+                  onRemoveGameTag={handleRemoveGameTag}
+                  onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
+                  onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion}
+                  appliedTagsPerResponse={appliedTagsPerResponse}
+                  createdItemTagsPerResponse={createdItemTagsPerResponse}
                   t={t}
                 />
               </>

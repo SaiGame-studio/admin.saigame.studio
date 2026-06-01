@@ -14,6 +14,8 @@ export const lsItemLinks = (convId: string) => `ss_conv_item_links_${convId}`
 export const lsLoreTitles = (convId: string) => `ss_conv_lore_titles_${convId}`
 export const lsItemNames = (convId: string) => `ss_conv_item_names_${convId}`
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
+export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
+export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions
