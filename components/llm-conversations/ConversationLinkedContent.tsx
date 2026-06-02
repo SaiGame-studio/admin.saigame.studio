@@ -1,6 +1,6 @@
 'use client'
 
-import { BookOpen, Link2, Loader2, PackagePlus, X } from 'lucide-react'
+import { Archive, BookOpen, Link2, Loader2, PackagePlus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ConversationContentLink } from '@/types/llm-conversation'
 
@@ -11,6 +11,7 @@ interface ConversationLinkedContentProps {
   unlinkingId: string | null
   loreEntryTitles: Record<string, string>
   itemDefinitionNames: Record<string, string>
+  containerDefinitionNames: Record<string, string>
   onUnlink: (linkId: string, contentType: string, contentId: string) => void
   t: (key: string) => string
 }
@@ -22,6 +23,7 @@ export function ConversationLinkedContent({
   unlinkingId,
   loreEntryTitles,
   itemDefinitionNames,
+  containerDefinitionNames,
   onUnlink,
   t,
 }: ConversationLinkedContentProps) {
@@ -29,19 +31,26 @@ export function ConversationLinkedContent({
 
   const itemLinks = linkedContent.filter(l => l.content_type === 'item_definition')
   const loreLinks = linkedContent.filter(l => l.content_type === 'lore_entry' || l.content_type === 'lore')
+  const containerLinks = linkedContent.filter(l => l.content_type === 'container_definition')
 
   function renderBadge(link: ConversationContentLink, refNum: string) {
     const isItem = link.content_type === 'item_definition'
+    const isContainer = link.content_type === 'container_definition'
     const href = isItem
       ? `/games/${gameId}/items/${link.content_id}`
-      : `/games/${gameId}/lore?lore_id=${link.content_id}`
+      : isContainer
+        ? `/games/${gameId}/items?tab=containers`
+        : `/games/${gameId}/lore?lore_id=${link.content_id}`
     const displayName = itemDefinitionNames[link.content_id]
       ?? loreEntryTitles[link.content_id]
+      ?? containerDefinitionNames[link.content_id]
       ?? (t(`llmConversation.contentType.${link.content_type}`) || link.content_type)
     const badgeClass = isItem
       ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
-      : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-    const TypeIcon = isItem ? PackagePlus : BookOpen
+      : isContainer
+        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+        : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+    const TypeIcon = isItem ? PackagePlus : isContainer ? Archive : BookOpen
     return (
       <span
         key={link.id}
@@ -111,6 +120,19 @@ export function ConversationLinkedContent({
             </div>
             <div id="conv-panel-linked-content-lore-list" className="grid grid-cols-3 gap-1">
               {loreLinks.map((link, idx) => renderBadge(link, `#${itemLinks.length + idx + 1}`))}
+            </div>
+          </div>
+        )}
+        {containerLinks.length > 0 && (
+          <div id="conv-panel-linked-content-containers-group">
+            <div id="conv-panel-linked-content-containers-label" className="flex items-center gap-1 mb-0.5">
+              <Archive className="h-2.5 w-2.5 text-emerald-400" />
+              <span id="conv-panel-linked-content-containers-heading" className="text-[9px] font-semibold text-emerald-400/70 uppercase tracking-wider">
+                {t('llmConversation.contentType.container_definition')}
+              </span>
+            </div>
+            <div id="conv-panel-linked-content-containers-list" className="grid grid-cols-3 gap-1">
+              {containerLinks.map((link, idx) => renderBadge(link, `#${itemLinks.length + loreLinks.length + idx + 1}`))}
             </div>
           </div>
         )}

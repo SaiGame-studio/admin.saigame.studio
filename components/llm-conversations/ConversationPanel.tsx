@@ -38,10 +38,17 @@ import {
   lsConvHistory,
   lsLoreLinks,
   lsItemLinks,
+  lsPresetLinks,
+  lsContainerLinks,
   lsLoreTitles,
   lsItemNames,
+  lsContainerNames,
+  lsTagApplied,
+  lsItemTagCreated,
   parseLoreResponse,
   parseGeneratedItemsResponse,
+  parseGeneratedPresetsResponse,
+  parseGeneratedContainersResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -54,8 +61,10 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition } from '@/lib/inventory-api'
-import type { ItemDefinition } from '@/types/inventory'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition } from '@/lib/inventory-api'
+import type { ItemDefinition, ContainerDefinition } from '@/types/inventory'
+import type { PresetDefinition } from '@/lib/inventory-api'
+import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
 // ---------------------------------------------------------------------------
@@ -146,6 +155,10 @@ export function LLMConversationPanel() {
 
   // Item definition draft review
   const [savedItemDefinitionIds, setSavedItemDefinitionIds] = useState<Record<string, string>>({})
+  // Preset definition saved IDs (keyed as "turnId:responseIdx:presetIdx")
+  const [savedPresetDefinitionIds, setSavedPresetDefinitionIds] = useState<Record<string, string>>({})
+  // Container definition saved IDs (keyed as "turnId:responseIdx:containerIdx")
+  const [savedContainerDefinitionIds, setSavedContainerDefinitionIds] = useState<Record<string, string>>({})
   const [itemDefReviewOpen, setItemDefReviewOpen] = useState(false)
   const [itemDefReviewItem, setItemDefReviewItem] = useState<Record<string, unknown> | null>(null)
   const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
@@ -153,16 +166,36 @@ export function LLMConversationPanel() {
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
   const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
 
+  // Tag suggestion — tracks which individual tags have been applied per response
+  const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
+  const [createdItemTagsPerResponse, setCreatedItemTagsPerResponse] = useState<Record<string, Record<string, string>>>({})
+
   // Item code conflict dialog (shown when item_code already exists in backend)
   const [itemCodeConflictOpen, setItemCodeConflictOpen] = useState(false)
   const [itemCodeConflictExisting, setItemCodeConflictExisting] = useState<ItemDefinition | null>(null)
   const [itemCodeConflictInitialValues, setItemCodeConflictInitialValues] = useState<CreateItemInitialValues | null>(null)
   const [isApplyingConflict, setIsApplyingConflict] = useState(false)
 
+  // Preset code conflict dialog (shown when code_name already exists in backend)
+  const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
+  const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
+  const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
+  const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
+
+  // Container name conflict dialog (shown when name already exists in backend)
+  const [containerNameConflictOpen, setContainerNameConflictOpen] = useState(false)
+  const [containerNameConflictExisting, setContainerNameConflictExisting] = useState<ContainerDefinition | null>(null)
+  const [containerNameConflictPending, setContainerNameConflictPending] = useState<{ container: Record<string, unknown>; turnId: string; responseIdx: number; containerIdx: number } | null>(null)
+  const [isApplyingContainerConflict, setIsApplyingContainerConflict] = useState(false)
+
   // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
   const [convMainContent, setConvMainContent] = useState('')
   // Tracks the last completed item_generation response parsed as array
   const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
+  // Tracks the last completed preset_generation response parsed as array
+  const [convGeneratedPresets, setConvGeneratedPresets] = useState<unknown[]>([])
+  // Tracks the last completed container_generation response parsed as array
+  const [convGeneratedContainers, setConvGeneratedContainers] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -170,6 +203,7 @@ export function LLMConversationPanel() {
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null)
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
   const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
+  const [containerDefinitionNames, setContainerDefinitionNames] = useState<Record<string, string>>({})
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -275,10 +309,48 @@ export function LLMConversationPanel() {
     setConvGeneratedItems(lastGeneratedItems)
   }, [chatHistory])
 
-  // Reset main content when switching conversations.
+  // Keep the last completed preset_generation response parsed as presets array
+  useEffect(() => {
+    let lastGeneratedPresets: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'preset_generation' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedPresetsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedPresets = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedPresets(lastGeneratedPresets)
+  }, [chatHistory])
+
+  // Keep the last completed container_generation response parsed as containers array
+  useEffect(() => {
+    let lastGeneratedContainers: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'container_creating' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedContainersResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedContainers = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedContainers(lastGeneratedContainers)
+  }, [chatHistory])
+
+  // Reset main content and applied tag keys when switching conversations.
   useEffect(() => {
     setConvMainContent('')
     setConvGeneratedItems([])
+    setConvGeneratedPresets([])
+    setConvGeneratedContainers([])
+    setAppliedTagsPerResponse({})
+    setCreatedItemTagsPerResponse({})
   }, [activeConvId])
 
   // Persist lore entry titles to localStorage whenever they change (survives F5)
@@ -292,6 +364,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(itemDefinitionNames).length === 0) return
     safeSetItem(lsItemNames(activeConvId), JSON.stringify(itemDefinitionNames))
   }, [itemDefinitionNames, activeConvId])
+
+  // Persist container definition names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(containerDefinitionNames).length === 0) return
+    safeSetItem(lsContainerNames(activeConvId), JSON.stringify(containerDefinitionNames))
+  }, [containerDefinitionNames, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -340,10 +418,13 @@ export function LLMConversationPanel() {
       setLinkedContent([])
       setLoreEntryTitles({})
       setItemDefinitionNames({})
+      setContainerDefinitionNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
       setSavedItemDefinitionIds({})
+      setSavedPresetDefinitionIds({})
+      setSavedContainerDefinitionIds({})
       if (gameId) {
         safeRemoveItem(lsActiveConv(gameId))
         window.dispatchEvent(new Event('ss:conv-state-changed'))
@@ -371,11 +452,24 @@ export function LLMConversationPanel() {
     // Restore saved item definition IDs from localStorage
     const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
     setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
+    // Restore saved preset definition IDs from localStorage
+    const rawPresetLinks = safeGetItem(lsPresetLinks(activeConvId))
+    setSavedPresetDefinitionIds(rawPresetLinks ? JSON.parse(rawPresetLinks) : {})
+    // Restore saved container definition IDs from localStorage
+    const rawContainerLinks = safeGetItem(lsContainerLinks(activeConvId))
+    setSavedContainerDefinitionIds(rawContainerLinks ? JSON.parse(rawContainerLinks) : {})
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
     const rawItemNames = safeGetItem(lsItemNames(activeConvId))
     if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
+    const rawContainerNames = safeGetItem(lsContainerNames(activeConvId))
+    if (rawContainerNames) { try { setContainerDefinitionNames(JSON.parse(rawContainerNames)) } catch { setContainerDefinitionNames({}) } }
+    // Restore applied game tags and created item tags from localStorage
+    const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
+    setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
+    const rawItemTagCreated = safeGetItem(lsItemTagCreated(activeConvId))
+    setCreatedItemTagsPerResponse(rawItemTagCreated ? JSON.parse(rawItemTagCreated) : {})
     loadConversation(gameId, activeConvId)
     loadLinkedContent(gameId, activeConvId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -405,6 +499,8 @@ export function LLMConversationPanel() {
           setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'lore_entry' || detail.contentType === 'lore') {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'container_definition') {
+          setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -427,6 +523,30 @@ export function LLMConversationPanel() {
     return () => window.removeEventListener('ss:conv-content-linked', handleContentLinked)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId])
+
+  // Catch successful container creation triggered from the panel, map turn context → container ID
+  useEffect(() => {
+    function handleContainerCreated(e: Event) {
+      const detail = (e as CustomEvent<{ containerId: string; containerName?: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const containerKey = `${detail.turnId}:${detail.responseIdx}:${detail.containerIdx}`
+      setSavedContainerDefinitionIds(prev => {
+        const updated = { ...prev, [containerKey]: detail.containerId }
+        safeSetItem(lsContainerLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      // Link the container to the conversation (same pattern as items/lore)
+      void linkConversationContent(gameId, activeConvId, 'container_definition', detail.containerId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      // Cache the container name immediately if provided
+      if (detail.containerName) {
+        setContainerDefinitionNames(prev => ({ ...prev, [detail.containerId]: detail.containerName! }))
+      }
+    }
+    window.addEventListener('ss:container-created', handleContainerCreated)
+    return () => window.removeEventListener('ss:container-created', handleContainerCreated)
+  }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
   // API calls
@@ -486,14 +606,18 @@ export function LLMConversationPanel() {
       // React batch → a single render that already has names, no "Item" flash.
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
+      const containerLinks = items.filter(l => l.content_type === 'container_definition')
 
-      const [loreResults, itemResults] = await Promise.all([
+      const [loreResults, itemResults, containerResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
         itemLinks.length > 0
           ? Promise.allSettled(itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
+        containerLinks.length > 0
+          ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
       ])
 
       // Build name maps synchronously (no more awaits after this point)
@@ -509,9 +633,16 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
       })
 
-      // All three setters fire synchronously → one React render with everything ready
+      const containerNames: Record<string, string> = {}
+      containerLinks.forEach((l, i) => {
+        const result = containerResults[i]
+        if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
+      })
+
+      // All setters fire synchronously → one React render with everything ready
       if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
+      if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
       setLinkedContent(items)
     } catch {
       // silently ignore
@@ -579,6 +710,8 @@ export function LLMConversationPanel() {
       undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
+      convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
     )
   }
 
@@ -597,6 +730,9 @@ export function LLMConversationPanel() {
       .map(l => l.content_id)
     const linkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
+    const linkedContainerIds = linkedContent
+      .filter(l => l.content_type === 'container_definition')
       .map(l => l.content_id)
     // Fall back to the last known entityType from history when the current turn
     // doesn't produce one (e.g. "update the current content" follow-up requests)
@@ -636,6 +772,9 @@ export function LLMConversationPanel() {
       historyContext.length > 0 ? historyContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       linkedItemIds.length > 0 ? linkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
+      convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -707,6 +846,9 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
       safeRemoveItem(lsLoreTitles(deleteTarget.ID))
       safeRemoveItem(lsItemNames(deleteTarget.ID))
+      safeRemoveItem(lsContainerNames(deleteTarget.ID))
+      safeRemoveItem(lsTagApplied(deleteTarget.ID))
+      safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
       const remainingArchived = archivedConvs.filter((c) => c.ID !== deleteTarget.ID)
       setActiveConvs(remainingActive)
@@ -734,6 +876,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(conv.ID))
       safeRemoveItem(lsLoreTitles(conv.ID))
       safeRemoveItem(lsItemNames(conv.ID))
+      safeRemoveItem(lsTagApplied(conv.ID))
+      safeRemoveItem(lsItemTagCreated(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       if (activeConvId === conv.ID) {
         safeRemoveItem(lsActiveConv(gameId))
@@ -802,10 +946,233 @@ export function LLMConversationPanel() {
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
+      convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
     )
   }
 
+  async function handleSavePresetDefinition(
+    preset: Record<string, unknown>,
+    _turnId: string,
+    _responseIdx: number,
+    _presetIdx: number,
+  ) {
+    if (!gameId) return
+    const codeName = typeof preset.code_name === 'string' ? preset.code_name : ''
+
+    // Check if a preset with this code_name already exists
+    if (codeName) {
+      try {
+        const res = await listPresetDefinitions({ gameId })
+        const existing = (res.definitions ?? []).find(d => d.code_name === codeName)
+        if (existing) {
+          setPresetCodeConflictExisting(existing)
+          setPresetCodeConflictPendingPreset(preset)
+          setPresetCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // If check fails, fall through to navigate
+      }
+    }
+
+    navigateToCreatePreset(preset)
+  }
+
+  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string) {
+    if (!gameId) return
+    const params = new URLSearchParams({ tab: 'preset', create: '1' })
+    const name = typeof preset.name === 'string' ? preset.name : (typeof preset.code_name === 'string' ? preset.code_name : '')
+    if (name) params.set('preset_name', name)
+    if (typeof preset.preset_type === 'string' && preset.preset_type) params.set('preset_type', preset.preset_type)
+    const codeName = overrideCodeName ?? (typeof preset.code_name === 'string' ? preset.code_name : '')
+    if (codeName) params.set('code_name', codeName)
+    if (typeof preset.max_slots === 'number') params.set('max_slots', String(preset.max_slots))
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  async function handlePresetCodeConflictUpdate() {
+    if (!presetCodeConflictExisting || !gameId) return
+    const preset = presetCodeConflictPendingPreset ?? {}
+    setIsApplyingPresetConflict(true)
+    try {
+      const patch: Record<string, unknown> = {}
+      if (typeof preset.name === 'string' && preset.name.trim()) patch.name = preset.name.trim()
+      if (typeof preset.max_slots === 'number') patch.max_slots = preset.max_slots
+      if (typeof preset.metadata === 'object' && preset.metadata !== null) patch.metadata = preset.metadata
+      if (Object.keys(patch).length > 0) {
+        await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
+      }
+      setPresetCodeConflictOpen(false)
+      router.push(`/games/${gameId}/items?tab=preset&id=${presetCodeConflictExisting.id}`)
+    } catch {
+      toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
+    } finally {
+      setIsApplyingPresetConflict(false)
+    }
+  }
+
+  function handlePresetCodeConflictSaveNew(newCodeName: string) {
+    if (!presetCodeConflictPendingPreset) return
+    setPresetCodeConflictOpen(false)
+    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName)
+  }
+
+  async function handleSaveContainerDefinition(
+    container: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    containerIdx: number,
+  ) {
+    if (!gameId) return
+    const name = typeof container.name === 'string' ? container.name.trim() : ''
+    if (name) {
+      try {
+        const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
+        const existing = (res.container_definitions ?? []).find(
+          d => d.name.toLowerCase() === name.toLowerCase()
+        ) ?? null
+        if (existing) {
+          setContainerNameConflictExisting(existing)
+          setContainerNameConflictPending({ container, turnId, responseIdx, containerIdx })
+          setContainerNameConflictOpen(true)
+          return
+        }
+      } catch {
+        // fall through to create
+      }
+    }
+    fireOpenCreateContainer(container, undefined, turnId, responseIdx, containerIdx)
+  }
+
+  function fireOpenCreateContainer(
+    container: Record<string, unknown>,
+    overrideName?: string,
+    turnId?: string,
+    responseIdx?: number,
+    containerIdx?: number,
+  ) {
+    const name = overrideName ?? (typeof container.name === 'string' ? container.name : '')
+    window.dispatchEvent(new CustomEvent('ss:open-create-container', {
+      detail: {
+        name,
+        container_type: typeof container.container_type === 'string' ? container.container_type : undefined,
+        grid_cols: typeof container.grid_cols === 'number' ? container.grid_cols : undefined,
+        grid_rows: typeof container.grid_rows === 'number' ? container.grid_rows : undefined,
+        is_portable: typeof container.is_portable === 'boolean' ? container.is_portable : undefined,
+        linked_item_definition_id: typeof container.linked_item_definition_id === 'string' ? container.linked_item_definition_id : undefined,
+        turnId,
+        responseIdx,
+        containerIdx,
+      },
+    }))
+  }
+
+  async function handleContainerNameConflictUpdate() {
+    if (!containerNameConflictExisting || !gameId || !activeConvId || !containerNameConflictPending) return
+    const { container, turnId, responseIdx, containerIdx } = containerNameConflictPending
+    setIsApplyingContainerConflict(true)
+    try {
+      const patch: Record<string, unknown> = {}
+      if (typeof container.name === 'string' && container.name.trim()) patch.name = container.name.trim()
+      if (typeof container.grid_cols === 'number') patch.grid_cols = container.grid_cols
+      if (typeof container.grid_rows === 'number') patch.grid_rows = container.grid_rows
+      if (typeof container.linked_item_definition_id === 'string' && container.linked_item_definition_id)
+        patch.linked_item_definition_id = container.linked_item_definition_id
+      if (container.metadata && typeof container.metadata === 'object' && !Array.isArray(container.metadata))
+        patch.metadata = container.metadata
+      if (Object.keys(patch).length > 0)
+        await updateContainerDefinition({ gameId }, containerNameConflictExisting.id, patch as any)
+      const containerKey = `${turnId}:${responseIdx}:${containerIdx}`
+      const updated = { ...savedContainerDefinitionIds, [containerKey]: containerNameConflictExisting.id }
+      setSavedContainerDefinitionIds(updated)
+      safeSetItem(lsContainerLinks(activeConvId), JSON.stringify(updated))
+      setContainerNameConflictOpen(false)
+      toast({ title: t('llmConversation.containerDefSaved') })
+    } catch {
+      toast({ title: t('llmConversation.errorSaveContainerDefinition'), variant: 'destructive' })
+    } finally {
+      setIsApplyingContainerConflict(false)
+    }
+  }
+
+  function handleContainerNameConflictCreateNew(newName: string) {
+    if (!containerNameConflictPending) return
+    const { container, turnId, responseIdx, containerIdx } = containerNameConflictPending
+    setContainerNameConflictOpen(false)
+    fireOpenCreateContainer(container, newName, turnId, responseIdx, containerIdx)
+  }
+
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
+
+
+  async function handleApplyTagSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const game = await getGame(gameId)
+      const existing = game.tags ?? []
+      const newTags = Array.from(new Set([...existing, tag]))
+      await updateGame(gameId, { tags: newTags })
+      const key = `${turnId}:${responseIdx}`
+      const updated = { ...appliedTagsPerResponse, [key]: { ...(appliedTagsPerResponse[key] ?? {}), [tag]: true as const } }
+      setAppliedTagsPerResponse(updated)
+      safeSetItem(lsTagApplied(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionApplied').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionApplyError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleRemoveGameTag(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const game = await getGame(gameId)
+      const newTags = (game.tags ?? []).filter((t) => t !== tag)
+      await updateGame(gameId, { tags: newTags })
+      const key = `${turnId}:${responseIdx}`
+      const copy = { ...(appliedTagsPerResponse[key] ?? {}) }
+      delete copy[tag]
+      const updated = { ...appliedTagsPerResponse, [key]: copy }
+      setAppliedTagsPerResponse(updated)
+      safeSetItem(lsTagApplied(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionRemovedFromGame').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionRemoveFromGameError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleCreateItemTagFromSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    try {
+      const tagKey = tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      const itemTag = await createItemTag({ gameId }, { tag_key: tagKey, label: tag })
+      const key = `${turnId}:${responseIdx}`
+      const updated = { ...createdItemTagsPerResponse, [key]: { ...(createdItemTagsPerResponse[key] ?? {}), [tag]: itemTag.id } }
+      setCreatedItemTagsPerResponse(updated)
+      safeSetItem(lsItemTagCreated(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionItemTagCreated').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionItemTagCreateError'), variant: 'destructive' })
+    }
+  }
+
+  async function handleDeleteItemTagFromSuggestion(tag: string, turnId: string, responseIdx: number) {
+    if (!gameId || !activeConvId) return
+    const key = `${turnId}:${responseIdx}`
+    const itemTagId = createdItemTagsPerResponse[key]?.[tag]
+    if (!itemTagId) return
+    try {
+      await deleteItemTag({ gameId }, itemTagId)
+      const copy = { ...(createdItemTagsPerResponse[key] ?? {}) }
+      delete copy[tag]
+      const updated = { ...createdItemTagsPerResponse, [key]: copy }
+      setCreatedItemTagsPerResponse(updated)
+      safeSetItem(lsItemTagCreated(activeConvId), JSON.stringify(updated))
+      toast({ title: t('llmConversation.tagSuggestionItemTagDeleted').replace('{tag}', tag) })
+    } catch {
+      toast({ title: t('llmConversation.tagSuggestionDeleteItemTagError'), variant: 'destructive' })
+    }
+  }
 
   function handleOpenLoreReview(turn: ChatTurn, idx: number, responseText: string, entityType: string) {
     const parsed = parseLoreResponse(responseText)
@@ -1136,10 +1503,20 @@ export function LLMConversationPanel() {
                   savedLoreIds={savedLoreIds}
                   loreEntryTitles={loreEntryTitles}
                   savedItemDefinitionIds={savedItemDefinitionIds}
+                  savedPresetDefinitionIds={savedPresetDefinitionIds}
+                  savedContainerDefinitionIds={savedContainerDefinitionIds}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
                   onSaveItemDefinition={handleOpenItemDefinitionReview}
+                  onSavePresetDefinition={handleSavePresetDefinition}
+                  onSaveContainerDefinition={handleSaveContainerDefinition}
+                  onApplyTagSuggestion={handleApplyTagSuggestion}
+                  onRemoveGameTag={handleRemoveGameTag}
+                  onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
+                  onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion}
+                  appliedTagsPerResponse={appliedTagsPerResponse}
+                  createdItemTagsPerResponse={createdItemTagsPerResponse}
                   t={t}
                 />
               </>
@@ -1153,6 +1530,7 @@ export function LLMConversationPanel() {
                 unlinkingId={unlinkingId}
                 loreEntryTitles={loreEntryTitles}
                 itemDefinitionNames={itemDefinitionNames}
+                containerDefinitionNames={containerDefinitionNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />
@@ -1205,6 +1583,18 @@ export function LLMConversationPanel() {
         isApplyingConflict={isApplyingConflict}
         onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
         onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
+        presetCodeConflictOpen={presetCodeConflictOpen}
+        setPresetCodeConflictOpen={setPresetCodeConflictOpen}
+        presetCodeConflictExisting={presetCodeConflictExisting}
+        isApplyingPresetConflict={isApplyingPresetConflict}
+        onPresetCodeConflictUpdate={handlePresetCodeConflictUpdate}
+        onPresetCodeConflictSaveNew={handlePresetCodeConflictSaveNew}
+        containerNameConflictOpen={containerNameConflictOpen}
+        setContainerNameConflictOpen={setContainerNameConflictOpen}
+        containerNameConflictExisting={containerNameConflictExisting}
+        isApplyingContainerConflict={isApplyingContainerConflict}
+        onContainerNameConflictUpdate={handleContainerNameConflictUpdate}
+        onContainerNameConflictCreateNew={handleContainerNameConflictCreateNew}
         t={t}
       />
     </>

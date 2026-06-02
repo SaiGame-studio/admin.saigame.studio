@@ -148,11 +148,13 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         <div id={id ?? "game-nav-buttons"} className="flex flex-col gap-1.5">
           <div className="flex gap-1.5 flex-wrap items-center">
             {row1.map(renderBtn)}
-          </div>
-          <div className="flex gap-1.5 flex-wrap items-center">
-            {row2.map(renderBtn)}
-            {convBtnExpanded}
             <LLMTokenPurchaseDialog gameId={gameId} />
+          </div>
+          <div className="flex gap-1.5 items-start">
+            <div className="flex gap-1.5 flex-wrap items-center">
+              {row2.map(renderBtn)}
+              {convBtnExpanded}
+            </div>
             {toggleBtn}
           </div>
         </div>
@@ -162,7 +164,8 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div id={id ?? "game-nav-buttons"} className="flex gap-1.5 flex-wrap items-center">
+      <div id={id ?? "game-nav-buttons"} className="flex gap-1.5 items-start">
+        <div className="flex gap-1.5 flex-wrap items-center flex-1">
         {items.map(({ section, href, icon, label }) => {
           const isActive = active === section
           if (isActive) {
@@ -188,6 +191,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         })}
         {convBtnCompact}
         <LLMTokenPurchaseDialog gameId={gameId} compact />
+        </div>
         {toggleBtn}
       </div>
     </TooltipProvider>

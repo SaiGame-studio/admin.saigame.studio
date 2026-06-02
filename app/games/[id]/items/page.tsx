@@ -129,6 +129,7 @@ import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab'
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog'
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
 function RarityBadge({ rarity }: { rarity: ItemRarity }) {
   const c = RARITY_COLORS[rarity]
@@ -303,6 +304,7 @@ function CreateContainerDefinitionDialog({
   gameId,
   allItems,
   containerTypeOptions,
+  initialValues,
   onCreated,
   onClose,
 }: {
@@ -310,11 +312,13 @@ function CreateContainerDefinitionDialog({
   gameId: string
   allItems: ItemDefinition[]
   containerTypeOptions: ContainerTypeOption[]
-  onCreated: () => void
+  initialValues?: { name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string }
+  onCreated: (id: string) => void
   onClose: () => void
 }) {
   const { toast } = useToast()
   const { t } = useTranslation()
+  useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState<ContainerType>("chest")
@@ -326,6 +330,27 @@ function CreateContainerDefinitionDialog({
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
   const [meta, setMeta] = useState<KVEntry[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (open && initialValues) {
+      if (initialValues.name) setName(initialValues.name)
+      if (initialValues.container_type) setContainerType(initialValues.container_type as ContainerType)
+      if (initialValues.grid_cols) setGridCols(String(initialValues.grid_cols))
+      if (initialValues.grid_rows) setGridRows(String(initialValues.grid_rows))
+      if (initialValues.is_portable !== undefined) setIsPortable(initialValues.is_portable)
+      if (initialValues.linked_item_definition_id) {
+        const raw = initialValues.linked_item_definition_id
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)
+        if (isUuid) {
+          setLinkedItemId(raw)
+        } else {
+          const match = allItems.find(item => item.item_code.toLowerCase() === raw.toLowerCase())
+          if (match) setLinkedItemId(match.id)
+        }
+      }
+    }
+  }, [open, initialValues, allItems])
+
   function resetForm() {
     setName("")
     setContainerType("chest")
@@ -363,10 +388,10 @@ function CreateContainerDefinitionDialog({
         ...(linkedItemId ? { linked_item_definition_id: linkedItemId } : {}),
         metadata,
       }
-      await createContainerDefinition({ gameId }, body)
+      const res = await createContainerDefinition({ gameId }, body)
       toast({ title: t('items.containerCreated'), description: `"${name.trim()}" added.` })
       resetForm()
-      onCreated()
+      onCreated(res.container_definition.id)
       onClose()
     } catch (err: any) {
       if (err?.status === 403) {
@@ -381,7 +406,7 @@ function CreateContainerDefinitionDialog({
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col" onInteractOutside={(e) => e.preventDefault()} onFocusOutside={(e) => e.preventDefault()}>
         <SheetHeader>
           <SheetTitle>{t('items.newContainerDefinition')}</SheetTitle>
         </SheetHeader>
@@ -937,7 +962,7 @@ function TagsTab({
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" onClick={openCreate} disabled={tags.length >= 50}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
+            <Tag className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
           </Button>
         </div>
       </div>
@@ -967,7 +992,7 @@ function TagsTab({
           </p>
           {!search && (
             <Button size="sm" onClick={openCreate}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
+              <Tag className="h-3.5 w-3.5 mr-1" /> {t('items.newTag')}
             </Button>
           )}
         </div>
@@ -1468,6 +1493,8 @@ export default function GameItemsPage() {
   const [containerError, setContainerError] = useState<string | null>(null)
   const [containerOffset, setContainerOffset] = useState(0)
   const [showCreateContainer, setShowCreateContainer] = useState(false)
+  const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{ name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string } | undefined>(undefined)
+  const [createContainerConvContext, setCreateContainerConvContext] = useState<{ turnId: string; responseIdx: number; containerIdx: number } | undefined>(undefined)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
   const [containerSearch, setContainerSearch] = useState("")
@@ -1514,6 +1541,7 @@ export default function GameItemsPage() {
   const [presetSearch, setPresetSearch] = useState("")
   const [presetSearchDebounced, setPresetSearchDebounced] = useState("")
   const [showCreatePreset, setShowCreatePreset] = useState(false)
+  const [createPresetInitialValues, setCreatePresetInitialValues] = useState<{ name?: string; preset_type?: string; code_name?: string; max_slots?: number } | undefined>(undefined)
   const [editingPreset, setEditingPreset] = useState<PresetDefinition | null>(null)
   const [deletingPreset, setDeletingPreset] = useState<PresetDefinition | null>(null)
   const [deletePresetLoading, setDeletePresetLoading] = useState(false)
@@ -1541,6 +1569,7 @@ export default function GameItemsPage() {
   const [convPanelOpen, setConvPanelOpen] = useState(false)
   const [convActiveId, setConvActiveId] = useState<string | null>(null)
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null)
+  const [linkingContainerId, setLinkingContainerId] = useState<string | null>(null)
 
   useEffect(() => {
     function readPanelState() {
@@ -1551,9 +1580,31 @@ export default function GameItemsPage() {
     const handler = () => readPanelState()
     window.addEventListener('storage', handler)
     window.addEventListener('ss:conv-state-changed', handler)
+
+    function handleOpenCreateContainer(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      setCreateContainerInitialValues({
+        name: detail.name,
+        container_type: detail.container_type,
+        grid_cols: detail.grid_cols,
+        grid_rows: detail.grid_rows,
+        is_portable: detail.is_portable,
+        linked_item_definition_id: detail.linked_item_definition_id,
+      })
+      if (detail.turnId !== undefined) {
+        setCreateContainerConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, containerIdx: detail.containerIdx })
+      } else {
+        setCreateContainerConvContext(undefined)
+      }
+      setActiveTab('containers')
+      setShowCreateContainer(true)
+    }
+    window.addEventListener('ss:open-create-container', handleOpenCreateContainer)
+
     return () => {
       window.removeEventListener('storage', handler)
       window.removeEventListener('ss:conv-state-changed', handler)
+      window.removeEventListener('ss:open-create-container', handleOpenCreateContainer)
     }
   }, [gameId])
 
@@ -1568,14 +1619,32 @@ export default function GameItemsPage() {
     // initialize container search from URL `q` param
     const q = searchParams.get("q")
     if (q) setContainerSearch(q)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // initialize preset search from URL `id` param
+    const presetId = searchParams.get("id")
+    if (presetId && tab === "preset") setPresetSearch(presetId)
+    // initialize container search from URL `id` param
+    const containerId = searchParams.get("id")
+    if (containerId && tab === "containers") setContainerSearch(containerId)
+    // auto-open create preset sheet from URL params
+    if (tab === "preset" && searchParams.get("create") === "1") {
+      const iv: { name?: string; preset_type?: string; code_name?: string; max_slots?: number } = {}
+      const pName = searchParams.get("preset_name")
+      const pType = searchParams.get("preset_type")
+      const pCode = searchParams.get("code_name")
+      const pSlots = searchParams.get("max_slots")
+      if (pName) iv.name = pName
+      if (pType) iv.preset_type = pType
+      if (pCode) iv.code_name = pCode
+      if (pSlots && !isNaN(Number(pSlots))) iv.max_slots = Number(pSlots)
+      setCreatePresetInitialValues(iv)
+      setShowCreatePreset(true)
+    }
+  }, [searchParams])
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    const newParams = new URLSearchParams(searchParams.toString())
-    newParams.set("tab", value)
-    router.push(`${window.location.pathname}?${newParams.toString()}`)
+    router.push(`${window.location.pathname}?tab=${value}`)
   }
 
   const handleContainerSubTabChange = (value: string) => {
@@ -1733,6 +1802,35 @@ export default function GameItemsPage() {
       })
     } finally {
       setLinkingItemId(null)
+    }
+  }
+
+  // Link a container definition to the active (or a newly created) conversation
+  async function handleLinkContainerToConversation(def: ContainerDefinition) {
+    setLinkingContainerId(def.id)
+    try {
+      let convId: string | null = convActiveId
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Container: ${def.name}`,
+          goal: t('items.linkToConvGoal').replace('{name}', def.name),
+        })
+        convId = newConv.ID
+      }
+      safeSetItem(`ss_conv_active_${gameId}`, convId)
+      setConvActiveId(convId)
+      await linkConversationContent(gameId, convId, 'container_definition', def.id)
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'container_definition', contentId: def.id, contentName: def.name } }))
+      toast({ title: t('items.linkToConvSuccess'), description: def.name })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('items.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingContainerId(null)
     }
   }
 
@@ -2858,6 +2956,7 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {convPanelOpen && <TableHead id="containers-table-header-link-conv" className="text-center w-10" />}
                       <TableHead>{t('items.name')}</TableHead>
                       <TableHead>{t('items.type')}</TableHead>
                       <TableHead>{t('items.grid')}</TableHead>
@@ -2878,6 +2977,36 @@ export default function GameItemsPage() {
                             className={`hover:bg-muted/40 cursor-pointer ${isExpanded ? "bg-muted/30" : ""}`}
                             onClick={() => handleContainerRowClick(def)}
                           >
+                            {convPanelOpen && (
+                              <TableCell id={`containers-row-${def.id}-link-conv-cell`} className="text-center" onClick={(e) => e.stopPropagation()}>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        id={`containers-row-${def.id}-link-conv-btn`}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-emerald-500"
+                                        disabled={linkingContainerId === def.id}
+                                        onClick={() => handleLinkContainerToConversation(def)}
+                                      >
+                                        {linkingContainerId === def.id
+                                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          : (
+                                            <span id={`containers-row-${def.id}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                                              <Bot className="h-3.5 w-3.5" />
+                                              <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                                            </span>
+                                          )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent id={`containers-row-${def.id}-link-conv-tooltip`} side="top">
+                                      {t('items.linkToConv')}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </TableCell>
+                            )}
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 {isExpanded ? (
@@ -2938,7 +3067,7 @@ export default function GameItemsPage() {
 
                           {isExpanded && (
                             <TableRow className="bg-muted/30 hover:bg-muted/30">
-                              <TableCell colSpan={6} className="p-0">
+                              <TableCell colSpan={convPanelOpen ? 7 : 6} className="p-0">
                                 <div className="px-10 py-4 space-y-4 border-l-2 border-primary/20 bg-primary/5 group/expand">
                                   {isLoadingDetail ? (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -3867,8 +3996,16 @@ export default function GameItemsPage() {
         gameId={gameId}
         allItems={containerAllItems}
         containerTypeOptions={containerTypeOptions}
-        onCreated={() => { fetchContainerDefs(); loadGameInfo() }}
-        onClose={() => setShowCreateContainer(false)}
+        initialValues={createContainerInitialValues}
+        onCreated={(id) => {
+          fetchContainerDefs()
+          loadGameInfo()
+          if (createContainerConvContext) {
+            const { turnId, responseIdx, containerIdx } = createContainerConvContext
+            window.dispatchEvent(new CustomEvent('ss:container-created', { detail: { containerId: id, containerName: createContainerInitialValues?.name, turnId, responseIdx, containerIdx } }))
+          }
+        }}
+        onClose={() => { setShowCreateContainer(false); setCreateContainerInitialValues(undefined); setCreateContainerConvContext(undefined) }}
       />
 
 
@@ -4429,8 +4566,9 @@ export default function GameItemsPage() {
       <CreatePresetDefinitionSheet
         open={showCreatePreset}
         gameId={gameId}
+        initialValues={createPresetInitialValues}
         onCreated={fetchPresetDefs}
-        onClose={() => setShowCreatePreset(false)}
+        onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined) }}
       />
 
       {/* ── Preset Edit Sheet ────────────────────────────────────────────────── */}
@@ -4580,11 +4718,13 @@ export default function GameItemsPage() {
 function CreatePresetDefinitionSheet({
   open,
   gameId,
+  initialValues,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
+  initialValues?: { name?: string; preset_type?: string; code_name?: string; max_slots?: number }
   onCreated: () => void
   onClose: () => void
 }) {
@@ -4598,6 +4738,21 @@ function CreatePresetDefinitionSheet({
   const [maxSlots, setMaxSlots] = useState("20")
   const [meta, setMeta] = useState<{ key: string; value: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Pre-fill form when opened with initial values (e.g. from LLM conversation)
+  useEffect(() => {
+    if (open && initialValues) {
+      if (initialValues.name) setName(initialValues.name)
+      if (initialValues.preset_type) setContainerType(initialValues.preset_type)
+      if (initialValues.code_name) {
+        setCodeName(initialValues.code_name)
+        setAutoSlug(false)
+      } else if (initialValues.name) {
+        setCodeName(toSlugUnderscore(initialValues.name))
+      }
+      if (initialValues.max_slots) setMaxSlots(String(initialValues.max_slots))
+    }
+  }, [open, initialValues])
 
   function resetForm() {
     setName("")

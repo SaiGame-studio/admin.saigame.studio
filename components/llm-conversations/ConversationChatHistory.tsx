@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Loader2, Package, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Gamepad2, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -19,11 +19,202 @@ interface ConversationChatHistoryProps {
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
   savedItemDefinitionIds: Record<string, string>
+  savedPresetDefinitionIds: Record<string, string>
+  savedContainerDefinitionIds: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
+  onSavePresetDefinition: (preset: Record<string, unknown>, turnId: string, responseIdx: number, presetIdx: number) => void
+  onSaveContainerDefinition: (container: Record<string, unknown>, turnId: string, responseIdx: number, containerIdx: number) => void
+  onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
+  onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
+  onCreateItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
+  onDeleteItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
+  appliedTagsPerResponse?: Record<string, Record<string, true>>
+  createdItemTagsPerResponse?: Record<string, Record<string, string>>
   t: (key: string) => string
+}
+
+// ---------------------------------------------------------------------------
+// Tag suggestion result sub-component
+// ---------------------------------------------------------------------------
+interface TagSuggestionResultProps {
+  responseText: string
+  turnId: string
+  responseIdx: number
+  isDone: boolean
+  isStreaming: boolean
+  gameId: string
+  appliedTags: Record<string, true> | undefined
+  createdItemTags: Record<string, string> | undefined
+  onApplyGameTag: (tag: string, turnId: string, responseIdx: number) => void
+  onRemoveGameTag: (tag: string, turnId: string, responseIdx: number) => void
+  onCreateItemTag: (tag: string, turnId: string, responseIdx: number) => void
+  onDeleteItemTag: (tag: string, turnId: string, responseIdx: number) => void
+  t: (key: string) => string
+}
+
+function TagSuggestionResult({
+  responseText,
+  turnId,
+  responseIdx,
+  isDone,
+  isStreaming,
+  gameId,
+  appliedTags,
+  createdItemTags,
+  onApplyGameTag,
+  onRemoveGameTag,
+  onCreateItemTag,
+  onDeleteItemTag,
+  t,
+}: TagSuggestionResultProps) {
+  if (!isDone) {
+    return (
+      <Loader2
+        id={`conv-panel-tag-suggestion-loader-${turnId}-${responseIdx}`}
+        className="h-3 w-3 animate-spin text-muted-foreground"
+      />
+    )
+  }
+
+  let parsedTags: string[] = []
+  let reasoning = ''
+  try {
+    const raw = JSON.parse(responseText) as Record<string, unknown>
+    if (Array.isArray(raw?.tags)) parsedTags = raw.tags as string[]
+    if (typeof raw?.reasoning === 'string') reasoning = raw.reasoning
+  } catch { /* invalid JSON */ }
+
+  if (parsedTags.length === 0) {
+    return (
+      <p
+        id={`conv-panel-tag-suggestion-empty-${turnId}-${responseIdx}`}
+        className="text-xs text-muted-foreground italic"
+      >
+        {t('llmConversation.tagSuggestionEmpty')}
+      </p>
+    )
+  }
+
+  return (
+    <div id={`conv-panel-tag-suggestion-result-${turnId}-${responseIdx}`} className="flex flex-col gap-3">
+      <div id={`conv-panel-tag-suggestion-tags-${turnId}-${responseIdx}`} className="flex flex-wrap gap-2">
+        {parsedTags.map((tag) => {
+          const isGameApplied = !!appliedTags?.[tag]
+          const isItemCreated = !!createdItemTags?.[tag]
+          return (
+            <div
+              key={tag}
+              id={`conv-panel-tag-chip-${turnId}-${responseIdx}-${tag}`}
+              className="inline-flex items-center rounded-full border bg-muted/30 text-[11px] overflow-hidden"
+            >
+              {/* Tag label */}
+              <span
+                id={`conv-panel-tag-chip-label-${turnId}-${responseIdx}-${tag}`}
+                className="flex items-center gap-1 px-2.5 py-0.5 text-muted-foreground border-r"
+              >
+                <Tag className="h-2.5 w-2.5 shrink-0" />
+                {tag}
+              </span>
+              {/* Apply / Remove game tag (toggle) */}
+              <button
+                id={`conv-panel-tag-chip-game-btn-${turnId}-${responseIdx}-${tag}`}
+                type="button"
+                onClick={() => isGameApplied
+                  ? onRemoveGameTag(tag, turnId, responseIdx)
+                  : onApplyGameTag(tag, turnId, responseIdx)
+                }
+                disabled={isStreaming}
+                title={isGameApplied ? t('llmConversation.tagSuggestionRemoveFromGame') : t('llmConversation.tagSuggestionApply')}
+                className={[
+                  'group flex items-center gap-0.5 px-1.5 py-0.5 border-r transition-colors cursor-pointer',
+                  isGameApplied
+                    ? 'text-green-600 hover:text-red-500 hover:bg-red-500/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                  isStreaming ? 'opacity-40 cursor-not-allowed' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {isGameApplied ? (
+                  <>
+                    <Check  id={`conv-panel-tag-chip-game-check-${turnId}-${responseIdx}-${tag}`}  className="h-2.5 w-2.5 group-hover:hidden" />
+                    <Trash2 id={`conv-panel-tag-chip-game-trash-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5 hidden group-hover:block" />
+                  </>
+                ) : (
+                  <Tag id={`conv-panel-tag-chip-game-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
+                )}
+              </button>
+              {/* Create / Delete item definition tag (toggle) */}
+              <button
+                id={`conv-panel-tag-chip-item-btn-${turnId}-${responseIdx}-${tag}`}
+                type="button"
+                onClick={() => isItemCreated
+                  ? onDeleteItemTag(tag, turnId, responseIdx)
+                  : onCreateItemTag(tag, turnId, responseIdx)
+                }
+                disabled={isStreaming}
+                title={isItemCreated ? t('llmConversation.tagSuggestionDeleteItemTag') : t('llmConversation.tagSuggestionCreateItemTag')}
+                className={[
+                  'group flex items-center gap-0.5 px-1.5 py-0.5 transition-colors cursor-pointer',
+                  isItemCreated
+                    ? 'text-green-600 hover:text-red-500 hover:bg-red-500/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                  isStreaming ? 'opacity-40 cursor-not-allowed' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {isItemCreated ? (
+                  <>
+                    <Check  id={`conv-panel-tag-chip-item-check-${turnId}-${responseIdx}-${tag}`}  className="h-2.5 w-2.5 group-hover:hidden" />
+                    <Trash2 id={`conv-panel-tag-chip-item-trash-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5 hidden group-hover:block" />
+                  </>
+                ) : (
+                  <Boxes id={`conv-panel-tag-chip-item-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
+                )}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {reasoning && (
+        <div id={`conv-panel-tag-suggestion-reasoning-${turnId}-${responseIdx}`} className="flex flex-col gap-0.5">
+          <span
+            id={`conv-panel-tag-suggestion-reasoning-label-${turnId}-${responseIdx}`}
+            className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide"
+          >
+            {t('llmConversation.tagSuggestionReasoning')}
+          </span>
+          <p
+            id={`conv-panel-tag-suggestion-reasoning-text-${turnId}-${responseIdx}`}
+            className="text-xs text-muted-foreground italic"
+          >
+            {reasoning}
+          </p>
+        </div>
+      )}
+
+      {/* Quick navigation links */}
+      <div id={`conv-panel-tag-suggestion-links-${turnId}-${responseIdx}`} className="flex items-center gap-3">
+        <Link
+          id={`conv-panel-tag-suggestion-link-game-${turnId}-${responseIdx}`}
+          href={`/games/${gameId}`}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Gamepad2 className="h-3 w-3" />
+          {t('llmConversation.tagSuggestionViewGameDetail')}
+        </Link>
+        <Link
+          id={`conv-panel-tag-suggestion-link-item-tags-${turnId}-${responseIdx}`}
+          href={`/games/${gameId}/items?tab=tags`}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Tag className="h-3 w-3" />
+          {t('llmConversation.tagSuggestionViewItemTags')}
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 const MARKDOWN_COMPONENTS = {
@@ -49,10 +240,20 @@ export function ConversationChatHistory({
   savedLoreIds,
   loreEntryTitles,
   savedItemDefinitionIds,
+  savedPresetDefinitionIds,
+  savedContainerDefinitionIds,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
   onSaveItemDefinition,
+  onSavePresetDefinition,
+  onSaveContainerDefinition,
+  onApplyTagSuggestion,
+  onRemoveGameTag,
+  onCreateItemTagFromSuggestion,
+  onDeleteItemTagFromSuggestion,
+  appliedTagsPerResponse,
+  createdItemTagsPerResponse,
   t,
 }: ConversationChatHistoryProps) {
   const { resolvedTheme } = useTheme()
@@ -105,20 +306,8 @@ export function ConversationChatHistory({
 
           {/* AI response */}
           <div id={`conv-panel-ai-msg-${turn.id}`} className="flex items-start gap-2">
-            <Bot className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+            <Bot className="h-4 w-4 shrink-0 text-primary mt-3" />
             <div id={`conv-panel-ai-msg-content-${turn.id}`} className="flex-1 min-w-0">
-              {turn.detectedType && (
-                <div id={`conv-panel-ai-detected-row-${turn.id}`} className="mb-1.5 flex items-center gap-2 flex-wrap">
-                  <span
-                    id={`conv-panel-ai-detected-type-${turn.id}`}
-                    className="inline-flex items-center gap-1 text-xs border border-primary/50 text-primary rounded-md px-2 py-0.5"
-                  >
-                    <Sparkles className="h-3 w-3 shrink-0" />
-                    {t(`llmConversation.requestTypes.${turn.detectedType}`) || turn.detectedType}
-                  </span>
-                </div>
-              )}
-
               {turn.error ? (
                 <div id={`conv-panel-ai-error-row-${turn.id}`} className="flex items-center gap-2">
                   <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">{turn.error}</p>
@@ -137,14 +326,20 @@ export function ConversationChatHistory({
                 <div id={`conv-panel-ai-responses-${turn.id}`} className="flex flex-col gap-3">
                   {turn.responses!.map((response, idx) => (
                     <div key={idx} id={`conv-panel-ai-response-${turn.id}-${idx}`} className="flex flex-col gap-1">
-                      <span id={`conv-panel-ai-response-type-${turn.id}-${idx}`} className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                        {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
-                        {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating') && response.entityType && (
-                          <span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] normal-case tracking-normal text-muted-foreground border">
-                            {response.entityType}
+                      <div id={`conv-panel-ai-response-type-${turn.id}-${idx}`} className="flex items-center gap-2 my-2">
+                        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background shadow-sm px-2.5 py-1 text-[11px] font-medium text-foreground shrink-0">
+                          <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                          <span className="text-primary font-semibold">
+                            {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
                           </span>
-                        )}
-                      </span>
+                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation') && response.entityType && (
+                            <span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded-full bg-muted px-2 py-0.5 text-[10px] normal-case font-medium text-muted-foreground">
+                              {response.entityType}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+                      </div>
                       {response.error ? (
                         <div id={`conv-panel-ai-response-error-wrap-${turn.id}-${idx}`} className="flex items-center gap-2 flex-wrap">
                           <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
@@ -163,6 +358,22 @@ export function ConversationChatHistory({
                             {t('common.retry')}
                           </button>
                         </div>
+                      ) : response.intentType === 'tag_suggestion' ? (
+                        <TagSuggestionResult
+                          responseText={response.responseText ?? ''}
+                          turnId={turn.id}
+                          responseIdx={idx}
+                          isDone={!!response.done}
+                          isStreaming={isStreaming}
+                          gameId={gameId}
+                          appliedTags={appliedTagsPerResponse?.[`${turn.id}:${idx}`]}
+                          createdItemTags={createdItemTagsPerResponse?.[`${turn.id}:${idx}`]}
+                          onApplyGameTag={onApplyTagSuggestion ?? (() => {})}
+                          onRemoveGameTag={onRemoveGameTag ?? (() => {})}
+                          onCreateItemTag={onCreateItemTagFromSuggestion ?? (() => {})}
+                          onDeleteItemTag={onDeleteItemTagFromSuggestion ?? (() => {})}
+                          t={t}
+                        />
                       ) : response.responseText ? (
                         (response.intentType === 'item_generation' || response.intentType === 'item_modify') ? (
                           <div id={`conv-panel-ai-response-text-${turn.id}-${idx}`} className="flex flex-col gap-1">
@@ -173,7 +384,7 @@ export function ConversationChatHistory({
                                     {seg.text}
                                   </ReactMarkdown>
                                 </div>
-                              ) : (
+                              ) : seg.type === 'item' ? (
                                 <div key={segIdx} id={`conv-panel-segment-item-${turn.id}-${idx}-${seg.itemIdx}`} className="flex flex-col gap-1">
                                   <div id={`conv-panel-segment-item-json-${turn.id}-${idx}-${seg.itemIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
@@ -206,7 +417,106 @@ export function ConversationChatHistory({
                                     )
                                   })()}
                                 </div>
-                              )
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'preset_generation' ? (
+                          <div id={`conv-panel-ai-response-presets-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitPresetResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-preset-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'preset' ? (
+                                <div key={segIdx} id={`conv-panel-preset-segment-${turn.id}-${idx}-${seg.presetIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-preset-segment-json-${turn.id}-${idx}-${seg.presetIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const presetKey = `${turn.id}:${idx}:${seg.presetIdx}`
+                                    const savedPresetId = savedPresetDefinitionIds[presetKey]
+                                    const presetName = typeof seg.preset.name === 'string' ? seg.preset.name : (typeof seg.preset.code_name === 'string' ? seg.preset.code_name : `Preset ${seg.presetIdx + 1}`)
+                                    return savedPresetId ? (
+                                      <Link
+                                        id={`conv-panel-preset-link-${turn.id}-${idx}-${seg.presetIdx}`}
+                                        href={`/games/${gameId}/items?tab=preset&id=${savedPresetId}`}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        title={presetName}
+                                      >
+                                        <LayoutTemplate className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-preset-link-label-${turn.id}-${idx}-${seg.presetIdx}`} className="truncate">{presetName}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-preset-btn-${turn.id}-${idx}-${seg.presetIdx}`}
+                                        onClick={() => onSavePresetDefinition(seg.preset, turn.id, idx, seg.presetIdx)}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <LayoutTemplate className="h-3 w-3" />
+                                        <span id={`conv-panel-save-preset-btn-label-${turn.id}-${idx}-${seg.presetIdx}`}>{t('llmConversation.saveAsPresetDefinition')}: {presetName}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'container_creating' ? (
+                          <div id={`conv-panel-ai-response-containers-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitContainerResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-container-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'container' ? (
+                                <div key={segIdx} id={`conv-panel-container-segment-${turn.id}-${idx}-${seg.containerIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-container-segment-json-${turn.id}-${idx}-${seg.containerIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const containerKey = `${turn.id}:${idx}:${seg.containerIdx}`
+                                    const savedContainerId = savedContainerDefinitionIds[containerKey]
+                                    const containerName = typeof seg.container.name === 'string' ? seg.container.name : `Container ${seg.containerIdx + 1}`
+                                    const gridCols = typeof seg.container.grid_cols === 'number' ? seg.container.grid_cols : ''
+                                    const gridRows = typeof seg.container.grid_rows === 'number' ? seg.container.grid_rows : ''
+                                    const sizeLabel = gridCols && gridRows ? ` (${gridCols}×${gridRows})` : ''
+                                    return savedContainerId ? (
+                                      <Link
+                                        id={`conv-panel-container-link-${turn.id}-${idx}-${seg.containerIdx}`}
+                                        href={`/games/${gameId}/items?tab=containers&q=${savedContainerId}`}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        title={containerName}
+                                      >
+                                        <Archive className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-container-link-label-${turn.id}-${idx}-${seg.containerIdx}`} className="truncate">{t('llmConversation.viewContainerDefinition')}: {containerName}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-container-btn-${turn.id}-${idx}-${seg.containerIdx}`}
+                                        onClick={() => onSaveContainerDefinition(seg.container, turn.id, idx, seg.containerIdx)}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <Archive className="h-3 w-3" />
+                                        <span id={`conv-panel-save-container-btn-label-${turn.id}-${idx}-${seg.containerIdx}`}>{t('llmConversation.saveAsContainerDefinition')}: {containerName}{sizeLabel}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
                             )}
                             {!response.done && (
                               <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
