@@ -1028,7 +1028,7 @@ export function LLMConversationPanel() {
     const name = typeof container.name === 'string' ? container.name.trim() : ''
     if (name) {
       try {
-        const res = await listContainerDefinitions({ gameId }, { limit: 200 })
+        const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
         const existing = (res.container_definitions ?? []).find(
           d => d.name.toLowerCase() === name.toLowerCase()
         ) ?? null

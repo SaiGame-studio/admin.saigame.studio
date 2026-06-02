@@ -213,6 +213,7 @@ export interface ListContainerDefsParams {
   limit?: number
   offset?: number
   container_type?: ContainerType
+  q?: string
 }
 
 /** GET /api/v1/games/:gameId/container-definitions */
@@ -224,6 +225,7 @@ export async function listContainerDefinitions(
   if (params.limit        != null) qs.set('limit',          String(params.limit))
   if (params.offset       != null) qs.set('offset',         String(params.offset))
   if (params.container_type)       qs.set('container_type', params.container_type)
+  if (params.q)                    qs.set('q',              params.q)
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/container-definitions${query ? `?${query}` : ''}`)
 }

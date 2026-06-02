@@ -406,7 +406,7 @@ function CreateContainerDefinitionDialog({
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose() } }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col" onInteractOutside={(e) => e.preventDefault()} onFocusOutside={(e) => e.preventDefault()}>
         <SheetHeader>
           <SheetTitle>{t('items.newContainerDefinition')}</SheetTitle>
         </SheetHeader>
