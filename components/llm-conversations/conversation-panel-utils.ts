@@ -514,6 +514,7 @@ export function splitContainerResponseSegments(text: string): ResponseSegment[] 
 export const lsGachaPackLinks = (convId: string) => `ss_conv_gacha_pack_links_${convId}`
 export const lsGachaPackNames = (convId: string) => `ss_conv_gacha_pack_names_${convId}`
 export const lsPendingGachaCreate = (gameId: string) => `ss_pending_gacha_create_${gameId}`
+export const lsPendingGachaEdit = (gameId: string) => `ss_pending_gacha_edit_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Parse generated gacha packs from gacha_pack_creating response text.

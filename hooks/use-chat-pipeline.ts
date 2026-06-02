@@ -47,7 +47,7 @@ export function useChatPipeline() {
     onConvUpdated: (conv: Conversation) => void,
     errorCreate: string,
     errorSend: string,
-    mainContent?: string,
+    requestHistory?: Array<{ request_type: string; response_text: string }>,
     loreEntryIds?: string[],
     fallbackEntityType?: string,
     historyContext?: DetectIntentHistoryEntry[],
@@ -142,14 +142,21 @@ export function useChatPipeline() {
         })
       )
 
+      // Growing history: starts with prior-turn responses, each completed intent appends its text
+      const activeHistory: Array<{ request_type: string; response_text: string }> = [
+        ...(requestHistory ?? []),
+      ]
+
       for (let i = 0; i < resolvedIntents.length; i++) {
         const intent = resolvedIntents[i]
+        let currentResponseText = ''
         await streamRequest(
           gameId,
           resolvedConvId,
           intent.type,
           userPrompt,
-          (chunk) =>
+          (chunk) => {
+            currentResponseText += chunk
             setChatHistory((prev) =>
               prev.map((t) => {
                 if (t.id !== turnId) return t
@@ -158,7 +165,8 @@ export function useChatPipeline() {
                 )
                 return { ...t, responses }
               })
-            ),
+            )
+          },
           (_requestId) => {
             setChatHistory((prev) =>
               prev.map((t) => {
@@ -181,7 +189,7 @@ export function useChatPipeline() {
               })
             )
           },
-          intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
+          activeHistory.length > 0 ? [...activeHistory] : undefined,
           loreEntryIds,
           (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
           (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? intent.goals : undefined,
@@ -197,6 +205,11 @@ export function useChatPipeline() {
           itemDefinitionIds,
           containerDefinitionIds,
         )
+        // After each completed intent, append its response to activeHistory so
+        // subsequent intents in this same turn receive all prior responses as context
+        if (currentResponseText) {
+          activeHistory.push({ request_type: intent.type, response_text: currentResponseText })
+        }
       }
 
       // Mark the turn complete
@@ -248,7 +261,7 @@ export function useChatPipeline() {
     intentType: string,
     userMessage: string,
     errorSend: string,
-    mainContent?: string,
+    requestHistory?: Array<{ request_type: string; response_text: string }>,
     generatedItems?: unknown[],
     loreEntryIds?: string[],
     itemDefinitionIds?: string[],
@@ -316,7 +329,7 @@ export function useChatPipeline() {
             })
           )
         },
-        intentType === 'lore_analyzing' && mainContent ? mainContent : undefined,
+        requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
         loreEntryIds,
         undefined,
         undefined,

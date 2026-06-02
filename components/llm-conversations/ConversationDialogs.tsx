@@ -58,7 +58,6 @@ interface ConversationDialogsProps {
   setDetailOpen: (v: boolean) => void
   chatHistory: ChatTurn[]
   activeConv: Conversation | null
-  convMainContent: string
   convGeneratedItems: unknown[]
   // Delete dialog
   deleteTarget: Conversation | null
@@ -133,7 +132,6 @@ export function ConversationDialogs({
   setDetailOpen,
   chatHistory,
   activeConv,
-  convMainContent,
   convGeneratedItems,
   deleteTarget,
   setDeleteTarget,
@@ -437,13 +435,6 @@ export function ConversationDialogs({
                 </section>
               )}
 
-              {convMainContent && (
-                <section id="conv-panel-detail-main-content-section">
-                  <p id="conv-panel-detail-main-content-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailMainContentLabel')}</p>
-                  <pre id="conv-panel-detail-main-content-val" className="whitespace-pre-wrap break-words text-xs bg-muted rounded p-2 leading-relaxed">{convMainContent}</pre>
-                </section>
-              )}
-
               {detailGeneratedItems.length > 0 && (
                 <section id="conv-panel-detail-generated-items-section">
                   <p id="conv-panel-detail-generated-items-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">{t('llmConversation.detailGeneratedItemsLabel')}</p>
@@ -456,15 +447,21 @@ export function ConversationDialogs({
                   <p id="conv-panel-detail-turns-label" className="font-semibold text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
                     {t('llmConversation.detailTurnsLabel').replace('{count}', String(chatHistory.length))}
                   </p>
-                  <div id="conv-panel-detail-turns-list" className="space-y-2">
+                  <div id="conv-panel-detail-turns-list" className="space-y-3">
                     {chatHistory.map((turn, i) => (
-                      <div id={`conv-panel-detail-turn-${turn.id}`} key={turn.id} className="rounded border p-2 space-y-0.5">
-                        <p id={`conv-panel-detail-turn-user-${turn.id}`} className="font-medium truncate">{i + 1}. {turn.userMessage}</p>
+                      <div id={`conv-panel-detail-turn-${turn.id}`} key={turn.id} className="rounded border p-2 space-y-1.5">
+                        <p id={`conv-panel-detail-turn-user-${turn.id}`} className="font-medium">{i + 1}. {turn.userMessage}</p>
                         {turn.detectedType && (
-                          <p id={`conv-panel-detail-turn-type-${turn.id}`} className="text-muted-foreground">
+                          <p id={`conv-panel-detail-turn-type-${turn.id}`} className="text-muted-foreground text-xs">
                             {t('llmConversation.detailTurnType')}: <span className="text-foreground">{turn.detectedType}</span>
                           </p>
                         )}
+                        {(turn.responses ?? []).filter(r => r.responseText).map((r, ri) => (
+                          <div id={`conv-panel-detail-turn-response-${turn.id}-${ri}`} key={ri} className="space-y-0.5">
+                            <p id={`conv-panel-detail-turn-response-label-${turn.id}-${ri}`} className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{r.intentType}</p>
+                            <pre id={`conv-panel-detail-turn-response-text-${turn.id}-${ri}`} className="whitespace-pre-wrap break-words text-xs bg-muted rounded p-2 leading-relaxed max-h-48 overflow-auto">{r.responseText}</pre>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>

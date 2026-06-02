@@ -150,6 +150,7 @@ export interface DetectIntentHistoryEntry {
   user_prompt: string
   request_type: string
   goal?: string
+  response_text?: string
 }
 
 export async function streamDetectIntent(
@@ -254,7 +255,7 @@ export async function streamRequest(
   onChunk: (text: string) => void,
   onDone: (requestId: string) => void,
   onError: (message: string) => void,
-  mainContent?: string,
+  requestHistory?: Array<{ request_type: string; response_text: string }>,
   loreEntryIds?: string[],
   entityType?: string,
   goals?: string[],
@@ -287,8 +288,8 @@ export async function streamRequest(
   if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
-  if (mainContent) {
-    body.main_content = mainContent
+  if (requestHistory && requestHistory.length > 0) {
+    body.request_history = requestHistory
   }
   const res = await fetch(
     `${apiUrl}${base(gameId)}/${conversationId}/requests/${urlType}`,

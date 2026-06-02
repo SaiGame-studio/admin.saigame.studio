@@ -279,6 +279,18 @@ function emptyGachaForm() {
   }
 }
 
+/** Resolve a __REF:ITEM_CODE placeholder to the actual item definition ID.
+ *  Returns the original value unchanged if it is not a __REF: placeholder
+ *  or no matching item is found. */
+function resolveGachaRef(rawId: string, items: ItemDefinition[]): string {
+  if (!rawId.startsWith('__REF:')) return rawId
+  const code = rawId.slice(6) // strip "__REF:"
+  const found = items.find(
+    (it) => it.item_code?.toUpperCase() === code.toUpperCase(),
+  )
+  return found ? found.id : rawId
+}
+
 // ─── Container Definition helpers ────────────────────────────────────────────
 
 const CONTAINER_TYPE_META: Record<string, { label: string; className: string }> = {
@@ -1644,11 +1656,69 @@ export default function GameItemsPage() {
     }
     window.addEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
 
+    function handleOpenEditGachaPack(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      const existingPack = detail.existingPack as GachaPack | undefined
+      if (!existingPack) return
+      const llmData = (detail.llmData ?? {}) as Record<string, unknown>
+      const pool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
+        ? llmData.item_pool.map((r: any) => ({
+            item_definition_id: String(r.item_definition_id ?? ''),
+            weight: String(r.weight ?? 1),
+            quantity_min: String(r.quantity_min ?? 1),
+            quantity_max: String(r.quantity_max ?? 1),
+          }))
+        : existingPack.item_pool.map((r) => ({
+            item_definition_id: r.item_definition_id,
+            weight: String(r.weight),
+            quantity_min: String(r.quantity_min),
+            quantity_max: String(r.quantity_max),
+          }))
+      const keyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
+        ? llmData.key_requirements.map((r: any) => ({
+            item_definition_id: String(r.item_definition_id ?? ''),
+            quantity: String(r.quantity ?? 1),
+          }))
+        : (existingPack.key_requirements ?? []).map((r) => ({
+            item_definition_id: r.item_definition_id,
+            quantity: String(r.quantity),
+          }))
+      const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
+      const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
+        ? llmData.metadata as Record<string, unknown>
+        : existingMeta
+      setEditingPack(existingPack)
+      setGachaAutoSlug(false)
+      setGachaForm({
+        name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
+        code_name: existingPack.code_name ?? '',
+        collect_destination:
+          llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
+            ? llmData.collect_destination
+            : existingPack.collect_destination ?? 'mailbox',
+        is_enabled: existingPack.is_enabled,
+        mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
+        mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
+        pool,
+        keyReqs,
+      })
+      if (detail.turnId !== undefined) {
+        setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
+      }
+      const newParams = new URLSearchParams(window.location.search)
+      newParams.set('editPack', existingPack.id)
+      router.replace(`${window.location.pathname}?${newParams.toString()}`)
+      setActiveTab('gacha')
+      setGachaSheetOpen(true)
+    }
+    window.addEventListener('ss:open-edit-gacha-pack', handleOpenEditGachaPack)
+
     return () => {
       window.removeEventListener('storage', handler)
       window.removeEventListener('ss:conv-state-changed', handler)
       window.removeEventListener('ss:open-create-container', handleOpenCreateContainer)
       window.removeEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
+      window.removeEventListener('ss:open-edit-gacha-pack', handleOpenEditGachaPack)
     }
   }, [gameId])
 
@@ -1722,6 +1792,70 @@ export default function GameItemsPage() {
           }
           localStorage.removeItem(`ss_pending_gacha_create_${gameId}`)
           setGachaSheetOpen(true)
+        } catch { /* ignore parse errors */ }
+      }
+    }
+    // auto-open gacha edit sheet from LLM navigation (data stored in localStorage)
+    if (tab === "gacha" && searchParams.get("editFromLLM") === "1") {
+      const pendingRaw = safeGetItem(`ss_pending_gacha_edit_${gameId}`)
+      if (pendingRaw) {
+        try {
+          const detail = JSON.parse(pendingRaw)
+          const existingPack = detail.existingPack as GachaPack | undefined
+          if (existingPack) {
+            const llmData = (detail.llmData ?? {}) as Record<string, unknown>
+            const pool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
+              ? llmData.item_pool.map((r: any) => ({
+                  item_definition_id: String(r.item_definition_id ?? ''),
+                  weight: String(r.weight ?? 1),
+                  quantity_min: String(r.quantity_min ?? 1),
+                  quantity_max: String(r.quantity_max ?? 1),
+                }))
+              : existingPack.item_pool.map((r) => ({
+                  item_definition_id: r.item_definition_id,
+                  weight: String(r.weight),
+                  quantity_min: String(r.quantity_min),
+                  quantity_max: String(r.quantity_max),
+                }))
+            const keyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
+              ? llmData.key_requirements.map((r: any) => ({
+                  item_definition_id: String(r.item_definition_id ?? ''),
+                  quantity: String(r.quantity ?? 1),
+                }))
+              : (existingPack.key_requirements ?? []).map((r) => ({
+                  item_definition_id: r.item_definition_id,
+                  quantity: String(r.quantity),
+                }))
+            const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
+            const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
+              ? llmData.metadata as Record<string, unknown>
+              : existingMeta
+            setEditingPack(existingPack)
+            setGachaAutoSlug(false)
+            setGachaForm({
+              name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
+              code_name: existingPack.code_name ?? '',
+              collect_destination:
+                llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
+                  ? llmData.collect_destination
+                  : existingPack.collect_destination ?? 'mailbox',
+              is_enabled: existingPack.is_enabled,
+              mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
+              mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
+              pool,
+              keyReqs,
+            })
+            if (detail.turnId !== undefined) {
+              setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
+            }
+            localStorage.removeItem(`ss_pending_gacha_edit_${gameId}`)
+            suppressGachaAutoOpenRef.current = true
+            const newParams = new URLSearchParams(searchParams.toString())
+            newParams.delete('editFromLLM')
+            newParams.set('editPack', existingPack.id)
+            router.replace(`${window.location.pathname}?${newParams.toString()}`)
+            setGachaSheetOpen(true)
+          }
         } catch { /* ignore parse errors */ }
       }
     }
@@ -2138,6 +2272,28 @@ export default function GameItemsPage() {
     }
   }, [activeTab, fetchGachaData])
 
+  // resolve __REF:ITEM_CODE placeholders in gacha form pool/keyReqs once item list is available
+  useEffect(() => {
+    if (!gachaSheetOpen || gachaAllItems.length === 0) return
+    setGachaForm((prev) => {
+      const hasRefs =
+        prev.pool.some((r) => r.item_definition_id.startsWith('__REF:')) ||
+        prev.keyReqs.some((r) => r.item_definition_id.startsWith('__REF:'))
+      if (!hasRefs) return prev
+      return {
+        ...prev,
+        pool: prev.pool.map((r) => ({
+          ...r,
+          item_definition_id: resolveGachaRef(r.item_definition_id, gachaAllItems),
+        })),
+        keyReqs: prev.keyReqs.map((r) => ({
+          ...r,
+          item_definition_id: resolveGachaRef(r.item_definition_id, gachaAllItems),
+        })),
+      }
+    })
+  }, [gachaAllItems, gachaSheetOpen])
+
   // auto-open edit sheet when ?editPack=<id> is in the URL (keep param so F5 re-opens)
   useEffect(() => {
     if (suppressGachaAutoOpenRef.current) {
@@ -2262,6 +2418,13 @@ export default function GameItemsPage() {
         setGachaPacks((prev) => prev.map((p) => p.id === editingPack.id ? res.pack : p))
         setEditingPack(res.pack)
         toast({ title: t('items.packUpdated') })
+        if (createGachaConvContext) {
+          const { turnId, responseIdx, gachaPackIdx } = createGachaConvContext
+          window.dispatchEvent(new CustomEvent('ss:gacha-pack-created', {
+            detail: { gachaPackId: res.pack.id, gachaPackName: res.pack.name, turnId, responseIdx, gachaPackIdx },
+          }))
+          setCreateGachaConvContext(undefined)
+        }
       } else {
         const res = await createGachaPack(ctx, {
           name: gachaForm.name.trim(),

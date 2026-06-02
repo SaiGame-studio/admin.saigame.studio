@@ -403,7 +403,7 @@ export function ConversationChatHistory({
                                       <Link
                                         id={`conv-panel-item-link-${turn.id}-${idx}-${seg.itemIdx}`}
                                         href={`/games/${gameId}/items/${savedItemId}`}
-                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={itemName}
                                       >
                                         <Package className="h-3 w-3 shrink-0" />
@@ -451,7 +451,7 @@ export function ConversationChatHistory({
                                       <Link
                                         id={`conv-panel-preset-link-${turn.id}-${idx}-${seg.presetIdx}`}
                                         href={`/games/${gameId}/items?tab=preset&id=${savedPresetId}`}
-                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={presetName}
                                       >
                                         <LayoutTemplate className="h-3 w-3 shrink-0" />
@@ -502,7 +502,7 @@ export function ConversationChatHistory({
                                       <Link
                                         id={`conv-panel-container-link-${turn.id}-${idx}-${seg.containerIdx}`}
                                         href={`/games/${gameId}/items?tab=containers&q=${savedContainerId}`}
-                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={containerName}
                                       >
                                         <Archive className="h-3 w-3 shrink-0" />
@@ -550,7 +550,7 @@ export function ConversationChatHistory({
                                       <Link
                                         id={`conv-panel-gacha-pack-link-${turn.id}-${idx}-${seg.gachaPackIdx}`}
                                         href={`/games/${gameId}/items?tab=gacha&q=${savedPackId}`}
-                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-primary hover:bg-accent transition-colors max-w-[240px]"
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={packName}
                                       >
                                         <Dices className="h-3 w-3 shrink-0" />

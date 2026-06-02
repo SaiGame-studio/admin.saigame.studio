@@ -46,6 +46,7 @@ import {
   lsContainerNames,
   lsGachaPackNames,
   lsPendingGachaCreate,
+  lsPendingGachaEdit,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
@@ -65,7 +66,7 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, updateGachaPack, getGachaPack } from '@/lib/inventory-api'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { updateGame, getGame } from '@/lib/game-api'
@@ -178,6 +179,9 @@ export function LLMConversationPanel() {
   const [itemCodeConflictOpen, setItemCodeConflictOpen] = useState(false)
   const [itemCodeConflictExisting, setItemCodeConflictExisting] = useState<ItemDefinition | null>(null)
   const [itemCodeConflictInitialValues, setItemCodeConflictInitialValues] = useState<CreateItemInitialValues | null>(null)
+  const [itemCodeConflictTurnId, setItemCodeConflictTurnId] = useState<string | null>(null)
+  const [itemCodeConflictResponseIdx, setItemCodeConflictResponseIdx] = useState(0)
+  const [itemCodeConflictItemIdx, setItemCodeConflictItemIdx] = useState(0)
   const [isApplyingConflict, setIsApplyingConflict] = useState(false)
 
   // Preset code conflict dialog (shown when code_name already exists in backend)
@@ -192,8 +196,6 @@ export function LLMConversationPanel() {
   const [containerNameConflictPending, setContainerNameConflictPending] = useState<{ container: Record<string, unknown>; turnId: string; responseIdx: number; containerIdx: number } | null>(null)
   const [isApplyingContainerConflict, setIsApplyingContainerConflict] = useState(false)
 
-  // Tracks the last completed lore_creating response text (used as context for lore_analyzing)
-  const [convMainContent, setConvMainContent] = useState('')
   // Tracks the last completed item_generation response parsed as array
   const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
   // Tracks the last completed preset_generation response parsed as array
@@ -293,20 +295,6 @@ export function LLMConversationPanel() {
     }
   }, [chatHistory, activeConvId])
 
-  // Keep the last completed lore_creating response as conversation main content
-  useEffect(() => {
-    let lastContent = ''
-    for (const turn of chatHistory) {
-      if (!turn.responses) continue
-      for (const response of turn.responses) {
-        if (response.intentType === 'lore_creating' && response.done && !response.error && response.responseText) {
-          lastContent = response.responseText
-        }
-      }
-    }
-    setConvMainContent(lastContent)
-  }, [chatHistory])
-
   // Keep the last completed item_generation response parsed as generated items array
   useEffect(() => {
     let lastGeneratedItems: unknown[] = []
@@ -375,9 +363,8 @@ export function LLMConversationPanel() {
     setConvGeneratedGachaPacks(lastGeneratedGachaPacks)
   }, [chatHistory])
 
-  // Reset main content and applied tag keys when switching conversations.
+  // Reset applied tag keys when switching conversations.
   useEffect(() => {
-    setConvMainContent('')
     setConvGeneratedItems([])
     setConvGeneratedPresets([])
     setConvGeneratedContainers([])
@@ -769,6 +756,22 @@ export function LLMConversationPanel() {
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const retryHistory = chatHistory.filter(t => t.id !== turn.id)
+    const retryHistoryContext = retryHistory
+      .filter(t => t.done && t.detectedType && !t.error)
+      .map(t => ({
+        user_prompt: t.userMessage,
+        request_type: t.detectedType!,
+        response_text: (t.responses ?? [])
+          .filter(r => r.done && !r.error && r.responseText)
+          .map(r => r.responseText)
+          .join('\n\n') || undefined,
+      }))
+    const retryRequestHistory = retryHistory
+      .flatMap(t => (t.responses ?? [])
+        .filter(r => r.done && !r.error && r.responseText && r.intentType)
+        .map(r => ({ request_type: r.intentType!, response_text: r.responseText }))
+      )
     void runPipeline(
       gameId,
       turn.userMessage,
@@ -787,10 +790,10 @@ export function LLMConversationPanel() {
       },
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
-      convMainContent || undefined,
+      retryRequestHistory.length > 0 ? retryRequestHistory : undefined,
       retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       fallbackEntityType || undefined,
-      undefined,
+      retryHistoryContext.length > 0 ? retryHistoryContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
@@ -831,7 +834,17 @@ export function LLMConversationPanel() {
       .map(t => ({
         user_prompt: t.userMessage,
         request_type: t.detectedType!,
+        response_text: (t.responses ?? [])
+          .filter(r => r.done && !r.error && r.responseText)
+          .map(r => r.responseText)
+          .join('\n\n') || undefined,
       }))
+    // Build request history for streamRequest calls
+    const requestHistory = chatHistory
+      .flatMap(t => (t.responses ?? [])
+        .filter(r => r.done && !r.error && r.responseText && r.intentType)
+        .map(r => ({ request_type: r.intentType!, response_text: r.responseText }))
+      )
     void runPipeline(
       gameId,
       userPrompt,
@@ -850,7 +863,7 @@ export function LLMConversationPanel() {
       },
       t('llmConversation.errorCreate'),
       t('llmConversation.errorSend'),
-      convMainContent || undefined,
+      requestHistory.length > 0 ? requestHistory : undefined,
       linkedLoreIds.length > 0 ? linkedLoreIds : undefined,
       fallbackEntityType || undefined,
       historyContext.length > 0 ? historyContext : undefined,
@@ -1023,6 +1036,11 @@ export function LLMConversationPanel() {
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const responseRequestHistory = chatHistory
+      .flatMap(t => (t.responses ?? [])
+        .filter(r => r.done && !r.error && r.responseText && r.intentType)
+        .map(r => ({ request_type: r.intentType!, response_text: r.responseText }))
+      )
     void retryResponse(
       gameId,
       activeConvId,
@@ -1031,7 +1049,7 @@ export function LLMConversationPanel() {
       intentType,
       userMessage,
       t('llmConversation.errorSend'),
-      convMainContent || undefined,
+      responseRequestHistory.length > 0 ? responseRequestHistory : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
@@ -1250,30 +1268,29 @@ export function LLMConversationPanel() {
   }
 
   async function handleGachaPackCodeConflictUpdate() {
-    if (!gachaPackCodeConflictExisting || !gameId || !activeConvId || !gachaPackCodeConflictPending) return
+    if (!gachaPackCodeConflictExisting || !gameId || !gachaPackCodeConflictPending) return
     const { pack, turnId, responseIdx, gachaPackIdx } = gachaPackCodeConflictPending
-    setIsApplyingGachaPackConflict(true)
-    try {
-      const patch: Record<string, unknown> = {}
-      if (typeof pack.name === 'string' && pack.name.trim()) patch.name = pack.name.trim()
-      if (Array.isArray(pack.item_pool) && pack.item_pool.length > 0) patch.item_pool = pack.item_pool
-      if (Array.isArray(pack.key_requirements)) patch.key_requirements = pack.key_requirements
-      if (pack.collect_destination === 'mailbox' || pack.collect_destination === 'inventory')
-        patch.collect_destination = pack.collect_destination
-      if (pack.metadata && typeof pack.metadata === 'object' && !Array.isArray(pack.metadata))
-        patch.metadata = pack.metadata
-      if (Object.keys(patch).length > 0)
-        await updateGachaPack({ gameId }, gachaPackCodeConflictExisting.id, patch as any)
-      const packKey = `${turnId}:${responseIdx}:${gachaPackIdx}`
-      const updated = { ...savedGachaPackIds, [packKey]: gachaPackCodeConflictExisting.id }
-      setSavedGachaPackIds(updated)
-      safeSetItem(lsGachaPackLinks(activeConvId), JSON.stringify(updated))
-      setGachaPackCodeConflictOpen(false)
-      toast({ title: t('llmConversation.gachaPackSaved') })
-    } catch {
-      toast({ title: t('llmConversation.errorSaveGachaPack'), variant: 'destructive' })
-    } finally {
-      setIsApplyingGachaPackConflict(false)
+    setGachaPackCodeConflictOpen(false)
+    fireOpenEditGachaPack(gachaPackCodeConflictExisting, pack, turnId, responseIdx, gachaPackIdx)
+  }
+
+  function fireOpenEditGachaPack(
+    existingPack: GachaPack,
+    llmData: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    gachaPackIdx: number,
+  ) {
+    if (!gameId) return
+    const detail = { existingPack, llmData, turnId, responseIdx, gachaPackIdx }
+    const isOnItemsPage = pathname === `/games/${gameId}/items`
+    if (isOnItemsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-edit-gacha-pack', { detail }))
+    } else {
+      try {
+        localStorage.setItem(lsPendingGachaEdit(gameId), JSON.stringify(detail))
+      } catch { /* ignore */ }
+      router.push(`/games/${gameId}/items?tab=gacha&editFromLLM=1`)
     }
   }
 
@@ -1494,6 +1511,9 @@ export function LLMConversationPanel() {
           // Show confirmation dialog — let user choose update vs save as new
           setItemCodeConflictExisting(existing)
           setItemCodeConflictInitialValues(initialValues)
+          setItemCodeConflictTurnId(turnId)
+          setItemCodeConflictResponseIdx(responseIdx)
+          setItemCodeConflictItemIdx(itemIdx)
           setItemCodeConflictOpen(true)
           return
         }
@@ -1542,9 +1562,19 @@ export function LLMConversationPanel() {
     try {
       await updateItemDefinition({ gameId }, existing.id, patch)
       setItemCodeConflictOpen(false)
-      setIsOpen(false)
-      router.push(`/games/${gameId}/items/${existing.id}`)
-      router.refresh()
+      // Link the updated item to the active conversation
+      if (activeConvId) {
+        // Track in savedItemDefinitionIds so UI marks item as handled
+        if (itemCodeConflictTurnId !== null) {
+          const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
+          const updated = { ...savedItemDefinitionIds, [itemKey]: existing.id }
+          setSavedItemDefinitionIds(updated)
+          safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
+        }
+        linkConversationContent(gameId, activeConvId, 'item_definition', existing.id)
+          .then(() => loadLinkedContent(gameId, activeConvId))
+          .catch(() => {/* silent — linking is best-effort */})
+      }
       toast({ title: t('llmConversation.sseUpdateApplied'), description: existing.name })
     } catch (err: any) {
       toast({ variant: 'destructive', title: t('llmConversation.sseUpdateFailed'), description: err?.message })
@@ -1741,7 +1771,6 @@ export function LLMConversationPanel() {
         setDetailOpen={setDetailOpen}
         chatHistory={chatHistory}
         activeConv={activeConv}
-        convMainContent={convMainContent}
         convGeneratedItems={convGeneratedItems}
         deleteTarget={deleteTarget}
         setDeleteTarget={setDeleteTarget}
