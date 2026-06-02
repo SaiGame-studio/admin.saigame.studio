@@ -1558,12 +1558,16 @@ export default function GameItemsPage() {
   const [formSaving, setFormSaving] = useState(false)
   const [gachaForm, setGachaForm] = useState(emptyGachaForm())
   const [gachaAutoSlug, setGachaAutoSlug] = useState(true)
+  const [createGachaConvContext, setCreateGachaConvContext] = useState<{ turnId: string; responseIdx: number; gachaPackIdx: number } | undefined>(undefined)
   const [deletingPack, setDeletingPack] = useState<GachaPack | null>(null)
   const [deletePackLoading, setDeletePackLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [gachaSearch, setGachaSearch] = useState("")
+  const [gachaSearchDebounced, setGachaSearchDebounced] = useState("")
   const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null)
   const [gachaComboSearch, setGachaComboSearch] = useState("")
   const suppressGachaAutoOpenRef = useRef(false)
+  useEscapeLayer(gachaSheetOpen, gachaCloseSheet)
 
   // conversation panel integration
   const [convPanelOpen, setConvPanelOpen] = useState(false)
@@ -1601,10 +1605,50 @@ export default function GameItemsPage() {
     }
     window.addEventListener('ss:open-create-container', handleOpenCreateContainer)
 
+    function handleOpenCreateGachaPack(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      const pool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
+        ? detail.item_pool.map((r: any) => ({
+            item_definition_id: String(r.item_definition_id ?? ''),
+            weight: String(r.weight ?? 1),
+            quantity_min: String(r.quantity_min ?? 1),
+            quantity_max: String(r.quantity_max ?? 1),
+          }))
+        : [EMPTY_ROW()]
+      const keyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
+        ? detail.key_requirements.map((r: any) => ({
+            item_definition_id: String(r.item_definition_id ?? ''),
+            quantity: String(r.quantity ?? 1),
+          }))
+        : [EMPTY_KEY_ROW()]
+      const meta = (detail.metadata ?? {}) as Record<string, unknown>
+      setEditingPack(null)
+      setGachaAutoSlug(false)
+      setGachaForm({
+        name: typeof detail.name === 'string' ? detail.name : '',
+        code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
+        collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
+        is_enabled: detail.is_enabled !== false,
+        mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
+        mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
+        pool,
+        keyReqs,
+      })
+      if (detail.turnId !== undefined) {
+        setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
+      } else {
+        setCreateGachaConvContext(undefined)
+      }
+      setActiveTab('gacha')
+      setGachaSheetOpen(true)
+    }
+    window.addEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
+
     return () => {
       window.removeEventListener('storage', handler)
       window.removeEventListener('ss:conv-state-changed', handler)
       window.removeEventListener('ss:open-create-container', handleOpenCreateContainer)
+      window.removeEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
     }
   }, [gameId])
 
@@ -1616,9 +1660,10 @@ export default function GameItemsPage() {
     }
     const cst = searchParams.get("csubtab")
     if (cst === "definitions" || cst === "slot-guide") setContainerSubTab(cst)
-    // initialize container search from URL `q` param
+    // initialize container/gacha search from URL `q` param
     const q = searchParams.get("q")
-    if (q) setContainerSearch(q)
+    if (q && tab !== "gacha") setContainerSearch(q)
+    if (q && tab === "gacha") setGachaSearch(q)
     // initialize preset search from URL `id` param
     const presetId = searchParams.get("id")
     if (presetId && tab === "preset") setPresetSearch(presetId)
@@ -1639,7 +1684,48 @@ export default function GameItemsPage() {
       setCreatePresetInitialValues(iv)
       setShowCreatePreset(true)
     }
-  }, [searchParams])
+    // auto-open gacha create sheet from LLM (data stored in localStorage)
+    if (tab === "gacha" && searchParams.get("create") === "1") {
+      const pendingRaw = safeGetItem(`ss_pending_gacha_create_${gameId}`)
+      if (pendingRaw) {
+        try {
+          const detail = JSON.parse(pendingRaw)
+          const pool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
+            ? detail.item_pool.map((r: any) => ({
+                item_definition_id: String(r.item_definition_id ?? ''),
+                weight: String(r.weight ?? 1),
+                quantity_min: String(r.quantity_min ?? 1),
+                quantity_max: String(r.quantity_max ?? 1),
+              }))
+            : [EMPTY_ROW()]
+          const keyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
+            ? detail.key_requirements.map((r: any) => ({
+                item_definition_id: String(r.item_definition_id ?? ''),
+                quantity: String(r.quantity ?? 1),
+              }))
+            : [EMPTY_KEY_ROW()]
+          const meta = (detail.metadata ?? {}) as Record<string, unknown>
+          setEditingPack(null)
+          setGachaAutoSlug(false)
+          setGachaForm({
+            name: typeof detail.name === 'string' ? detail.name : '',
+            code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
+            collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
+            is_enabled: detail.is_enabled !== false,
+            mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
+            mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
+            pool,
+            keyReqs,
+          })
+          if (detail.turnId !== undefined) {
+            setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
+          }
+          localStorage.removeItem(`ss_pending_gacha_create_${gameId}`)
+          setGachaSheetOpen(true)
+        } catch { /* ignore parse errors */ }
+      }
+    }
+  }, [searchParams, gameId])
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -1667,6 +1753,12 @@ export default function GameItemsPage() {
     return () => clearTimeout(t)
   }, [containerSearch])
 
+  // debounce gacha search
+  useEffect(() => {
+    const t = setTimeout(() => setGachaSearchDebounced(gachaSearch), 250)
+    return () => clearTimeout(t)
+  }, [gachaSearch])
+
   // debounce preset search
   useEffect(() => {
     const t = setTimeout(() => setPresetSearchDebounced(presetSearch), 250)
@@ -1675,6 +1767,7 @@ export default function GameItemsPage() {
 
   // sync container search to URL
   useEffect(() => {
+    if (activeTab === 'gacha') return
     const newParams = new URLSearchParams(searchParams.toString())
     if (containerSearchDebounced) {
       newParams.set("q", containerSearchDebounced)
@@ -1683,6 +1776,18 @@ export default function GameItemsPage() {
     }
     router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
   }, [containerSearchDebounced]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // sync gacha search to URL
+  useEffect(() => {
+    if (activeTab !== 'gacha') return
+    const newParams = new URLSearchParams(searchParams.toString())
+    if (gachaSearchDebounced) {
+      newParams.set("q", gachaSearchDebounced)
+    } else {
+      newParams.delete("q")
+    }
+    router.replace(`${window.location.pathname}?${newParams.toString()}`, { scroll: false })
+  }, [gachaSearchDebounced]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // fetch categories, rarities & tags from API on mount
   useEffect(() => {
@@ -1890,6 +1995,17 @@ export default function GameItemsPage() {
   const containerCurrentPage = Math.floor(containerOffset / CONTAINER_LIMIT) + 1
 
   // client-side filter by name or id
+  const filteredGachaPacks = gachaSearchDebounced
+    ? gachaPacks.filter((p) => {
+        const q = gachaSearchDebounced.toLowerCase()
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q) ||
+          (p.code_name ?? "").toLowerCase().includes(q)
+        )
+      })
+    : gachaPacks
+
   const filteredContainerDefs = containerSearchDebounced
     ? containerDefs.filter(
         (d) =>
@@ -2040,6 +2156,7 @@ export default function GameItemsPage() {
   function gachaCloseSheet() {
     suppressGachaAutoOpenRef.current = true
     setGachaSheetOpen(false)
+    setCreateGachaConvContext(undefined)
     const newParams = new URLSearchParams(searchParams.toString())
     newParams.delete("editPack")
     router.replace(`${window.location.pathname}?${newParams.toString()}`)
@@ -2158,6 +2275,13 @@ export default function GameItemsPage() {
         setGachaPacks((prev) => [res.pack, ...prev])
         toast({ title: t('items.packCreated') })
         loadGameInfo()
+        if (createGachaConvContext) {
+          const { turnId, responseIdx, gachaPackIdx } = createGachaConvContext
+          window.dispatchEvent(new CustomEvent('ss:gacha-pack-created', {
+            detail: { gachaPackId: res.pack.id, gachaPackName: res.pack.name, turnId, responseIdx, gachaPackIdx },
+          }))
+          setCreateGachaConvContext(undefined)
+        }
       }
       if (closeAfterSave) gachaCloseSheet()
     } catch (err: any) {
@@ -3515,6 +3639,26 @@ export default function GameItemsPage() {
               </p>
             </div>
             <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="gacha-search-input"
+                  placeholder={t('items.searchByNameOrId')}
+                  value={gachaSearch}
+                  onChange={(e) => setGachaSearch(e.target.value)}
+                  className="pl-8 h-8 w-56 text-sm"
+                />
+                {gachaSearch && (
+                  <button
+                    id="gacha-search-clear-btn"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setGachaSearch("")}
+                    title={t('items.clearSearch')}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               <Button variant="outline" size="icon" onClick={fetchGachaData} title={t('common.refresh')}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -3546,9 +3690,17 @@ export default function GameItemsPage() {
                 <Button onClick={gachaOpenCreate}><Plus className="h-4 w-4 mr-2" />{t('items.createFirstPack')}</Button>
               </CardContent>
             </Card>
+          ) : filteredGachaPacks.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-12 flex flex-col items-center gap-2 text-center">
+                <Search className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-muted-foreground text-sm">{t('items.noMatchingContainers')}</p>
+                <Button variant="outline" size="sm" onClick={() => setGachaSearch("")}>{t('items.clearSearch')}</Button>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="space-y-3">
-              {gachaPacks.map((pack) => {
+            <div id="gacha-packs-list" className="space-y-3">
+              {filteredGachaPacks.map((pack) => {
                 const totalWeight = pack.item_pool.reduce((s, e) => s + e.weight, 0)
                 const isExpanded = expandedPack === pack.id
                 return (

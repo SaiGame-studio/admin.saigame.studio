@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
+import { BookOpen, Dices, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -14,7 +14,7 @@ import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/comp
 import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
-import type { ItemDefinition, ContainerDefinition } from '@/types/inventory'
+import type { ItemDefinition, ContainerDefinition, GachaPack } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import {
@@ -103,6 +103,13 @@ interface ConversationDialogsProps {
   isApplyingContainerConflict: boolean
   onContainerNameConflictUpdate: () => void
   onContainerNameConflictCreateNew: (newName: string) => void
+  // Gacha pack code conflict dialog
+  gachaPackCodeConflictOpen: boolean
+  setGachaPackCodeConflictOpen: (v: boolean) => void
+  gachaPackCodeConflictExisting: GachaPack | null
+  isApplyingGachaPackConflict: boolean
+  onGachaPackCodeConflictUpdate: () => void
+  onGachaPackCodeConflictCreateNew: (newCodeName: string) => void
   t: (key: string) => string
 }
 
@@ -164,6 +171,12 @@ export function ConversationDialogs({
   isApplyingContainerConflict,
   onContainerNameConflictUpdate,
   onContainerNameConflictCreateNew,
+  gachaPackCodeConflictOpen,
+  setGachaPackCodeConflictOpen,
+  gachaPackCodeConflictExisting,
+  isApplyingGachaPackConflict,
+  onGachaPackCodeConflictUpdate,
+  onGachaPackCodeConflictCreateNew,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -193,6 +206,9 @@ export function ConversationDialogs({
 
   // ── Container name conflict dialog state ──
   const [newContainerNameInput, setNewContainerNameInput] = useState('')
+
+  // ── Gacha pack code conflict dialog state ──
+  const [newGachaPackCodeInput, setNewGachaPackCodeInput] = useState('')
 
   useEffect(() => {
     if (itemCodeConflictOpen && itemCodeConflictExisting?.item_code) {
@@ -245,6 +261,14 @@ export function ConversationDialogs({
   }, [containerNameConflictOpen, containerNameConflictExisting?.name])
 
   useEffect(() => {
+    if (gachaPackCodeConflictOpen && gachaPackCodeConflictExisting?.code_name) {
+      setNewGachaPackCodeInput(`${gachaPackCodeConflictExisting.code_name}_2`)
+    } else if (!gachaPackCodeConflictOpen) {
+      setNewGachaPackCodeInput('')
+    }
+  }, [gachaPackCodeConflictOpen, gachaPackCodeConflictExisting?.code_name])
+
+  useEffect(() => {
     if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
     const code = newPresetCodeInput.trim()
     if (!code || !presetCodeConflictOpen) {
@@ -281,6 +305,9 @@ export function ConversationDialogs({
   })
   useEscapeLayer(containerNameConflictOpen, () => {
     if (!isApplyingContainerConflict) { setContainerNameConflictOpen(false); setNewContainerNameInput('') }
+  })
+  useEscapeLayer(gachaPackCodeConflictOpen, () => {
+    if (!isApplyingGachaPackConflict) { setGachaPackCodeConflictOpen(false); setNewGachaPackCodeInput('') }
   })
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -866,6 +893,77 @@ export function ConversationDialogs({
               {isApplyingContainerConflict
                 ? <><Loader2 id="container-name-conflict-create-new-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.containerNameConflictUpdating')}</>
                 : <><Archive id="container-name-conflict-create-new-icon" className="h-4 w-4" />{t('llmConversation.containerNameConflictCreateNew')}</>
+              }
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={gachaPackCodeConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingGachaPackConflict) { setGachaPackCodeConflictOpen(false); setNewGachaPackCodeInput('') } }}
+      >
+        <DialogContent id="gacha-pack-code-conflict-dialog-root">
+          <DialogHeader id="gacha-pack-code-conflict-dialog-header">
+            <DialogTitle id="gacha-pack-code-conflict-dialog-title">{t('llmConversation.gachaPackCodeConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="gacha-pack-code-conflict-dialog-body" className="space-y-3">
+            <p id="gacha-pack-code-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.gachaPackCodeConflictDesc').replace('{code}', gachaPackCodeConflictExisting?.code_name ?? '')}
+            </p>
+            {gachaPackCodeConflictExisting && (
+              <a
+                id="gacha-pack-code-conflict-existing-link"
+                href={`/games/${gameId}/items?tab=gacha&q=${gachaPackCodeConflictExisting.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Dices id="gacha-pack-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="gacha-pack-code-conflict-existing-link-name" className="flex-1 truncate">{gachaPackCodeConflictExisting.name ?? gachaPackCodeConflictExisting.code_name}</span>
+                <ExternalLink id="gacha-pack-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+          {/* Update existing — primary action */}
+          <button
+            id="gacha-pack-code-conflict-update-btn"
+            type="button"
+            disabled={isApplyingGachaPackConflict}
+            onClick={onGachaPackCodeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isApplyingGachaPackConflict
+              ? <><Loader2 id="gacha-pack-code-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.gachaPackCodeConflictUpdating')}</>
+              : <><Dices id="gacha-pack-code-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.gachaPackCodeConflictUpdate')}</>
+            }
+          </button>
+          <div id="gacha-pack-code-conflict-divider" className="relative flex items-center gap-2">
+            <div id="gacha-pack-code-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="gacha-pack-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="gacha-pack-code-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+          {/* Create new with renamed code — secondary action */}
+          <div id="gacha-pack-code-conflict-create-new-section" className="space-y-2">
+            <Label id="gacha-pack-code-conflict-new-code-label" htmlFor="gacha-pack-code-conflict-new-code-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.gachaPackCodeConflictNewCodeLabel')}
+            </Label>
+            <Input
+              id="gacha-pack-code-conflict-new-code-input"
+              value={newGachaPackCodeInput}
+              onChange={(e) => setNewGachaPackCodeInput(e.target.value)}
+              disabled={isApplyingGachaPackConflict}
+            />
+            <button
+              id="gacha-pack-code-conflict-create-new-btn"
+              type="button"
+              disabled={isApplyingGachaPackConflict || !newGachaPackCodeInput.trim()}
+              onClick={() => { onGachaPackCodeConflictCreateNew(newGachaPackCodeInput.trim()); setNewGachaPackCodeInput('') }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingGachaPackConflict
+                ? <><Loader2 id="gacha-pack-code-conflict-create-new-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.gachaPackCodeConflictUpdating')}</>
+                : <><Dices id="gacha-pack-code-conflict-create-new-icon" className="h-4 w-4" />{t('llmConversation.gachaPackCodeConflictCreateNew')}</>
               }
             </button>
           </div>

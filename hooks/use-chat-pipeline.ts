@@ -56,6 +56,7 @@ export function useChatPipeline() {
     generatedPresets?: unknown[],
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
+    generatedGachaPacks?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -182,15 +183,17 @@ export function useChatPipeline() {
           },
           intent.type === 'lore_analyzing' && mainContent ? mainContent : undefined,
           loreEntryIds,
-          (intent.type === 'lore_creating' || intent.type === 'preset_generation') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation') ? intent.goals : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? intent.goals : undefined,
           intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0
             ? generatedPresets
             : intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0
               ? generatedContainers
-              : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
-              ? generatedItems
-              : undefined,
+              : intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
+                ? generatedGachaPacks
+                : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
+                ? generatedItems
+                : undefined,
           itemDefinitionIds,
           containerDefinitionIds,
         )
@@ -252,6 +255,7 @@ export function useChatPipeline() {
     generatedPresets?: unknown[],
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
+    generatedGachaPacks?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -320,9 +324,11 @@ export function useChatPipeline() {
           ? generatedPresets
           : intentType === 'container_creating' && generatedContainers && generatedContainers.length > 0
             ? generatedContainers
-            : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
-            ? generatedItems
-            : undefined,
+            : intentType === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
+              ? generatedGachaPacks
+              : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
+              ? generatedItems
+              : undefined,
         itemDefinitionIds,
         containerDefinitionIds,
       )

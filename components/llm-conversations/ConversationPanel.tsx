@@ -40,15 +40,19 @@ import {
   lsItemLinks,
   lsPresetLinks,
   lsContainerLinks,
+  lsGachaPackLinks,
   lsLoreTitles,
   lsItemNames,
   lsContainerNames,
+  lsGachaPackNames,
+  lsPendingGachaCreate,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
   parseGeneratedItemsResponse,
   parseGeneratedPresetsResponse,
   parseGeneratedContainersResponse,
+  parseGeneratedGachaPacksResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -61,8 +65,8 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition } from '@/lib/inventory-api'
-import type { ItemDefinition, ContainerDefinition } from '@/types/inventory'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, updateGachaPack, getGachaPack } from '@/lib/inventory-api'
+import type { ItemDefinition, ContainerDefinition, GachaPack } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
@@ -196,6 +200,8 @@ export function LLMConversationPanel() {
   const [convGeneratedPresets, setConvGeneratedPresets] = useState<unknown[]>([])
   // Tracks the last completed container_generation response parsed as array
   const [convGeneratedContainers, setConvGeneratedContainers] = useState<unknown[]>([])
+  // Tracks the last completed gacha_pack_creating response parsed as array
+  const [convGeneratedGachaPacks, setConvGeneratedGachaPacks] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -204,6 +210,15 @@ export function LLMConversationPanel() {
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
   const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
   const [containerDefinitionNames, setContainerDefinitionNames] = useState<Record<string, string>>({})
+  // Gacha pack saved IDs (keyed as "turnId:responseIdx:gachaPackIdx")
+  const [savedGachaPackIds, setSavedGachaPackIds] = useState<Record<string, string>>({})
+  const [gachaPackNames, setGachaPackNames] = useState<Record<string, string>>({})
+
+  // Gacha pack code conflict dialog (shown when code_name already exists in backend)
+  const [gachaPackCodeConflictOpen, setGachaPackCodeConflictOpen] = useState(false)
+  const [gachaPackCodeConflictExisting, setGachaPackCodeConflictExisting] = useState<GachaPack | null>(null)
+  const [gachaPackCodeConflictPending, setGachaPackCodeConflictPending] = useState<{ pack: Record<string, unknown>; turnId: string; responseIdx: number; gachaPackIdx: number } | null>(null)
+  const [isApplyingGachaPackConflict, setIsApplyingGachaPackConflict] = useState(false)
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -343,12 +358,30 @@ export function LLMConversationPanel() {
     setConvGeneratedContainers(lastGeneratedContainers)
   }, [chatHistory])
 
+  // Keep the last completed gacha_pack_creating response parsed as gacha packs array
+  useEffect(() => {
+    let lastGeneratedGachaPacks: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'gacha_pack_creating' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedGachaPacksResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedGachaPacks = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedGachaPacks(lastGeneratedGachaPacks)
+  }, [chatHistory])
+
   // Reset main content and applied tag keys when switching conversations.
   useEffect(() => {
     setConvMainContent('')
     setConvGeneratedItems([])
     setConvGeneratedPresets([])
     setConvGeneratedContainers([])
+    setConvGeneratedGachaPacks([])
     setAppliedTagsPerResponse({})
     setCreatedItemTagsPerResponse({})
   }, [activeConvId])
@@ -370,6 +403,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(containerDefinitionNames).length === 0) return
     safeSetItem(lsContainerNames(activeConvId), JSON.stringify(containerDefinitionNames))
   }, [containerDefinitionNames, activeConvId])
+
+  // Persist gacha pack names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(gachaPackNames).length === 0) return
+    safeSetItem(lsGachaPackNames(activeConvId), JSON.stringify(gachaPackNames))
+  }, [gachaPackNames, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -419,12 +458,14 @@ export function LLMConversationPanel() {
       setLoreEntryTitles({})
       setItemDefinitionNames({})
       setContainerDefinitionNames({})
+      setGachaPackNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
       setSavedItemDefinitionIds({})
       setSavedPresetDefinitionIds({})
       setSavedContainerDefinitionIds({})
+      setSavedGachaPackIds({})
       if (gameId) {
         safeRemoveItem(lsActiveConv(gameId))
         window.dispatchEvent(new Event('ss:conv-state-changed'))
@@ -458,6 +499,9 @@ export function LLMConversationPanel() {
     // Restore saved container definition IDs from localStorage
     const rawContainerLinks = safeGetItem(lsContainerLinks(activeConvId))
     setSavedContainerDefinitionIds(rawContainerLinks ? JSON.parse(rawContainerLinks) : {})
+    // Restore saved gacha pack IDs from localStorage
+    const rawGachaPackLinks = safeGetItem(lsGachaPackLinks(activeConvId))
+    setSavedGachaPackIds(rawGachaPackLinks ? JSON.parse(rawGachaPackLinks) : {})
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
@@ -465,6 +509,8 @@ export function LLMConversationPanel() {
     if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
     const rawContainerNames = safeGetItem(lsContainerNames(activeConvId))
     if (rawContainerNames) { try { setContainerDefinitionNames(JSON.parse(rawContainerNames)) } catch { setContainerDefinitionNames({}) } }
+    const rawGachaPackNames = safeGetItem(lsGachaPackNames(activeConvId))
+    if (rawGachaPackNames) { try { setGachaPackNames(JSON.parse(rawGachaPackNames)) } catch { setGachaPackNames({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -501,6 +547,8 @@ export function LLMConversationPanel() {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'container_definition') {
           setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'gacha_pack') {
+          setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -546,6 +594,30 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:container-created', handleContainerCreated)
     return () => window.removeEventListener('ss:container-created', handleContainerCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful gacha pack creation triggered from the panel, map turn context → gacha pack ID
+  useEffect(() => {
+    function handleGachaPackCreated(e: Event) {
+      const detail = (e as CustomEvent<{ gachaPackId: string; gachaPackName?: string; turnId: string; responseIdx: number; gachaPackIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const packKey = `${detail.turnId}:${detail.responseIdx}:${detail.gachaPackIdx}`
+      setSavedGachaPackIds(prev => {
+        const updated = { ...prev, [packKey]: detail.gachaPackId }
+        safeSetItem(lsGachaPackLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      // Link the gacha pack to the conversation
+      void linkConversationContent(gameId, activeConvId, 'gacha_pack', detail.gachaPackId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      // Cache the pack name immediately if provided
+      if (detail.gachaPackName) {
+        setGachaPackNames(prev => ({ ...prev, [detail.gachaPackId]: detail.gachaPackName! }))
+      }
+    }
+    window.addEventListener('ss:gacha-pack-created', handleGachaPackCreated)
+    return () => window.removeEventListener('ss:gacha-pack-created', handleGachaPackCreated)
   }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
@@ -607,8 +679,9 @@ export function LLMConversationPanel() {
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
       const containerLinks = items.filter(l => l.content_type === 'container_definition')
+      const gachaPackLinks = items.filter(l => l.content_type === 'gacha_pack')
 
-      const [loreResults, itemResults, containerResults] = await Promise.all([
+      const [loreResults, itemResults, containerResults, gachaPackResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
@@ -618,6 +691,9 @@ export function LLMConversationPanel() {
         containerLinks.length > 0
           ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
+        gachaPackLinks.length > 0
+          ? Promise.allSettled(gachaPackLinks.map(l => getGachaPack({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ pack: { name: string } }>[]),
       ])
 
       // Build name maps synchronously (no more awaits after this point)
@@ -639,10 +715,17 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
       })
 
+      const gachaPackNameMap: Record<string, string> = {}
+      gachaPackLinks.forEach((l, i) => {
+        const result = gachaPackResults[i]
+        if (result?.status === 'fulfilled') gachaPackNameMap[l.content_id] = result.value.pack.name
+      })
+
       // All setters fire synchronously → one React render with everything ready
       if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
       if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
+      if (Object.keys(gachaPackNameMap).length > 0) setGachaPackNames(prev => ({ ...prev, ...gachaPackNameMap }))
       setLinkedContent(items)
     } catch {
       // silently ignore
@@ -712,6 +795,7 @@ export function LLMConversationPanel() {
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
     )
   }
 
@@ -775,6 +859,7 @@ export function LLMConversationPanel() {
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
+      convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -847,6 +932,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreTitles(deleteTarget.ID))
       safeRemoveItem(lsItemNames(deleteTarget.ID))
       safeRemoveItem(lsContainerNames(deleteTarget.ID))
+      safeRemoveItem(lsGachaPackLinks(deleteTarget.ID))
+      safeRemoveItem(lsGachaPackNames(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -876,6 +963,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(conv.ID))
       safeRemoveItem(lsLoreTitles(conv.ID))
       safeRemoveItem(lsItemNames(conv.ID))
+      safeRemoveItem(lsGachaPackLinks(conv.ID))
+      safeRemoveItem(lsGachaPackNames(conv.ID))
       safeRemoveItem(lsTagApplied(conv.ID))
       safeRemoveItem(lsItemTagCreated(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
@@ -948,6 +1037,7 @@ export function LLMConversationPanel() {
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
     )
   }
 
@@ -1101,6 +1191,97 @@ export function LLMConversationPanel() {
     const { container, turnId, responseIdx, containerIdx } = containerNameConflictPending
     setContainerNameConflictOpen(false)
     fireOpenCreateContainer(container, newName, turnId, responseIdx, containerIdx)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gacha pack save / conflict resolution handlers
+  // ---------------------------------------------------------------------------
+
+  async function handleSaveGachaPack(
+    pack: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    gachaPackIdx: number,
+  ) {
+    if (!gameId) return
+    const codeName = typeof pack.code_name === 'string' ? pack.code_name : ''
+    if (codeName) {
+      try {
+        const res = await listGachaPacks({ gameId }, { code_name: codeName, limit: 1 })
+        const existing = (res.packs ?? [])[0]
+        if (existing) {
+          setGachaPackCodeConflictExisting(existing)
+          setGachaPackCodeConflictPending({ pack, turnId, responseIdx, gachaPackIdx })
+          setGachaPackCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // If check fails, fall through to open create dialog
+      }
+    }
+    fireOpenCreateGachaPack(pack, undefined, turnId, responseIdx, gachaPackIdx)
+  }
+
+  function fireOpenCreateGachaPack(
+    pack: Record<string, unknown>,
+    overrideCodeName?: string,
+    turnId?: string,
+    responseIdx?: number,
+    gachaPackIdx?: number,
+  ) {
+    if (!gameId) return
+    const detail = {
+      ...pack,
+      ...(overrideCodeName !== undefined ? { code_name: overrideCodeName } : {}),
+      turnId,
+      responseIdx,
+      gachaPackIdx,
+    }
+    const isOnItemsPage = gameId ? pathname === `/games/${gameId}/items` : false
+    if (isOnItemsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-create-gacha-pack', { detail }))
+    } else {
+      // Not on items page — persist data then navigate
+      try {
+        localStorage.setItem(lsPendingGachaCreate(gameId), JSON.stringify(detail))
+      } catch { /* ignore */ }
+      router.push(`/games/${gameId}/items?tab=gacha&create=1`)
+    }
+  }
+
+  async function handleGachaPackCodeConflictUpdate() {
+    if (!gachaPackCodeConflictExisting || !gameId || !activeConvId || !gachaPackCodeConflictPending) return
+    const { pack, turnId, responseIdx, gachaPackIdx } = gachaPackCodeConflictPending
+    setIsApplyingGachaPackConflict(true)
+    try {
+      const patch: Record<string, unknown> = {}
+      if (typeof pack.name === 'string' && pack.name.trim()) patch.name = pack.name.trim()
+      if (Array.isArray(pack.item_pool) && pack.item_pool.length > 0) patch.item_pool = pack.item_pool
+      if (Array.isArray(pack.key_requirements)) patch.key_requirements = pack.key_requirements
+      if (pack.collect_destination === 'mailbox' || pack.collect_destination === 'inventory')
+        patch.collect_destination = pack.collect_destination
+      if (pack.metadata && typeof pack.metadata === 'object' && !Array.isArray(pack.metadata))
+        patch.metadata = pack.metadata
+      if (Object.keys(patch).length > 0)
+        await updateGachaPack({ gameId }, gachaPackCodeConflictExisting.id, patch as any)
+      const packKey = `${turnId}:${responseIdx}:${gachaPackIdx}`
+      const updated = { ...savedGachaPackIds, [packKey]: gachaPackCodeConflictExisting.id }
+      setSavedGachaPackIds(updated)
+      safeSetItem(lsGachaPackLinks(activeConvId), JSON.stringify(updated))
+      setGachaPackCodeConflictOpen(false)
+      toast({ title: t('llmConversation.gachaPackSaved') })
+    } catch {
+      toast({ title: t('llmConversation.errorSaveGachaPack'), variant: 'destructive' })
+    } finally {
+      setIsApplyingGachaPackConflict(false)
+    }
+  }
+
+  function handleGachaPackCodeConflictCreateNew(newCodeName: string) {
+    if (!gachaPackCodeConflictPending) return
+    const { pack, turnId, responseIdx, gachaPackIdx } = gachaPackCodeConflictPending
+    setGachaPackCodeConflictOpen(false)
+    fireOpenCreateGachaPack(pack, newCodeName, turnId, responseIdx, gachaPackIdx)
   }
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
@@ -1505,12 +1686,14 @@ export function LLMConversationPanel() {
                   savedItemDefinitionIds={savedItemDefinitionIds}
                   savedPresetDefinitionIds={savedPresetDefinitionIds}
                   savedContainerDefinitionIds={savedContainerDefinitionIds}
+                  savedGachaPackIds={savedGachaPackIds}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
                   onSaveItemDefinition={handleOpenItemDefinitionReview}
                   onSavePresetDefinition={handleSavePresetDefinition}
                   onSaveContainerDefinition={handleSaveContainerDefinition}
+                  onSaveGachaPack={handleSaveGachaPack}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
@@ -1531,6 +1714,7 @@ export function LLMConversationPanel() {
                 loreEntryTitles={loreEntryTitles}
                 itemDefinitionNames={itemDefinitionNames}
                 containerDefinitionNames={containerDefinitionNames}
+                gachaPackNames={gachaPackNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />
@@ -1595,6 +1779,12 @@ export function LLMConversationPanel() {
         isApplyingContainerConflict={isApplyingContainerConflict}
         onContainerNameConflictUpdate={handleContainerNameConflictUpdate}
         onContainerNameConflictCreateNew={handleContainerNameConflictCreateNew}
+        gachaPackCodeConflictOpen={gachaPackCodeConflictOpen}
+        setGachaPackCodeConflictOpen={setGachaPackCodeConflictOpen}
+        gachaPackCodeConflictExisting={gachaPackCodeConflictExisting}
+        isApplyingGachaPackConflict={isApplyingGachaPackConflict}
+        onGachaPackCodeConflictUpdate={handleGachaPackCodeConflictUpdate}
+        onGachaPackCodeConflictCreateNew={handleGachaPackCodeConflictCreateNew}
         t={t}
       />
     </>

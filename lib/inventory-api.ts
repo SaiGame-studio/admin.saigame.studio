@@ -102,11 +102,17 @@ export async function deleteItemDefinition(
 
 // ─── Studio Owner — Gacha Packs (Admin) ─────────────────────────────────────
 
-/** GET /api/v1/games/:gameId/gacha/packs — List all gacha packs */
+/** GET /api/v1/games/:gameId/gacha/packs — List gacha packs (optionally filtered by code_name) */
 export async function listGachaPacks(
   ctx: TenantCtx,
-): Promise<{ packs: GachaPack[] }> {
-  return api.get(`/api/v1/games/${ctx.gameId}/gacha/packs`)
+  params?: { code_name?: string; limit?: number; offset?: number },
+): Promise<{ packs: GachaPack[]; total?: number; limit?: number; offset?: number }> {
+  const qs = new URLSearchParams()
+  if (params?.code_name) qs.set('code_name', params.code_name)
+  if (params?.limit !== undefined) qs.set('limit', String(params.limit))
+  if (params?.offset !== undefined) qs.set('offset', String(params.offset))
+  const query = qs.toString()
+  return api.get(`/api/v1/games/${ctx.gameId}/gacha/packs${query ? `?${query}` : ''}`)
 }
 
 /** GET /api/v1/games/:gameId/gacha/packs/:packId — Get a single gacha pack */

@@ -278,13 +278,13 @@ export async function streamRequest(
   body.item_definition_ids = (itemDefinitionIds && itemDefinitionIds.length > 0) ? itemDefinitionIds : []
   // Always send container_definition_ids so the backend has full linked container context
   body.container_definition_ids = (containerDefinitionIds && containerDefinitionIds.length > 0) ? containerDefinitionIds : []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating') && entityType) {
+  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (mainContent) {

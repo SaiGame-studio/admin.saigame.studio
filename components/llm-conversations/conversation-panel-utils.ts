@@ -183,6 +183,7 @@ export type ResponseSegment =
   | { type: 'item'; text: string; item: Record<string, unknown>; itemIdx: number }
   | { type: 'preset'; text: string; preset: Record<string, unknown>; presetIdx: number }
   | { type: 'container'; text: string; container: Record<string, unknown>; containerIdx: number }
+  | { type: 'gachaPack'; text: string; gachaPack: Record<string, unknown>; gachaPackIdx: number }
 
 export function splitItemResponseSegments(text: string): ResponseSegment[] {
   const looksLikeItem = (obj: Record<string, unknown>) =>
@@ -499,6 +500,137 @@ export function splitContainerResponseSegments(text: string): ResponseSegment[] 
       if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
     }
     segments.push({ type: 'container', text: text.slice(boundary.start, boundary.end), container: boundary.container, containerIdx: containerIdx++ })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
+
+export const lsGachaPackLinks = (convId: string) => `ss_conv_gacha_pack_links_${convId}`
+export const lsGachaPackNames = (convId: string) => `ss_conv_gacha_pack_names_${convId}`
+export const lsPendingGachaCreate = (gameId: string) => `ss_pending_gacha_create_${gameId}`
+
+// ---------------------------------------------------------------------------
+// Parse generated gacha packs from gacha_pack_creating response text.
+// ---------------------------------------------------------------------------
+
+export function parseGeneratedGachaPacksResponse(text: string): unknown[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const looksLikeGachaPack = (obj: Record<string, unknown>) =>
+    typeof obj.code_name === 'string' &&
+    Array.isArray(obj.item_pool) &&
+    obj.item_pool.length > 0
+
+  const tryParse = (input: string): unknown[] | null => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) {
+        const packs = parsed.filter((el) => el && typeof el === 'object' && looksLikeGachaPack(el as Record<string, unknown>))
+        if (packs.length > 0) return packs
+        return parsed
+      }
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.generated_packs)) return record.generated_packs
+        if (Array.isArray(record.packs)) return record.packs
+        if (looksLikeGachaPack(record)) return [record]
+      }
+    } catch { /* ignore */ }
+    return null
+  }
+
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  const fencedPacks: unknown[] = []
+  for (const block of fencedBlocks) {
+    const parsed = tryParse(block)
+    if (parsed) fencedPacks.push(...parsed)
+  }
+  if (fencedPacks.length > 0) return fencedPacks
+
+  const extracted = extractTopLevelJsonObjects(trimmed)
+  if (extracted.length > 0) {
+    const packs = extracted.filter((el) => el && typeof el === 'object' && !Array.isArray(el) && looksLikeGachaPack(el as Record<string, unknown>))
+    if (packs.length > 0) return packs
+  }
+
+  return []
+}
+
+// ---------------------------------------------------------------------------
+// Split gacha pack response text into interleaved text/gachaPack segments.
+// ---------------------------------------------------------------------------
+
+export function splitGachaPackResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeGachaPack = (obj: Record<string, unknown>) =>
+    typeof obj.code_name === 'string' &&
+    Array.isArray(obj.item_pool) &&
+    obj.item_pool.length > 0
+
+  const boundaries: Array<{ start: number; end: number; gachaPack: Record<string, unknown> }> = []
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeGachaPack(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, gachaPack: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeGachaPack(obj)) boundaries.push({ start, end: i + 1, gachaPack: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let gachaPackIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({ type: 'gachaPack', text: text.slice(boundary.start, boundary.end), gachaPack: boundary.gachaPack, gachaPackIdx: gachaPackIdx++ })
     lastEnd = boundary.end
   }
 
