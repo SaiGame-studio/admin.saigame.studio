@@ -450,7 +450,7 @@ export function ConversationChatHistory({
                                     return savedPresetId ? (
                                       <Link
                                         id={`conv-panel-preset-link-${turn.id}-${idx}-${seg.presetIdx}`}
-                                        href={`/games/${gameId}/items?tab=preset&id=${savedPresetId}`}
+                                        href={`/games/${gameId}/items?tab=preset&q=${savedPresetId}`}
                                         className="self-start inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={presetName}
                                       >

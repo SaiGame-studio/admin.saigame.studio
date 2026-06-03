@@ -1576,6 +1576,7 @@ export default function GameItemsPage() {
   const [presetSearchDebounced, setPresetSearchDebounced] = useState("")
   const [showCreatePreset, setShowCreatePreset] = useState(false)
   const [createPresetInitialValues, setCreatePresetInitialValues] = useState<{ name?: string; preset_type?: string; code_name?: string; max_slots?: number } | undefined>(undefined)
+  const [createPresetTurnContext, setCreatePresetTurnContext] = useState<{ turnId: string; responseIdx: number; presetIdx: number; convId: string } | null>(null)
   const [editingPreset, setEditingPreset] = useState<PresetDefinition | null>(null)
   const [deletingPreset, setDeletingPreset] = useState<PresetDefinition | null>(null)
   const [deletePresetLoading, setDeletePresetLoading] = useState(false)
@@ -1768,8 +1769,9 @@ export default function GameItemsPage() {
     if (cst === "definitions" || cst === "slot-guide") setContainerSubTab(cst)
     // initialize container/gacha search from URL `q` param
     const q = searchParams.get("q")
-    if (q && tab !== "gacha") setContainerSearch(q)
-    if (q && tab === "gacha") setGachaSearch(q)
+    if (q && tab === "preset") setPresetSearch(q)
+    else if (q && tab !== "gacha") setContainerSearch(q)
+    else if (q && tab === "gacha") setGachaSearch(q)
     // initialize preset search from URL `id` param
     const presetId = searchParams.get("id")
     if (presetId && tab === "preset") setPresetSearch(presetId)
@@ -1789,6 +1791,15 @@ export default function GameItemsPage() {
       if (pSlots && !isNaN(Number(pSlots))) iv.max_slots = Number(pSlots)
       setCreatePresetInitialValues(iv)
       setShowCreatePreset(true)
+      // Restore turn context stored by ConversationPanel before navigation
+      const pendingTurnRaw = safeGetItem(`ss_pending_preset_turn_${gameId}`)
+      if (pendingTurnRaw) {
+        try {
+          setCreatePresetTurnContext(JSON.parse(pendingTurnRaw))
+          // Remove immediately so it's not re-consumed on next open
+          localStorage.removeItem(`ss_pending_preset_turn_${gameId}`)
+        } catch { /* ignore malformed data */ }
+      }
     }
     // auto-open gacha create sheet from LLM (data stored in localStorage)
     if (tab === "gacha" && searchParams.get("create") === "1") {
@@ -4936,8 +4947,9 @@ export default function GameItemsPage() {
         open={showCreatePreset}
         gameId={gameId}
         initialValues={createPresetInitialValues}
+        turnContext={createPresetTurnContext}
         onCreated={fetchPresetDefs}
-        onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined) }}
+        onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined); setCreatePresetTurnContext(null) }}
       />
 
       {/* ── Preset Edit Sheet ────────────────────────────────────────────────── */}
@@ -5088,17 +5100,20 @@ function CreatePresetDefinitionSheet({
   open,
   gameId,
   initialValues,
+  turnContext,
   onCreated,
   onClose,
 }: {
   open: boolean
   gameId: string
   initialValues?: { name?: string; preset_type?: string; code_name?: string; max_slots?: number }
+  turnContext?: { turnId: string; responseIdx: number; presetIdx: number; convId: string } | null
   onCreated: () => void
   onClose: () => void
 }) {
   const { toast } = useToast()
   const { t } = useTranslation()
+  useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
   const [containerType, setContainerType] = useState("")
@@ -5157,8 +5172,20 @@ function CreatePresetDefinitionSheet({
         max_slots: Number(maxSlots),
         metadata,
       }
-      await createPresetDefinition({ gameId }, body)
+      const created = await createPresetDefinition({ gameId }, body)
       toast({ title: t('items.presetCreated'), description: `"${name.trim()}" added.` })
+      // Notify conversation panel so the save button becomes a link
+      if (turnContext) {
+        window.dispatchEvent(new CustomEvent('ss:preset-created', {
+          detail: {
+            presetId: created.id,
+            presetName: created.name,
+            turnId: turnContext.turnId,
+            responseIdx: turnContext.responseIdx,
+            presetIdx: turnContext.presetIdx,
+          },
+        }))
+      }
       resetForm()
       onCreated()
       onClose()

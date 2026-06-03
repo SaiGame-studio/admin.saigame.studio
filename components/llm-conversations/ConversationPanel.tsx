@@ -188,6 +188,7 @@ export function LLMConversationPanel() {
   const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
   const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
   const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
+  const [presetConflictTurnContext, setPresetConflictTurnContext] = useState<{ turnId: string; responseIdx: number; presetIdx: number } | null>(null)
   const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
 
   // Container name conflict dialog (shown when name already exists in backend)
@@ -581,6 +582,28 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:container-created', handleContainerCreated)
     return () => window.removeEventListener('ss:container-created', handleContainerCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful preset creation triggered from the panel, map turn context → preset ID
+  useEffect(() => {
+    function handlePresetCreated(e: Event) {
+      const detail = (e as CustomEvent<{ presetId: string; presetName?: string; turnId: string; responseIdx: number; presetIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const presetKey = `${detail.turnId}:${detail.responseIdx}:${detail.presetIdx}`
+      setSavedPresetDefinitionIds(prev => {
+        const updated = { ...prev, [presetKey]: detail.presetId }
+        safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      void linkConversationContent(gameId, activeConvId, 'preset_definition', detail.presetId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      if (detail.presetName) {
+        // no preset name cache currently, but consistent with container pattern
+      }
+    }
+    window.addEventListener('ss:preset-created', handlePresetCreated)
+    return () => window.removeEventListener('ss:preset-created', handlePresetCreated)
   }, [activeConvId, gameId])
 
   // Catch successful gacha pack creation triggered from the panel, map turn context → gacha pack ID
@@ -1073,9 +1096,9 @@ export function LLMConversationPanel() {
 
   async function handleSavePresetDefinition(
     preset: Record<string, unknown>,
-    _turnId: string,
-    _responseIdx: number,
-    _presetIdx: number,
+    turnId: string,
+    responseIdx: number,
+    presetIdx: number,
   ) {
     if (!gameId) return
     const codeName = typeof preset.code_name === 'string' ? preset.code_name : ''
@@ -1088,6 +1111,7 @@ export function LLMConversationPanel() {
         if (existing) {
           setPresetCodeConflictExisting(existing)
           setPresetCodeConflictPendingPreset(preset)
+          setPresetConflictTurnContext({ turnId, responseIdx, presetIdx })
           setPresetCodeConflictOpen(true)
           return
         }
@@ -1096,10 +1120,10 @@ export function LLMConversationPanel() {
       }
     }
 
-    navigateToCreatePreset(preset)
+    navigateToCreatePreset(preset, undefined, turnId, responseIdx, presetIdx)
   }
 
-  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string) {
+  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string, turnId?: string, responseIdx?: number, presetIdx?: number) {
     if (!gameId) return
     const params = new URLSearchParams({ tab: 'preset', create: '1' })
     const name = typeof preset.name === 'string' ? preset.name : (typeof preset.code_name === 'string' ? preset.code_name : '')
@@ -1108,11 +1132,15 @@ export function LLMConversationPanel() {
     const codeName = overrideCodeName ?? (typeof preset.code_name === 'string' ? preset.code_name : '')
     if (codeName) params.set('code_name', codeName)
     if (typeof preset.max_slots === 'number') params.set('max_slots', String(preset.max_slots))
+    // Store turn context in localStorage so the items page can dispatch ss:preset-created
+    if (turnId !== undefined && responseIdx !== undefined && presetIdx !== undefined && activeConvId) {
+      safeSetItem(`ss_pending_preset_turn_${gameId}`, JSON.stringify({ turnId, responseIdx, presetIdx, convId: activeConvId }))
+    }
     router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
   async function handlePresetCodeConflictUpdate() {
-    if (!presetCodeConflictExisting || !gameId) return
+    if (!presetCodeConflictExisting || !gameId || !activeConvId) return
     const preset = presetCodeConflictPendingPreset ?? {}
     setIsApplyingPresetConflict(true)
     try {
@@ -1124,7 +1152,21 @@ export function LLMConversationPanel() {
         await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
       }
       setPresetCodeConflictOpen(false)
-      router.push(`/games/${gameId}/items?tab=preset&id=${presetCodeConflictExisting.id}`)
+      // Update savedPresetDefinitionIds if we have turn context
+      if (presetConflictTurnContext) {
+        const { turnId, responseIdx, presetIdx } = presetConflictTurnContext
+        const presetKey = `${turnId}:${responseIdx}:${presetIdx}`
+        setSavedPresetDefinitionIds(prev => {
+          const updated = { ...prev, [presetKey]: presetCodeConflictExisting!.id }
+          safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
+          return updated
+        })
+        void linkConversationContent(gameId, activeConvId, 'preset_definition', presetCodeConflictExisting.id)
+          .then(() => void loadLinkedContent(gameId, activeConvId!))
+          .catch(() => { /* silently ignore */ })
+        setPresetConflictTurnContext(null)
+      }
+      router.push(`/games/${gameId}/items?tab=preset&q=${presetCodeConflictExisting.id}`)
     } catch {
       toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
     } finally {
@@ -1135,7 +1177,9 @@ export function LLMConversationPanel() {
   function handlePresetCodeConflictSaveNew(newCodeName: string) {
     if (!presetCodeConflictPendingPreset) return
     setPresetCodeConflictOpen(false)
-    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName)
+    const ctx = presetConflictTurnContext
+    setPresetConflictTurnContext(null)
+    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName, ctx?.turnId, ctx?.responseIdx, ctx?.presetIdx)
   }
 
   async function handleSaveContainerDefinition(
