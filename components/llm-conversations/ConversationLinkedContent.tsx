@@ -43,7 +43,7 @@ export function ConversationLinkedContent({
     const href = isItem
       ? `/games/${gameId}/items/${link.content_id}`
       : isContainer
-        ? `/games/${gameId}/items?tab=containers`
+        ? `/games/${gameId}/items?tab=containers&q=${link.content_id}`
         : isGachaPack
           ? `/games/${gameId}/items?tab=gacha&q=${link.content_id}`
           : `/games/${gameId}/lore?lore_id=${link.content_id}`
