@@ -379,7 +379,7 @@ export function ConversationChatHistory({
                           t={t}
                         />
                       ) : response.responseText ? (
-                        (response.intentType === 'item_generation' || response.intentType === 'item_modify') ? (
+                        (response.intentType === 'item_generation' || response.intentType === 'item_modify' || response.intentType === 'generator_item_creating') ? (
                           <div id={`conv-panel-ai-response-text-${turn.id}-${idx}`} className="flex flex-col gap-1">
                             {splitItemResponseSegments(response.responseText).map((seg, segIdx) =>
                               seg.type === 'text' ? (

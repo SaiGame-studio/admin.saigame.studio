@@ -301,7 +301,7 @@ export function LLMConversationPanel() {
     for (const turn of chatHistory) {
       if (!turn.responses) continue
       for (const response of turn.responses) {
-        if (response.intentType === 'item_generation' && response.done && !response.error && response.responseText) {
+        if ((response.intentType === 'item_generation' || response.intentType === 'generator_item_creating') && response.done && !response.error && response.responseText) {
           const parsed = parseGeneratedItemsResponse(response.responseText)
           if (parsed.length > 0) {
             lastGeneratedItems = parsed
@@ -639,6 +639,18 @@ export function LLMConversationPanel() {
     loadArchivedConvs(gId)
     getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
   }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const gId = gameId
+      if (!gId) return
+      const detail = (e as CustomEvent<{ gameId: string }>).detail
+      if (detail?.gameId !== gId) return
+      getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
+    }
+    window.addEventListener('llm-tokens:refresh', handler)
+    return () => window.removeEventListener('llm-tokens:refresh', handler)
+  }, [gameId])
 
   async function loadConversation(gId: string, convId: string) {
     setIsLoadingConv(true)
@@ -1659,6 +1671,7 @@ export function LLMConversationPanel() {
             onUnarchive={handleUnarchive}
             onDelete={handleDeleteDirect}
             tokenBalance={tokenBalance}
+            gameId={gameId}
             t={t}
           />
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
-import type { DetectedIntent, DetectIntentHistoryEntry } from '@/lib/llm-conversation-api'
+import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 
 export interface IntentResponse {
@@ -92,6 +92,13 @@ export function useChatPipeline() {
       ])
 
       // ── Step 2: detect intent (SSE) or use explicit type ────────────────────
+      // Build shared context IDs — passed to both streamDetectIntent and streamRequest
+      const contextIds: ConversationContextIds = {
+        lore_entry_ids: loreEntryIds ?? [],
+        item_definition_ids: itemDefinitionIds ?? [],
+        container_definition_ids: containerDefinitionIds ?? [],
+      }
+
       let resolvedIntents: DetectedIntent[] = []
       if (requestType === 'auto') {
         let detectError = ''
@@ -100,6 +107,7 @@ export function useChatPipeline() {
           resolvedConvId,
           userPrompt,
           historyContext ?? [],
+          contextIds,
           (chunk) =>
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
@@ -190,20 +198,16 @@ export function useChatPipeline() {
             )
           },
           activeHistory.length > 0 ? [...activeHistory] : undefined,
-          loreEntryIds,
+          contextIds,
           (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? intent.goals : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? intent.goals : undefined,
           intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0
             ? generatedPresets
             : intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0
               ? generatedContainers
               : intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
                 ? generatedGachaPacks
-                : (intent.type === 'item_generation' || intent.type === 'item_modify') && generatedItems && generatedItems.length > 0
-                ? generatedItems
-                : undefined,
-          itemDefinitionIds,
-          containerDefinitionIds,
+                : (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0
         )
         // After each completed intent, append its response to activeHistory so
         // subsequent intents in this same turn receive all prior responses as context
@@ -330,7 +334,7 @@ export function useChatPipeline() {
           )
         },
         requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
-        loreEntryIds,
+        { lore_entry_ids: loreEntryIds ?? [], item_definition_ids: itemDefinitionIds ?? [], container_definition_ids: containerDefinitionIds ?? [] },
         undefined,
         undefined,
         intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0
@@ -339,11 +343,9 @@ export function useChatPipeline() {
             ? generatedContainers
             : intentType === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
               ? generatedGachaPacks
-              : (intentType === 'item_generation' || intentType === 'item_modify') && generatedItems && generatedItems.length > 0
+              : (intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0
               ? generatedItems
               : undefined,
-        itemDefinitionIds,
-        containerDefinitionIds,
       )
     } catch {
       setChatHistory((prev) =>

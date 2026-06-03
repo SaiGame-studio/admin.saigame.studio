@@ -3493,7 +3493,7 @@ export const ja = {
       tag_suggestion: "タグ提案",
       preset_generation: "プリセット生成",
       container_creating: "コンテナー作成",
-      container_creating: "コンテナー作成",
+      generator_item_creating: "ジェネレーターアイテム作成",
       gacha_pack_creating: "ガチャパック作成",
     },
     entityTypes: {

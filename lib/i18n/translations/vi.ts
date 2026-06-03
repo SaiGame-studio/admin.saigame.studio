@@ -3504,7 +3504,7 @@ export const vi = {
       tag_suggestion: "Gợi Ý Tag",
       preset_generation: "Tạo Preset",
       container_creating: "Tạo Container Definition",
-      container_creating: "Tạo Container Definition",
+      generator_item_creating: "Tạo Vật Phẩm Generator",
       gacha_pack_creating: "Tạo Gacha Pack",
     },
     entityTypes: {

@@ -3564,7 +3564,7 @@ export const en = {
       tag_suggestion: "Tag Suggestion",
       preset_generation: "Generate Presets",
       container_creating: "Create Container",
-      container_creating: "Create Container",
+      generator_item_creating: "Create Generator Item",
       gacha_pack_creating: "Create Gacha Pack",
     },
     entityTypes: {

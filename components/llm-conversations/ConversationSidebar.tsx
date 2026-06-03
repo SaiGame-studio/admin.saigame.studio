@@ -1,11 +1,13 @@
 'use client'
 
-import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Conversation } from '@/types/llm-conversation'
 import { useState, useEffect } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 import type { GameLLMTokenBalance } from '@/lib/llm-conversation-api'
+import { LLMTokenPurchaseDialog } from '@/components/LLMTokenPurchaseDialog'
 
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -31,6 +33,7 @@ interface ConversationSidebarProps {
   onUnarchive: (conv: Conversation) => void
   onDelete: (conv: Conversation) => void
   tokenBalance: GameLLMTokenBalance | null
+  gameId: string | null
   t: (key: string) => string
 }
 
@@ -52,9 +55,11 @@ export function ConversationSidebar({
   onUnarchive,
   onDelete,
   tokenBalance,
+  gameId,
   t,
 }: ConversationSidebarProps) {
   const [isShiftHeld, setIsShiftHeld] = useState(false)
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false)
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(true) }
@@ -103,6 +108,34 @@ export function ConversationSidebar({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+              {gameId && (
+                <>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          id="conv-panel-buy-tokens-btn"
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                          onClick={() => setBuyTokensOpen(true)}
+                          aria-label="Buy LLM Tokens"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" id="conv-panel-buy-tokens-tooltip">
+                        <p>Buy LLM Tokens</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <LLMTokenPurchaseDialog
+                    gameId={gameId}
+                    open={buyTokensOpen}
+                    onOpenChange={setBuyTokensOpen}
+                  />
+                </>
               )}
               {isLoadingActive && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             </div>

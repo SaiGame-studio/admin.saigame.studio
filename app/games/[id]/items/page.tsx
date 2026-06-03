@@ -291,6 +291,28 @@ function resolveGachaRef(rawId: string, items: ItemDefinition[]): string {
   return found ? found.id : rawId
 }
 
+/** Search the API to resolve __REF:ITEM_CODE placeholders to actual item definition IDs.
+ *  Returns a map of item_code -> item_definition_id for every ref that was found. */
+async function resolveGachaRefCodes(rawIds: string[], gameId: string): Promise<Record<string, string>> {
+  const refCodes = [...new Set(rawIds.filter((id) => id.startsWith('__REF:')).map((id) => id.slice(6)))]
+  const codeToId: Record<string, string> = {}
+  if (refCodes.length === 0) return codeToId
+  await Promise.allSettled(
+    refCodes.map((code) =>
+      listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+        .then((res) => { const found = (res.items ?? [])[0]; if (found) codeToId[code] = found.id })
+        .catch(() => {})
+    )
+  )
+  return codeToId
+}
+
+/** Apply a code->id map: if rawId is __REF:CODE, return the resolved ID (or '' if not found). */
+function applyRefCodeMap(rawId: string, codeToId: Record<string, string>): string {
+  if (!rawId.startsWith('__REF:')) return rawId
+  return codeToId[rawId.slice(6)] ?? ''
+}
+
 // ─── Container Definition helpers ────────────────────────────────────────────
 
 const CONTAINER_TYPE_META: Record<string, { label: string; className: string }> = {
@@ -1617,9 +1639,9 @@ export default function GameItemsPage() {
     }
     window.addEventListener('ss:open-create-container', handleOpenCreateContainer)
 
-    function handleOpenCreateGachaPack(e: Event) {
+    async function handleOpenCreateGachaPack(e: Event) {
       const detail = (e as CustomEvent).detail ?? {}
-      const pool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
+      const rawPool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
         ? detail.item_pool.map((r: any) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             weight: String(r.weight ?? 1),
@@ -1627,12 +1649,19 @@ export default function GameItemsPage() {
             quantity_max: String(r.quantity_max ?? 1),
           }))
         : [EMPTY_ROW()]
-      const keyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
+      const rawKeyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
         ? detail.key_requirements.map((r: any) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             quantity: String(r.quantity ?? 1),
           }))
         : [EMPTY_KEY_ROW()]
+      const allRawIds = [
+        ...rawPool.map((r) => r.item_definition_id),
+        ...rawKeyReqs.map((r) => r.item_definition_id),
+      ]
+      const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
+      const pool = rawPool.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const keyReqs = rawKeyReqs.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
       const meta = (detail.metadata ?? {}) as Record<string, unknown>
       setEditingPack(null)
       setGachaAutoSlug(false)
@@ -1656,12 +1685,12 @@ export default function GameItemsPage() {
     }
     window.addEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
 
-    function handleOpenEditGachaPack(e: Event) {
+    async function handleOpenEditGachaPack(e: Event) {
       const detail = (e as CustomEvent).detail ?? {}
       const existingPack = detail.existingPack as GachaPack | undefined
       if (!existingPack) return
       const llmData = (detail.llmData ?? {}) as Record<string, unknown>
-      const pool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
+      const rawPool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
         ? llmData.item_pool.map((r: any) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             weight: String(r.weight ?? 1),
@@ -1674,7 +1703,7 @@ export default function GameItemsPage() {
             quantity_min: String(r.quantity_min),
             quantity_max: String(r.quantity_max),
           }))
-      const keyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
+      const rawKeyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
         ? llmData.key_requirements.map((r: any) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             quantity: String(r.quantity ?? 1),
@@ -1683,6 +1712,13 @@ export default function GameItemsPage() {
             item_definition_id: r.item_definition_id,
             quantity: String(r.quantity),
           }))
+      const allRawIds = [
+        ...rawPool.map((r) => r.item_definition_id),
+        ...rawKeyReqs.map((r) => r.item_definition_id),
+      ]
+      const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
+      const pool = rawPool.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const keyReqs = rawKeyReqs.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
       const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
       const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
         ? llmData.metadata as Record<string, unknown>
@@ -1758,105 +1794,123 @@ export default function GameItemsPage() {
     if (tab === "gacha" && searchParams.get("create") === "1") {
       const pendingRaw = safeGetItem(`ss_pending_gacha_create_${gameId}`)
       if (pendingRaw) {
-        try {
-          const detail = JSON.parse(pendingRaw)
-          const pool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
-            ? detail.item_pool.map((r: any) => ({
-                item_definition_id: String(r.item_definition_id ?? ''),
-                weight: String(r.weight ?? 1),
-                quantity_min: String(r.quantity_min ?? 1),
-                quantity_max: String(r.quantity_max ?? 1),
-              }))
-            : [EMPTY_ROW()]
-          const keyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
-            ? detail.key_requirements.map((r: any) => ({
-                item_definition_id: String(r.item_definition_id ?? ''),
-                quantity: String(r.quantity ?? 1),
-              }))
-            : [EMPTY_KEY_ROW()]
-          const meta = (detail.metadata ?? {}) as Record<string, unknown>
-          setEditingPack(null)
-          setGachaAutoSlug(false)
-          setGachaForm({
-            name: typeof detail.name === 'string' ? detail.name : '',
-            code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
-            collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
-            is_enabled: detail.is_enabled !== false,
-            mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
-            mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
-            pool,
-            keyReqs,
-          })
-          if (detail.turnId !== undefined) {
-            setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
-          }
-          localStorage.removeItem(`ss_pending_gacha_create_${gameId}`)
-          setGachaSheetOpen(true)
-        } catch { /* ignore parse errors */ }
-      }
-    }
-    // auto-open gacha edit sheet from LLM navigation (data stored in localStorage)
-    if (tab === "gacha" && searchParams.get("editFromLLM") === "1") {
-      const pendingRaw = safeGetItem(`ss_pending_gacha_edit_${gameId}`)
-      if (pendingRaw) {
-        try {
-          const detail = JSON.parse(pendingRaw)
-          const existingPack = detail.existingPack as GachaPack | undefined
-          if (existingPack) {
-            const llmData = (detail.llmData ?? {}) as Record<string, unknown>
-            const pool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
-              ? llmData.item_pool.map((r: any) => ({
+        void (async () => {
+          try {
+            const detail = JSON.parse(pendingRaw)
+            const rawPool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
+              ? detail.item_pool.map((r: any) => ({
                   item_definition_id: String(r.item_definition_id ?? ''),
                   weight: String(r.weight ?? 1),
                   quantity_min: String(r.quantity_min ?? 1),
                   quantity_max: String(r.quantity_max ?? 1),
                 }))
-              : existingPack.item_pool.map((r) => ({
-                  item_definition_id: r.item_definition_id,
-                  weight: String(r.weight),
-                  quantity_min: String(r.quantity_min),
-                  quantity_max: String(r.quantity_max),
-                }))
-            const keyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
-              ? llmData.key_requirements.map((r: any) => ({
+              : [EMPTY_ROW()]
+            const rawKeyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
+              ? detail.key_requirements.map((r: any) => ({
                   item_definition_id: String(r.item_definition_id ?? ''),
                   quantity: String(r.quantity ?? 1),
                 }))
-              : (existingPack.key_requirements ?? []).map((r) => ({
-                  item_definition_id: r.item_definition_id,
-                  quantity: String(r.quantity),
-                }))
-            const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
-            const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
-              ? llmData.metadata as Record<string, unknown>
-              : existingMeta
-            setEditingPack(existingPack)
+              : [EMPTY_KEY_ROW()]
+            const allRawIds = [
+              ...rawPool.map((r: { item_definition_id: string }) => r.item_definition_id),
+              ...rawKeyReqs.map((r: { item_definition_id: string }) => r.item_definition_id),
+            ]
+            const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
+            const pool = rawPool.map((r: { item_definition_id: string; weight: string; quantity_min: string; quantity_max: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+            const keyReqs = rawKeyReqs.map((r: { item_definition_id: string; quantity: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+            const meta = (detail.metadata ?? {}) as Record<string, unknown>
+            setEditingPack(null)
             setGachaAutoSlug(false)
             setGachaForm({
-              name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
-              code_name: existingPack.code_name ?? '',
-              collect_destination:
-                llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
-                  ? llmData.collect_destination
-                  : existingPack.collect_destination ?? 'mailbox',
-              is_enabled: existingPack.is_enabled,
-              mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
-              mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
+              name: typeof detail.name === 'string' ? detail.name : '',
+              code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
+              collect_destination: detail.collect_destination === 'inventory' ? 'inventory' : 'mailbox',
+              is_enabled: detail.is_enabled !== false,
+              mailbox_title: typeof meta.mailbox_title === 'string' ? meta.mailbox_title : '',
+              mailbox_body: typeof meta.mailbox_body === 'string' ? meta.mailbox_body : '',
               pool,
               keyReqs,
             })
             if (detail.turnId !== undefined) {
               setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
             }
-            localStorage.removeItem(`ss_pending_gacha_edit_${gameId}`)
-            suppressGachaAutoOpenRef.current = true
-            const newParams = new URLSearchParams(searchParams.toString())
-            newParams.delete('editFromLLM')
-            newParams.set('editPack', existingPack.id)
-            router.replace(`${window.location.pathname}?${newParams.toString()}`)
+            localStorage.removeItem(`ss_pending_gacha_create_${gameId}`)
             setGachaSheetOpen(true)
-          }
-        } catch { /* ignore parse errors */ }
+          } catch { /* ignore parse errors */ }
+        })()
+      }
+    }
+    // auto-open gacha edit sheet from LLM navigation (data stored in localStorage)
+    if (tab === "gacha" && searchParams.get("editFromLLM") === "1") {
+      const pendingRaw = safeGetItem(`ss_pending_gacha_edit_${gameId}`)
+      if (pendingRaw) {
+        void (async () => {
+          try {
+            const detail = JSON.parse(pendingRaw)
+            const existingPack = detail.existingPack as GachaPack | undefined
+            if (existingPack) {
+              const llmData = (detail.llmData ?? {}) as Record<string, unknown>
+              const rawPool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
+                ? llmData.item_pool.map((r: any) => ({
+                    item_definition_id: String(r.item_definition_id ?? ''),
+                    weight: String(r.weight ?? 1),
+                    quantity_min: String(r.quantity_min ?? 1),
+                    quantity_max: String(r.quantity_max ?? 1),
+                  }))
+                : existingPack.item_pool.map((r) => ({
+                    item_definition_id: r.item_definition_id,
+                    weight: String(r.weight),
+                    quantity_min: String(r.quantity_min),
+                    quantity_max: String(r.quantity_max),
+                  }))
+              const rawKeyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
+                ? llmData.key_requirements.map((r: any) => ({
+                    item_definition_id: String(r.item_definition_id ?? ''),
+                    quantity: String(r.quantity ?? 1),
+                  }))
+                : (existingPack.key_requirements ?? []).map((r) => ({
+                    item_definition_id: r.item_definition_id,
+                    quantity: String(r.quantity),
+                  }))
+              const allRawIds = [
+                ...rawPool.map((r: { item_definition_id: string }) => r.item_definition_id),
+                ...rawKeyReqs.map((r: { item_definition_id: string }) => r.item_definition_id),
+              ]
+              const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
+              const pool = rawPool.map((r: { item_definition_id: string; weight: string; quantity_min: string; quantity_max: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+              const keyReqs = rawKeyReqs.map((r: { item_definition_id: string; quantity: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+              const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
+              const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
+                ? llmData.metadata as Record<string, unknown>
+                : existingMeta
+              setEditingPack(existingPack)
+              setGachaAutoSlug(false)
+              setGachaForm({
+                name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
+                code_name: existingPack.code_name ?? '',
+                collect_destination:
+                  llmData.collect_destination === 'inventory' || llmData.collect_destination === 'mailbox'
+                    ? llmData.collect_destination
+                    : existingPack.collect_destination ?? 'mailbox',
+                is_enabled: existingPack.is_enabled,
+                mailbox_title: typeof llmMeta.mailbox_title === 'string' ? llmMeta.mailbox_title : '',
+                mailbox_body: typeof llmMeta.mailbox_body === 'string' ? llmMeta.mailbox_body : '',
+                pool,
+                keyReqs,
+              })
+              if (detail.turnId !== undefined) {
+                setCreateGachaConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, gachaPackIdx: detail.gachaPackIdx })
+              }
+              localStorage.removeItem(`ss_pending_gacha_edit_${gameId}`)
+              suppressGachaAutoOpenRef.current = true
+              const newParams = new URLSearchParams(searchParams.toString())
+              newParams.delete('editFromLLM')
+              newParams.set('editPack', existingPack.id)
+              router.replace(`${window.location.pathname}?${newParams.toString()}`)
+              setGachaSheetOpen(true)
+            }
+          } catch { /* ignore parse errors */ }
+        })()
       }
     }
   }, [searchParams, gameId])
