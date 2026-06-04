@@ -146,6 +146,28 @@ export interface DetectedIntent {
   goals?: string[]
 }
 
+export interface ContainerCreatingPlanAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  depends_on?: number[]
+}
+
+export interface ContainerCreatingPlanResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  content: {
+    language?: string
+    summary?: string
+    requires_linked_item_definition?: boolean
+    actions?: ContainerCreatingPlanAction[]
+    clarification?: string
+  }
+}
+
 export interface DetectIntentHistoryEntry {
   user_prompt: string
   request_type: string
@@ -162,6 +184,61 @@ export interface ConversationContextIds {
   lore_entry_ids: string[]
   item_definition_ids: string[]
   container_definition_ids: string[]
+}
+
+function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedIntent[] {
+  let intents: DetectedIntent[] = []
+
+  const detectedRequestType = typeof payload.detected_request_type === 'string'
+    ? payload.detected_request_type
+    : (typeof payload.Type === 'string' ? payload.Type : '')
+  if (detectedRequestType) {
+    const rawGoals = Array.isArray(payload.goals) ? payload.goals : payload.Goals
+    const rawGoal = typeof payload.goal === 'string'
+      ? payload.goal
+      : (typeof payload.Goal === 'string' ? payload.Goal : '')
+    const detectedGoals = Array.isArray(rawGoals)
+      ? rawGoals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+      : (rawGoal.trim().length > 0 ? [rawGoal] : [])
+    intents = [{
+      type: detectedRequestType,
+      entityType: typeof payload.entity_type === 'string'
+        ? payload.entity_type
+        : (typeof payload.EntityType === 'string' ? payload.EntityType : undefined),
+      ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}),
+    }]
+  } else if (Array.isArray(payload.detected_intents) && payload.detected_intents.length > 0) {
+    intents = (payload.detected_intents as Array<{ type?: string; entity_type?: string; goal?: string; goals?: string[]; Type?: string; EntityType?: string; Goal?: string; Goals?: string[] }>)
+      .map((i) => {
+        const rawGoals = Array.isArray(i.goals) ? i.goals : i.Goals
+        const rawGoal = typeof i.goal === 'string' ? i.goal : i.Goal
+        const detectedGoals = Array.isArray(rawGoals)
+          ? rawGoals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+          : (typeof rawGoal === 'string' && rawGoal.trim().length > 0 ? [rawGoal] : [])
+        return {
+          type: i.type ?? i.Type ?? '',
+          entityType: i.entity_type ?? i.EntityType ?? '',
+          ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}),
+        }
+      })
+      .filter((i) => i.type)
+  }
+
+  const INTENT_ORDER: Record<string, number> = {
+    lore_creating: 0,
+    lore_analyzing: 0,
+    lore_updating: 0,
+    item_generation: 1,
+    item_modify: 1,
+    generator_item_creating: 1,
+    container_creating_planning: 2,
+    crafting_recipe_creating: 2,
+  }
+  return [...intents].sort((a, b) => {
+    const rankA = INTENT_ORDER[a.type] ?? 2
+    const rankB = INTENT_ORDER[b.type] ?? 2
+    return rankA - rankB
+  })
 }
 
 export async function streamDetectIntent(
@@ -200,6 +277,13 @@ export async function streamDetectIntent(
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('text/event-stream')) {
+    const payload = await res.json() as Record<string, unknown>
+    onDone(normalizeDetectedIntents(payload))
+    return
+  }
+
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buf = ''
@@ -219,51 +303,58 @@ export async function streamDetectIntent(
       if (evt.type === 'chunk') {
         onChunk(evt.text ?? '')
       } else if (evt.type === 'done') {
-        // Support both new format (detected_request_type) and old format (detected_intents array)
-        let intents: DetectedIntent[] = []
-        if (evt.detected_request_type) {
-          const detectedGoals = Array.isArray(evt.goals)
-            ? (evt.goals as unknown[]).filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-            : (typeof evt.goal === 'string' && evt.goal.trim().length > 0 ? [evt.goal] : [])
-          intents = [{ type: evt.detected_request_type as string, ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}) }]
-        } else if (Array.isArray(evt.detected_intents) && evt.detected_intents.length > 0) {
-          intents = (evt.detected_intents as Array<{ type?: string; entity_type?: string; goal?: string; goals?: string[]; Type?: string; EntityType?: string; Goal?: string; Goals?: string[] }>)
-            .map((i) => {
-              const rawGoals = Array.isArray(i.goals) ? i.goals : i.Goals
-              const rawGoal = typeof i.goal === 'string' ? i.goal : i.Goal
-              const detectedGoals = Array.isArray(rawGoals)
-                ? rawGoals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-                : (typeof rawGoal === 'string' && rawGoal.trim().length > 0 ? [rawGoal] : [])
-              return {
-                type: i.type ?? i.Type ?? '',
-                entityType: i.entity_type ?? i.EntityType ?? '',
-                ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}),
-              }
-            })
-            .filter((i) => i.type)
-        }
-        const INTENT_ORDER: Record<string, number> = {
-          lore_creating: 0,
-          lore_analyzing: 0,
-          lore_updating: 0,
-          item_generation: 1,
-          item_modify: 1,
-          generator_item_creating: 1,
-          crafting_recipe_creating: 2,
-        }
-        const sortedIntents = [...intents].sort((a, b) => {
-          const rankA = INTENT_ORDER[a.type] ?? 2
-          const rankB = INTENT_ORDER[b.type] ?? 2
-          return rankA - rankB
-        })
-        onDone(sortedIntents)
+        onDone(normalizeDetectedIntents(evt as Record<string, unknown>))
         return
       } else if (evt.type === 'error') {
         onError(evt.message ?? 'Unknown error')
         return
+      } else if (evt.detected_request_type || evt.detected_intents) {
+        onDone(normalizeDetectedIntents(evt as Record<string, unknown>))
+        return
       }
     }
   }
+
+  const leftover = buf.trim()
+  if (leftover) {
+    try {
+      const payloadText = leftover.startsWith('data: ') ? leftover.slice(6) : leftover
+      const evt = JSON.parse(payloadText) as Record<string, unknown>
+      if (evt.detected_request_type || evt.detected_intents) {
+        onDone(normalizeDetectedIntents(evt))
+      }
+    } catch {
+      // Ignore incomplete trailing SSE fragments.
+    }
+  }
+}
+
+export async function requestContainerCreatingPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+  },
+): Promise<ContainerCreatingPlanResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+  }
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/container-creating-planning`, body)
+}
+
+function requestPathForType(requestType: string): string {
+  return requestType.replace(/_/g, '-')
 }
 
 export async function streamRequest(
@@ -286,7 +377,7 @@ export async function streamRequest(
   const token = getValidToken()
   if (!token) throw new Error('Not authenticated.')
 
-  const urlType = requestType.replace(/_/g, '-')
+  const urlType = requestPathForType(requestType)
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
@@ -295,7 +386,7 @@ export async function streamRequest(
   body.lore_entry_ids = contextIds?.lore_entry_ids ?? []
   body.item_definition_ids = contextIds?.item_definition_ids ?? []
   body.container_definition_ids = contextIds?.container_definition_ids ?? []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && entityType) {
+  if ((requestType === 'lore_creating' || requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && entityType) {
     body.entity_type = entityType
   }
   if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && goals && goals.length > 0) {

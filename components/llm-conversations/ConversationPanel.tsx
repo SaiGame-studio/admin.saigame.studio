@@ -1338,7 +1338,18 @@ export function LLMConversationPanel() {
     containerIdx: number,
   ) {
     if (!gameId) return
-    const name = typeof container.name === 'string' ? container.name.trim() : ''
+    let resolvedContainer = container
+    try {
+      resolvedContainer = await resolveContainerLinkedItemRef(container)
+    } catch (err: any) {
+      toast({
+        title: t('llmConversation.errorSaveContainerDefinition'),
+        description: err?.message,
+        variant: 'destructive',
+      })
+      return
+    }
+    const name = typeof resolvedContainer.name === 'string' ? resolvedContainer.name.trim() : ''
     if (name) {
       try {
         const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
@@ -1347,7 +1358,7 @@ export function LLMConversationPanel() {
         ) ?? null
         if (existing) {
           setContainerNameConflictExisting(existing)
-          setContainerNameConflictPending({ container, turnId, responseIdx, containerIdx })
+          setContainerNameConflictPending({ container: resolvedContainer, turnId, responseIdx, containerIdx })
           setContainerNameConflictOpen(true)
           return
         }
@@ -1355,7 +1366,31 @@ export function LLMConversationPanel() {
         // fall through to create
       }
     }
-    fireOpenCreateContainer(container, undefined, turnId, responseIdx, containerIdx)
+    fireOpenCreateContainer(resolvedContainer, undefined, turnId, responseIdx, containerIdx)
+  }
+
+  async function resolveContainerLinkedItemRef(container: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (!gameId) return container
+    const rawLinkedItemId = typeof container.linked_item_definition_id === 'string'
+      ? container.linked_item_definition_id.trim()
+      : ''
+    if (!rawLinkedItemId.startsWith('__REF:')) return container
+
+    const itemCode = rawLinkedItemId.slice('__REF:'.length).trim()
+    if (!itemCode) {
+      throw new Error('Invalid linked item reference.')
+    }
+
+    const res = await listItemDefinitions({ gameId }, { item_code: itemCode, limit: 1 })
+    const item = (res.items ?? []).find((candidate) => candidate.item_code === itemCode) ?? null
+    if (!item) {
+      throw new Error(`Could not find item definition with item_code "${itemCode}".`)
+    }
+
+    return {
+      ...container,
+      linked_item_definition_id: item.id,
+    }
   }
 
   function fireOpenCreateContainer(

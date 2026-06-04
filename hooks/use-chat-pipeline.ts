@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, linkConversationContent, requestContainerCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
 import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
+import { createItemDefinition, listItemDefinitions } from '@/lib/inventory-api'
 import type { Conversation } from '@/types/llm-conversation'
+import type { CreateItemRequest, ItemCategory, ItemRarity } from '@/types/inventory'
 
 export interface IntentResponse {
   intentType: string
@@ -19,6 +21,135 @@ export interface ChatTurn {
   responses?: IntentResponse[]
   done: boolean
   error: string | null
+}
+
+interface PipelineIntent extends DetectedIntent {
+  autoSaveGeneratedItems?: boolean
+}
+
+const ITEM_CATEGORIES: ItemCategory[] = [
+  'weapon', 'armor', 'consumable', 'currency', 'material', 'card',
+  'container', 'decoration', 'gacha_pack', 'generator', 'other',
+]
+const ITEM_RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function parseGeneratedItemDrafts(text: string): Record<string, unknown>[] {
+  const tryParse = (input: string): Record<string, unknown>[] => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) return parsed.map(asRecord).filter((v): v is Record<string, unknown> => !!v)
+      const record = asRecord(parsed)
+      if (!record) return []
+      const generatedItems = Array.isArray(record.generated_items) ? record.generated_items : record.items
+      if (Array.isArray(generatedItems)) {
+        return generatedItems.map(asRecord).filter((v): v is Record<string, unknown> => !!v)
+      }
+      return [record]
+    } catch {
+      return []
+    }
+  }
+
+  const direct = tryParse(text.trim())
+  if (direct.length > 0) return direct
+
+  const fenced = Array.from(text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi))
+  const fromFences = fenced.flatMap((match) => tryParse(match[1].trim()))
+  if (fromFences.length > 0) return fromFences
+
+  const objects: Record<string, unknown>[] = []
+  let depth = 0
+  let start = -1
+  let inString = false
+  let escape = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (escape) { escape = false; continue }
+    if (ch === '\\' && inString) { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0 && start !== -1) {
+        objects.push(...tryParse(text.slice(start, i + 1)))
+        start = -1
+      }
+    }
+  }
+  return objects
+}
+
+function normalizeGeneratedItemDraft(item: Record<string, unknown>): CreateItemRequest | null {
+  const name = typeof item.name === 'string' ? item.name.trim() : ''
+  if (!name) return null
+
+  const rawCategory = typeof item.category === 'string' ? item.category : 'container'
+  const category = ITEM_CATEGORIES.includes(rawCategory as ItemCategory) ? rawCategory as ItemCategory : 'container'
+  const rawRarity = typeof item.rarity === 'string' ? item.rarity : 'common'
+  const rarity = ITEM_RARITIES.includes(rawRarity as ItemRarity) ? rawRarity as ItemRarity : 'common'
+  const rawStats = asRecord(item.base_stats) ?? asRecord(item.attributes) ?? {}
+  const base_stats = Object.fromEntries(
+    Object.entries(rawStats)
+      .filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+  ) as Record<string, number>
+  const metadata = { ...(asRecord(item.metadata) ?? {}) }
+  if (typeof item.description === 'string' && item.description.trim()) {
+    metadata.description = item.description.trim()
+  }
+
+  const isStackable = typeof item.is_stackable === 'boolean' ? item.is_stackable : false
+  const body: CreateItemRequest = {
+    name,
+    category,
+    rarity,
+    is_stackable: isStackable,
+    grid_width: typeof item.grid_width === 'number' && item.grid_width > 0 ? item.grid_width : 1,
+    grid_height: typeof item.grid_height === 'number' && item.grid_height > 0 ? item.grid_height : 1,
+    base_stats,
+    metadata,
+    client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
+    allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
+  }
+  if (typeof item.item_code === 'string' && item.item_code.trim()) body.item_code = item.item_code.trim()
+  if (isStackable) body.max_stack_size = typeof item.max_stack_size === 'number' ? item.max_stack_size : 99
+  return body
+}
+
+async function createLinkedItemsFromGeneration(
+  gameId: string,
+  conversationId: string,
+  responseText: string,
+): Promise<string[]> {
+  const drafts = parseGeneratedItemDrafts(responseText)
+    .map(normalizeGeneratedItemDraft)
+    .filter((item): item is CreateItemRequest => !!item)
+
+  const ids: string[] = []
+  for (const draft of drafts) {
+    if (draft.item_code) {
+      const existing = await listItemDefinitions({ gameId }, { item_code: draft.item_code, limit: 1 })
+      const existingItem = (existing.items ?? [])[0]
+      if (existingItem) {
+        ids.push(existingItem.id)
+        await linkConversationContent(gameId, conversationId, 'item_definition', existingItem.id).catch(() => {})
+        continue
+      }
+    }
+
+    const created = await createItemDefinition({ gameId }, draft)
+    ids.push(created.item.id)
+    await linkConversationContent(gameId, conversationId, 'item_definition', created.item.id).catch(() => {})
+  }
+  return ids
 }
 
 /**
@@ -101,7 +232,7 @@ export function useChatPipeline() {
         container_definition_ids: containerDefinitionIds ?? [],
       }
 
-      let resolvedIntents: DetectedIntent[] = []
+      let resolvedIntents: PipelineIntent[] = []
       if (requestType === 'auto') {
         let detectError = ''
         await streamDetectIntent(
@@ -138,11 +269,57 @@ export function useChatPipeline() {
       }
 
       // ── Step 3: stream each intent sequentially ──────────────────────────────
+      const expandContainerPlan = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
+        if (intent.type !== 'container_creating_planning') return [intent]
+
+        const plan = await requestContainerCreatingPlanning(
+          gameId,
+          resolvedConvId,
+          userPrompt,
+          contextIds,
+          {
+            entityType: intent.entityType || fallbackEntityType || undefined,
+            goals: intent.goals,
+            history: historyContext,
+          },
+        )
+        const plannedIntents = (plan.content?.actions ?? [])
+          .map((action): PipelineIntent | null => {
+            const goals = Array.isArray(action.goals)
+              ? action.goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+              : (typeof action.goal === 'string' && action.goal.trim() ? [action.goal] : [])
+
+            if (action.type === 'item_generation') {
+              return {
+                type: 'item_generation',
+                entityType: action.entity_type,
+                goals,
+                autoSaveGeneratedItems: true,
+              }
+            }
+            if (action.type === 'container_creating') {
+              return {
+                type: 'container_creating',
+                entityType: action.entity_type || intent.entityType,
+                goals,
+              }
+            }
+            return null
+          })
+          .filter((planned): planned is PipelineIntent => !!planned)
+
+        return plannedIntents.length > 0
+          ? plannedIntents
+          : [{ type: 'container_creating', entityType: intent.entityType, goals: intent.goals }]
+      }
+
+      const executionIntents = (await Promise.all(resolvedIntents.map(expandContainerPlan))).flat()
+
       // Pre-initialise all response slots so the UI shows spinners immediately
       setChatHistory((prev) =>
         prev.map((t) => t.id !== turnId ? t : {
           ...t,
-          responses: resolvedIntents.map((intent) => ({
+          responses: executionIntents.map((intent) => ({
             intentType: intent.type,
             entityType: intent.entityType ?? '',
             responseText: '',
@@ -157,8 +334,8 @@ export function useChatPipeline() {
         ...(requestHistory ?? []),
       ]
 
-      for (let i = 0; i < resolvedIntents.length; i++) {
-        const intent = resolvedIntents[i]
+      for (let i = 0; i < executionIntents.length; i++) {
+        const intent = executionIntents[i]
         let currentResponseText = ''
         await streamRequest(
           gameId,
@@ -221,6 +398,12 @@ export function useChatPipeline() {
         // subsequent intents in this same turn receive all prior responses as context
         if (currentResponseText) {
           activeHistory.push({ request_type: intent.type, response_text: currentResponseText })
+        }
+        if (intent.autoSaveGeneratedItems && currentResponseText) {
+          const createdItemIds = await createLinkedItemsFromGeneration(gameId, resolvedConvId, currentResponseText)
+          if (createdItemIds.length > 0) {
+            contextIds.item_definition_ids = Array.from(new Set([...contextIds.item_definition_ids, ...createdItemIds]))
+          }
         }
       }
 
