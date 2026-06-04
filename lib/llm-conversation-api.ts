@@ -292,13 +292,13 @@ export async function streamRequest(
   body.lore_entry_ids = contextIds?.lore_entry_ids ?? []
   body.item_definition_ids = contextIds?.item_definition_ids ?? []
   body.container_definition_ids = contextIds?.container_definition_ids ?? []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && entityType) {
+  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (requestHistory && requestHistory.length > 0) {

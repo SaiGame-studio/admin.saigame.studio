@@ -1851,6 +1851,28 @@ export default function GameItemsPage() {
         })()
       }
     }
+    // auto-open equipment slot create sheet from LLM navigation (data stored in localStorage)
+    if (tab === "equipments" && searchParams.get("create") === "1") {
+      const pendingEquipRaw = safeGetItem(`ss_pending_equipment_slot_create_${gameId}`)
+      if (pendingEquipRaw) {
+        try {
+          const detail = JSON.parse(pendingEquipRaw)
+          localStorage.removeItem(`ss_pending_equipment_slot_create_${gameId}`)
+          window.dispatchEvent(new CustomEvent('ss:open-create-equipment-slot', { detail }))
+        } catch { /* ignore parse errors */ }
+      }
+    }
+    // auto-open equipment slot edit sheet from LLM navigation (data stored in localStorage)
+    if (tab === "equipments" && searchParams.get("editFromLLM") === "1") {
+      const pendingEditRaw = safeGetItem(`ss_pending_equipment_slot_edit_${gameId}`)
+      if (pendingEditRaw) {
+        try {
+          const detail = JSON.parse(pendingEditRaw)
+          localStorage.removeItem(`ss_pending_equipment_slot_edit_${gameId}`)
+          window.dispatchEvent(new CustomEvent('ss:open-edit-equipment-slot', { detail }))
+        } catch { /* ignore parse errors */ }
+      }
+    }
     // auto-open gacha edit sheet from LLM navigation (data stored in localStorage)
     if (tab === "gacha" && searchParams.get("editFromLLM") === "1") {
       const pendingRaw = safeGetItem(`ss_pending_gacha_edit_${gameId}`)

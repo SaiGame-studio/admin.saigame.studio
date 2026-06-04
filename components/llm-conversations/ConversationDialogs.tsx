@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Dices, ExternalLink, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
+import { BookOpen, Dices, ExternalLink, Layers, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -14,7 +14,7 @@ import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/comp
 import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
 import type { LoreEntry } from '@/types/lore'
-import type { ItemDefinition, ContainerDefinition, GachaPack } from '@/types/inventory'
+import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import {
@@ -109,6 +109,13 @@ interface ConversationDialogsProps {
   isApplyingGachaPackConflict: boolean
   onGachaPackCodeConflictUpdate: () => void
   onGachaPackCodeConflictCreateNew: (newCodeName: string) => void
+  // Equipment slot key conflict dialog
+  equipmentSlotKeyConflictOpen: boolean
+  setEquipmentSlotKeyConflictOpen: (v: boolean) => void
+  equipmentSlotKeyConflictExisting: EquipmentSlot | null
+  isApplyingEquipmentSlotConflict: boolean
+  onEquipmentSlotKeyConflictUpdate: () => void
+  onEquipmentSlotKeyConflictCreateNew: (newSlotKey: string) => void
   t: (key: string) => string
 }
 
@@ -175,6 +182,12 @@ export function ConversationDialogs({
   isApplyingGachaPackConflict,
   onGachaPackCodeConflictUpdate,
   onGachaPackCodeConflictCreateNew,
+  equipmentSlotKeyConflictOpen,
+  setEquipmentSlotKeyConflictOpen,
+  equipmentSlotKeyConflictExisting,
+  isApplyingEquipmentSlotConflict,
+  onEquipmentSlotKeyConflictUpdate,
+  onEquipmentSlotKeyConflictCreateNew,
   t,
 }: ConversationDialogsProps) {
   const { resolvedTheme } = useTheme()
@@ -207,6 +220,9 @@ export function ConversationDialogs({
 
   // ── Gacha pack code conflict dialog state ──
   const [newGachaPackCodeInput, setNewGachaPackCodeInput] = useState('')
+
+  // ── Equipment slot key conflict dialog state ──
+  const [newEquipmentSlotKeyInput, setNewEquipmentSlotKeyInput] = useState('')
 
   useEffect(() => {
     if (itemCodeConflictOpen && itemCodeConflictExisting?.item_code) {
@@ -267,6 +283,14 @@ export function ConversationDialogs({
   }, [gachaPackCodeConflictOpen, gachaPackCodeConflictExisting?.code_name])
 
   useEffect(() => {
+    if (equipmentSlotKeyConflictOpen && equipmentSlotKeyConflictExisting?.slot_key) {
+      setNewEquipmentSlotKeyInput(`${equipmentSlotKeyConflictExisting.slot_key}_2`)
+    } else if (!equipmentSlotKeyConflictOpen) {
+      setNewEquipmentSlotKeyInput('')
+    }
+  }, [equipmentSlotKeyConflictOpen, equipmentSlotKeyConflictExisting?.slot_key])
+
+  useEffect(() => {
     if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
     const code = newPresetCodeInput.trim()
     if (!code || !presetCodeConflictOpen) {
@@ -306,6 +330,9 @@ export function ConversationDialogs({
   })
   useEscapeLayer(gachaPackCodeConflictOpen, () => {
     if (!isApplyingGachaPackConflict) { setGachaPackCodeConflictOpen(false); setNewGachaPackCodeInput('') }
+  })
+  useEscapeLayer(equipmentSlotKeyConflictOpen, () => {
+    if (!isApplyingEquipmentSlotConflict) { setEquipmentSlotKeyConflictOpen(false); setNewEquipmentSlotKeyInput('') }
   })
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -962,6 +989,65 @@ export function ConversationDialogs({
                 ? <><Loader2 id="gacha-pack-code-conflict-create-new-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.gachaPackCodeConflictUpdating')}</>
                 : <><Dices id="gacha-pack-code-conflict-create-new-icon" className="h-4 w-4" />{t('llmConversation.gachaPackCodeConflictCreateNew')}</>
               }
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={equipmentSlotKeyConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingEquipmentSlotConflict) { setEquipmentSlotKeyConflictOpen(false); setNewEquipmentSlotKeyInput('') } }}
+      >
+        <DialogContent id="equipment-slot-key-conflict-dialog-root">
+          <DialogHeader id="equipment-slot-key-conflict-dialog-header">
+            <DialogTitle id="equipment-slot-key-conflict-dialog-title">{t('llmConversation.equipmentSlotKeyConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="equipment-slot-key-conflict-dialog-body" className="space-y-3">
+            <p id="equipment-slot-key-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.equipmentSlotKeyConflictDesc').replace('{key}', equipmentSlotKeyConflictExisting?.slot_key ?? '')}
+            </p>
+            {equipmentSlotKeyConflictExisting && (
+              <div id="equipment-slot-key-conflict-existing-info" className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium">
+                <Layers id="equipment-slot-key-conflict-existing-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="equipment-slot-key-conflict-existing-name" className="flex-1 truncate">{equipmentSlotKeyConflictExisting.name}</span>
+                <code id="equipment-slot-key-conflict-existing-key" className="text-xs bg-muted-foreground/20 px-1 rounded">{equipmentSlotKeyConflictExisting.slot_key}</code>
+              </div>
+            )}
+          </div>
+          <button
+            id="equipment-slot-key-conflict-update-btn"
+            type="button"
+            disabled={isApplyingEquipmentSlotConflict}
+            onClick={onEquipmentSlotKeyConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Layers id="equipment-slot-key-conflict-update-icon" className="h-4 w-4" />
+            {t('llmConversation.equipmentSlotKeyConflictUpdate')}
+          </button>
+          <div id="equipment-slot-key-conflict-divider" className="relative flex items-center gap-2">
+            <div id="equipment-slot-key-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="equipment-slot-key-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="equipment-slot-key-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+          <div id="equipment-slot-key-conflict-create-new-section" className="space-y-2">
+            <Label id="equipment-slot-key-conflict-new-key-label" htmlFor="equipment-slot-key-conflict-new-key-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.equipmentSlotKeyConflictNewKeyLabel')}
+            </Label>
+            <Input
+              id="equipment-slot-key-conflict-new-key-input"
+              value={newEquipmentSlotKeyInput}
+              onChange={(e) => setNewEquipmentSlotKeyInput(e.target.value)}
+              disabled={isApplyingEquipmentSlotConflict}
+            />
+            <button
+              id="equipment-slot-key-conflict-create-new-btn"
+              type="button"
+              disabled={isApplyingEquipmentSlotConflict || !newEquipmentSlotKeyInput.trim()}
+              onClick={() => { onEquipmentSlotKeyConflictCreateNew(newEquipmentSlotKeyInput.trim()); setNewEquipmentSlotKeyInput('') }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Layers id="equipment-slot-key-conflict-create-new-icon" className="h-4 w-4" />
+              {t('llmConversation.equipmentSlotKeyConflictCreateNew')}
             </button>
           </div>
         </DialogContent>

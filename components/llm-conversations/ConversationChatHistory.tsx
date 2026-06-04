@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -22,6 +22,7 @@ interface ConversationChatHistoryProps {
   savedPresetDefinitionIds: Record<string, string>
   savedContainerDefinitionIds: Record<string, string>
   savedGachaPackIds: Record<string, string>
+  savedEquipmentSlotIds: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
@@ -29,6 +30,7 @@ interface ConversationChatHistoryProps {
   onSavePresetDefinition: (preset: Record<string, unknown>, turnId: string, responseIdx: number, presetIdx: number) => void
   onSaveContainerDefinition: (container: Record<string, unknown>, turnId: string, responseIdx: number, containerIdx: number) => void
   onSaveGachaPack: (pack: Record<string, unknown>, turnId: string, responseIdx: number, gachaPackIdx: number) => void
+  onSaveEquipmentSlot: (slot: Record<string, unknown>, turnId: string, responseIdx: number, equipmentSlotIdx: number) => void
   onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
   onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
   onCreateItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
@@ -245,6 +247,7 @@ export function ConversationChatHistory({
   savedPresetDefinitionIds,
   savedContainerDefinitionIds,
   savedGachaPackIds,
+  savedEquipmentSlotIds,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
@@ -252,6 +255,7 @@ export function ConversationChatHistory({
   onSavePresetDefinition,
   onSaveContainerDefinition,
   onSaveGachaPack,
+  onSaveEquipmentSlot,
   onApplyTagSuggestion,
   onRemoveGameTag,
   onCreateItemTagFromSuggestion,
@@ -572,6 +576,54 @@ export function ConversationChatHistory({
                             )}
                             {!response.done && (
                               <Loader2 id={`conv-panel-ai-response-cursor-gacha-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'equipment_slot_generation' ? (
+                          <div id={`conv-panel-ai-response-equipment-slots-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitEquipmentSlotResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-equipment-slot-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'equipmentSlot' ? (
+                                <div key={segIdx} id={`conv-panel-equipment-slot-segment-${turn.id}-${idx}-${seg.equipmentSlotIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-equipment-slot-segment-json-${turn.id}-${idx}-${seg.equipmentSlotIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const slotKey = `${turn.id}:${idx}:${seg.equipmentSlotIdx}`
+                                    const savedSlotId = savedEquipmentSlotIds[slotKey]
+                                    const displayKey = typeof seg.equipmentSlot.slot_key === 'string' ? seg.equipmentSlot.slot_key : `Slot ${seg.equipmentSlotIdx + 1}`
+                                    return savedSlotId ? (
+                                      <Link
+                                        id={`conv-panel-equipment-slot-link-${turn.id}-${idx}-${seg.equipmentSlotIdx}`}
+                                        href={`/games/${gameId}/items?tab=equipments&noconvpanel=1&q=${encodeURIComponent(displayKey)}&subtab=list`}
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
+                                        title={displayKey}
+                                      >
+                                        <Layers className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-equipment-slot-link-label-${turn.id}-${idx}-${seg.equipmentSlotIdx}`} className="truncate">{t('llmConversation.viewEquipmentSlot')}: {displayKey}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-equipment-slot-btn-${turn.id}-${idx}-${seg.equipmentSlotIdx}`}
+                                        onClick={() => onSaveEquipmentSlot(seg.equipmentSlot, turn.id, idx, seg.equipmentSlotIdx)}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <Layers className="h-3 w-3" />
+                                        <span id={`conv-panel-save-equipment-slot-btn-label-${turn.id}-${idx}-${seg.equipmentSlotIdx}`}>{t('llmConversation.saveAsEquipmentSlot')}: {displayKey}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-equipment-slot-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                             )}
                           </div>
                         ) : (

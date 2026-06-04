@@ -57,6 +57,7 @@ export function useChatPipeline() {
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
     generatedGachaPacks?: unknown[],
+    generatedEquipmentSlots?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -199,15 +200,19 @@ export function useChatPipeline() {
           },
           activeHistory.length > 0 ? [...activeHistory] : undefined,
           contextIds,
-          (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating') ? intent.goals : undefined,
+          (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
+          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation') ? intent.goals : undefined,
           intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0
             ? generatedPresets
             : intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0
               ? generatedContainers
               : intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
                 ? generatedGachaPacks
-                : (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0
+                : intent.type === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0
+                  ? generatedEquipmentSlots
+                  : (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0
+                    ? generatedItems
+                    : undefined
         )
         // After each completed intent, append its response to activeHistory so
         // subsequent intents in this same turn receive all prior responses as context
@@ -273,6 +278,7 @@ export function useChatPipeline() {
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
     generatedGachaPacks?: unknown[],
+    generatedEquipmentSlots?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -343,9 +349,11 @@ export function useChatPipeline() {
             ? generatedContainers
             : intentType === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
               ? generatedGachaPacks
-              : (intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0
-              ? generatedItems
-              : undefined,
+              : intentType === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0
+                ? generatedEquipmentSlots
+                : (intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0
+                ? generatedItems
+                : undefined,
       )
     } catch {
       setChatHistory((prev) =>
