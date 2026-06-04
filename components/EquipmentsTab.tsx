@@ -745,16 +745,18 @@ export function EquipmentsTab({
             {" "}{t('items.slotsDefined')}
           </p>
         </div>
-        {subTab !== "list" && headerActions}
       </div>
 
       <Tabs value={subTab} onValueChange={handleSubTabChange}>
         {subTab !== "list" && (
-          <TabsList className="mb-2">
-            <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
-            <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
-            <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
-          </TabsList>
+          <div id="equipments-subtab-header-row" className="flex items-center justify-between mb-2">
+            <TabsList id="equipments-subtab-list">
+              <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
+              <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
+              <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
+            </TabsList>
+            <div id="equipments-subtab-header-actions">{headerActions}</div>
+          </div>
         )}
 
         {/* ── Grid ── */}
