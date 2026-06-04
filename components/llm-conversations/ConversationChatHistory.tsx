@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -23,6 +23,8 @@ interface ConversationChatHistoryProps {
   savedContainerDefinitionIds: Record<string, string>
   savedGachaPackIds: Record<string, string>
   savedEquipmentSlotIds: Record<string, string>
+  savedCraftingRecipeIds: Record<string, string>
+  craftingRecipeNames: Record<string, string>
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
@@ -31,6 +33,7 @@ interface ConversationChatHistoryProps {
   onSaveContainerDefinition: (container: Record<string, unknown>, turnId: string, responseIdx: number, containerIdx: number) => void
   onSaveGachaPack: (pack: Record<string, unknown>, turnId: string, responseIdx: number, gachaPackIdx: number) => void
   onSaveEquipmentSlot: (slot: Record<string, unknown>, turnId: string, responseIdx: number, equipmentSlotIdx: number) => void
+  onSaveCraftingRecipe: (recipe: Record<string, unknown>, turnId: string, responseIdx: number, craftingRecipeIdx: number) => void
   onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
   onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
   onCreateItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
@@ -248,6 +251,8 @@ export function ConversationChatHistory({
   savedContainerDefinitionIds,
   savedGachaPackIds,
   savedEquipmentSlotIds,
+  savedCraftingRecipeIds,
+  craftingRecipeNames,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
@@ -256,6 +261,7 @@ export function ConversationChatHistory({
   onSaveContainerDefinition,
   onSaveGachaPack,
   onSaveEquipmentSlot,
+  onSaveCraftingRecipe,
   onApplyTagSuggestion,
   onRemoveGameTag,
   onCreateItemTagFromSuggestion,
@@ -624,6 +630,55 @@ export function ConversationChatHistory({
                             )}
                             {!response.done && (
                               <Loader2 id={`conv-panel-ai-response-cursor-equipment-slot-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'crafting_recipe_creating' ? (
+                          <div id={`conv-panel-ai-response-crafting-recipes-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitCraftingRecipeResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-crafting-recipe-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'craftingRecipe' ? (
+                                <div key={segIdx} id={`conv-panel-crafting-recipe-segment-${turn.id}-${idx}-${seg.craftingRecipeIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-crafting-recipe-segment-json-${turn.id}-${idx}-${seg.craftingRecipeIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const recipeKey = `${turn.id}:${idx}:${seg.craftingRecipeIdx}`
+                                    const savedRecipeId = savedCraftingRecipeIds[recipeKey]
+                                    const recipeName = typeof seg.craftingRecipe.name === 'string' ? seg.craftingRecipe.name : (typeof seg.craftingRecipe.recipe_key === 'string' ? seg.craftingRecipe.recipe_key : `Recipe ${seg.craftingRecipeIdx + 1}`)
+                                    const linkedName = savedRecipeId ? (craftingRecipeNames[savedRecipeId] ?? recipeName) : recipeName
+                                    return savedRecipeId ? (
+                                      <Link
+                                        id={`conv-panel-crafting-recipe-link-${turn.id}-${idx}-${seg.craftingRecipeIdx}`}
+                                        href={`/games/${gameId}/items?tab=crafting&expanded=${savedRecipeId}`}
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
+                                        title={linkedName}
+                                      >
+                                        <Hammer className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-crafting-recipe-link-label-${turn.id}-${idx}-${seg.craftingRecipeIdx}`} className="truncate">{t('llmConversation.viewCraftingRecipe')}: {linkedName}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-crafting-recipe-btn-${turn.id}-${idx}-${seg.craftingRecipeIdx}`}
+                                        onClick={() => onSaveCraftingRecipe(seg.craftingRecipe, turn.id, idx, seg.craftingRecipeIdx)}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <Hammer className="h-3 w-3" />
+                                        <span id={`conv-panel-save-crafting-recipe-btn-label-${turn.id}-${idx}-${seg.craftingRecipeIdx}`}>{t('llmConversation.saveAsCraftingRecipe')}: {recipeName}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-crafting-recipe-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                             )}
                           </div>
                         ) : (

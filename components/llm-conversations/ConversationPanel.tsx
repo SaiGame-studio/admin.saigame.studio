@@ -42,11 +42,13 @@ import {
   lsContainerLinks,
   lsGachaPackLinks,
   lsEquipmentSlotLinks,
+  lsCraftingRecipeLinks,
   lsLoreTitles,
   lsItemNames,
   lsContainerNames,
   lsGachaPackNames,
   lsEquipmentSlotNames,
+  lsCraftingRecipeNames,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
   lsPendingEquipmentSlotCreate,
@@ -59,6 +61,7 @@ import {
   parseGeneratedContainersResponse,
   parseGeneratedGachaPacksResponse,
   parseGeneratedEquipmentSlotsResponse,
+  parseGeneratedCraftingRecipesResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -74,6 +77,8 @@ import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
+import { createCraftingRecipe, getCraftingRecipe } from '@/lib/crafting-api'
+import type { CreateCraftingRecipeRequest } from '@/types/crafting'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -212,6 +217,8 @@ export function LLMConversationPanel() {
   const [convGeneratedGachaPacks, setConvGeneratedGachaPacks] = useState<unknown[]>([])
   // Tracks the last completed equipment_slot_generation response parsed as array
   const [convGeneratedEquipmentSlots, setConvGeneratedEquipmentSlots] = useState<unknown[]>([])
+  // Tracks the last completed crafting_recipe_creating response parsed as array
+  const [convGeneratedCraftingRecipes, setConvGeneratedCraftingRecipes] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -226,6 +233,9 @@ export function LLMConversationPanel() {
   // Equipment slot saved IDs (keyed as "turnId:responseIdx:equipmentSlotIdx")
   const [savedEquipmentSlotIds, setSavedEquipmentSlotIds] = useState<Record<string, string>>({})
   const [equipmentSlotNames, setEquipmentSlotNames] = useState<Record<string, string>>({})
+  // Crafting recipe saved IDs (keyed as "turnId:responseIdx:craftingRecipeIdx")
+  const [savedCraftingRecipeIds, setSavedCraftingRecipeIds] = useState<Record<string, string>>({})
+  const [craftingRecipeNames, setCraftingRecipeNames] = useState<Record<string, string>>({})
 
   // Gacha pack code conflict dialog (shown when code_name already exists in backend)
   const [gachaPackCodeConflictOpen, setGachaPackCodeConflictOpen] = useState(false)
@@ -397,6 +407,23 @@ export function LLMConversationPanel() {
     setConvGeneratedEquipmentSlots(lastGeneratedEquipmentSlots)
   }, [chatHistory])
 
+  // Keep the last completed crafting_recipe_creating response parsed as recipes array
+  useEffect(() => {
+    let lastGeneratedCraftingRecipes: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'crafting_recipe_creating' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedCraftingRecipesResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedCraftingRecipes = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedCraftingRecipes(lastGeneratedCraftingRecipes)
+  }, [chatHistory])
+
   // Reset applied tag keys when switching conversations.
   useEffect(() => {
     setConvGeneratedItems([])
@@ -404,6 +431,7 @@ export function LLMConversationPanel() {
     setConvGeneratedContainers([])
     setConvGeneratedGachaPacks([])
     setConvGeneratedEquipmentSlots([])
+    setConvGeneratedCraftingRecipes([])
     setAppliedTagsPerResponse({})
     setCreatedItemTagsPerResponse({})
   }, [activeConvId])
@@ -437,6 +465,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(equipmentSlotNames).length === 0) return
     safeSetItem(lsEquipmentSlotNames(activeConvId), JSON.stringify(equipmentSlotNames))
   }, [equipmentSlotNames, activeConvId])
+
+  // Persist crafting recipe names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(craftingRecipeNames).length === 0) return
+    safeSetItem(lsCraftingRecipeNames(activeConvId), JSON.stringify(craftingRecipeNames))
+  }, [craftingRecipeNames, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -533,6 +567,9 @@ export function LLMConversationPanel() {
     // Restore saved equipment slot IDs from localStorage
     const rawEquipmentSlotLinks = safeGetItem(lsEquipmentSlotLinks(activeConvId))
     setSavedEquipmentSlotIds(rawEquipmentSlotLinks ? JSON.parse(rawEquipmentSlotLinks) : {})
+    // Restore saved crafting recipe IDs from localStorage
+    const rawCraftingRecipeLinks = safeGetItem(lsCraftingRecipeLinks(activeConvId))
+    setSavedCraftingRecipeIds(rawCraftingRecipeLinks ? JSON.parse(rawCraftingRecipeLinks) : {})
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
@@ -544,6 +581,8 @@ export function LLMConversationPanel() {
     if (rawGachaPackNames) { try { setGachaPackNames(JSON.parse(rawGachaPackNames)) } catch { setGachaPackNames({}) } }
     const rawEquipmentSlotNames = safeGetItem(lsEquipmentSlotNames(activeConvId))
     if (rawEquipmentSlotNames) { try { setEquipmentSlotNames(JSON.parse(rawEquipmentSlotNames)) } catch { setEquipmentSlotNames({}) } }
+    const rawCraftingRecipeNames = safeGetItem(lsCraftingRecipeNames(activeConvId))
+    if (rawCraftingRecipeNames) { try { setCraftingRecipeNames(JSON.parse(rawCraftingRecipeNames)) } catch { setCraftingRecipeNames({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -582,6 +621,8 @@ export function LLMConversationPanel() {
           setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'gacha_pack') {
           setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'crafting_recipe') {
+          setCraftingRecipeNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -779,8 +820,9 @@ export function LLMConversationPanel() {
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
       const containerLinks = items.filter(l => l.content_type === 'container_definition')
       const gachaPackLinks = items.filter(l => l.content_type === 'gacha_pack')
+      const craftingRecipeLinks = items.filter(l => l.content_type === 'crafting_recipe')
 
-      const [loreResults, itemResults, containerResults, gachaPackResults] = await Promise.all([
+      const [loreResults, itemResults, containerResults, gachaPackResults, craftingRecipeResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
@@ -793,6 +835,9 @@ export function LLMConversationPanel() {
         gachaPackLinks.length > 0
           ? Promise.allSettled(gachaPackLinks.map(l => getGachaPack({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ pack: { name: string } }>[]),
+        craftingRecipeLinks.length > 0
+          ? Promise.allSettled(craftingRecipeLinks.map(l => getCraftingRecipe({ gameId: gId }, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ name: string }>[]),
       ])
 
       // Build name maps synchronously (no more awaits after this point)
@@ -820,11 +865,18 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') gachaPackNameMap[l.content_id] = result.value.pack.name
       })
 
+      const craftingRecipeNameMap: Record<string, string> = {}
+      craftingRecipeLinks.forEach((l, i) => {
+        const result = craftingRecipeResults[i]
+        if (result?.status === 'fulfilled') craftingRecipeNameMap[l.content_id] = result.value.name
+      })
+
       // All setters fire synchronously → one React render with everything ready
       if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
       if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
       if (Object.keys(gachaPackNameMap).length > 0) setGachaPackNames(prev => ({ ...prev, ...gachaPackNameMap }))
+      if (Object.keys(craftingRecipeNameMap).length > 0) setCraftingRecipeNames(prev => ({ ...prev, ...craftingRecipeNameMap }))
       setLinkedContent(items)
     } catch {
       // silently ignore
@@ -868,6 +920,9 @@ export function LLMConversationPanel() {
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const retryLinkedContainerIds = linkedContent
+      .filter(l => l.content_type === 'container_definition')
+      .map(l => l.content_id)
     const retryHistory = chatHistory.filter(t => t.id !== turn.id)
     const retryHistoryContext = retryHistory
       .filter(t => t.done && t.detectedType && !t.error)
@@ -910,8 +965,10 @@ export function LLMConversationPanel() {
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
+      convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
     )
   }
 
@@ -987,6 +1044,7 @@ export function LLMConversationPanel() {
       linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
+      convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -1063,6 +1121,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsGachaPackNames(deleteTarget.ID))
       safeRemoveItem(lsEquipmentSlotLinks(deleteTarget.ID))
       safeRemoveItem(lsEquipmentSlotNames(deleteTarget.ID))
+      safeRemoveItem(lsCraftingRecipeLinks(deleteTarget.ID))
+      safeRemoveItem(lsCraftingRecipeNames(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -1154,6 +1214,9 @@ export function LLMConversationPanel() {
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const retryLinkedContainerIds = linkedContent
+      .filter(l => l.content_type === 'container_definition')
+      .map(l => l.content_id)
     const responseRequestHistory = chatHistory
       .flatMap(t => (t.responses ?? [])
         .filter(r => r.done && !r.error && r.responseText && r.intentType)
@@ -1173,8 +1236,10 @@ export function LLMConversationPanel() {
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
+      retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
+      convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
     )
   }
 
@@ -1515,6 +1580,101 @@ export function LLMConversationPanel() {
     const { slot, turnId, responseIdx, equipmentSlotIdx } = equipmentSlotKeyConflictPending
     setEquipmentSlotKeyConflictOpen(false)
     dispatchCreateEquipmentSlot({ ...slot, slot_key: newSlotKey }, turnId, responseIdx, equipmentSlotIdx)
+  }
+
+  async function handleSaveCraftingRecipe(
+    recipe: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    craftingRecipeIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+
+    try {
+      const linkedItemIds = linkedContent
+        .filter(l => l.content_type === 'item_definition')
+        .map(l => l.content_id)
+
+      const itemResults = await Promise.allSettled(
+        linkedItemIds.map((itemId) => getItemDefinition({ gameId }, itemId))
+      )
+      const itemCodeToId = new Map<string, string>()
+      itemResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const item = result.value.item
+          if (item.item_code) itemCodeToId.set(item.item_code, item.id)
+        }
+      })
+
+      const resolveItemRef = (raw: unknown): string => {
+        const value = typeof raw === 'string' ? raw.trim() : ''
+        const match = value.match(/^__REF:(.+)$/)
+        if (!match) return value
+        const resolved = itemCodeToId.get(match[1])
+        if (!resolved) throw new Error(`Unresolved item reference: ${value}`)
+        return resolved
+      }
+
+      const inputs = Array.isArray(recipe.inputs) ? recipe.inputs : []
+      const outputs = Array.isArray(recipe.outputs) ? recipe.outputs : []
+      const body: CreateCraftingRecipeRequest = {
+        recipe_key: String(recipe.recipe_key ?? '').trim(),
+        name: String(recipe.name ?? '').trim(),
+        description: typeof recipe.description === 'string' ? recipe.description : undefined,
+        category: String(recipe.category ?? 'other').trim() || 'other',
+        success_rate: Number(recipe.success_rate ?? 10000000),
+        bonus_rate: Number(recipe.bonus_rate ?? 0),
+        available_from: typeof recipe.available_from === 'string' ? recipe.available_from : null,
+        available_until: typeof recipe.available_until === 'string' ? recipe.available_until : null,
+        is_active: typeof recipe.is_active === 'boolean' ? recipe.is_active : true,
+        metadata: recipe.metadata && typeof recipe.metadata === 'object' && !Array.isArray(recipe.metadata)
+          ? recipe.metadata as Record<string, unknown>
+          : {},
+        inputs: inputs.map((input) => {
+          const entry = input as Record<string, unknown>
+          return {
+            item_definition_id: resolveItemRef(entry.item_definition_id),
+            quantity: Number(entry.quantity ?? 1),
+            is_consumed: typeof entry.is_consumed === 'boolean' ? entry.is_consumed : true,
+          }
+        }),
+        outputs: outputs.map((output, index) => {
+          const entry = output as Record<string, unknown>
+          return {
+            item_definition_id: resolveItemRef(entry.item_definition_id),
+            quantity_min: Number(entry.quantity_min ?? 1),
+            quantity_max: Number(entry.quantity_max ?? entry.quantity_min ?? 1),
+            output_type: String(entry.output_type ?? 'main'),
+            level_increment: entry.level_increment == null ? null : Number(entry.level_increment),
+            properties_patch: entry.properties_patch && typeof entry.properties_patch === 'object' && !Array.isArray(entry.properties_patch)
+              ? entry.properties_patch as Record<string, unknown>
+              : null,
+            sort_order: Number(entry.sort_order ?? index + 1),
+          }
+        }),
+      }
+
+      const created = await createCraftingRecipe({ gameId }, body)
+      const recipeKey = `${turnId}:${responseIdx}:${craftingRecipeIdx}`
+      const updated = { ...savedCraftingRecipeIds, [recipeKey]: created.id }
+      setSavedCraftingRecipeIds(updated)
+      safeSetItem(lsCraftingRecipeLinks(activeConvId), JSON.stringify(updated))
+      setCraftingRecipeNames(prev => {
+        const next = { ...prev, [created.id]: created.name }
+        safeSetItem(lsCraftingRecipeNames(activeConvId), JSON.stringify(next))
+        return next
+      })
+      void linkConversationContent(gameId, activeConvId, 'crafting_recipe', created.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId))
+        .catch(() => { /* silently ignore */ })
+      toast({ title: t('llmConversation.craftingRecipeSaved') })
+    } catch (err: any) {
+      toast({
+        title: t('llmConversation.errorSaveCraftingRecipe'),
+        description: err?.message,
+        variant: 'destructive',
+      })
+    }
   }
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
@@ -1935,6 +2095,8 @@ export function LLMConversationPanel() {
                   savedContainerDefinitionIds={savedContainerDefinitionIds}
                   savedGachaPackIds={savedGachaPackIds}
                   savedEquipmentSlotIds={savedEquipmentSlotIds}
+                  savedCraftingRecipeIds={savedCraftingRecipeIds}
+                  craftingRecipeNames={craftingRecipeNames}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
@@ -1943,6 +2105,7 @@ export function LLMConversationPanel() {
                   onSaveContainerDefinition={handleSaveContainerDefinition}
                   onSaveGachaPack={handleSaveGachaPack}
                   onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
+                  onSaveCraftingRecipe={handleSaveCraftingRecipe}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
@@ -1964,6 +2127,7 @@ export function LLMConversationPanel() {
                 itemDefinitionNames={itemDefinitionNames}
                 containerDefinitionNames={containerDefinitionNames}
                 gachaPackNames={gachaPackNames}
+                craftingRecipeNames={craftingRecipeNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
               />

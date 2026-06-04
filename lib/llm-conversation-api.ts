@@ -227,14 +227,16 @@ export async function streamDetectIntent(
             : (typeof evt.goal === 'string' && evt.goal.trim().length > 0 ? [evt.goal] : [])
           intents = [{ type: evt.detected_request_type as string, ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}) }]
         } else if (Array.isArray(evt.detected_intents) && evt.detected_intents.length > 0) {
-          intents = (evt.detected_intents as Array<{ Type?: string; EntityType?: string; Goal?: string; Goals?: string[] }>)
+          intents = (evt.detected_intents as Array<{ type?: string; entity_type?: string; goal?: string; goals?: string[]; Type?: string; EntityType?: string; Goal?: string; Goals?: string[] }>)
             .map((i) => {
-              const detectedGoals = Array.isArray(i.Goals)
-                ? i.Goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-                : (typeof i.Goal === 'string' && i.Goal.trim().length > 0 ? [i.Goal] : [])
+              const rawGoals = Array.isArray(i.goals) ? i.goals : i.Goals
+              const rawGoal = typeof i.goal === 'string' ? i.goal : i.Goal
+              const detectedGoals = Array.isArray(rawGoals)
+                ? rawGoals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+                : (typeof rawGoal === 'string' && rawGoal.trim().length > 0 ? [rawGoal] : [])
               return {
-                type: i.Type ?? '',
-                entityType: i.EntityType ?? '',
+                type: i.type ?? i.Type ?? '',
+                entityType: i.entity_type ?? i.EntityType ?? '',
                 ...(detectedGoals.length > 0 ? { goals: detectedGoals } : {}),
               }
             })
@@ -247,6 +249,7 @@ export async function streamDetectIntent(
           item_generation: 1,
           item_modify: 1,
           generator_item_creating: 1,
+          crafting_recipe_creating: 2,
         }
         const sortedIntents = [...intents].sort((a, b) => {
           const rankA = INTENT_ORDER[a.type] ?? 2
@@ -292,13 +295,13 @@ export async function streamRequest(
   body.lore_entry_ids = contextIds?.lore_entry_ids ?? []
   body.item_definition_ids = contextIds?.item_definition_ids ?? []
   body.container_definition_ids = contextIds?.container_definition_ids ?? []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && entityType) {
+  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (requestHistory && requestHistory.length > 0) {

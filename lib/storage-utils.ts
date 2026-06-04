@@ -4,8 +4,12 @@
  * @returns The value from localStorage or null if not found or error
  */
 export function safeGetItem(key: string): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
   try {
-    return localStorage.getItem(key)
+    return window.localStorage?.getItem(key) ?? null
   } catch (error) {
     console.error(`Error getting item from localStorage: ${key}`, error)
     return null
@@ -19,8 +23,14 @@ export function safeGetItem(key: string): string | null {
  * @returns true if successful, false if error
  */
 export function safeSetItem(key: string, value: string): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
   try {
-    localStorage.setItem(key, value)
+    const storage = window.localStorage
+    if (!storage) return false
+    storage.setItem(key, value)
     return true
   } catch (error) {
     console.error(`Error setting item in localStorage: ${key}`, error)
@@ -34,8 +44,14 @@ export function safeSetItem(key: string, value: string): boolean {
  * @returns true if successful, false if error
  */
 export function safeRemoveItem(key: string): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
   try {
-    localStorage.removeItem(key)
+    const storage = window.localStorage
+    if (!storage) return false
+    storage.removeItem(key)
     return true
   } catch (error) {
     console.error(`Error removing item from localStorage: ${key}`, error)
