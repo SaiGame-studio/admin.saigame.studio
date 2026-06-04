@@ -153,11 +153,23 @@ export interface DetectIntentHistoryEntry {
   response_text?: string
 }
 
+/**
+ * All linked-entity ID arrays sent as context to every LLM API call.
+ * Add new ID fields here — both streamDetectIntent and streamRequest will
+ * automatically include them in their request bodies.
+ */
+export interface ConversationContextIds {
+  lore_entry_ids: string[]
+  item_definition_ids: string[]
+  container_definition_ids: string[]
+}
+
 export async function streamDetectIntent(
   gameId: string,
   conversationId: string,
   userPrompt: string,
   history: DetectIntentHistoryEntry[],
+  contextIds: ConversationContextIds,
   onChunk: (text: string) => void,
   onDone: (intents: DetectedIntent[]) => void,
   onError: (message: string) => void,
@@ -178,6 +190,9 @@ export async function streamDetectIntent(
       },
       body: JSON.stringify({
         user_prompt: userPrompt,
+        lore_entry_ids: contextIds.lore_entry_ids,
+        item_definition_ids: contextIds.item_definition_ids,
+        container_definition_ids: contextIds.container_definition_ids,
         ...(history.length > 0 ? { history } : {}),
       }),
     },
@@ -231,6 +246,7 @@ export async function streamDetectIntent(
           lore_updating: 0,
           item_generation: 1,
           item_modify: 1,
+          generator_item_creating: 1,
         }
         const sortedIntents = [...intents].sort((a, b) => {
           const rankA = INTENT_ORDER[a.type] ?? 2
@@ -256,12 +272,10 @@ export async function streamRequest(
   onDone: (requestId: string) => void,
   onError: (message: string) => void,
   requestHistory?: Array<{ request_type: string; response_text: string }>,
-  loreEntryIds?: string[],
+  contextIds?: ConversationContextIds,
   entityType?: string,
   goals?: string[],
   generatedItems?: unknown[],
-  itemDefinitionIds?: string[],
-  containerDefinitionIds?: string[],
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (!apiUrl) throw new Error('API URL is not configured.')
@@ -273,19 +287,18 @@ export async function streamRequest(
   const body: Record<string, unknown> = {
     user_prompt: userPrompt,
   }
-  // Always send lore_entry_ids so the backend has full linked lore context
-  body.lore_entry_ids = (loreEntryIds && loreEntryIds.length > 0) ? loreEntryIds : []
-  // Always send item_definition_ids so the backend has full linked item context
-  body.item_definition_ids = (itemDefinitionIds && itemDefinitionIds.length > 0) ? itemDefinitionIds : []
-  // Always send container_definition_ids so the backend has full linked container context
-  body.container_definition_ids = (containerDefinitionIds && containerDefinitionIds.length > 0) ? containerDefinitionIds : []
-  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && entityType) {
+  // Always send context IDs so the backend has full linked entity context.
+  // To add a new ID type: add it to ConversationContextIds and include it here.
+  body.lore_entry_ids = contextIds?.lore_entry_ids ?? []
+  body.item_definition_ids = contextIds?.item_definition_ids ?? []
+  body.container_definition_ids = contextIds?.container_definition_ids ?? []
+  if ((requestType === 'lore_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (requestHistory && requestHistory.length > 0) {

@@ -275,6 +275,9 @@ export interface ListEquipmentSlotsParams {
   limit?: number
   offset?: number
   is_active?: boolean
+  slot_key?: string
+  name?: string
+  search?: string
 }
 
 /** GET /api/v1/games/:gameId/equipment-slots */
@@ -283,9 +286,12 @@ export async function listEquipmentSlots(
   params: ListEquipmentSlotsParams = {},
 ): Promise<{ slots: EquipmentSlot[]; total: number }> {
   const qs = new URLSearchParams()
-  if (params.limit    != null) qs.set('limit',     String(params.limit))
-  if (params.offset   != null) qs.set('offset',    String(params.offset))
+  if (params.limit     != null) qs.set('limit',     String(params.limit))
+  if (params.offset    != null) qs.set('offset',    String(params.offset))
   if (params.is_active != null) qs.set('is_active', String(params.is_active))
+  if (params.slot_key)          qs.set('slot_key',  params.slot_key)
+  if (params.name)              qs.set('name',      params.name)
+  if (params.search)            qs.set('search',    params.search)
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/equipment-slots${query ? `?${query}` : ''}`)
 }

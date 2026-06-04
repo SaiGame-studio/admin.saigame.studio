@@ -107,12 +107,21 @@ export function EquipmentSlotSheet({
   open,
   gameId,
   editing,
+  initialValues,
   onSaved,
   onClose,
 }: {
   open: boolean
   gameId: string
   editing: EquipmentSlot | null
+  initialValues?: {
+    slot_key?: string
+    name?: string
+    description?: string
+    allowed_categories?: string[]
+    is_active?: boolean
+    metadata?: Record<string, unknown>
+  }
   onSaved: (slot: EquipmentSlot) => void
   onClose: () => void
 }) {
@@ -153,6 +162,17 @@ export function EquipmentSlotSheet({
         allowed_item_definition_ids: editing.allowed_item_definition_ids ?? [],
         is_active: editing.is_active,
         meta: Object.entries(editing.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })),
+      })
+    } else if (initialValues) {
+      setAutoSlug(!initialValues.slot_key)
+      setForm({
+        ...emptySlotForm(),
+        slot_key: initialValues.slot_key ?? "",
+        name: initialValues.name ?? "",
+        description: initialValues.description ?? "",
+        allowed_categories: initialValues.allowed_categories ?? [],
+        is_active: initialValues.is_active !== false,
+        meta: Object.entries(initialValues.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })),
       })
     } else {
       setAutoSlug(true)
@@ -447,11 +467,42 @@ export function EquipmentsTab({
   const [detailError, setDetailError] = useState<Record<string, string>>({})
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<EquipmentSlot | null>(null)
+  const [llmInitialValues, setLlmInitialValues] = useState<{ slot_key?: string; name?: string; description?: string; allowed_categories?: string[]; is_active?: boolean; metadata?: Record<string, unknown> } | undefined>(undefined)
+  const [llmConvContext, setLlmConvContext] = useState<{ turnId: string; responseIdx: number; equipmentSlotIdx: number } | undefined>(undefined)
   const [itemInfoCache, setItemInfoCache] = useState<Record<string, ItemDefinition>>({})
   const [subTab, setSubTab] = useState<"grid" | "list" | "character_slot">(() => {
     const st = searchParams.get("subtab")
     return (st === "grid" || st === "list" || st === "character_slot") ? st : "grid"
   })
+  const [listSearch, setListSearch] = useState<string>(() => searchParams.get("q") ?? "")
+  const [listSearchResults, setListSearchResults] = useState<typeof slots | null>(null)
+  const [listSearchLoading, setListSearchLoading] = useState(false)
+  const listSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setListSearch(searchParams.get("q") ?? "")
+  }, [searchParams])
+
+  useEffect(() => {
+    if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current)
+    const q = listSearch.trim()
+    if (!q || !gameId) {
+      setListSearchResults(null)
+      return
+    }
+    listSearchDebounceRef.current = setTimeout(async () => {
+      setListSearchLoading(true)
+      try {
+        const res = await listEquipmentSlots({ gameId }, { search: q, limit: 100 })
+        setListSearchResults(res.slots ?? [])
+      } catch {
+        setListSearchResults([])
+      } finally {
+        setListSearchLoading(false)
+      }
+    }, 400)
+    return () => { if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current) }
+  }, [listSearch, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubTabChange(v: string) {
     const value = v as "grid" | "list" | "character_slot"
@@ -516,6 +567,56 @@ export function EquipmentsTab({
     fetchSlots()
   }, [activeTab, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    function handleOpenCreate(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      const { slot, turnId, responseIdx, equipmentSlotIdx } = detail
+      if (turnId !== undefined) {
+        setLlmConvContext({ turnId, responseIdx, equipmentSlotIdx })
+      } else {
+        setLlmConvContext(undefined)
+      }
+      const rawSlot = (slot ?? {}) as Record<string, unknown>
+      setLlmInitialValues({
+        slot_key: typeof rawSlot.slot_key === 'string' ? rawSlot.slot_key : undefined,
+        name: typeof rawSlot.name === 'string' ? rawSlot.name : undefined,
+        description: typeof rawSlot.description === 'string' ? rawSlot.description : undefined,
+        allowed_categories: Array.isArray(rawSlot.allowed_categories) ? rawSlot.allowed_categories as string[] : undefined,
+        is_active: rawSlot.is_active !== false,
+        metadata: rawSlot.metadata && typeof rawSlot.metadata === 'object' ? rawSlot.metadata as Record<string, unknown> : undefined,
+      })
+      setEditingSlot(null)
+      setSheetOpen(true)
+    }
+    window.addEventListener('ss:open-create-equipment-slot', handleOpenCreate)
+    return () => window.removeEventListener('ss:open-create-equipment-slot', handleOpenCreate)
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function handleOpenEdit(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      const { existingSlot, llmData, turnId, responseIdx, equipmentSlotIdx } = detail
+      if (!existingSlot) return
+      const raw = (llmData ?? {}) as Record<string, unknown>
+      const merged: EquipmentSlot = {
+        ...existingSlot,
+        ...(typeof raw.name === 'string' && raw.name ? { name: raw.name } : {}),
+        ...(typeof raw.description === 'string' ? { description: raw.description } : {}),
+        ...(Array.isArray(raw.allowed_categories) ? { allowed_categories: raw.allowed_categories as string[] } : {}),
+      }
+      setEditingSlot(merged)
+      if (turnId !== undefined) {
+        setLlmConvContext({ turnId, responseIdx, equipmentSlotIdx })
+      } else {
+        setLlmConvContext(undefined)
+      }
+      setLlmInitialValues(undefined)
+      setSheetOpen(true)
+    }
+    window.addEventListener('ss:open-edit-equipment-slot', handleOpenEdit)
+    return () => window.removeEventListener('ss:open-edit-equipment-slot', handleOpenEdit)
+  }, [gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleRowClick(slot: EquipmentSlot) {
     const key = slot.slot_key
     if (expandedSlotKey === key) { setExpandedSlotKey(null); return }
@@ -532,7 +633,7 @@ export function EquipmentsTab({
       .finally(() => setDetailLoading(null))
   }
 
-  function openCreate() { setEditingSlot(null); setSheetOpen(true) }
+  function openCreate() { setEditingSlot(null); setLlmInitialValues(undefined); setLlmConvContext(undefined); setSheetOpen(true) }
 
   function openEdit(slot: EquipmentSlot, e: React.MouseEvent) {
     e.stopPropagation()
@@ -577,6 +678,14 @@ export function EquipmentsTab({
     const isNew = !slots.some((s) => s.slot_key === saved.slot_key)
     setSlots(isNew ? [saved, ...slots] : slots.map((s) => s.slot_key === saved.slot_key ? { ...s, ...saved } : s))
     if (isNew) onLoadGameInfo()
+    if (llmConvContext) {
+      const { turnId, responseIdx, equipmentSlotIdx } = llmConvContext
+      window.dispatchEvent(new CustomEvent('ss:equipment-slot-created', {
+        detail: { id: saved.id, slot_key: saved.slot_key, name: saved.name, turnId, responseIdx, equipmentSlotIdx },
+      }))
+      setLlmConvContext(undefined)
+      setLlmInitialValues(undefined)
+    }
   }
 
   if (loading) {
@@ -607,7 +716,7 @@ export function EquipmentsTab({
       <div className="space-y-4">
         <div className="flex justify-end">{headerActions}</div>
         <div className="text-center py-12 text-sm text-destructive">{error}</div>
-        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
+        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} initialValues={!editingSlot ? llmInitialValues : undefined} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
       </div>
     )
   }
@@ -619,7 +728,7 @@ export function EquipmentsTab({
         <div className="text-center py-12 text-sm text-muted-foreground">
           {t('items.noActiveSlots')}
         </div>
-        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
+        <EquipmentSlotSheet open={sheetOpen} gameId={gameId} editing={editingSlot} initialValues={!editingSlot ? llmInitialValues : undefined} onSaved={handleSaved} onClose={() => setSheetOpen(false)} />
       </div>
     )
   }
@@ -636,15 +745,17 @@ export function EquipmentsTab({
             {" "}{t('items.slotsDefined')}
           </p>
         </div>
-        {headerActions}
+        {subTab !== "list" && headerActions}
       </div>
 
       <Tabs value={subTab} onValueChange={handleSubTabChange}>
-        <TabsList className="mb-2">
-          <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
-          <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
-          <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
-        </TabsList>
+        {subTab !== "list" && (
+          <TabsList className="mb-2">
+            <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
+            <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
+            <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* ── Grid ── */}
         <TabsContent value="grid" className="mt-0">
@@ -919,6 +1030,35 @@ export function EquipmentsTab({
 
         {/* ── List ── */}
         <TabsContent value="list" className="mt-0">
+          <div id="equipments-list-search-bar" className="mb-2 flex items-center gap-2">
+            <TabsList id="equipments-list-subtab-list">
+              <TabsTrigger value="grid">{t('items.gridView')}</TabsTrigger>
+              <TabsTrigger value="list">{t('items.listView')}</TabsTrigger>
+              <TabsTrigger value="character_slot">{t('items.characterSlotView')}</TabsTrigger>
+            </TabsList>
+            <div id="equipments-list-search-input-wrap" className="flex items-center justify-end gap-2 ml-auto">
+              <div id="equipments-list-search-input-container" className="relative">
+                <Input
+                  id="equipments-list-search-input"
+                  placeholder={`${t('items.name')} / slot_key...`}
+                  value={listSearch}
+                  onChange={(e) => setListSearch(e.target.value)}
+                  className={`h-8 text-sm w-56 ${listSearch ? 'pr-7' : ''}`}
+                />
+                {listSearch && (
+                  <button
+                    id="equipments-list-search-clear-btn"
+                    type="button"
+                    onClick={() => setListSearch('')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X id="equipments-list-search-clear-icon" className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div id="equipments-list-header-actions">{headerActions}</div>
+            </div>
+          </div>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -935,7 +1075,13 @@ export function EquipmentsTab({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {slots.map((slot) => {
+                  {listSearchLoading ? (
+                    <TableRow id="equip-list-search-loading-row">
+                      <TableCell id="equip-list-search-loading-cell" colSpan={9} className="py-6 text-center text-sm text-muted-foreground">
+                        <Loader2 id="equip-list-search-loading-icon" className="inline h-4 w-4 animate-spin mr-2" />{t('common.loading')}
+                      </TableCell>
+                    </TableRow>
+                  ) : (listSearchResults ?? slots).map((slot) => {
                     const isExpanded = expandedSlotKey === slot.slot_key
                     const detail = detailCache[slot.slot_key]
                     const isLoadingDetail = detailLoading === slot.slot_key
@@ -1343,6 +1489,7 @@ mage__robe            (AllowedCategories: ["armor"])`}</pre>
         open={sheetOpen}
         gameId={gameId}
         editing={editingSlot}
+        initialValues={!editingSlot ? llmInitialValues : undefined}
         onSaved={handleSaved}
         onClose={() => setSheetOpen(false)}
       />

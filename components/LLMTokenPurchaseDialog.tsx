@@ -126,13 +126,21 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
 interface Props {
   gameId: string
   compact?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 let _premFloatId = 0
 
-export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
+export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controlledOpen, onOpenChange: onControlledOpenChange }: Props) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = (v: boolean) => {
+    if (isControlled) onControlledOpenChange?.(v)
+    else setInternalOpen(v)
+  }
   const [sgemBalance, setSgemBalance] = useState<number | null>(null)
   const [loadingWallet, setLoadingWallet] = useState(false)
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null)
@@ -202,6 +210,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
       })
       await Promise.all([loadWallet(), loadTokenBalance()])
       window.dispatchEvent(new CustomEvent("sgem-wallet:refresh"))
+      window.dispatchEvent(new CustomEvent("llm-tokens:refresh", { detail: { gameId } }))
       setSelectedKey(null)
     } catch (err: unknown) {
       const e = err as { status?: number; data?: { detail?: string } }
@@ -235,12 +244,12 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false }: Props) {
 
   return (
     <>
-      {compact ? (
+      {!isControlled && (compact ? (
         <Tooltip>
           <TooltipTrigger asChild>{triggerButton}</TooltipTrigger>
           <TooltipContent side="top">{t("llmTokenPurchase.triggerLabel")}</TooltipContent>
         </Tooltip>
-      ) : triggerButton}
+      ) : triggerButton)}
 
       <Sheet open={open} onOpenChange={(v) => { setOpen(v); setSelectedKey(null) }}>
         <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="w-full sm:max-w-[622px] flex flex-col overflow-y-auto p-0 top-14 lg:top-[60px] h-[calc(100%-3.5rem)] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">

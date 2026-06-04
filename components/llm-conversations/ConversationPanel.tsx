@@ -41,12 +41,16 @@ import {
   lsPresetLinks,
   lsContainerLinks,
   lsGachaPackLinks,
+  lsEquipmentSlotLinks,
   lsLoreTitles,
   lsItemNames,
   lsContainerNames,
   lsGachaPackNames,
+  lsEquipmentSlotNames,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
+  lsPendingEquipmentSlotCreate,
+  lsPendingEquipmentSlotEdit,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
@@ -54,6 +58,7 @@ import {
   parseGeneratedPresetsResponse,
   parseGeneratedContainersResponse,
   parseGeneratedGachaPacksResponse,
+  parseGeneratedEquipmentSlotsResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -66,8 +71,8 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack } from '@/lib/inventory-api'
-import type { ItemDefinition, ContainerDefinition, GachaPack } from '@/types/inventory'
+import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
+import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
@@ -188,6 +193,7 @@ export function LLMConversationPanel() {
   const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
   const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
   const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
+  const [presetConflictTurnContext, setPresetConflictTurnContext] = useState<{ turnId: string; responseIdx: number; presetIdx: number } | null>(null)
   const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
 
   // Container name conflict dialog (shown when name already exists in backend)
@@ -204,6 +210,8 @@ export function LLMConversationPanel() {
   const [convGeneratedContainers, setConvGeneratedContainers] = useState<unknown[]>([])
   // Tracks the last completed gacha_pack_creating response parsed as array
   const [convGeneratedGachaPacks, setConvGeneratedGachaPacks] = useState<unknown[]>([])
+  // Tracks the last completed equipment_slot_generation response parsed as array
+  const [convGeneratedEquipmentSlots, setConvGeneratedEquipmentSlots] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -215,12 +223,21 @@ export function LLMConversationPanel() {
   // Gacha pack saved IDs (keyed as "turnId:responseIdx:gachaPackIdx")
   const [savedGachaPackIds, setSavedGachaPackIds] = useState<Record<string, string>>({})
   const [gachaPackNames, setGachaPackNames] = useState<Record<string, string>>({})
+  // Equipment slot saved IDs (keyed as "turnId:responseIdx:equipmentSlotIdx")
+  const [savedEquipmentSlotIds, setSavedEquipmentSlotIds] = useState<Record<string, string>>({})
+  const [equipmentSlotNames, setEquipmentSlotNames] = useState<Record<string, string>>({})
 
   // Gacha pack code conflict dialog (shown when code_name already exists in backend)
   const [gachaPackCodeConflictOpen, setGachaPackCodeConflictOpen] = useState(false)
   const [gachaPackCodeConflictExisting, setGachaPackCodeConflictExisting] = useState<GachaPack | null>(null)
   const [gachaPackCodeConflictPending, setGachaPackCodeConflictPending] = useState<{ pack: Record<string, unknown>; turnId: string; responseIdx: number; gachaPackIdx: number } | null>(null)
   const [isApplyingGachaPackConflict, setIsApplyingGachaPackConflict] = useState(false)
+
+  // Equipment slot key conflict dialog (shown when slot_key already exists in backend)
+  const [equipmentSlotKeyConflictOpen, setEquipmentSlotKeyConflictOpen] = useState(false)
+  const [equipmentSlotKeyConflictExisting, setEquipmentSlotKeyConflictExisting] = useState<EquipmentSlot | null>(null)
+  const [equipmentSlotKeyConflictPending, setEquipmentSlotKeyConflictPending] = useState<{ slot: Record<string, unknown>; turnId: string; responseIdx: number; equipmentSlotIdx: number } | null>(null)
+  const [isApplyingEquipmentSlotConflict, setIsApplyingEquipmentSlotConflict] = useState(false)
 
   // Resize state via hook
   const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize()
@@ -301,7 +318,7 @@ export function LLMConversationPanel() {
     for (const turn of chatHistory) {
       if (!turn.responses) continue
       for (const response of turn.responses) {
-        if (response.intentType === 'item_generation' && response.done && !response.error && response.responseText) {
+        if ((response.intentType === 'item_generation' || response.intentType === 'generator_item_creating') && response.done && !response.error && response.responseText) {
           const parsed = parseGeneratedItemsResponse(response.responseText)
           if (parsed.length > 0) {
             lastGeneratedItems = parsed
@@ -363,12 +380,30 @@ export function LLMConversationPanel() {
     setConvGeneratedGachaPacks(lastGeneratedGachaPacks)
   }, [chatHistory])
 
+  // Keep the last completed equipment_slot_generation response parsed as equipment slots array
+  useEffect(() => {
+    let lastGeneratedEquipmentSlots: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'equipment_slot_generation' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedEquipmentSlotsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedEquipmentSlots = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedEquipmentSlots(lastGeneratedEquipmentSlots)
+  }, [chatHistory])
+
   // Reset applied tag keys when switching conversations.
   useEffect(() => {
     setConvGeneratedItems([])
     setConvGeneratedPresets([])
     setConvGeneratedContainers([])
     setConvGeneratedGachaPacks([])
+    setConvGeneratedEquipmentSlots([])
     setAppliedTagsPerResponse({})
     setCreatedItemTagsPerResponse({})
   }, [activeConvId])
@@ -396,6 +431,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(gachaPackNames).length === 0) return
     safeSetItem(lsGachaPackNames(activeConvId), JSON.stringify(gachaPackNames))
   }, [gachaPackNames, activeConvId])
+
+  // Persist equipment slot names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(equipmentSlotNames).length === 0) return
+    safeSetItem(lsEquipmentSlotNames(activeConvId), JSON.stringify(equipmentSlotNames))
+  }, [equipmentSlotNames, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -489,6 +530,9 @@ export function LLMConversationPanel() {
     // Restore saved gacha pack IDs from localStorage
     const rawGachaPackLinks = safeGetItem(lsGachaPackLinks(activeConvId))
     setSavedGachaPackIds(rawGachaPackLinks ? JSON.parse(rawGachaPackLinks) : {})
+    // Restore saved equipment slot IDs from localStorage
+    const rawEquipmentSlotLinks = safeGetItem(lsEquipmentSlotLinks(activeConvId))
+    setSavedEquipmentSlotIds(rawEquipmentSlotLinks ? JSON.parse(rawEquipmentSlotLinks) : {})
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
@@ -498,6 +542,8 @@ export function LLMConversationPanel() {
     if (rawContainerNames) { try { setContainerDefinitionNames(JSON.parse(rawContainerNames)) } catch { setContainerDefinitionNames({}) } }
     const rawGachaPackNames = safeGetItem(lsGachaPackNames(activeConvId))
     if (rawGachaPackNames) { try { setGachaPackNames(JSON.parse(rawGachaPackNames)) } catch { setGachaPackNames({}) } }
+    const rawEquipmentSlotNames = safeGetItem(lsEquipmentSlotNames(activeConvId))
+    if (rawEquipmentSlotNames) { try { setEquipmentSlotNames(JSON.parse(rawEquipmentSlotNames)) } catch { setEquipmentSlotNames({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -583,6 +629,28 @@ export function LLMConversationPanel() {
     return () => window.removeEventListener('ss:container-created', handleContainerCreated)
   }, [activeConvId, gameId])
 
+  // Catch successful preset creation triggered from the panel, map turn context → preset ID
+  useEffect(() => {
+    function handlePresetCreated(e: Event) {
+      const detail = (e as CustomEvent<{ presetId: string; presetName?: string; turnId: string; responseIdx: number; presetIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const presetKey = `${detail.turnId}:${detail.responseIdx}:${detail.presetIdx}`
+      setSavedPresetDefinitionIds(prev => {
+        const updated = { ...prev, [presetKey]: detail.presetId }
+        safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      void linkConversationContent(gameId, activeConvId, 'preset_definition', detail.presetId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      if (detail.presetName) {
+        // no preset name cache currently, but consistent with container pattern
+      }
+    }
+    window.addEventListener('ss:preset-created', handlePresetCreated)
+    return () => window.removeEventListener('ss:preset-created', handlePresetCreated)
+  }, [activeConvId, gameId])
+
   // Catch successful gacha pack creation triggered from the panel, map turn context → gacha pack ID
   useEffect(() => {
     function handleGachaPackCreated(e: Event) {
@@ -605,6 +673,29 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:gacha-pack-created', handleGachaPackCreated)
     return () => window.removeEventListener('ss:gacha-pack-created', handleGachaPackCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful equipment slot creation triggered from the panel
+  useEffect(() => {
+    function handleEquipmentSlotCreated(e: Event) {
+      const detail = (e as CustomEvent<{ id: string; slot_key?: string; name?: string; turnId: string; responseIdx: number; equipmentSlotIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const slotKey = `${detail.turnId}:${detail.responseIdx}:${detail.equipmentSlotIdx}`
+      setSavedEquipmentSlotIds(prev => {
+        const updated = { ...prev, [slotKey]: detail.id }
+        safeSetItem(lsEquipmentSlotLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      const slotName = detail.name ?? detail.slot_key
+      if (slotName) {
+        setEquipmentSlotNames(prev => ({ ...prev, [detail.id]: slotName }))
+      }
+      void linkConversationContent(gameId, activeConvId, 'equipment_slot', detail.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+    }
+    window.addEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
+    return () => window.removeEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
   }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
@@ -639,6 +730,27 @@ export function LLMConversationPanel() {
     loadArchivedConvs(gId)
     getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
   }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const gId = gameId
+      if (!gId) return
+      const detail = (e as CustomEvent<{ gameId: string }>).detail
+      if (detail?.gameId !== gId) return
+      getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => {})
+    }
+    window.addEventListener('llm-tokens:refresh', handler)
+    return () => window.removeEventListener('llm-tokens:refresh', handler)
+  }, [gameId])
+
+  // Reload token balance whenever a pipeline run completes (isStreaming: true → false)
+  const prevIsStreamingRef = useRef(false)
+  useEffect(() => {
+    if (prevIsStreamingRef.current && !isStreaming && gameId) {
+      getGameLLMTokenBalance(gameId).then(setTokenBalance).catch(() => {})
+    }
+    prevIsStreamingRef.current = isStreaming
+  }, [isStreaming, gameId])
 
   async function loadConversation(gId: string, convId: string) {
     setIsLoadingConv(true)
@@ -799,6 +911,7 @@ export function LLMConversationPanel() {
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
+      convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
     )
   }
 
@@ -873,6 +986,7 @@ export function LLMConversationPanel() {
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
+      convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -947,6 +1061,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsContainerNames(deleteTarget.ID))
       safeRemoveItem(lsGachaPackLinks(deleteTarget.ID))
       safeRemoveItem(lsGachaPackNames(deleteTarget.ID))
+      safeRemoveItem(lsEquipmentSlotLinks(deleteTarget.ID))
+      safeRemoveItem(lsEquipmentSlotNames(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -978,6 +1094,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsItemNames(conv.ID))
       safeRemoveItem(lsGachaPackLinks(conv.ID))
       safeRemoveItem(lsGachaPackNames(conv.ID))
+      safeRemoveItem(lsEquipmentSlotLinks(conv.ID))
+      safeRemoveItem(lsEquipmentSlotNames(conv.ID))
       safeRemoveItem(lsTagApplied(conv.ID))
       safeRemoveItem(lsItemTagCreated(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
@@ -1056,14 +1174,15 @@ export function LLMConversationPanel() {
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
+      convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
     )
   }
 
   async function handleSavePresetDefinition(
     preset: Record<string, unknown>,
-    _turnId: string,
-    _responseIdx: number,
-    _presetIdx: number,
+    turnId: string,
+    responseIdx: number,
+    presetIdx: number,
   ) {
     if (!gameId) return
     const codeName = typeof preset.code_name === 'string' ? preset.code_name : ''
@@ -1076,6 +1195,7 @@ export function LLMConversationPanel() {
         if (existing) {
           setPresetCodeConflictExisting(existing)
           setPresetCodeConflictPendingPreset(preset)
+          setPresetConflictTurnContext({ turnId, responseIdx, presetIdx })
           setPresetCodeConflictOpen(true)
           return
         }
@@ -1084,10 +1204,10 @@ export function LLMConversationPanel() {
       }
     }
 
-    navigateToCreatePreset(preset)
+    navigateToCreatePreset(preset, undefined, turnId, responseIdx, presetIdx)
   }
 
-  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string) {
+  function navigateToCreatePreset(preset: Record<string, unknown>, overrideCodeName?: string, turnId?: string, responseIdx?: number, presetIdx?: number) {
     if (!gameId) return
     const params = new URLSearchParams({ tab: 'preset', create: '1' })
     const name = typeof preset.name === 'string' ? preset.name : (typeof preset.code_name === 'string' ? preset.code_name : '')
@@ -1096,11 +1216,15 @@ export function LLMConversationPanel() {
     const codeName = overrideCodeName ?? (typeof preset.code_name === 'string' ? preset.code_name : '')
     if (codeName) params.set('code_name', codeName)
     if (typeof preset.max_slots === 'number') params.set('max_slots', String(preset.max_slots))
+    // Store turn context in localStorage so the items page can dispatch ss:preset-created
+    if (turnId !== undefined && responseIdx !== undefined && presetIdx !== undefined && activeConvId) {
+      safeSetItem(`ss_pending_preset_turn_${gameId}`, JSON.stringify({ turnId, responseIdx, presetIdx, convId: activeConvId }))
+    }
     router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
   async function handlePresetCodeConflictUpdate() {
-    if (!presetCodeConflictExisting || !gameId) return
+    if (!presetCodeConflictExisting || !gameId || !activeConvId) return
     const preset = presetCodeConflictPendingPreset ?? {}
     setIsApplyingPresetConflict(true)
     try {
@@ -1112,7 +1236,21 @@ export function LLMConversationPanel() {
         await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
       }
       setPresetCodeConflictOpen(false)
-      router.push(`/games/${gameId}/items?tab=preset&id=${presetCodeConflictExisting.id}`)
+      // Update savedPresetDefinitionIds if we have turn context
+      if (presetConflictTurnContext) {
+        const { turnId, responseIdx, presetIdx } = presetConflictTurnContext
+        const presetKey = `${turnId}:${responseIdx}:${presetIdx}`
+        setSavedPresetDefinitionIds(prev => {
+          const updated = { ...prev, [presetKey]: presetCodeConflictExisting!.id }
+          safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
+          return updated
+        })
+        void linkConversationContent(gameId, activeConvId, 'preset_definition', presetCodeConflictExisting.id)
+          .then(() => void loadLinkedContent(gameId, activeConvId!))
+          .catch(() => { /* silently ignore */ })
+        setPresetConflictTurnContext(null)
+      }
+      router.push(`/games/${gameId}/items?tab=preset&q=${presetCodeConflictExisting.id}`)
     } catch {
       toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
     } finally {
@@ -1123,7 +1261,9 @@ export function LLMConversationPanel() {
   function handlePresetCodeConflictSaveNew(newCodeName: string) {
     if (!presetCodeConflictPendingPreset) return
     setPresetCodeConflictOpen(false)
-    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName)
+    const ctx = presetConflictTurnContext
+    setPresetConflictTurnContext(null)
+    navigateToCreatePreset(presetCodeConflictPendingPreset, newCodeName, ctx?.turnId, ctx?.responseIdx, ctx?.presetIdx)
   }
 
   async function handleSaveContainerDefinition(
@@ -1299,6 +1439,82 @@ export function LLMConversationPanel() {
     const { pack, turnId, responseIdx, gachaPackIdx } = gachaPackCodeConflictPending
     setGachaPackCodeConflictOpen(false)
     fireOpenCreateGachaPack(pack, newCodeName, turnId, responseIdx, gachaPackIdx)
+  }
+
+  async function fireOpenCreateEquipmentSlot(
+    slot: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    equipmentSlotIdx: number,
+  ) {
+    if (!gameId) return
+    const slotKey = typeof slot.slot_key === 'string' ? slot.slot_key.trim() : ''
+    if (slotKey) {
+      try {
+        const res = await listEquipmentSlots({ gameId }, { slot_key: slotKey, limit: 1 })
+        const existing = res.slots?.find((s) => s.slot_key === slotKey) ?? null
+        if (existing) {
+          setEquipmentSlotKeyConflictExisting(existing)
+          setEquipmentSlotKeyConflictPending({ slot, turnId, responseIdx, equipmentSlotIdx })
+          setEquipmentSlotKeyConflictOpen(true)
+          return
+        }
+      } catch { /* network error — fall through to create */ }
+    }
+    dispatchCreateEquipmentSlot(slot, turnId, responseIdx, equipmentSlotIdx)
+  }
+
+  function dispatchCreateEquipmentSlot(
+    slot: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    equipmentSlotIdx: number,
+  ) {
+    if (!gameId) return
+    const detail = { slot, turnId, responseIdx, equipmentSlotIdx }
+    const isOnItemsPage = pathname === `/games/${gameId}/items`
+    if (isOnItemsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-create-equipment-slot', { detail }))
+    } else {
+      try {
+        localStorage.setItem(lsPendingEquipmentSlotCreate(gameId), JSON.stringify(detail))
+      } catch { /* ignore */ }
+      router.push(`/games/${gameId}/items?tab=equipments&create=1`)
+    }
+  }
+
+  function handleEquipmentSlotKeyConflictUpdate() {
+    if (!equipmentSlotKeyConflictExisting || !equipmentSlotKeyConflictPending) return
+    const { slot, turnId, responseIdx, equipmentSlotIdx } = equipmentSlotKeyConflictPending
+    setEquipmentSlotKeyConflictOpen(false)
+    fireOpenEditEquipmentSlot(equipmentSlotKeyConflictExisting, slot, turnId, responseIdx, equipmentSlotIdx)
+  }
+
+  function fireOpenEditEquipmentSlot(
+    existingSlot: EquipmentSlot,
+    llmData: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    equipmentSlotIdx: number,
+  ) {
+    if (!gameId) return
+    const detail = { existingSlot, llmData, turnId, responseIdx, equipmentSlotIdx }
+    const isOnItemsPage = pathname === `/games/${gameId}/items`
+    if (isOnItemsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-edit-equipment-slot', { detail }))
+    } else {
+      try {
+        localStorage.setItem(lsPendingEquipmentSlotEdit(gameId), JSON.stringify(detail))
+      } catch { /* ignore */ }
+      router.push(`/games/${gameId}/items?tab=equipments&editFromLLM=1`)
+    }
+  }
+
+  function handleEquipmentSlotKeyConflictCreateNew(newSlotKey: string) {
+    if (!equipmentSlotKeyConflictPending) return
+    const { slot, turnId, responseIdx, equipmentSlotIdx } = equipmentSlotKeyConflictPending
+    setEquipmentSlotKeyConflictOpen(false)
+    dispatchCreateEquipmentSlot({ ...slot, slot_key: newSlotKey }, turnId, responseIdx, equipmentSlotIdx)
   }
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
@@ -1659,6 +1875,7 @@ export function LLMConversationPanel() {
             onUnarchive={handleUnarchive}
             onDelete={handleDeleteDirect}
             tokenBalance={tokenBalance}
+            gameId={gameId}
             t={t}
           />
 
@@ -1717,6 +1934,7 @@ export function LLMConversationPanel() {
                   savedPresetDefinitionIds={savedPresetDefinitionIds}
                   savedContainerDefinitionIds={savedContainerDefinitionIds}
                   savedGachaPackIds={savedGachaPackIds}
+                  savedEquipmentSlotIds={savedEquipmentSlotIds}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
@@ -1724,6 +1942,7 @@ export function LLMConversationPanel() {
                   onSavePresetDefinition={handleSavePresetDefinition}
                   onSaveContainerDefinition={handleSaveContainerDefinition}
                   onSaveGachaPack={handleSaveGachaPack}
+                  onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
@@ -1814,6 +2033,12 @@ export function LLMConversationPanel() {
         isApplyingGachaPackConflict={isApplyingGachaPackConflict}
         onGachaPackCodeConflictUpdate={handleGachaPackCodeConflictUpdate}
         onGachaPackCodeConflictCreateNew={handleGachaPackCodeConflictCreateNew}
+        equipmentSlotKeyConflictOpen={equipmentSlotKeyConflictOpen}
+        setEquipmentSlotKeyConflictOpen={setEquipmentSlotKeyConflictOpen}
+        equipmentSlotKeyConflictExisting={equipmentSlotKeyConflictExisting}
+        isApplyingEquipmentSlotConflict={isApplyingEquipmentSlotConflict}
+        onEquipmentSlotKeyConflictUpdate={handleEquipmentSlotKeyConflictUpdate}
+        onEquipmentSlotKeyConflictCreateNew={handleEquipmentSlotKeyConflictCreateNew}
         t={t}
       />
     </>

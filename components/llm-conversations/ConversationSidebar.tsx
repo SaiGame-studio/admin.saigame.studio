@@ -1,17 +1,27 @@
 'use client'
 
-import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Conversation } from '@/types/llm-conversation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 import type { GameLLMTokenBalance } from '@/lib/llm-conversation-api'
+import { LLMTokenPurchaseDialog } from '@/components/LLMTokenPurchaseDialog'
 
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
   return String(n)
 }
+
+interface TokenFloatItem {
+  id: number
+  delta: number
+  type: 'free' | 'premium'
+}
+
+let tokenFloatIdCounter = 0
 
 interface ConversationSidebarProps {
   sidebarWidth: number
@@ -31,6 +41,7 @@ interface ConversationSidebarProps {
   onUnarchive: (conv: Conversation) => void
   onDelete: (conv: Conversation) => void
   tokenBalance: GameLLMTokenBalance | null
+  gameId: string | null
   t: (key: string) => string
 }
 
@@ -52,9 +63,33 @@ export function ConversationSidebar({
   onUnarchive,
   onDelete,
   tokenBalance,
+  gameId,
   t,
 }: ConversationSidebarProps) {
   const [isShiftHeld, setIsShiftHeld] = useState(false)
+  const [buyTokensOpen, setBuyTokensOpen] = useState(false)
+  const [tokenFloats, setTokenFloats] = useState<TokenFloatItem[]>([])
+  const prevTokenBalanceRef = useRef<GameLLMTokenBalance | null>(null)
+  const isFirstTokenLoad = useRef(true)
+
+  // Detect token balance changes and spawn float animations
+  useEffect(() => {
+    if (!tokenBalance) return
+    const prev = prevTokenBalanceRef.current
+    if (!isFirstTokenLoad.current && prev !== null) {
+      const freeDelta = tokenBalance.free_tokens_remaining - prev.free_tokens_remaining
+      const premiumDelta = tokenBalance.premium_tokens_remaining - prev.premium_tokens_remaining
+      const newFloats: TokenFloatItem[] = []
+      if (freeDelta !== 0) newFloats.push({ id: ++tokenFloatIdCounter, delta: freeDelta, type: 'free' })
+      if (premiumDelta !== 0) newFloats.push({ id: ++tokenFloatIdCounter, delta: premiumDelta, type: 'premium' })
+      if (newFloats.length > 0) {
+        setTokenFloats(f => [...f, ...newFloats])
+        newFloats.forEach(({ id }) => setTimeout(() => setTokenFloats(f => f.filter(x => x.id !== id)), 8000))
+      }
+    }
+    isFirstTokenLoad.current = false
+    prevTokenBalanceRef.current = tokenBalance
+  }, [tokenBalance])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(true) }
@@ -68,6 +103,15 @@ export function ConversationSidebar({
   }, [])
   return (
     <div id="conv-panel-sidebar" className="relative flex shrink-0 flex-col border-r" style={{ width: sidebarWidth }}>
+      <style>{`
+        @keyframes token-float-down {
+          0%   { opacity: 1; transform: translateY(0) scale(1); }
+          15%  { opacity: 1; transform: translateY(8px) scale(1.15); }
+          80%  { opacity: 0.8; transform: translateY(28px) scale(1.05); }
+          100% { opacity: 0; transform: translateY(40px) scale(0.9); }
+        }
+        .token-float { animation: token-float-down 8s ease-out forwards; pointer-events: none; }
+      `}</style>
       <div ref={sidebarBodyRef} id="conv-panel-sidebar-body" className="flex flex-1 flex-col min-h-0 overflow-hidden">
 
         {/* Active section */}
@@ -87,8 +131,22 @@ export function ConversationSidebar({
                     <TooltipTrigger asChild>
                       <span
                         id="conv-panel-active-token-badge"
-                        className="flex items-center gap-1.5 cursor-default"
+                        className="relative flex items-center gap-1.5 cursor-default"
                       >
+                        {/* Float animations */}
+                        {tokenFloats.map(({ id, delta, type }) => (
+                          <span
+                            key={id}
+                            id={`conv-panel-token-float-${id}`}
+                            className="token-float absolute top-full mt-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold tabular-nums whitespace-nowrap select-none z-50"
+                            style={{
+                              color: delta > 0 ? '#22c55e' : '#ef4444',
+                              textShadow: '0 0 2px #000, 0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
+                            }}
+                          >
+                            {type === 'free' ? '🎈' : '⚡'}{delta > 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
+                          </span>
+                        ))}
                         <span id="conv-panel-active-token-free" className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium leading-none bg-muted text-muted-foreground">
                           🎈 {formatTokenCount(tokenBalance.free_tokens_remaining)}
                         </span>
@@ -103,6 +161,34 @@ export function ConversationSidebar({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+              {gameId && (
+                <>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          id="conv-panel-buy-tokens-btn"
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                          onClick={() => setBuyTokensOpen(true)}
+                          aria-label="Buy LLM Tokens"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" id="conv-panel-buy-tokens-tooltip">
+                        <p>Buy LLM Tokens</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <LLMTokenPurchaseDialog
+                    gameId={gameId}
+                    open={buyTokensOpen}
+                    onOpenChange={setBuyTokensOpen}
+                  />
+                </>
               )}
               {isLoadingActive && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             </div>
