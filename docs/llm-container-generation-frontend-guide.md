@@ -4,12 +4,47 @@
 
 ---
 
+## Luồng xử lý chuẩn
+
+Frontend nên xử lý container creation theo thứ tự này:
+
+1. **Detect intent** — gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent`.
+   - Nếu `detected_intents[0].type` là `container_creating_planning`, chuyển sang bước planning.
+   - Dùng `detected_language`, `entity_type`, và `goal` làm input mặc định cho bước tiếp theo.
+
+2. **Plan container creation** — gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-creating-planning`.
+   - Planning trả về `content.actions`.
+   - Nếu có action `item_generation`, frontend phải tạo linked item definition trước.
+   - Luôn có action cuối `container_creating` để tạo container definition.
+
+3. **Execute required actions** theo thứ tự trong `content.actions`.
+   - Với action `item_generation`: gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation`, parse item output, rồi lưu linked item bằng `POST /api/v1/games/{game_id}/item-definitions`.
+   - Với action `container_creating`: gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-generation`.
+   - Nếu bước item generation vừa tạo linked item, truyền item ID đó vào `item_definition_ids` khi gọi `container-generation`.
+
+4. **Save final container definitions** — parse output từ `container-generation`, sau đó gọi `POST /api/v1/games/{game_id}/container-definitions` cho từng container definition.
+
+Tóm tắt flow:
+
+```text
+detect-intent
+  -> container-creating-planning
+  -> item-generation, if planning requires a linked item
+  -> container-generation
+  -> POST /container-definitions
+```
+
+---
+
 ## Tổng quan API
 
 | Method | Path | Auth | Protocol |
 |--------|------|------|----------|
+| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` | JWT (studio member) | JSON |
+| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-creating-planning` | JWT (studio member) | JSON |
+| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation` | JWT (studio member) | SSE streaming, only when planning returns `item_generation` |
+| `POST` | `/api/v1/games/{game_id}/item-definitions` | JWT (studio member) | JSON, only when saving generated linked item definitions |
 | `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-generation` | JWT (studio member) | SSE streaming |
-| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` | JWT (studio member) | SSE streaming |
 | `POST` | `/api/v1/games/{game_id}/container-definitions` | JWT (studio member, quyền `container_definitions:create`) | JSON (lưu kết quả) |
 | `GET`  | `/api/v1/games/{game_id}/container-definitions` | JWT (studio member, quyền `container_definitions:read`) | JSON |
 
@@ -90,7 +125,7 @@ Tích luỹ tất cả `text` để lắp thành output đầy đủ của LLM.
 
 ### 2.3. Done
 ```
-data: {"type":"done","request_id":"...","conversation_id":"...","detected_request_type":"container_generation","status":"completed"}
+data: {"type":"done","request_id":"...","conversation_id":"...","detected_request_type":"container_creating","status":"completed"}
 
 ```
 Kết thúc stream — lúc này parse chuỗi đã tích luỹ.
@@ -242,14 +277,14 @@ Nếu frontend dùng luồng chat không có nút chọn explicit request type, 
 }
 ```
 
-**Ví dụ kết quả trả về (SSE `done` event):**
+**Ví dụ response `200 OK`:**
 
 ```jsonc
 {
-  "language": "vi",
-  "intents": [
+  "detected_language": "vi",
+  "detected_intents": [
     {
-      "type":        "container_generation",
+      "type":        "container_creating_planning",
       "entity_type": "chest",
       "goal":        "Create storage chests for dungeon"
     }
@@ -258,13 +293,50 @@ Nếu frontend dùng luồng chat không có nút chọn explicit request type, 
 }
 ```
 
-Dùng `intents[0].type` để chọn endpoint và `intents[0].entity_type` làm giá trị mặc định cho `entity_type` khi gọi `requests/container-generation`.
+Dùng `detected_intents[0].type` để chọn endpoint planning và `detected_intents[0].entity_type` làm giá trị mặc định cho `entity_type` khi gọi `requests/container-creating-planning`.
 
 **Các giá trị `type` có thể trả về cho container:**
 
 | `type` trả về | Ý nghĩa | `entity_type` điển hình |
 |---|---|---|
-| `container_generation` | Tạo container definition mới | `chest`, `bag`, `vault`, ... |
+| `container_creating_planning` | Plan the actions needed to create a container definition, including linked item creation when needed | `chest`, `bag`, `vault`, ... |
+
+### Container creating planning
+
+Call planning after detect-intent returns `container_creating_planning`.
+
+`POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-creating-planning`
+
+Example `200 OK` response:
+
+```json
+{
+  "request_id": "01960000-0000-7000-8000-000000000208",
+  "conversation_id": "01960000-0000-7000-8000-000000000101",
+  "detected_request_type": "container_creating_planning",
+  "status": "completed",
+  "content": {
+    "language": "en",
+    "summary": "Create a portable backpack container that opens from an inventory item.",
+    "requires_linked_item_definition": true,
+    "actions": [
+      {
+        "type": "item_generation",
+        "entity_type": "container",
+        "goal": "Create a Backpack item definition with category container for the player to carry and tap to open",
+        "depends_on": []
+      },
+      {
+        "type": "container_creating",
+        "entity_type": "bag",
+        "goal": "Create a portable Backpack container definition linked to the generated Backpack item definition",
+        "depends_on": [0]
+      }
+    ],
+    "clarification": ""
+  }
+}
+```
 
 ---
 

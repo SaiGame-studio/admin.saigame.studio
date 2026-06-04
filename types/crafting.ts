@@ -21,6 +21,8 @@ export interface CraftingRecipeOutput {
   quantity_min: number
   quantity_max: number
   output_type: CraftingOutputType
+  level_increment?: number | null
+  properties_patch?: Record<string, unknown> | null
   sort_order: number
   created_at?: string
   updated_at?: string
@@ -36,6 +38,8 @@ export interface CraftingRecipe {
   category: string
   success_rate: number
   bonus_rate: number
+  available_from?: string | null
+  available_until?: string | null
   is_active: boolean
   metadata?: Record<string, unknown>
   created_by?: string
@@ -52,6 +56,8 @@ export interface CreateCraftingRecipeRequest {
   category: string
   success_rate: number
   bonus_rate: number
+  available_from?: string | null
+  available_until?: string | null
   is_active: boolean
   metadata?: Record<string, unknown>
   inputs: Omit<CraftingRecipeInput, "id" | "recipe_id" | "studio_id" | "game_id" | "created_at" | "updated_at">[]

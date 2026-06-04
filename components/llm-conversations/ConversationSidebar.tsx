@@ -167,20 +167,20 @@ export function ConversationSidebar({
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button
-                          id="conv-panel-buy-tokens-btn"
-                          variant="ghost"
-                          size="icon"
-                          className="h-4 w-4 text-muted-foreground hover:text-foreground"
-                          onClick={() => setBuyTokensOpen(true)}
-                          aria-label="Buy LLM Tokens"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                         <Button
+                           id="conv-panel-buy-tokens-btn"
+                           variant="ghost"
+                           size="icon"
+                           className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                           onClick={() => setBuyTokensOpen(true)}
+                           aria-label={t('llmConversation.buyTokens')}
+                         >
+                           <Plus className="h-3 w-3" />
+                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="top" id="conv-panel-buy-tokens-tooltip">
-                        <p>Buy LLM Tokens</p>
-                      </TooltipContent>
+                        <TooltipContent side="bottom" id="conv-panel-buy-tokens-tooltip" className="z-[1000]">
+                          <p>{t('llmConversation.buyTokens')}</p>
+                        </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <LLMTokenPurchaseDialog

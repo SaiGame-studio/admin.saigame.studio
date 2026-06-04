@@ -185,6 +185,7 @@ export type ResponseSegment =
   | { type: 'container'; text: string; container: Record<string, unknown>; containerIdx: number }
   | { type: 'gachaPack'; text: string; gachaPack: Record<string, unknown>; gachaPackIdx: number }
   | { type: 'equipmentSlot'; text: string; equipmentSlot: Record<string, unknown>; equipmentSlotIdx: number }
+  | { type: 'craftingRecipe'; text: string; craftingRecipe: Record<string, unknown>; craftingRecipeIdx: number }
 
 export function splitItemResponseSegments(text: string): ResponseSegment[] {
   const looksLikeItem = (obj: Record<string, unknown>) =>
@@ -520,6 +521,134 @@ export const lsEquipmentSlotLinks = (convId: string) => `ss_conv_equipment_slot_
 export const lsEquipmentSlotNames = (convId: string) => `ss_conv_equipment_slot_names_${convId}`
 export const lsPendingEquipmentSlotCreate = (gameId: string) => `ss_pending_equipment_slot_create_${gameId}`
 export const lsPendingEquipmentSlotEdit = (gameId: string) => `ss_pending_equipment_slot_edit_${gameId}`
+export const lsCraftingRecipeLinks = (convId: string) => `ss_conv_crafting_recipe_links_${convId}`
+export const lsCraftingRecipeNames = (convId: string) => `ss_conv_crafting_recipe_names_${convId}`
+
+// ---------------------------------------------------------------------------
+// Parse generated crafting recipes from crafting_recipe_creating response text.
+// The backend prompt returns one fenced JSON object per recipe block.
+// ---------------------------------------------------------------------------
+
+export function parseGeneratedCraftingRecipesResponse(text: string): unknown[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const looksLikeCraftingRecipe = (obj: Record<string, unknown>) =>
+    typeof obj.recipe_key === 'string' &&
+    typeof obj.name === 'string' &&
+    Array.isArray(obj.inputs) &&
+    Array.isArray(obj.outputs)
+
+  const tryParse = (input: string): unknown[] | null => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) {
+        const recipes = parsed.filter((el) => el && typeof el === 'object' && looksLikeCraftingRecipe(el as Record<string, unknown>))
+        if (recipes.length > 0) return recipes
+        return parsed
+      }
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.generated_recipes)) return record.generated_recipes
+        if (Array.isArray(record.recipes)) return record.recipes
+        if (looksLikeCraftingRecipe(record)) return [record]
+      }
+    } catch { /* ignore */ }
+    return null
+  }
+
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  const fencedRecipes: unknown[] = []
+  for (const block of fencedBlocks) {
+    const parsed = tryParse(block)
+    if (parsed) fencedRecipes.push(...parsed)
+  }
+  if (fencedRecipes.length > 0) return fencedRecipes
+
+  const extracted = extractTopLevelJsonObjects(trimmed)
+  if (extracted.length > 0) {
+    const recipes = extracted.filter((el) => el && typeof el === 'object' && !Array.isArray(el) && looksLikeCraftingRecipe(el as Record<string, unknown>))
+    if (recipes.length > 0) return recipes
+  }
+
+  return []
+}
+
+export function splitCraftingRecipeResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeCraftingRecipe = (obj: Record<string, unknown>) =>
+    typeof obj.recipe_key === 'string' &&
+    typeof obj.name === 'string' &&
+    Array.isArray(obj.inputs) &&
+    Array.isArray(obj.outputs)
+
+  const boundaries: Array<{ start: number; end: number; craftingRecipe: Record<string, unknown> }> = []
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeCraftingRecipe(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, craftingRecipe: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeCraftingRecipe(obj)) boundaries.push({ start, end: i + 1, craftingRecipe: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let craftingRecipeIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({ type: 'craftingRecipe', text: text.slice(boundary.start, boundary.end), craftingRecipe: boundary.craftingRecipe, craftingRecipeIdx: craftingRecipeIdx++ })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
 
 // ---------------------------------------------------------------------------
 // Parse generated gacha packs from gacha_pack_creating response text.
