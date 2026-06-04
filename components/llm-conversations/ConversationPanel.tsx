@@ -1354,7 +1354,7 @@ export function LLMConversationPanel() {
       try {
         const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
         const existing = (res.container_definitions ?? []).find(
-          d => d.name.toLowerCase() === name.toLowerCase()
+          d => d.name.trim() === name
         ) ?? null
         if (existing) {
           setContainerNameConflictExisting(existing)
