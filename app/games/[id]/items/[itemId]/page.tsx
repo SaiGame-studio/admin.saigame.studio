@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Copy, Check, Package, Pencil, Save, X, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
+import { ArrowLeft, Copy, Check, Package, Bot, Pencil, Save, X, Plus, Trash2, ExternalLink, Loader2, ChevronsUpDown, Tag, CopyPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -59,6 +59,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ITEMS_TABS } from "@/lib/items-tabs"
 import { SseUpdateSheet } from "@/components/SseUpdateSheet"
 import type { CreateItemInitialValues } from "@/components/CreateItemDefinitionDialog"
+import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api"
+import { safeGetItem } from "@/lib/storage-utils"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +165,11 @@ export default function ItemDefinitionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Conversation panel integration
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
+  const [convActiveId, setConvActiveId] = useState<string | null>(null)
+  const [linkingToConv, setLinkingToConv] = useState(false)
+
   // which scalar field is actively being edited
   const [editingField, setEditingField] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -233,6 +240,21 @@ export default function ItemDefinitionDetailPage() {
   }, [])
 
   useEffect(() => {
+    function readPanelState() {
+      setConvPanelOpen(safeGetItem('ss_conv_panel_open') === 'true')
+      setConvActiveId(safeGetItem(`ss_conv_active_${gameId}`) ?? null)
+    }
+    readPanelState()
+    const handler = () => readPanelState()
+    window.addEventListener('storage', handler)
+    window.addEventListener('ss:conv-state-changed', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+      window.removeEventListener('ss:conv-state-changed', handler)
+    }
+  }, [gameId])
+
+  useEffect(() => {
     if (!gameId || !itemId) return
     setTagsLoading(true)
     Promise.all([
@@ -280,6 +302,46 @@ export default function ItemDefinitionDetailPage() {
       toast({ variant: "destructive", title: t('items.failedToRemoveTag'), description: err?.message })
     } finally {
       setTagActionLoading(null)
+    }
+  }
+
+  async function handleLinkItemToConversation() {
+    if (!item || !gameId || !convPanelOpen || linkingToConv) return
+    setLinkingToConv(true)
+    try {
+      let convId = convActiveId
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Item: ${item.name}`,
+          goal: t('items.linkToConvGoal').replace('{name}', item.name),
+        })
+        convId = newConv.ID
+        setConvActiveId(convId)
+      }
+      await linkConversationContent(gameId, convId, 'item_definition', itemId)
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+        detail: {
+          convId,
+          gameId,
+          contentType: 'item_definition',
+          contentId: itemId,
+          contentName: item.name,
+        },
+      }))
+      if (!convActiveId) {
+        window.dispatchEvent(new CustomEvent('ss:conv-external-created', {
+          detail: { convId, gameId },
+        }))
+      }
+      toast({ title: t('items.linkToConvSuccess'), description: item.name })
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: t('items.linkToConvFailed'),
+        description: err?.message ?? "Unknown error",
+      })
+    } finally {
+      setLinkingToConv(false)
     }
   }
 
@@ -610,8 +672,29 @@ export default function ItemDefinitionDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={`p-2 rounded-lg border ${c.border} ${c.bg}`}>
-            <Package className={`h-6 w-6 ${c.text}`} />
+          <div id="item-icon" className={`flex items-center justify-center p-2 rounded-lg border ${c.border} ${c.bg}`}>
+            {convPanelOpen ? (
+              <Button
+                id="item-icon-link-btn"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-blue-500"
+                onClick={handleLinkItemToConversation}
+                disabled={linkingToConv}
+                title={t('items.linkToConv')}
+              >
+                {linkingToConv
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : (
+                    <span className={`inline-flex items-center gap-0.5 ${c.text}`}>
+                      <Bot className="h-4 w-4" />
+                      <Plus className="h-3.5 w-3.5 stroke-[3]" />
+                    </span>
+                  )}
+              </Button>
+            ) : (
+              <Package className={`h-6 w-6 ${c.text}`} />
+            )}
           </div>
           <div>
             {editingField === "name" ? (
