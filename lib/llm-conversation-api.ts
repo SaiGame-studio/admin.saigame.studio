@@ -225,6 +225,33 @@ export interface GachaPackPlanningResponse {
   }
 }
 
+export interface GeneratorItemCreatingPlanningAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  item_category?: string
+  item_code?: string
+  item_name?: string
+  item_definition_ids?: string[]
+  depends_on?: number[]
+}
+
+export interface GeneratorItemCreatingPlanningResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: {
+    language?: string
+    summary?: string
+    requires_item_generation?: boolean
+    actions?: GeneratorItemCreatingPlanningAction[]
+    clarification?: string
+  }
+}
+
 export interface DetectIntentHistoryEntry {
   user_prompt: string
   request_type: string
@@ -291,6 +318,7 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     container_creating_planning: 2,
     gacha_pack_creating_planning: 2,
     crafting_recipe_creating_planning: 2,
+    generator_item_creating_planning: 2,
     crafting_recipe_creating: 3,
   }
   intents = [...intents].sort((a, b) => {
@@ -467,6 +495,31 @@ export async function requestGachaPackCreatingPlanning(
   if (options?.history?.length) body.history = options.history
 
   return api.post(`${base(gameId)}/${conversationId}/requests/gacha-pack-creating-planning`, body)
+}
+
+export async function requestGeneratorItemCreatingPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    language?: string
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+  },
+): Promise<GeneratorItemCreatingPlanningResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/generator-item-creating-planning`, body)
 }
 
 function requestPathForType(requestType: string): string {

@@ -85,8 +85,12 @@ interface ConversationDialogsProps {
   itemCodeConflictOpen: boolean
   setItemCodeConflictOpen: (v: boolean) => void
   itemCodeConflictExisting: ItemDefinition | null
+  itemCodeConflictReviewOpen: boolean
+  setItemCodeConflictReviewOpen: (v: boolean) => void
+  itemCodeConflictReviewData: Record<string, unknown> | null
   isApplyingConflict: boolean
   onItemCodeConflictUpdate: () => void
+  onItemCodeConflictReview: () => void
   onItemCodeConflictSaveNew: (newItemCode: string) => void
   // Preset code conflict dialog
   presetCodeConflictOpen: boolean
@@ -161,8 +165,12 @@ export function ConversationDialogs({
   itemCodeConflictOpen,
   setItemCodeConflictOpen,
   itemCodeConflictExisting,
+  itemCodeConflictReviewOpen,
+  setItemCodeConflictReviewOpen,
+  itemCodeConflictReviewData,
   isApplyingConflict,
   onItemCodeConflictUpdate,
+  onItemCodeConflictReview,
   onItemCodeConflictSaveNew,
   presetCodeConflictOpen,
   setPresetCodeConflictOpen,
@@ -322,6 +330,7 @@ export function ConversationDialogs({
   useEscapeLayer(itemCodeConflictOpen, () => {
     if (!isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') }
   })
+  useEscapeLayer(itemCodeConflictReviewOpen, () => setItemCodeConflictReviewOpen(false))
   useEscapeLayer(presetCodeConflictOpen, () => {
     if (!isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') }
   })
@@ -665,7 +674,7 @@ export function ConversationDialogs({
       {/* Item code conflict dialog */}
       <Dialog
         open={itemCodeConflictOpen}
-        onOpenChange={(o) => { if (!o && !isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') } }}
+        onOpenChange={(o) => { if (!o && !isApplyingConflict) { setItemCodeConflictOpen(false); setItemCodeConflictReviewOpen(false); setNewItemCodeInput('') } }}
       >
         <DialogContent id="item-code-conflict-dialog-root">
           <DialogHeader id="item-code-conflict-dialog-header">
@@ -692,18 +701,30 @@ export function ConversationDialogs({
           </div>
 
           {/* Update existing — primary action */}
-          <button
-            id="item-code-conflict-update-btn"
-            type="button"
-            disabled={isApplyingConflict}
-            onClick={onItemCodeConflictUpdate}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-          >
-            {isApplyingConflict
-              ? <><Loader2 id="item-code-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.itemCodeConflictUpdating')}</>
-              : <><Package id="item-code-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.itemCodeConflictUpdate')}</>
-            }
-          </button>
+          <div id="item-code-conflict-actions" className="grid grid-cols-2 gap-2">
+            <button
+              id="item-code-conflict-update-btn"
+              type="button"
+              disabled={isApplyingConflict}
+              onClick={onItemCodeConflictUpdate}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingConflict
+                ? <><Loader2 id="item-code-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.itemCodeConflictUpdating')}</>
+                : <><Package id="item-code-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.itemCodeConflictUpdate')}</>
+              }
+            </button>
+            <button
+              id="item-code-conflict-review-btn"
+              type="button"
+              disabled={isApplyingConflict || !itemCodeConflictExisting}
+              onClick={onItemCodeConflictReview}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Search id="item-code-conflict-review-icon" className="h-4 w-4" />
+              {t('llmConversation.itemCodeConflictReview')}
+            </button>
+          </div>
 
           <div id="item-code-conflict-divider" className="relative flex items-center gap-2">
             <div id="item-code-conflict-divider-left" className="flex-1 border-t border-border" />
@@ -754,6 +775,56 @@ export function ConversationDialogs({
               </button>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item code conflict review dialog */}
+      <Dialog
+        open={itemCodeConflictReviewOpen}
+        onOpenChange={setItemCodeConflictReviewOpen}
+      >
+        <DialogContent id="item-code-conflict-review-dialog-root" className="max-w-3xl">
+          <DialogHeader id="item-code-conflict-review-dialog-header">
+            <DialogTitle id="item-code-conflict-review-dialog-title">{t('llmConversation.itemCodeConflictReviewTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="item-code-conflict-review-dialog-body" className="space-y-3">
+            <p id="item-code-conflict-review-dialog-desc" className="text-sm text-muted-foreground">
+              {t('llmConversation.itemCodeConflictReviewDesc')}
+            </p>
+            <div id="item-code-conflict-review-json-wrap" className="rounded-md border border-border bg-muted/40">
+              <div id="item-code-conflict-review-json-label" className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+                {t('llmConversation.itemCodeConflictReviewJson')}
+              </div>
+              <pre
+                id="item-code-conflict-review-json"
+                className="max-h-[50vh] overflow-auto px-3 py-3 text-xs leading-relaxed whitespace-pre-wrap break-words"
+              >
+                {JSON.stringify(itemCodeConflictReviewData ?? {}, null, 2)}
+              </pre>
+            </div>
+          </div>
+          <DialogFooter id="item-code-conflict-review-dialog-footer" className="gap-2 sm:gap-0">
+            <button
+              id="item-code-conflict-review-back-btn"
+              type="button"
+              onClick={() => setItemCodeConflictReviewOpen(false)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              {t('llmConversation.itemCodeConflictReviewBack')}
+            </button>
+            <button
+              id="item-code-conflict-review-update-btn"
+              type="button"
+              disabled={isApplyingConflict || !itemCodeConflictReviewData}
+              onClick={onItemCodeConflictUpdate}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingConflict
+                ? <><Loader2 id="item-code-conflict-review-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.itemCodeConflictUpdating')}</>
+                : <><Package id="item-code-conflict-review-update-icon" className="h-4 w-4" />{t('llmConversation.itemCodeConflictUpdate')}</>
+              }
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

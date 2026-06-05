@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestGachaPackCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
 import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 import type { ItemCategory, ItemRarity } from '@/types/inventory'
@@ -152,7 +152,7 @@ export function useChatPipeline() {
 
       // ── Step 3: stream each intent sequentially ──────────────────────────────
       const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
-        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning') return [intent]
+        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning') return [intent]
 
         const goals = intent.goals ?? []
         const entityType = intent.entityType || fallbackEntityType || undefined
@@ -193,6 +193,13 @@ export function useChatPipeline() {
               goals: actionGoals,
             }
           }
+          if (action.type === 'generator_item_creating') {
+            return {
+              type: 'generator_item_creating',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+            }
+          }
           if (action.type === 'crafting_recipe_creating') {
             return {
               type: 'crafting_recipe_creating',
@@ -228,6 +235,19 @@ export function useChatPipeline() {
                   history: historyContext,
                 },
               )
+            : intent.type === 'generator_item_creating_planning'
+              ? await requestGeneratorItemCreatingPlanning(
+                  gameId,
+                  resolvedConvId,
+                  userPrompt,
+                  contextIds,
+                  {
+                    language: detectedLanguage,
+                    entityType,
+                    goals,
+                    history: historyContext,
+                  },
+                )
             : await requestGachaPackCreatingPlanning(
                 gameId,
                 resolvedConvId,
@@ -250,7 +270,9 @@ export function useChatPipeline() {
           : (
             intent.type === 'container_creating_planning'
               ? [{ type: 'container_creating', entityType, goals }]
-              : intent.type === 'crafting_recipe_creating_planning'
+              : intent.type === 'generator_item_creating_planning'
+                ? [{ type: 'generator_item_creating', entityType, goals }]
+                : intent.type === 'crafting_recipe_creating_planning'
                 ? [{ type: 'crafting_recipe_creating', entityType, goals }]
                 : [{ type: 'gacha_pack_creating', entityType, goals }]
           )
