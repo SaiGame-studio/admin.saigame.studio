@@ -49,6 +49,7 @@ import {
   lsGachaPackNames,
   lsEquipmentSlotNames,
   lsCraftingRecipeNames,
+  lsPendingCraftingRecipeCreate,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
   lsPendingEquipmentSlotCreate,
@@ -77,8 +78,7 @@ import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
-import { createCraftingRecipe, getCraftingRecipe } from '@/lib/crafting-api'
-import type { CreateCraftingRecipeRequest } from '@/types/crafting'
+import { getCraftingRecipe } from '@/lib/crafting-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -737,6 +737,35 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
     return () => window.removeEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful crafting recipe creation triggered from the crafting sheet.
+  useEffect(() => {
+    function handleCraftingRecipeCreated(e: Event) {
+      const detail = (e as CustomEvent<{ id: string; name?: string; turnId: string; responseIdx: number; craftingRecipeIdx: number; convId?: string; gameId?: string }>).detail
+      if (!activeConvId || !gameId) return
+      if (detail.gameId && detail.gameId !== gameId) return
+      if (detail.convId && detail.convId !== activeConvId) return
+
+      const recipeKey = `${detail.turnId}:${detail.responseIdx}:${detail.craftingRecipeIdx}`
+      setSavedCraftingRecipeIds(prev => {
+        const updated = { ...prev, [recipeKey]: detail.id }
+        safeSetItem(lsCraftingRecipeLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      if (detail.name) {
+        setCraftingRecipeNames(prev => {
+          const next = { ...prev, [detail.id]: detail.name! }
+          safeSetItem(lsCraftingRecipeNames(activeConvId!), JSON.stringify(next))
+          return next
+        })
+      }
+      void linkConversationContent(gameId, activeConvId, 'crafting_recipe', detail.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+    }
+    window.addEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
+    return () => window.removeEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
   }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
@@ -1617,6 +1646,10 @@ export function LLMConversationPanel() {
     dispatchCreateEquipmentSlot({ ...slot, slot_key: newSlotKey }, turnId, responseIdx, equipmentSlotIdx)
   }
 
+  function handleBuyTokens() {
+    window.dispatchEvent(new Event('ss:open-buy-tokens'))
+  }
+
   async function handleSaveCraftingRecipe(
     recipe: Record<string, unknown>,
     turnId: string,
@@ -1624,85 +1657,19 @@ export function LLMConversationPanel() {
     craftingRecipeIdx: number,
   ) {
     if (!gameId || !activeConvId) return
-
     try {
-      const linkedItemIds = linkedContent
-        .filter(l => l.content_type === 'item_definition')
-        .map(l => l.content_id)
-
-      const itemResults = await Promise.allSettled(
-        linkedItemIds.map((itemId) => getItemDefinition({ gameId }, itemId))
-      )
-      const itemCodeToId = new Map<string, string>()
-      itemResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const item = result.value.item
-          if (item.item_code) itemCodeToId.set(item.item_code, item.id)
-        }
-      })
-
-      const resolveItemRef = (raw: unknown): string => {
-        const value = typeof raw === 'string' ? raw.trim() : ''
-        const match = value.match(/^__REF:(.+)$/)
-        if (!match) return value
-        const resolved = itemCodeToId.get(match[1])
-        if (!resolved) throw new Error(`Unresolved item reference: ${value}`)
-        return resolved
+      // Stage the generated draft for the Crafting tab instead of creating it here.
+      const pending = {
+        recipe,
+        turnId,
+        responseIdx,
+        craftingRecipeIdx,
+        convId: activeConvId,
+        gameId,
       }
-
-      const inputs = Array.isArray(recipe.inputs) ? recipe.inputs : []
-      const outputs = Array.isArray(recipe.outputs) ? recipe.outputs : []
-      const body: CreateCraftingRecipeRequest = {
-        recipe_key: String(recipe.recipe_key ?? '').trim(),
-        name: String(recipe.name ?? '').trim(),
-        description: typeof recipe.description === 'string' ? recipe.description : undefined,
-        category: String(recipe.category ?? 'other').trim() || 'other',
-        success_rate: Number(recipe.success_rate ?? 10000000),
-        bonus_rate: Number(recipe.bonus_rate ?? 0),
-        available_from: typeof recipe.available_from === 'string' ? recipe.available_from : null,
-        available_until: typeof recipe.available_until === 'string' ? recipe.available_until : null,
-        is_active: typeof recipe.is_active === 'boolean' ? recipe.is_active : true,
-        metadata: recipe.metadata && typeof recipe.metadata === 'object' && !Array.isArray(recipe.metadata)
-          ? recipe.metadata as Record<string, unknown>
-          : {},
-        inputs: inputs.map((input) => {
-          const entry = input as Record<string, unknown>
-          return {
-            item_definition_id: resolveItemRef(entry.item_definition_id),
-            quantity: Number(entry.quantity ?? 1),
-            is_consumed: typeof entry.is_consumed === 'boolean' ? entry.is_consumed : true,
-          }
-        }),
-        outputs: outputs.map((output, index) => {
-          const entry = output as Record<string, unknown>
-          return {
-            item_definition_id: resolveItemRef(entry.item_definition_id),
-            quantity_min: Number(entry.quantity_min ?? 1),
-            quantity_max: Number(entry.quantity_max ?? entry.quantity_min ?? 1),
-            output_type: String(entry.output_type ?? 'main'),
-            level_increment: entry.level_increment == null ? null : Number(entry.level_increment),
-            properties_patch: entry.properties_patch && typeof entry.properties_patch === 'object' && !Array.isArray(entry.properties_patch)
-              ? entry.properties_patch as Record<string, unknown>
-              : null,
-            sort_order: Number(entry.sort_order ?? index + 1),
-          }
-        }),
-      }
-
-      const created = await createCraftingRecipe({ gameId }, body)
-      const recipeKey = `${turnId}:${responseIdx}:${craftingRecipeIdx}`
-      const updated = { ...savedCraftingRecipeIds, [recipeKey]: created.id }
-      setSavedCraftingRecipeIds(updated)
-      safeSetItem(lsCraftingRecipeLinks(activeConvId), JSON.stringify(updated))
-      setCraftingRecipeNames(prev => {
-        const next = { ...prev, [created.id]: created.name }
-        safeSetItem(lsCraftingRecipeNames(activeConvId), JSON.stringify(next))
-        return next
-      })
-      void linkConversationContent(gameId, activeConvId, 'crafting_recipe', created.id)
-        .then(() => void loadLinkedContent(gameId, activeConvId))
-        .catch(() => { /* silently ignore */ })
-      toast({ title: t('llmConversation.craftingRecipeSaved') })
+      safeSetItem(lsPendingCraftingRecipeCreate(gameId), JSON.stringify(pending))
+      const params = new URLSearchParams({ tab: 'crafting', create: '1' })
+      router.push(`/games/${gameId}/items?${params.toString()}`)
     } catch (err: any) {
       toast({
         title: t('llmConversation.errorSaveCraftingRecipe'),
@@ -2132,6 +2099,7 @@ export function LLMConversationPanel() {
                   savedEquipmentSlotIds={savedEquipmentSlotIds}
                   savedCraftingRecipeIds={savedCraftingRecipeIds}
                   craftingRecipeNames={craftingRecipeNames}
+                  premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
@@ -2141,6 +2109,7 @@ export function LLMConversationPanel() {
                   onSaveGachaPack={handleSaveGachaPack}
                   onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
                   onSaveCraftingRecipe={handleSaveCraftingRecipe}
+                  onBuyTokens={handleBuyTokens}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}

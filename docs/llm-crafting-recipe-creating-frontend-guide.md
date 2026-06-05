@@ -2,7 +2,49 @@
 
 **Crafting recipe creating** uses AI to draft `CraftRecipe` definitions for studio designers. A crafting recipe defines the player-facing formula for combining input items into one or more output items, including success chance, bonus output chance, consumed materials, and optional in-place item upgrades.
 
-`crafting_recipe_creating` is available as an LLM request type, built-in prompt, intent-detection target, and dedicated SSE route. The generated draft still needs to be saved through the crafting recipe JSON endpoint after item references are resolved.
+For frontend implementation, use this order:
+
+1. Detect intent.
+2. Run crafting recipe planning.
+3. Execute any `item_generation` actions returned by planning.
+4. Resolve generated item refs to UUIDs.
+5. Call `crafting-recipe-creating`.
+6. Parse the draft and save the final recipe.
+
+`crafting_recipe_creating_planning` is the planning step that runs before the final recipe generator when item dependencies may need to be created first. The generated draft still needs to be saved through the crafting recipe JSON endpoint after item references are resolved.
+
+---
+
+## 1. Recommended Flow
+
+### 1.1 Detect intent
+
+Call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` when the UI accepts free-form chat.
+
+If `detected_intents[0].type` is `crafting_recipe_creating_planning`, continue to the planning step. Use `detected_language`, `entity_type`, and `goal` as the defaults for the planning request.
+
+### 1.2 Plan crafting recipe creation
+
+Call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating-planning`.
+
+The planning response returns `content.actions`.
+
+- If an action has `type = item_generation`, create that missing item first.
+- The final action always has `type = crafting_recipe_creating`.
+- Use the generated item codes from planning to resolve `__REF:ITEM_CODE` placeholders later.
+
+### 1.3 Execute actions in order
+
+Follow `content.actions` in sequence.
+
+- For `item_generation`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation`, parse the generated item output, then save it through `POST /api/v1/games/{game_id}/item-definitions`.
+- For `crafting_recipe_creating`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating`.
+
+If planning created new item refs, pass those UUIDs in `item_definition_ids` when calling `crafting-recipe-creating`.
+
+### 1.4 Save the recipe
+
+Parse the output from `crafting-recipe-creating`, resolve `__REF:ITEM_CODE` placeholders to real UUIDs, then call `POST /api/v1/games/{game_id}/crafting/recipes` for each recipe block.
 
 ---
 
@@ -10,9 +52,11 @@
 
 | Area | Code reference |
 |------|----------------|
-| LLM request type | [`internal/domain/llm_content.go#L31`](../../internal/domain/llm_content.go#L31), [`internal/domain/llm_content.go#L55`](../../internal/domain/llm_content.go#L55) |
+| LLM request type | [`internal/domain/llm_content.go#L33`](../../internal/domain/llm_content.go#L33), [`internal/domain/llm_content.go#L49`](../../internal/domain/llm_content.go#L49) |
+| Crafting planning request type | [`internal/domain/llm_content.go#L29`](../../internal/domain/llm_content.go#L29), [`internal/domain/llm_content.go#L55`](../../internal/domain/llm_content.go#L55), [`internal/domain/system_prompt.go#L40`](../../internal/domain/system_prompt.go#L40) |
 | Crafting prompt contract | [`internal/services/implementations/prompts/206_crafting_recipe_creating.txt#L1`](../../internal/services/implementations/prompts/206_crafting_recipe_creating.txt#L1), [`internal/services/implementations/prompts/206_crafting_recipe_creating.txt#L64`](../../internal/services/implementations/prompts/206_crafting_recipe_creating.txt#L64) |
-| Current LLM registered routes | [`internal/handler/route_definitions.go#L4333`](../../internal/handler/route_definitions.go#L4333), [`internal/handler/route_definitions.go#L4473`](../../internal/handler/route_definitions.go#L4473) |
+| Crafting planning prompt contract | [`internal/services/implementations/prompts/209_crafting_recipe_creating_planning.txt#L1`](../../internal/services/implementations/prompts/209_crafting_recipe_creating_planning.txt#L1) |
+| Current LLM registered routes | [`internal/handler/route_definitions.go#L4385`](../../internal/handler/route_definitions.go#L4385), [`internal/handler/route_definitions.go#L4481`](../../internal/handler/route_definitions.go#L4481), [`internal/handler/route_definitions.go#L4489`](../../internal/handler/route_definitions.go#L4489) |
 | Crafting recipe routes | [`internal/handler/route_definitions.go#L586`](../../internal/handler/route_definitions.go#L586), [`internal/handler/route_definitions.go#L612`](../../internal/handler/route_definitions.go#L612) |
 | Create recipe handler | [`internal/handler/crafting_handler.go#L294`](../../internal/handler/crafting_handler.go#L294), [`internal/handler/crafting_handler.go#L326`](../../internal/handler/crafting_handler.go#L326) |
 | Input and output parsing | [`internal/handler/crafting_handler.go#L513`](../../internal/handler/crafting_handler.go#L513), [`internal/handler/crafting_handler.go#L532`](../../internal/handler/crafting_handler.go#L532) |
@@ -23,8 +67,9 @@
 
 | Method | Path | Auth | Protocol | Status |
 |--------|------|------|----------|--------|
+| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating-planning` | JWT (studio member) | JSON | Available |
 | `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating` | JWT (studio member) | SSE streaming | Available |
-| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` | JWT (studio member) | SSE streaming | Available |
+| `POST` | `/api/v1/games/{game_id}/llm/conversations/{conversation_id}/detect-intent` | JWT (studio member) | JSON | Available |
 | `POST` | `/api/v1/games/{game_id}/crafting/recipes` | JWT (studio member, `craft:manage`) | JSON | Available |
 | `GET` | `/api/v1/games/{game_id}/crafting/recipes` | JWT (studio member, `craft:manage`) | JSON | Available |
 | `GET` | `/api/v1/games/{game_id}/crafting/recipes/{recipe_id}` | JWT (studio member, `craft:manage`) | JSON | Available |
@@ -49,9 +94,11 @@ Content-Type: application/json
 
 ---
 
-## 1. Call `crafting-recipe-creating`
+## 2. Call `crafting-recipe-creating`
 
 ### `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating`
+
+Call this only after the planning step has finished and all required item generation has been resolved.
 
 #### Request Body
 
@@ -101,11 +148,11 @@ Example request:
 
 ---
 
-## 2. Read the SSE Stream
+## 3. Read the SSE Stream
 
 The response has `Content-Type: text/event-stream`.
 
-### 2.1 Connection Ping
+### 3.1 Connection Ping
 
 ```text
 : connected
@@ -113,7 +160,7 @@ The response has `Content-Type: text/event-stream`.
 
 This confirms the stream opened. No UI action is required.
 
-### 2.2 Chunk
+### 3.2 Chunk
 
 ```text
 data: {"type":"chunk","text":"..."}
@@ -121,7 +168,7 @@ data: {"type":"chunk","text":"..."}
 
 Append every `text` value into one accumulated string.
 
-### 2.3 Done
+### 3.3 Done
 
 ```text
 data: {"type":"done","request_id":"...","conversation_id":"...","detected_request_type":"crafting_recipe_creating","status":"completed"}
@@ -129,7 +176,7 @@ data: {"type":"done","request_id":"...","conversation_id":"...","detected_reques
 
 The stream is complete. Parse the accumulated text after this event.
 
-### 2.4 Error
+### 3.4 Error
 
 ```text
 data: {"type":"error","message":"..."}
@@ -139,7 +186,7 @@ Stop the stream and show the message.
 
 ---
 
-## 3. Parse LLM Output
+## 4. Parse LLM Output
 
 The LLM returns **one block per recipe**, not a single JSON array. Each block contains labeled fields, one fenced `json` object, and a `---` separator.
 
@@ -256,7 +303,7 @@ Field notes:
 
 ---
 
-## 4. Resolve `__REF:ITEM_CODE` to UUIDs
+## 5. Resolve `__REF:ITEM_CODE` to UUIDs
 
 The LLM output uses `__REF:ITEM_CODE` placeholders, not real UUIDs. Before saving:
 
@@ -290,7 +337,7 @@ function buildItemCodeMap(items: ItemDefinitionOption[]): Map<string, string> {
 
 ---
 
-## 5. Save the Recipe
+## 6. Save the Recipe
 
 ### `POST /api/v1/games/{game_id}/crafting/recipes`
 
@@ -390,7 +437,7 @@ Sample `201 Created` response:
 
 ---
 
-## 6. Edit or Regenerate
+## 7. Edit or Regenerate
 
 For an edit/regenerate flow, send existing recipe drafts through `generated_items`. The LLM should return the same number of recipe blocks, modified according to the new user instruction.
 
@@ -434,7 +481,7 @@ For an edit/regenerate flow, send existing recipe drafts through `generated_item
 
 ---
 
-## 7. Detect Intent
+## 8. Detect Intent
 
 Use this only when the UI accepts free-form chat without a selected request type.
 
@@ -447,32 +494,103 @@ Use this only when the UI accepts free-form chat without a selected request type
 }
 ```
 
-Example `done` payload:
+Example `200 OK` response:
 
 ```jsonc
 {
   "detected_language": "en",
   "detected_intents": [
     {
-      "type": "crafting_recipe_creating",
+      "type": "crafting_recipe_creating_planning",
       "entity_type": "weapon",
-      "goal": "Create a sword enhancement crafting recipe"
+      "goal": "Create a sword enhancement crafting recipe with missing item definitions"
     },
     {
-      "type": "crafting_recipe_creating",
+      "type": "crafting_recipe_creating_planning",
       "entity_type": "potion",
-      "goal": "Create a potion brewing crafting recipe"
+      "goal": "Create a potion brewing crafting recipe with missing item definitions"
     }
   ],
+  "prompt_version": "v20260605.1",
   "clarification": ""
 }
 ```
 
-Use `detected_intents[n].type` to select the request flow and `detected_intents[n].entity_type` as the default `entity_type`.
+Use `detected_intents[n].type` to select the request flow and `detected_intents[n].entity_type` as the default `entity_type` when calling the crafting recipe planning endpoint.
+
+### 8.1 Crafting Recipe Planning
+
+Crafting recipes reference item definitions; they do not create item definitions themselves. `detect-intent` is only a routing step and returns the top-level `crafting_recipe_creating_planning` intent. After detection, run the planning flow to decide whether any input or output item definitions must be created before calling `crafting-recipe-creating`.
+
+### `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating-planning`
+
+Example `200 OK` response:
+
+```jsonc
+{
+  "request_id": "01960000-0000-7000-8000-000000000209",
+  "conversation_id": "01960000-0000-7000-8000-000000000101",
+  "detected_request_type": "crafting_recipe_creating_planning",
+  "status": "completed",
+  "prompt_version": "v20260605.1",
+  "content": {
+    "language": "en",
+    "summary": "Create a weapon crafting recipe with one missing output item.",
+    "requires_item_generation": true,
+    "actions": [
+      {
+        "type": "item_generation",
+        "entity_type": "material",
+        "goal": "Create an Iron Ore item definition for the recipe input",
+        "item_code": "IRON_ORE",
+        "item_definition_ids": [],
+        "depends_on": []
+      },
+      {
+        "type": "crafting_recipe_creating",
+        "entity_type": "weapon",
+        "goal": "Create a weapon crafting recipe that uses __REF:IRON_ORE in item_definition_ids",
+        "item_code": "",
+        "item_definition_ids": ["__REF:IRON_ORE"],
+        "depends_on": [0]
+      }
+    ],
+    "clarification": ""
+  }
+}
+```
+
+Expected detect-intent result for a recipe with two inputs and one output:
+
+```jsonc
+{
+  "detected_language": "en",
+  "detected_intents": [
+    {
+      "type": "crafting_recipe_creating_planning",
+      "entity_type": "weapon",
+      "goal": "Create one weapon crafting recipe with 2 distinct inputs, Iron Ore and Wood, and 1 main output, Iron Sword"
+    }
+  ],
+  "prompt_version": "v20260605.1",
+  "clarification": ""
+}
+```
+
+Front-end execution order:
+
+1. Keep the user's originally selected `item_definition_ids`.
+2. Call `crafting-recipe-creating-planning` with the detected planning intent.
+3. Execute any `item_generation` actions returned by planning.
+4. Save the generated item definitions and add their IDs to the final `item_definition_ids` list.
+5. Call `crafting-recipe-creating` with the complete item definition list and the detected crafting goal.
+6. After parsing the draft, validate the expected input/output counts from the goal before enabling Save.
+
+If the parsed recipe does not match the expected structure, for example the goal says `2 distinct inputs` but `inputs.length` is `1`, do not save the draft. Regenerate with a corrective goal or ask the user to edit the draft.
 
 ---
 
-## 8. Full TypeScript Example
+## 9. Full TypeScript Example
 
 ```typescript
 export type CraftingRecipeEntityType =
@@ -667,7 +785,7 @@ async function generateAndSaveCraftRecipes(
 
 ---
 
-## 9. Validation Checklist
+## 10. Validation Checklist
 
 Before enabling the Save button:
 
@@ -685,7 +803,7 @@ Before enabling the Save button:
 
 ---
 
-## 10. Important UI Notes
+## 11. Important UI Notes
 
 ### Success and bonus rates use a 10,000,000 scale
 

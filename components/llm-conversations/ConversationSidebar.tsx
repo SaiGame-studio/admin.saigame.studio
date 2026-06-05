@@ -101,6 +101,12 @@ export function ConversationSidebar({
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [])
+
+  useEffect(() => {
+    const handleOpenBuyTokens = () => setBuyTokensOpen(true)
+    window.addEventListener('ss:open-buy-tokens', handleOpenBuyTokens)
+    return () => window.removeEventListener('ss:open-buy-tokens', handleOpenBuyTokens)
+  }, [])
   return (
     <div id="conv-panel-sidebar" className="relative flex shrink-0 flex-col border-r" style={{ width: sidebarWidth }}>
       <style>{`

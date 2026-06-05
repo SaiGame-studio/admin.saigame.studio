@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, linkConversationContent, requestContainerCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, linkConversationContent, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
 import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
 import { createItemDefinition, listItemDefinitions } from '@/lib/inventory-api'
 import type { Conversation } from '@/types/llm-conversation'
@@ -233,6 +233,7 @@ export function useChatPipeline() {
       }
 
       let resolvedIntents: PipelineIntent[] = []
+      let detectedLanguage: string | undefined
       if (requestType === 'auto') {
         let detectError = ''
         await streamDetectIntent(
@@ -245,9 +246,10 @@ export function useChatPipeline() {
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
             ),
-          (detectedIntents) => {
-            resolvedIntents = detectedIntents
-            const firstType = detectedIntents[0]?.type ?? null
+          (result) => {
+            resolvedIntents = result.intents
+            detectedLanguage = result.detectedLanguage
+            const firstType = result.intents[0]?.type ?? null
             setChatHistory((prev) =>
               prev.map((t) => (t.id === turnId ? { ...t, detectedType: firstType } : t))
             )
@@ -269,51 +271,80 @@ export function useChatPipeline() {
       }
 
       // ── Step 3: stream each intent sequentially ──────────────────────────────
-      const expandContainerPlan = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
-        if (intent.type !== 'container_creating_planning') return [intent]
+      const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
+        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning') return [intent]
 
-        const plan = await requestContainerCreatingPlanning(
-          gameId,
-          resolvedConvId,
-          userPrompt,
-          contextIds,
-          {
-            entityType: intent.entityType || fallbackEntityType || undefined,
-            goals: intent.goals,
-            history: historyContext,
-          },
-        )
+        const goals = intent.goals ?? []
+        const entityType = intent.entityType || fallbackEntityType || undefined
+        const mapAction = (action: { type: string; entity_type?: string; goal?: string; goals?: string[] }): PipelineIntent | null => {
+          const actionGoals = Array.isArray(action.goals)
+            ? action.goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+            : (typeof action.goal === 'string' && action.goal.trim() ? [action.goal] : [])
+
+          if (action.type === 'item_generation') {
+            return {
+              type: 'item_generation',
+              entityType: action.entity_type,
+              goals: actionGoals,
+              autoSaveGeneratedItems: true,
+            }
+          }
+          if (action.type === 'container_creating') {
+            return {
+              type: 'container_creating',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+            }
+          }
+          if (action.type === 'crafting_recipe_creating') {
+            return {
+              type: 'crafting_recipe_creating',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+            }
+          }
+          return null
+        }
+
+        const plan = intent.type === 'container_creating_planning'
+          ? await requestContainerCreatingPlanning(
+              gameId,
+              resolvedConvId,
+              userPrompt,
+              contextIds,
+              {
+                entityType,
+                goals,
+                history: historyContext,
+              },
+            )
+          : await requestCraftingRecipeCreatingPlanning(
+              gameId,
+              resolvedConvId,
+              userPrompt,
+              contextIds,
+              {
+                language: detectedLanguage,
+                entityType,
+                goals,
+                history: historyContext,
+              },
+            )
+
         const plannedIntents = (plan.content?.actions ?? [])
-          .map((action): PipelineIntent | null => {
-            const goals = Array.isArray(action.goals)
-              ? action.goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-              : (typeof action.goal === 'string' && action.goal.trim() ? [action.goal] : [])
-
-            if (action.type === 'item_generation') {
-              return {
-                type: 'item_generation',
-                entityType: action.entity_type,
-                goals,
-                autoSaveGeneratedItems: true,
-              }
-            }
-            if (action.type === 'container_creating') {
-              return {
-                type: 'container_creating',
-                entityType: action.entity_type || intent.entityType,
-                goals,
-              }
-            }
-            return null
-          })
+          .map((action) => mapAction(action))
           .filter((planned): planned is PipelineIntent => !!planned)
 
         return plannedIntents.length > 0
           ? plannedIntents
-          : [{ type: 'container_creating', entityType: intent.entityType, goals: intent.goals }]
+          : (
+            intent.type === 'container_creating_planning'
+              ? [{ type: 'container_creating', entityType, goals }]
+              : [{ type: 'crafting_recipe_creating', entityType, goals }]
+          )
       }
 
-      const executionIntents = (await Promise.all(resolvedIntents.map(expandContainerPlan))).flat()
+      const executionIntents = (await Promise.all(resolvedIntents.map(expandPlannedIntent))).flat()
 
       // Pre-initialise all response slots so the UI shows spinners immediately
       setChatHistory((prev) =>

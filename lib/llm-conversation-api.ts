@@ -146,6 +146,11 @@ export interface DetectedIntent {
   goals?: string[]
 }
 
+export interface DetectedIntentResult {
+  intents: DetectedIntent[]
+  detectedLanguage?: string
+}
+
 export interface ContainerCreatingPlanAction {
   type: string
   entity_type?: string
@@ -168,6 +173,31 @@ export interface ContainerCreatingPlanResponse {
   }
 }
 
+export interface CraftingRecipePlanningAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  item_code?: string
+  item_definition_ids?: string[]
+  depends_on?: number[]
+}
+
+export interface CraftingRecipePlanningResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: {
+    language?: string
+    summary?: string
+    requires_item_generation?: boolean
+    actions?: CraftingRecipePlanningAction[]
+    clarification?: string
+  }
+}
+
 export interface DetectIntentHistoryEntry {
   user_prompt: string
   request_type: string
@@ -186,7 +216,7 @@ export interface ConversationContextIds {
   container_definition_ids: string[]
 }
 
-function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedIntent[] {
+function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedIntentResult {
   let intents: DetectedIntent[] = []
 
   const detectedRequestType = typeof payload.detected_request_type === 'string'
@@ -232,13 +262,20 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     item_modify: 1,
     generator_item_creating: 1,
     container_creating_planning: 2,
-    crafting_recipe_creating: 2,
+    crafting_recipe_creating_planning: 2,
+    crafting_recipe_creating: 3,
   }
-  return [...intents].sort((a, b) => {
+  intents = [...intents].sort((a, b) => {
     const rankA = INTENT_ORDER[a.type] ?? 2
     const rankB = INTENT_ORDER[b.type] ?? 2
     return rankA - rankB
   })
+  return {
+    intents,
+    detectedLanguage: typeof payload.detected_language === 'string'
+      ? payload.detected_language
+      : (typeof payload.DetectedLanguage === 'string' ? payload.DetectedLanguage : undefined),
+  }
 }
 
 export async function streamDetectIntent(
@@ -248,7 +285,7 @@ export async function streamDetectIntent(
   history: DetectIntentHistoryEntry[],
   contextIds: ConversationContextIds,
   onChunk: (text: string) => void,
-  onDone: (intents: DetectedIntent[]) => void,
+  onDone: (result: DetectedIntentResult) => void,
   onError: (message: string) => void,
 ): Promise<void> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -351,6 +388,31 @@ export async function requestContainerCreatingPlanning(
   if (options?.history?.length) body.history = options.history
 
   return api.post(`${base(gameId)}/${conversationId}/requests/container-creating-planning`, body)
+}
+
+export async function requestCraftingRecipeCreatingPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    language?: string
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+  },
+): Promise<CraftingRecipePlanningResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/crafting-recipe-creating-planning`, body)
 }
 
 function requestPathForType(requestType: string): string {

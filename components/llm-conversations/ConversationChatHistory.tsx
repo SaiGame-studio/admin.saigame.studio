@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X, Plus } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
@@ -25,6 +25,7 @@ interface ConversationChatHistoryProps {
   savedEquipmentSlotIds: Record<string, string>
   savedCraftingRecipeIds: Record<string, string>
   craftingRecipeNames: Record<string, string>
+  premiumTokensRemaining: number | null
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
@@ -34,6 +35,7 @@ interface ConversationChatHistoryProps {
   onSaveGachaPack: (pack: Record<string, unknown>, turnId: string, responseIdx: number, gachaPackIdx: number) => void
   onSaveEquipmentSlot: (slot: Record<string, unknown>, turnId: string, responseIdx: number, equipmentSlotIdx: number) => void
   onSaveCraftingRecipe: (recipe: Record<string, unknown>, turnId: string, responseIdx: number, craftingRecipeIdx: number) => void
+  onBuyTokens: () => void
   onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
   onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
   onCreateItemTagFromSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
@@ -253,6 +255,7 @@ export function ConversationChatHistory({
   savedEquipmentSlotIds,
   savedCraftingRecipeIds,
   craftingRecipeNames,
+  premiumTokensRemaining,
   onRetry,
   onRetryResponse,
   onOpenLoreReview,
@@ -262,6 +265,7 @@ export function ConversationChatHistory({
   onSaveGachaPack,
   onSaveEquipmentSlot,
   onSaveCraftingRecipe,
+  onBuyTokens,
   onApplyTagSuggestion,
   onRemoveGameTag,
   onCreateItemTagFromSuggestion,
@@ -273,6 +277,14 @@ export function ConversationChatHistory({
   const { resolvedTheme } = useTheme()
   const scrollRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function isTokenQuotaError(message: string): boolean {
+    return /lm token quota exceeded|token quota exceeded|quota exceeded|payment required|http 402|402\b/i.test(message)
+  }
+
+  function isRetryDisabledForTokenQuotaError(): boolean {
+    return typeof premiumTokensRemaining === 'number' && premiumTokensRemaining <= 0
+  }
 
   // Restore scroll position when switching to a different conversation
   useEffect(() => {
@@ -325,16 +337,40 @@ export function ConversationChatHistory({
               {turn.error ? (
                 <div id={`conv-panel-ai-error-row-${turn.id}`} className="flex items-center gap-2">
                   <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">{turn.error}</p>
-                  <button
-                    id={`conv-panel-ai-retry-btn-${turn.id}`}
-                    onClick={() => onRetry(turn)}
-                    disabled={isStreaming}
-                    className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                    title={t('common.retry')}
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    {t('common.retry')}
-                  </button>
+                  {isTokenQuotaError(turn.error) ? (
+                    <>
+                      <button
+                        id={`conv-panel-ai-retry-btn-${turn.id}`}
+                        onClick={() => onRetry(turn)}
+                        disabled={isStreaming || isRetryDisabledForTokenQuotaError()}
+                        className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                        title={t('common.retry')}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        {t('common.retry')}
+                      </button>
+                      <button
+                        id={`conv-panel-ai-buy-token-btn-${turn.id}`}
+                        onClick={onBuyTokens}
+                        className="shrink-0 flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                        title={t('llmConversation.buyTokens')}
+                      >
+                        <Plus className="h-3 w-3" />
+                        {t('llmConversation.buyTokens')}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      id={`conv-panel-ai-retry-btn-${turn.id}`}
+                      onClick={() => onRetry(turn)}
+                      disabled={isStreaming}
+                      className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                      title={t('common.retry')}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      {t('common.retry')}
+                    </button>
+                  )}
                 </div>
               ) : (turn.responses?.length ?? 0) > 0 ? (
                 <div id={`conv-panel-ai-responses-${turn.id}`} className="flex flex-col gap-3">
@@ -357,20 +393,48 @@ export function ConversationChatHistory({
                       {response.error ? (
                         <div id={`conv-panel-ai-response-error-wrap-${turn.id}-${idx}`} className="flex items-center gap-2 flex-wrap">
                           <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
-                          <button
-                            id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`}
-                            onClick={() => onRetryResponse(
-                              turn.id, idx,
-                              response.intentType,
-                              turn.userMessage,
-                            )}
-                            disabled={isStreaming || !activeConvId}
-                            className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                            title={t('common.retry')}
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                            {t('common.retry')}
-                          </button>
+                          {isTokenQuotaError(response.error) ? (
+                            <>
+                              <button
+                                id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`}
+                                onClick={() => onRetryResponse(
+                                  turn.id, idx,
+                                  response.intentType,
+                                  turn.userMessage,
+                                )}
+                                disabled={isStreaming || !activeConvId || isRetryDisabledForTokenQuotaError()}
+                                className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                                title={t('common.retry')}
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                {t('common.retry')}
+                              </button>
+                              <button
+                                id={`conv-panel-ai-response-buy-token-btn-${turn.id}-${idx}`}
+                                onClick={onBuyTokens}
+                                className="shrink-0 flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                                title={t('llmConversation.buyTokens')}
+                              >
+                                <Plus className="h-3 w-3" />
+                                {t('llmConversation.buyTokens')}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`}
+                              onClick={() => onRetryResponse(
+                                turn.id, idx,
+                                response.intentType,
+                                turn.userMessage,
+                              )}
+                              disabled={isStreaming || !activeConvId}
+                              className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                              title={t('common.retry')}
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              {t('common.retry')}
+                            </button>
+                          )}
                         </div>
                       ) : response.intentType === 'tag_suggestion' ? (
                         <TagSuggestionResult
