@@ -203,7 +203,9 @@ export interface GachaPackPlanningAction {
   entity_type?: string
   goal?: string
   goals?: string[]
+  item_category?: string
   item_code?: string
+  item_name?: string
   item_definition_ids?: string[]
   depends_on?: number[]
 }

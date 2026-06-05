@@ -37,7 +37,7 @@ The planning response returns `content.actions`.
 
 Follow `content.actions` in sequence.
 
-- For `item_generation`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation`, parse the generated item output, then save it through `POST /api/v1/games/{game_id}/item-definitions`.
+- For `item_generation`, send the **full planning action** to `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation` via `generated_items`. This keeps `item_code`, `item_category`, `item_name`, `item_definition_ids`, and `depends_on` intact for the LLM. Then parse the generated item output and save it through `POST /api/v1/games/{game_id}/item-definitions`.
 - For `gacha_pack_creating`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/gacha-pack-creating`.
 
 If planning created new item refs, pass those UUIDs in `item_definition_ids` when calling `gacha-pack-creating`.
@@ -418,7 +418,7 @@ Front-end execution order:
 
 1. Keep the user's originally selected `item_definition_ids`.
 2. Call `gacha-pack-creating-planning` with the detected planning intent.
-3. Execute any `item_generation` actions returned by planning.
+3. Execute any `item_generation` actions returned by planning by forwarding the full action object to `item-generation`.
 4. Save the generated item definitions and add their IDs to the final `item_definition_ids` list.
 5. Call `gacha-pack-creating` with the complete item definition list and the detected gacha goal.
 6. After parsing the draft, validate the expected pool size and key requirement count from the goal before enabling Save.
@@ -442,4 +442,3 @@ Before enabling the Save button:
 - Every key requirement quantity is at least `1`.
 - `metadata` has at most 50 keys total, including nested keys.
 - Every key and value in `metadata` follows the backend contract.
-

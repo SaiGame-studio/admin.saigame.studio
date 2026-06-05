@@ -18,7 +18,7 @@ Frontend nên xử lý container creation theo thứ tự này:
    - Luôn có action cuối `container_creating` để tạo container definition.
 
 3. **Execute required actions** theo thứ tự trong `content.actions`.
-   - Với action `item_generation`: gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation`, parse item output, rồi lưu linked item bằng `POST /api/v1/games/{game_id}/item-definitions`.
+   - Với action `item_generation`: gửi nguyên action planning vào `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation` qua `generated_items`, rồi parse item output và lưu linked item bằng `POST /api/v1/games/{game_id}/item-definitions`.
    - Với action `container_creating`: gọi `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/container-generation`.
    - Nếu bước item generation vừa tạo linked item, truyền item ID đó vào `item_definition_ids` khi gọi `container-generation`.
 

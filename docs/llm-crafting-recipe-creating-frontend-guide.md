@@ -37,7 +37,7 @@ The planning response returns `content.actions`.
 
 Follow `content.actions` in sequence.
 
-- For `item_generation`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation`, parse the generated item output, then save it through `POST /api/v1/games/{game_id}/item-definitions`.
+- For `item_generation`, send the full planning action to `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/item-generation` via `generated_items`, then parse the generated item output and save it through `POST /api/v1/games/{game_id}/item-definitions`.
 - For `crafting_recipe_creating`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/crafting-recipe-creating`.
 
 If planning created new item refs, pass those UUIDs in `item_definition_ids` when calling `crafting-recipe-creating`.
