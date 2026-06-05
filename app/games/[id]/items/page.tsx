@@ -261,6 +261,14 @@ interface KeyReqRow {
   quantity: string
 }
 
+type GachaLLMRow = {
+  item_definition_id?: unknown
+  weight?: unknown
+  quantity_min?: unknown
+  quantity_max?: unknown
+  quantity?: unknown
+}
+
 const EMPTY_KEY_ROW = (): KeyReqRow => ({
   item_definition_id: "",
   quantity: "1",
@@ -307,10 +315,11 @@ async function resolveGachaRefCodes(rawIds: string[], gameId: string): Promise<R
   return codeToId
 }
 
-/** Apply a code->id map: if rawId is __REF:CODE, return the resolved ID (or '' if not found). */
+/** Apply a code->id map: if rawId is __REF:CODE, return the resolved ID when available,
+ *  otherwise keep the placeholder so the form can still show the unresolved ref. */
 function applyRefCodeMap(rawId: string, codeToId: Record<string, string>): string {
   if (!rawId.startsWith('__REF:')) return rawId
-  return codeToId[rawId.slice(6)] ?? ''
+  return codeToId[rawId.slice(6)] ?? rawId
 }
 
 // ─── Container Definition helpers ────────────────────────────────────────────
@@ -1643,7 +1652,7 @@ export default function GameItemsPage() {
     async function handleOpenCreateGachaPack(e: Event) {
       const detail = (e as CustomEvent).detail ?? {}
       const rawPool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
-        ? detail.item_pool.map((r: any) => ({
+        ? detail.item_pool.map((r: GachaLLMRow) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             weight: String(r.weight ?? 1),
             quantity_min: String(r.quantity_min ?? 1),
@@ -1651,18 +1660,18 @@ export default function GameItemsPage() {
           }))
         : [EMPTY_ROW()]
       const rawKeyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
-        ? detail.key_requirements.map((r: any) => ({
+        ? detail.key_requirements.map((r: GachaLLMRow) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             quantity: String(r.quantity ?? 1),
           }))
         : [EMPTY_KEY_ROW()]
       const allRawIds = [
-        ...rawPool.map((r) => r.item_definition_id),
-        ...rawKeyReqs.map((r) => r.item_definition_id),
+        ...rawPool.map((r: PoolRow) => r.item_definition_id),
+        ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
       ]
       const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
-      const pool = rawPool.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
-      const keyReqs = rawKeyReqs.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
       const meta = (detail.metadata ?? {}) as Record<string, unknown>
       setEditingPack(null)
       setGachaAutoSlug(false)
@@ -1692,7 +1701,7 @@ export default function GameItemsPage() {
       if (!existingPack) return
       const llmData = (detail.llmData ?? {}) as Record<string, unknown>
       const rawPool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
-        ? llmData.item_pool.map((r: any) => ({
+        ? llmData.item_pool.map((r: GachaLLMRow) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             weight: String(r.weight ?? 1),
             quantity_min: String(r.quantity_min ?? 1),
@@ -1705,7 +1714,7 @@ export default function GameItemsPage() {
             quantity_max: String(r.quantity_max),
           }))
       const rawKeyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
-        ? llmData.key_requirements.map((r: any) => ({
+        ? llmData.key_requirements.map((r: GachaLLMRow) => ({
             item_definition_id: String(r.item_definition_id ?? ''),
             quantity: String(r.quantity ?? 1),
           }))
@@ -1718,8 +1727,8 @@ export default function GameItemsPage() {
         ...rawKeyReqs.map((r) => r.item_definition_id),
       ]
       const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
-      const pool = rawPool.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
-      const keyReqs = rawKeyReqs.map((r) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+      const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
       const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
       const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
         ? llmData.metadata as Record<string, unknown>
@@ -1809,7 +1818,7 @@ export default function GameItemsPage() {
           try {
             const detail = JSON.parse(pendingRaw)
             const rawPool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
-              ? detail.item_pool.map((r: any) => ({
+              ? detail.item_pool.map((r: GachaLLMRow) => ({
                   item_definition_id: String(r.item_definition_id ?? ''),
                   weight: String(r.weight ?? 1),
                   quantity_min: String(r.quantity_min ?? 1),
@@ -1817,18 +1826,18 @@ export default function GameItemsPage() {
                 }))
               : [EMPTY_ROW()]
             const rawKeyReqs = Array.isArray(detail.key_requirements) && detail.key_requirements.length > 0
-              ? detail.key_requirements.map((r: any) => ({
+              ? detail.key_requirements.map((r: GachaLLMRow) => ({
                   item_definition_id: String(r.item_definition_id ?? ''),
                   quantity: String(r.quantity ?? 1),
                 }))
               : [EMPTY_KEY_ROW()]
             const allRawIds = [
-              ...rawPool.map((r: { item_definition_id: string }) => r.item_definition_id),
-              ...rawKeyReqs.map((r: { item_definition_id: string }) => r.item_definition_id),
+              ...rawPool.map((r: PoolRow) => r.item_definition_id),
+              ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
             ]
             const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
-            const pool = rawPool.map((r: { item_definition_id: string; weight: string; quantity_min: string; quantity_max: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
-            const keyReqs = rawKeyReqs.map((r: { item_definition_id: string; quantity: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+            const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+            const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
             const meta = (detail.metadata ?? {}) as Record<string, unknown>
             setEditingPack(null)
             setGachaAutoSlug(false)
@@ -1884,7 +1893,7 @@ export default function GameItemsPage() {
             if (existingPack) {
               const llmData = (detail.llmData ?? {}) as Record<string, unknown>
               const rawPool = Array.isArray(llmData.item_pool) && llmData.item_pool.length > 0
-                ? llmData.item_pool.map((r: any) => ({
+                ? llmData.item_pool.map((r: GachaLLMRow) => ({
                     item_definition_id: String(r.item_definition_id ?? ''),
                     weight: String(r.weight ?? 1),
                     quantity_min: String(r.quantity_min ?? 1),
@@ -1897,7 +1906,7 @@ export default function GameItemsPage() {
                     quantity_max: String(r.quantity_max),
                   }))
               const rawKeyReqs = Array.isArray(llmData.key_requirements) && llmData.key_requirements.length > 0
-                ? llmData.key_requirements.map((r: any) => ({
+                ? llmData.key_requirements.map((r: GachaLLMRow) => ({
                     item_definition_id: String(r.item_definition_id ?? ''),
                     quantity: String(r.quantity ?? 1),
                   }))
@@ -1906,12 +1915,12 @@ export default function GameItemsPage() {
                     quantity: String(r.quantity),
                   }))
               const allRawIds = [
-                ...rawPool.map((r: { item_definition_id: string }) => r.item_definition_id),
-                ...rawKeyReqs.map((r: { item_definition_id: string }) => r.item_definition_id),
+                ...rawPool.map((r: PoolRow) => r.item_definition_id),
+                ...rawKeyReqs.map((r: KeyReqRow) => r.item_definition_id),
               ]
               const codeToId = gameId ? await resolveGachaRefCodes(allRawIds, gameId) : {}
-              const pool = rawPool.map((r: { item_definition_id: string; weight: string; quantity_min: string; quantity_max: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
-              const keyReqs = rawKeyReqs.map((r: { item_definition_id: string; quantity: string }) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+              const pool = rawPool.map((r: PoolRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
+              const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }))
               const existingMeta = (existingPack.metadata ?? {}) as Record<string, unknown>
               const llmMeta = (llmData.metadata && typeof llmData.metadata === 'object' && !Array.isArray(llmData.metadata))
                 ? llmData.metadata as Record<string, unknown>
@@ -2467,21 +2476,80 @@ export default function GameItemsPage() {
   }
 
   async function handleGachaSave(closeAfterSave: boolean = true) {
-    if (!gachaForm.name.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
-    const item_pool: GachaPoolEntry[] = gachaForm.pool
+    const name = gachaForm.name.trim()
+    const codeName = gachaForm.code_name.trim()
+    if (!name) {
+      toast({ variant: "destructive", title: t('items.nameRequired') })
+      return
+    }
+    if (codeName && !/^[a-z][a-z0-9_]{0,63}$/.test(codeName)) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Code name must match ^[a-z][a-z0-9_]{0,63}$',
+      })
+      return
+    }
+
+    const poolSource = gachaForm.pool
       .filter((r) => r.item_definition_id.trim())
       .map((r) => ({
-        item_definition_id: r.item_definition_id.trim(),
-        weight: Math.max(1, Number(r.weight) || 1),
-        quantity_min: Math.max(1, Number(r.quantity_min) || 1),
-        quantity_max: Math.max(Number(r.quantity_min) || 1, Number(r.quantity_max) || 1),
+        ...r,
+        item_definition_id: resolveGachaRef(r.item_definition_id.trim(), gachaAllItems),
       }))
-    const key_requirements: KeyRequirement[] = gachaForm.keyReqs
+    const keyReqSource = gachaForm.keyReqs
       .filter((r) => r.item_definition_id.trim())
       .map((r) => ({
-        item_definition_id: r.item_definition_id.trim(),
-        quantity: Math.max(1, Number(r.quantity) || 1),
+        ...r,
+        item_definition_id: resolveGachaRef(r.item_definition_id.trim(), gachaAllItems),
       }))
+
+    if (poolSource.length < 1) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Gacha pack must have at least one reward item.',
+      })
+      return
+    }
+
+    const unresolvedRefs = [...poolSource, ...keyReqSource].filter((r) => r.item_definition_id.startsWith('__REF:'))
+    if (unresolvedRefs.length > 0) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Some referenced item definitions are still unresolved. Please select them manually before saving.',
+      })
+      return
+    }
+
+    const item_pool: GachaPoolEntry[] = poolSource.map((r) => ({
+      item_definition_id: r.item_definition_id,
+      weight: Math.max(1, Number(r.weight) || 1),
+      quantity_min: Math.max(1, Number(r.quantity_min) || 1),
+      quantity_max: Math.max(Number(r.quantity_min) || 1, Number(r.quantity_max) || 1),
+    }))
+    const key_requirements: KeyRequirement[] = keyReqSource.map((r) => ({
+      item_definition_id: r.item_definition_id,
+      quantity: Math.max(1, Number(r.quantity) || 1),
+    }))
+    if (item_pool.some((entry) => entry.weight < 1 || entry.quantity_min < 1 || entry.quantity_max < entry.quantity_min)) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Reward entries must have valid weight and quantity ranges.',
+      })
+      return
+    }
+    if (key_requirements.some((entry) => entry.quantity < 1)) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Key requirement quantities must be at least 1.',
+      })
+      return
+    }
+
     const existingMeta = (editingPack?.metadata ?? {}) as Record<string, unknown>
     const { mailbox_title: _omitTitle, mailbox_body: _omitBody, ...restMeta } = existingMeta
     const metadata: Record<string, unknown> = { ...restMeta }
@@ -2489,13 +2557,29 @@ export default function GameItemsPage() {
       if (gachaForm.mailbox_title.trim()) metadata.mailbox_title = gachaForm.mailbox_title.trim()
       if (gachaForm.mailbox_body.trim()) metadata.mailbox_body = gachaForm.mailbox_body.trim()
     }
+    const countMetadataKeys = (value: unknown): number => {
+      if (!value || typeof value !== 'object') return 0
+      if (Array.isArray(value)) return value.reduce((sum, entry) => sum + countMetadataKeys(entry), 0)
+      return Object.entries(value as Record<string, unknown>).reduce(
+        (sum, [, entry]) => sum + 1 + countMetadataKeys(entry),
+        0,
+      )
+    }
+    if (countMetadataKeys(metadata) > 50) {
+      toast({
+        variant: "destructive",
+        title: t('items.saveFailed'),
+        description: 'Metadata cannot exceed 50 keys in total.',
+      })
+      return
+    }
     setFormSaving(true)
     try {
       const ctx = { gameId }
       if (editingPack) {
         const res = await updateGachaPack(ctx, editingPack.id, {
-          name: gachaForm.name.trim(),
-          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          name,
+          ...(codeName && { code_name: codeName }),
           collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,
@@ -2514,8 +2598,8 @@ export default function GameItemsPage() {
         }
       } else {
         const res = await createGachaPack(ctx, {
-          name: gachaForm.name.trim(),
-          ...(gachaForm.code_name.trim() && { code_name: gachaForm.code_name.trim() }),
+          name,
+          ...(codeName && { code_name: codeName }),
           collect_destination: gachaForm.collect_destination,
           is_enabled: gachaForm.is_enabled,
           item_pool,

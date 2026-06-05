@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "@/hooks/use-toast"
 import { api } from "@/lib/api-client"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 
 // ---------------------------------------------------------------------------
 // Hardcoded packages from guide
@@ -195,6 +196,9 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controll
       setSelectedKey(null)
     }
   }, [open])
+
+  // Keep the purchase sheet above the conversation panel in the Escape stack.
+  useEscapeLayer(open, () => setOpen(false), 1)
 
   async function handleConfirmPurchase() {
     if (!selectedKey) return

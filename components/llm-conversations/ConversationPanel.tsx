@@ -6,9 +6,20 @@ import {
   useState,
 } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bot, Loader2, X } from 'lucide-react'
+import Link from 'next/link'
+import { Bot, ExternalLink, Hammer, Loader2, PackagePlus, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils'
@@ -50,6 +61,7 @@ import {
   lsEquipmentSlotNames,
   lsCraftingRecipeNames,
   lsPendingCraftingRecipeCreate,
+  lsPendingCraftingRecipeEdit,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
   lsPendingEquipmentSlotCreate,
@@ -78,7 +90,8 @@ import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
-import { getCraftingRecipe } from '@/lib/crafting-api'
+import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
+import type { CraftingRecipe } from '@/types/crafting'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -237,6 +250,20 @@ export function LLMConversationPanel() {
   const [savedCraftingRecipeIds, setSavedCraftingRecipeIds] = useState<Record<string, string>>({})
   const [craftingRecipeNames, setCraftingRecipeNames] = useState<Record<string, string>>({})
 
+  // Crafting recipe key conflict dialog (shown when recipe_key already exists in backend)
+  const [craftingRecipeConflictOpen, setCraftingRecipeConflictOpen] = useState(false)
+  const [craftingRecipeConflictExisting, setCraftingRecipeConflictExisting] = useState<CraftingRecipe | null>(null)
+  const [craftingRecipeConflictPending, setCraftingRecipeConflictPending] = useState<{
+    recipe: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    craftingRecipeIdx: number
+  } | null>(null)
+  const [isApplyingCraftingRecipeConflict, setIsApplyingCraftingRecipeConflict] = useState(false)
+  const [craftingRecipeReviewOpen, setCraftingRecipeReviewOpen] = useState(false)
+  const [craftingRecipeReviewData, setCraftingRecipeReviewData] = useState<Record<string, unknown> | null>(null)
+  const [newCraftingRecipeKeyInput, setNewCraftingRecipeKeyInput] = useState('')
+
   // Gacha pack code conflict dialog (shown when code_name already exists in backend)
   const [gachaPackCodeConflictOpen, setGachaPackCodeConflictOpen] = useState(false)
   const [gachaPackCodeConflictExisting, setGachaPackCodeConflictExisting] = useState<GachaPack | null>(null)
@@ -307,7 +334,8 @@ export function LLMConversationPanel() {
 
   // Close panel on Escape — but only when no layered dialog is open.
   // Each registered layer pops one-at-a-time; see hooks/use-escape-manager.ts.
-  useEscapeLayer(isOpen, () => setIsOpen(false))
+  // Keep the conversation itself below any nested dialog/panel layers.
+  useEscapeLayer(isOpen, () => setIsOpen(false), -1)
 
   // Persist completed chat turns for the active conversation
   useEffect(() => {
@@ -1650,6 +1678,93 @@ export function LLMConversationPanel() {
     window.dispatchEvent(new Event('ss:open-buy-tokens'))
   }
 
+  function openCraftingRecipeCreate(recipe: Record<string, unknown>, turnId: string, responseIdx: number, craftingRecipeIdx: number) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      recipe,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeCreate(gameId), JSON.stringify(pending))
+    const params = new URLSearchParams({ tab: 'crafting', create: '1' })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  function mergeCraftingRecipeDraft(existingRecipe: CraftingRecipe, draft: Record<string, unknown>) {
+    const draftMetadata = draft.metadata && typeof draft.metadata === 'object' && !Array.isArray(draft.metadata)
+      ? draft.metadata as Record<string, unknown>
+      : undefined
+    const existingMetadata = existingRecipe.metadata && typeof existingRecipe.metadata === 'object' && !Array.isArray(existingRecipe.metadata)
+      ? existingRecipe.metadata as Record<string, unknown>
+      : {}
+
+    return {
+      ...existingRecipe,
+      ...draft,
+      recipe_key: existingRecipe.recipe_key,
+      inputs: Array.isArray(draft.inputs)
+        ? draft.inputs
+        : existingRecipe.inputs,
+      outputs: Array.isArray(draft.outputs)
+        ? draft.outputs
+        : existingRecipe.outputs,
+      metadata: draftMetadata
+        ? {
+            ...existingMetadata,
+            ...draftMetadata,
+          }
+        : existingMetadata,
+    }
+  }
+
+  function openCraftingRecipeEdit(
+    existingRecipe: CraftingRecipe,
+    recipe: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    craftingRecipeIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      existingRecipe,
+      recipe,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeEdit(gameId), JSON.stringify(pending))
+    const params = new URLSearchParams({ tab: 'crafting', editFromLLM: '1' })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  function openCraftingRecipeReview(
+    existingRecipe: CraftingRecipe,
+    recipe: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    craftingRecipeIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const merged = mergeCraftingRecipeDraft(existingRecipe, recipe)
+    const pending = {
+      existingRecipe,
+      recipe: merged,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeEdit(gameId), JSON.stringify(pending))
+    setCraftingRecipeReviewData(merged)
+    setCraftingRecipeReviewOpen(true)
+  }
+
   async function handleSaveCraftingRecipe(
     recipe: Record<string, unknown>,
     turnId: string,
@@ -1657,27 +1772,101 @@ export function LLMConversationPanel() {
     craftingRecipeIdx: number,
   ) {
     if (!gameId || !activeConvId) return
-    try {
-      // Stage the generated draft for the Crafting tab instead of creating it here.
-      const pending = {
-        recipe,
-        turnId,
-        responseIdx,
-        craftingRecipeIdx,
-        convId: activeConvId,
-        gameId,
-      }
-      safeSetItem(lsPendingCraftingRecipeCreate(gameId), JSON.stringify(pending))
-      const params = new URLSearchParams({ tab: 'crafting', create: '1' })
-      router.push(`/games/${gameId}/items?${params.toString()}`)
-    } catch (err: any) {
+    const recipeKey = typeof recipe.recipe_key === 'string' ? recipe.recipe_key.trim() : ''
+    if (!recipeKey) {
       toast({
         title: t('llmConversation.errorSaveCraftingRecipe'),
-        description: err?.message,
+        description: t('crafting.nameAndKeyRequired'),
         variant: 'destructive',
       })
+      return
+    }
+
+    try {
+      const existing = await getCraftingRecipeByKey({ gameId }, recipeKey, { suppressToast: true })
+      setCraftingRecipeConflictExisting(existing)
+      setCraftingRecipeConflictPending({ recipe, turnId, responseIdx, craftingRecipeIdx })
+      setCraftingRecipeConflictOpen(true)
+    } catch (err: any) {
+      if (err?.status !== 404) {
+        toast({
+          title: t('llmConversation.errorSaveCraftingRecipe'),
+          description: err?.message,
+          variant: 'destructive',
+        })
+        return
+      }
+
+      try {
+        openCraftingRecipeCreate(recipe, turnId, responseIdx, craftingRecipeIdx)
+      } catch (createErr: any) {
+        toast({
+          title: t('llmConversation.errorSaveCraftingRecipe'),
+          description: createErr?.message,
+          variant: 'destructive',
+        })
+      }
     }
   }
+
+  function handleCraftingRecipeConflictUpdate() {
+    if (!craftingRecipeConflictExisting || !craftingRecipeConflictPending) return
+    setIsApplyingCraftingRecipeConflict(true)
+    try {
+      const { recipe, turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+      setCraftingRecipeConflictOpen(false)
+      openCraftingRecipeReview(craftingRecipeConflictExisting, recipe, turnId, responseIdx, craftingRecipeIdx)
+    } finally {
+      setIsApplyingCraftingRecipeConflict(false)
+    }
+  }
+
+  function handleCraftingRecipeConflictCreateNew() {
+    if (!craftingRecipeConflictPending) return
+    const nextRecipeKey = newCraftingRecipeKeyInput.trim()
+    if (!nextRecipeKey) return
+    const { recipe, turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+    setCraftingRecipeConflictOpen(false)
+    setCraftingRecipeConflictExisting(null)
+    setCraftingRecipeConflictPending(null)
+    openCraftingRecipeCreate(
+      {
+        ...recipe,
+        recipe_key: nextRecipeKey,
+      },
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+    )
+  }
+
+  const craftingRecipeConflictDescription = craftingRecipeConflictExisting
+    ? t('llmConversation.craftingRecipeConflictDesc').replace('{key}', craftingRecipeConflictExisting.recipe_key)
+    : ''
+
+  function handleCraftingRecipeReviewConfirm() {
+    if (!craftingRecipeReviewData || !craftingRecipeConflictExisting || !craftingRecipeConflictPending) return
+    const { turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+    setCraftingRecipeReviewOpen(false)
+    openCraftingRecipeEdit(craftingRecipeConflictExisting, craftingRecipeReviewData, turnId, responseIdx, craftingRecipeIdx)
+    setCraftingRecipeReviewData(null)
+    setCraftingRecipeConflictPending(null)
+    setCraftingRecipeConflictExisting(null)
+  }
+
+  function handleCraftingRecipeReviewCancel() {
+    setCraftingRecipeReviewOpen(false)
+    setCraftingRecipeReviewData(null)
+    setCraftingRecipeConflictOpen(true)
+  }
+
+  useEffect(() => {
+    if (craftingRecipeConflictOpen && craftingRecipeConflictExisting?.recipe_key) {
+      setNewCraftingRecipeKeyInput(`${craftingRecipeConflictExisting.recipe_key}_2`)
+    } else if (!craftingRecipeConflictOpen) {
+      setNewCraftingRecipeKeyInput('')
+    }
+  }, [craftingRecipeConflictOpen, craftingRecipeConflictExisting?.recipe_key])
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
 
@@ -2152,6 +2341,137 @@ export function LLMConversationPanel() {
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={craftingRecipeConflictOpen}
+        onOpenChange={(open) => {
+          if (!open && !isApplyingCraftingRecipeConflict) {
+            setCraftingRecipeConflictOpen(false)
+            setCraftingRecipeConflictExisting(null)
+            setCraftingRecipeConflictPending(null)
+          }
+        }}
+      >
+        <DialogContent id="crafting-recipe-conflict-dialog-root">
+          <DialogHeader id="crafting-recipe-conflict-dialog-header">
+            <DialogTitle id="crafting-recipe-conflict-dialog-title">{t('llmConversation.craftingRecipeConflictTitle')}</DialogTitle>
+            <DialogDescription id="crafting-recipe-conflict-dialog-desc">
+              {craftingRecipeConflictDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          {craftingRecipeConflictExisting && (
+            <Link
+              id="crafting-recipe-conflict-existing-link"
+              href={`/games/${gameId}/items?tab=crafting&expanded=${craftingRecipeConflictExisting.id}&noconvpanel=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Hammer id="crafting-recipe-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span id="crafting-recipe-conflict-existing-link-name" className="flex-1 truncate">{craftingRecipeConflictExisting.name}</span>
+              <code id="crafting-recipe-conflict-existing-link-key" className="text-xs bg-muted-foreground/20 px-1 rounded">{craftingRecipeConflictExisting.recipe_key}</code>
+              <ExternalLink id="crafting-recipe-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+
+          <Button
+            id="crafting-recipe-conflict-update-btn"
+            type="button"
+            disabled={isApplyingCraftingRecipeConflict}
+            onClick={handleCraftingRecipeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            {isApplyingCraftingRecipeConflict
+              ? <><Loader2 id="crafting-recipe-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.craftingRecipeConflictUpdating')}</>
+              : <><Hammer id="crafting-recipe-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.craftingRecipeConflictUpdate')}</>
+            }
+          </Button>
+
+          <div id="crafting-recipe-conflict-divider" className="relative flex items-center gap-2">
+            <div id="crafting-recipe-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="crafting-recipe-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="crafting-recipe-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          <div id="crafting-recipe-conflict-save-new-section" className="space-y-2">
+            <Label id="crafting-recipe-conflict-new-key-label" htmlFor="crafting-recipe-conflict-new-key-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.craftingRecipeConflictNewKeyLabel')}
+            </Label>
+            <Input
+              id="crafting-recipe-conflict-new-key-input"
+              value={newCraftingRecipeKeyInput}
+              onChange={(e) => setNewCraftingRecipeKeyInput(e.target.value)}
+              disabled={isApplyingCraftingRecipeConflict}
+              className="font-mono"
+            />
+            <Button
+              id="crafting-recipe-conflict-save-new-btn"
+              type="button"
+              disabled={isApplyingCraftingRecipeConflict || !newCraftingRecipeKeyInput.trim()}
+              onClick={handleCraftingRecipeConflictCreateNew}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <PackagePlus id="crafting-recipe-conflict-save-new-icon" className="h-4 w-4" />
+              {t('llmConversation.craftingRecipeConflictSaveNew')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={craftingRecipeReviewOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCraftingRecipeReviewCancel()
+          }
+        }}
+      >
+        <DialogContent id="crafting-recipe-review-dialog-root" className="max-w-4xl">
+          <DialogHeader id="crafting-recipe-review-dialog-header">
+            <DialogTitle id="crafting-recipe-review-dialog-title">{t('llmConversation.craftingRecipeReviewTitle')}</DialogTitle>
+            <DialogDescription id="crafting-recipe-review-dialog-desc">
+              {t('llmConversation.craftingRecipeReviewDesc')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div id="crafting-recipe-review-json-section" className="space-y-2">
+            <div id="crafting-recipe-review-json-label" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('llmConversation.craftingRecipeReviewJson')}
+            </div>
+            <ScrollArea id="crafting-recipe-review-json-scroll" className="h-[52vh] rounded-md border border-border bg-muted/30">
+              <pre
+                id="crafting-recipe-review-json-preview"
+                className="min-h-full p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-words"
+              >
+                {JSON.stringify(craftingRecipeReviewData ?? {}, null, 2)}
+              </pre>
+            </ScrollArea>
+          </div>
+
+          <div id="crafting-recipe-review-actions" className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              id="crafting-recipe-review-back-btn"
+              type="button"
+              variant="outline"
+              onClick={handleCraftingRecipeReviewCancel}
+              className="sm:min-w-32"
+            >
+              {t('llmConversation.craftingRecipeReviewBack')}
+            </Button>
+            <Button
+              id="crafting-recipe-review-confirm-btn"
+              type="button"
+              onClick={handleCraftingRecipeReviewConfirm}
+              className="sm:min-w-40 inline-flex items-center justify-center gap-2"
+              disabled={!craftingRecipeReviewData || !craftingRecipeConflictExisting || !craftingRecipeConflictPending}
+            >
+              <Hammer id="crafting-recipe-review-confirm-icon" className="h-4 w-4" />
+              {t('llmConversation.craftingRecipeReviewConfirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConversationDialogs
         detailOpen={detailOpen}

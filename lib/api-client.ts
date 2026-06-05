@@ -35,6 +35,7 @@ interface RequestOptions {
   headers?: Record<string, string>
   body?: any
   requireAuth?: boolean
+  suppressToast?: boolean
 }
 
 /**
@@ -49,7 +50,8 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
     method = 'GET',
     headers = {},
     body,
-    requireAuth = true
+    requireAuth = true,
+    suppressToast = false,
   } = options
 
   // Prepare headers
@@ -139,7 +141,7 @@ export async function apiRequest(endpoint: string, options: RequestOptions = {},
       }
 
       // Show toast for all 4xx/5xx errors except 401 (auth-context handles login redirect)
-      if (response.status !== 401) {
+      if (response.status !== 401 && !suppressToast) {
         toast({
           variant: 'destructive',
           title: getErrorTitle(response.status),
@@ -203,4 +205,4 @@ export const api = {
 
   delete: (endpoint: string, options?: Omit<RequestOptions, 'method'>) =>
     apiRequest(endpoint, { ...options, method: 'DELETE' }),
-} 
+}

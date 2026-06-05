@@ -6,14 +6,13 @@ type EscapeHandler = () => void
 
 interface EscapeEntry {
   readonly id: symbol
+  readonly priority: number
   handler: EscapeHandler
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Module-level singleton stack — one global instance for the entire app.
-// Components push when they open and pop when they close.
-// Only the topmost entry receives each Escape press.
-// ─────────────────────────────────────────────────────────────────────────────
+// Higher-priority entries win first; within the same priority, the most
+// recently registered entry wins. This keeps nested dialogs above the parent
+// conversation panel even if React effect ordering changes.
 const _stack: EscapeEntry[] = []
 let _initialized = false
 
@@ -31,7 +30,16 @@ function _ensureGlobalListener(): void {
       // has entries. Radix dialogs / sheets close via controlled `open` props.
       e.stopImmediatePropagation()
 
-      _stack[_stack.length - 1].handler()
+      let topIndex = 0
+      for (let i = 1; i < _stack.length; i += 1) {
+        const entry = _stack[i]
+        const topEntry = _stack[topIndex]
+        if (entry.priority > topEntry.priority || (entry.priority === topEntry.priority && i > topIndex)) {
+          topIndex = i
+        }
+      }
+
+      _stack[topIndex].handler()
     },
     true // capture phase — runs before every bubble-phase listener
   )
@@ -47,7 +55,7 @@ function _ensureGlobalListener(): void {
  * Usage:
  *   useEscapeLayer(isOpen, () => setIsOpen(false))
  */
-export function useEscapeLayer(isOpen: boolean, onClose: () => void): void {
+export function useEscapeLayer(isOpen: boolean, onClose: () => void, priority = 0): void {
   // Keep the handler ref always current so we never need to re-register
   // when `onClose` identity changes between renders.
   const onCloseRef = useRef<EscapeHandler>(onClose)
@@ -61,12 +69,12 @@ export function useEscapeLayer(isOpen: boolean, onClose: () => void): void {
     _ensureGlobalListener()
 
     const id = Symbol('escape-layer')
-    const entry: EscapeEntry = { id, handler: () => onCloseRef.current() }
+    const entry: EscapeEntry = { id, priority, handler: () => onCloseRef.current() }
     _stack.push(entry)
 
     return () => {
       const idx = _stack.findIndex((e) => e.id === id)
       if (idx !== -1) _stack.splice(idx, 1)
     }
-  }, [isOpen])
+  }, [isOpen, priority])
 }

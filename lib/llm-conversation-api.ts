@@ -198,6 +198,31 @@ export interface CraftingRecipePlanningResponse {
   }
 }
 
+export interface GachaPackPlanningAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  item_code?: string
+  item_definition_ids?: string[]
+  depends_on?: number[]
+}
+
+export interface GachaPackPlanningResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: {
+    language?: string
+    summary?: string
+    requires_item_generation?: boolean
+    actions?: GachaPackPlanningAction[]
+    clarification?: string
+  }
+}
+
 export interface DetectIntentHistoryEntry {
   user_prompt: string
   request_type: string
@@ -262,6 +287,7 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     item_modify: 1,
     generator_item_creating: 1,
     container_creating_planning: 2,
+    gacha_pack_creating_planning: 2,
     crafting_recipe_creating_planning: 2,
     crafting_recipe_creating: 3,
   }
@@ -413,6 +439,32 @@ export async function requestCraftingRecipeCreatingPlanning(
   if (options?.history?.length) body.history = options.history
 
   return api.post(`${base(gameId)}/${conversationId}/requests/crafting-recipe-creating-planning`, body)
+}
+
+export async function requestGachaPackCreatingPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    language?: string
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+  },
+): Promise<GachaPackPlanningResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/gacha-pack-creating-planning`, body)
 }
 
 function requestPathForType(requestType: string): string {

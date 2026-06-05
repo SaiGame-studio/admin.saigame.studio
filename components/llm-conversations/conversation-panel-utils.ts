@@ -19,6 +19,7 @@ export const lsContainerNames = (convId: string) => `ss_conv_container_names_${c
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
+export const lsPendingCraftingRecipeEdit = (gameId: string) => `ss_pending_crafting_recipe_edit_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions
