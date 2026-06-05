@@ -19,6 +19,7 @@ export const lsContainerNames = (convId: string) => `ss_conv_container_names_${c
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
+export const lsPendingCraftingRecipeEdit = (gameId: string) => `ss_pending_crafting_recipe_edit_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions
@@ -523,6 +524,7 @@ export const lsPendingEquipmentSlotCreate = (gameId: string) => `ss_pending_equi
 export const lsPendingEquipmentSlotEdit = (gameId: string) => `ss_pending_equipment_slot_edit_${gameId}`
 export const lsCraftingRecipeLinks = (convId: string) => `ss_conv_crafting_recipe_links_${convId}`
 export const lsCraftingRecipeNames = (convId: string) => `ss_conv_crafting_recipe_names_${convId}`
+export const lsPendingCraftingRecipeCreate = (gameId: string) => `ss_pending_crafting_recipe_create_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Parse generated crafting recipes from crafting_recipe_creating response text.

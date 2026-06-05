@@ -6,9 +6,20 @@ import {
   useState,
 } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bot, Loader2, X } from 'lucide-react'
+import Link from 'next/link'
+import { Bot, ExternalLink, Hammer, Loader2, PackagePlus, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n/use-translation'
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils'
@@ -49,6 +60,8 @@ import {
   lsGachaPackNames,
   lsEquipmentSlotNames,
   lsCraftingRecipeNames,
+  lsPendingCraftingRecipeCreate,
+  lsPendingCraftingRecipeEdit,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
   lsPendingEquipmentSlotCreate,
@@ -77,8 +90,8 @@ import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
-import { createCraftingRecipe, getCraftingRecipe } from '@/lib/crafting-api'
-import type { CreateCraftingRecipeRequest } from '@/types/crafting'
+import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
+import type { CraftingRecipe } from '@/types/crafting'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -192,6 +205,8 @@ export function LLMConversationPanel() {
   const [itemCodeConflictTurnId, setItemCodeConflictTurnId] = useState<string | null>(null)
   const [itemCodeConflictResponseIdx, setItemCodeConflictResponseIdx] = useState(0)
   const [itemCodeConflictItemIdx, setItemCodeConflictItemIdx] = useState(0)
+  const [itemCodeConflictReviewOpen, setItemCodeConflictReviewOpen] = useState(false)
+  const [itemCodeConflictReviewData, setItemCodeConflictReviewData] = useState<Record<string, unknown> | null>(null)
   const [isApplyingConflict, setIsApplyingConflict] = useState(false)
 
   // Preset code conflict dialog (shown when code_name already exists in backend)
@@ -236,6 +251,20 @@ export function LLMConversationPanel() {
   // Crafting recipe saved IDs (keyed as "turnId:responseIdx:craftingRecipeIdx")
   const [savedCraftingRecipeIds, setSavedCraftingRecipeIds] = useState<Record<string, string>>({})
   const [craftingRecipeNames, setCraftingRecipeNames] = useState<Record<string, string>>({})
+
+  // Crafting recipe key conflict dialog (shown when recipe_key already exists in backend)
+  const [craftingRecipeConflictOpen, setCraftingRecipeConflictOpen] = useState(false)
+  const [craftingRecipeConflictExisting, setCraftingRecipeConflictExisting] = useState<CraftingRecipe | null>(null)
+  const [craftingRecipeConflictPending, setCraftingRecipeConflictPending] = useState<{
+    recipe: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    craftingRecipeIdx: number
+  } | null>(null)
+  const [isApplyingCraftingRecipeConflict, setIsApplyingCraftingRecipeConflict] = useState(false)
+  const [craftingRecipeReviewOpen, setCraftingRecipeReviewOpen] = useState(false)
+  const [craftingRecipeReviewData, setCraftingRecipeReviewData] = useState<Record<string, unknown> | null>(null)
+  const [newCraftingRecipeKeyInput, setNewCraftingRecipeKeyInput] = useState('')
 
   // Gacha pack code conflict dialog (shown when code_name already exists in backend)
   const [gachaPackCodeConflictOpen, setGachaPackCodeConflictOpen] = useState(false)
@@ -307,7 +336,8 @@ export function LLMConversationPanel() {
 
   // Close panel on Escape — but only when no layered dialog is open.
   // Each registered layer pops one-at-a-time; see hooks/use-escape-manager.ts.
-  useEscapeLayer(isOpen, () => setIsOpen(false))
+  // Keep the conversation itself below any nested dialog/panel layers.
+  useEscapeLayer(isOpen, () => setIsOpen(false), -1)
 
   // Persist completed chat turns for the active conversation
   useEffect(() => {
@@ -737,6 +767,35 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
     return () => window.removeEventListener('ss:equipment-slot-created', handleEquipmentSlotCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful crafting recipe creation triggered from the crafting sheet.
+  useEffect(() => {
+    function handleCraftingRecipeCreated(e: Event) {
+      const detail = (e as CustomEvent<{ id: string; name?: string; turnId: string; responseIdx: number; craftingRecipeIdx: number; convId?: string; gameId?: string }>).detail
+      if (!activeConvId || !gameId) return
+      if (detail.gameId && detail.gameId !== gameId) return
+      if (detail.convId && detail.convId !== activeConvId) return
+
+      const recipeKey = `${detail.turnId}:${detail.responseIdx}:${detail.craftingRecipeIdx}`
+      setSavedCraftingRecipeIds(prev => {
+        const updated = { ...prev, [recipeKey]: detail.id }
+        safeSetItem(lsCraftingRecipeLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      if (detail.name) {
+        setCraftingRecipeNames(prev => {
+          const next = { ...prev, [detail.id]: detail.name! }
+          safeSetItem(lsCraftingRecipeNames(activeConvId!), JSON.stringify(next))
+          return next
+        })
+      }
+      void linkConversationContent(gameId, activeConvId, 'crafting_recipe', detail.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+    }
+    window.addEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
+    return () => window.removeEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
   }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
@@ -1354,7 +1413,7 @@ export function LLMConversationPanel() {
       try {
         const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
         const existing = (res.container_definitions ?? []).find(
-          d => d.name.toLowerCase() === name.toLowerCase()
+          d => d.name.trim() === name
         ) ?? null
         if (existing) {
           setContainerNameConflictExisting(existing)
@@ -1617,6 +1676,97 @@ export function LLMConversationPanel() {
     dispatchCreateEquipmentSlot({ ...slot, slot_key: newSlotKey }, turnId, responseIdx, equipmentSlotIdx)
   }
 
+  function handleBuyTokens() {
+    window.dispatchEvent(new Event('ss:open-buy-tokens'))
+  }
+
+  function openCraftingRecipeCreate(recipe: Record<string, unknown>, turnId: string, responseIdx: number, craftingRecipeIdx: number) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      recipe,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeCreate(gameId), JSON.stringify(pending))
+    const params = new URLSearchParams({ tab: 'crafting', create: '1' })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  function mergeCraftingRecipeDraft(existingRecipe: CraftingRecipe, draft: Record<string, unknown>) {
+    const draftMetadata = draft.metadata && typeof draft.metadata === 'object' && !Array.isArray(draft.metadata)
+      ? draft.metadata as Record<string, unknown>
+      : undefined
+    const existingMetadata = existingRecipe.metadata && typeof existingRecipe.metadata === 'object' && !Array.isArray(existingRecipe.metadata)
+      ? existingRecipe.metadata as Record<string, unknown>
+      : {}
+
+    return {
+      ...existingRecipe,
+      ...draft,
+      recipe_key: existingRecipe.recipe_key,
+      inputs: Array.isArray(draft.inputs)
+        ? draft.inputs
+        : existingRecipe.inputs,
+      outputs: Array.isArray(draft.outputs)
+        ? draft.outputs
+        : existingRecipe.outputs,
+      metadata: draftMetadata
+        ? {
+            ...existingMetadata,
+            ...draftMetadata,
+          }
+        : existingMetadata,
+    }
+  }
+
+  function openCraftingRecipeEdit(
+    existingRecipe: CraftingRecipe,
+    recipe: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    craftingRecipeIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      existingRecipe,
+      recipe,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeEdit(gameId), JSON.stringify(pending))
+    const params = new URLSearchParams({ tab: 'crafting', editFromLLM: '1' })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
+  }
+
+  function openCraftingRecipeReview(
+    existingRecipe: CraftingRecipe,
+    recipe: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    craftingRecipeIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const merged = mergeCraftingRecipeDraft(existingRecipe, recipe)
+    const pending = {
+      existingRecipe,
+      recipe: merged,
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingCraftingRecipeEdit(gameId), JSON.stringify(pending))
+    setCraftingRecipeReviewData(merged)
+    setCraftingRecipeReviewOpen(true)
+  }
+
   async function handleSaveCraftingRecipe(
     recipe: Record<string, unknown>,
     turnId: string,
@@ -1624,93 +1774,101 @@ export function LLMConversationPanel() {
     craftingRecipeIdx: number,
   ) {
     if (!gameId || !activeConvId) return
-
-    try {
-      const linkedItemIds = linkedContent
-        .filter(l => l.content_type === 'item_definition')
-        .map(l => l.content_id)
-
-      const itemResults = await Promise.allSettled(
-        linkedItemIds.map((itemId) => getItemDefinition({ gameId }, itemId))
-      )
-      const itemCodeToId = new Map<string, string>()
-      itemResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const item = result.value.item
-          if (item.item_code) itemCodeToId.set(item.item_code, item.id)
-        }
-      })
-
-      const resolveItemRef = (raw: unknown): string => {
-        const value = typeof raw === 'string' ? raw.trim() : ''
-        const match = value.match(/^__REF:(.+)$/)
-        if (!match) return value
-        const resolved = itemCodeToId.get(match[1])
-        if (!resolved) throw new Error(`Unresolved item reference: ${value}`)
-        return resolved
-      }
-
-      const inputs = Array.isArray(recipe.inputs) ? recipe.inputs : []
-      const outputs = Array.isArray(recipe.outputs) ? recipe.outputs : []
-      const body: CreateCraftingRecipeRequest = {
-        recipe_key: String(recipe.recipe_key ?? '').trim(),
-        name: String(recipe.name ?? '').trim(),
-        description: typeof recipe.description === 'string' ? recipe.description : undefined,
-        category: String(recipe.category ?? 'other').trim() || 'other',
-        success_rate: Number(recipe.success_rate ?? 10000000),
-        bonus_rate: Number(recipe.bonus_rate ?? 0),
-        available_from: typeof recipe.available_from === 'string' ? recipe.available_from : null,
-        available_until: typeof recipe.available_until === 'string' ? recipe.available_until : null,
-        is_active: typeof recipe.is_active === 'boolean' ? recipe.is_active : true,
-        metadata: recipe.metadata && typeof recipe.metadata === 'object' && !Array.isArray(recipe.metadata)
-          ? recipe.metadata as Record<string, unknown>
-          : {},
-        inputs: inputs.map((input) => {
-          const entry = input as Record<string, unknown>
-          return {
-            item_definition_id: resolveItemRef(entry.item_definition_id),
-            quantity: Number(entry.quantity ?? 1),
-            is_consumed: typeof entry.is_consumed === 'boolean' ? entry.is_consumed : true,
-          }
-        }),
-        outputs: outputs.map((output, index) => {
-          const entry = output as Record<string, unknown>
-          return {
-            item_definition_id: resolveItemRef(entry.item_definition_id),
-            quantity_min: Number(entry.quantity_min ?? 1),
-            quantity_max: Number(entry.quantity_max ?? entry.quantity_min ?? 1),
-            output_type: String(entry.output_type ?? 'main'),
-            level_increment: entry.level_increment == null ? null : Number(entry.level_increment),
-            properties_patch: entry.properties_patch && typeof entry.properties_patch === 'object' && !Array.isArray(entry.properties_patch)
-              ? entry.properties_patch as Record<string, unknown>
-              : null,
-            sort_order: Number(entry.sort_order ?? index + 1),
-          }
-        }),
-      }
-
-      const created = await createCraftingRecipe({ gameId }, body)
-      const recipeKey = `${turnId}:${responseIdx}:${craftingRecipeIdx}`
-      const updated = { ...savedCraftingRecipeIds, [recipeKey]: created.id }
-      setSavedCraftingRecipeIds(updated)
-      safeSetItem(lsCraftingRecipeLinks(activeConvId), JSON.stringify(updated))
-      setCraftingRecipeNames(prev => {
-        const next = { ...prev, [created.id]: created.name }
-        safeSetItem(lsCraftingRecipeNames(activeConvId), JSON.stringify(next))
-        return next
-      })
-      void linkConversationContent(gameId, activeConvId, 'crafting_recipe', created.id)
-        .then(() => void loadLinkedContent(gameId, activeConvId))
-        .catch(() => { /* silently ignore */ })
-      toast({ title: t('llmConversation.craftingRecipeSaved') })
-    } catch (err: any) {
+    const recipeKey = typeof recipe.recipe_key === 'string' ? recipe.recipe_key.trim() : ''
+    if (!recipeKey) {
       toast({
         title: t('llmConversation.errorSaveCraftingRecipe'),
-        description: err?.message,
+        description: t('crafting.nameAndKeyRequired'),
         variant: 'destructive',
       })
+      return
+    }
+
+    try {
+      const existing = await getCraftingRecipeByKey({ gameId }, recipeKey, { suppressToast: true })
+      setCraftingRecipeConflictExisting(existing)
+      setCraftingRecipeConflictPending({ recipe, turnId, responseIdx, craftingRecipeIdx })
+      setCraftingRecipeConflictOpen(true)
+    } catch (err: any) {
+      if (err?.status !== 404) {
+        toast({
+          title: t('llmConversation.errorSaveCraftingRecipe'),
+          description: err?.message,
+          variant: 'destructive',
+        })
+        return
+      }
+
+      try {
+        openCraftingRecipeCreate(recipe, turnId, responseIdx, craftingRecipeIdx)
+      } catch (createErr: any) {
+        toast({
+          title: t('llmConversation.errorSaveCraftingRecipe'),
+          description: createErr?.message,
+          variant: 'destructive',
+        })
+      }
     }
   }
+
+  function handleCraftingRecipeConflictUpdate() {
+    if (!craftingRecipeConflictExisting || !craftingRecipeConflictPending) return
+    setIsApplyingCraftingRecipeConflict(true)
+    try {
+      const { recipe, turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+      setCraftingRecipeConflictOpen(false)
+      openCraftingRecipeReview(craftingRecipeConflictExisting, recipe, turnId, responseIdx, craftingRecipeIdx)
+    } finally {
+      setIsApplyingCraftingRecipeConflict(false)
+    }
+  }
+
+  function handleCraftingRecipeConflictCreateNew() {
+    if (!craftingRecipeConflictPending) return
+    const nextRecipeKey = newCraftingRecipeKeyInput.trim()
+    if (!nextRecipeKey) return
+    const { recipe, turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+    setCraftingRecipeConflictOpen(false)
+    setCraftingRecipeConflictExisting(null)
+    setCraftingRecipeConflictPending(null)
+    openCraftingRecipeCreate(
+      {
+        ...recipe,
+        recipe_key: nextRecipeKey,
+      },
+      turnId,
+      responseIdx,
+      craftingRecipeIdx,
+    )
+  }
+
+  const craftingRecipeConflictDescription = craftingRecipeConflictExisting
+    ? t('llmConversation.craftingRecipeConflictDesc').replace('{key}', craftingRecipeConflictExisting.recipe_key)
+    : ''
+
+  function handleCraftingRecipeReviewConfirm() {
+    if (!craftingRecipeReviewData || !craftingRecipeConflictExisting || !craftingRecipeConflictPending) return
+    const { turnId, responseIdx, craftingRecipeIdx } = craftingRecipeConflictPending
+    setCraftingRecipeReviewOpen(false)
+    openCraftingRecipeEdit(craftingRecipeConflictExisting, craftingRecipeReviewData, turnId, responseIdx, craftingRecipeIdx)
+    setCraftingRecipeReviewData(null)
+    setCraftingRecipeConflictPending(null)
+    setCraftingRecipeConflictExisting(null)
+  }
+
+  function handleCraftingRecipeReviewCancel() {
+    setCraftingRecipeReviewOpen(false)
+    setCraftingRecipeReviewData(null)
+    setCraftingRecipeConflictOpen(true)
+  }
+
+  useEffect(() => {
+    if (craftingRecipeConflictOpen && craftingRecipeConflictExisting?.recipe_key) {
+      setNewCraftingRecipeKeyInput(`${craftingRecipeConflictExisting.recipe_key}_2`)
+    } else if (!craftingRecipeConflictOpen) {
+      setNewCraftingRecipeKeyInput('')
+    }
+  }, [craftingRecipeConflictOpen, craftingRecipeConflictExisting?.recipe_key])
 
   const VALID_LORE_TYPES = ['world', 'region', 'faction', 'character', 'item_lore', 'event', 'creature', 'custom']
 
@@ -1925,6 +2083,8 @@ export function LLMConversationPanel() {
           setItemCodeConflictTurnId(turnId)
           setItemCodeConflictResponseIdx(responseIdx)
           setItemCodeConflictItemIdx(itemIdx)
+          setItemCodeConflictReviewOpen(false)
+          setItemCodeConflictReviewData(null)
           setItemCodeConflictOpen(true)
           return
         }
@@ -1941,37 +2101,84 @@ export function LLMConversationPanel() {
     setItemDefReviewOpen(true)
   }
 
+  function buildItemConflictUpdatePayload(
+    existing: ItemDefinition,
+    values: CreateItemInitialValues,
+  ): Record<string, unknown> {
+    const base_stats: Record<string, number> = {}
+    values.stats?.forEach(({ key, value }) => {
+      if (key.trim()) base_stats[key.trim()] = Number(value) || 0
+    })
+
+    const metadata: Record<string, unknown> = { ...(existing.metadata ?? {}) }
+    if (values.description?.trim()) {
+      metadata.description = values.description.trim()
+    }
+
+    if (values.category === 'generator') {
+      const output_pool = (values.gen_output_pool ?? [])
+        .filter((p) => p.item_definition_id.trim())
+        .map((p) => ({
+          item_definition_id: p.item_definition_id.trim(),
+          drop_rate: Number(p.drop_rate) || 1,
+          quantity_min: Number(p.quantity_min) || 1,
+          quantity_max: Number(p.quantity_max) || 1,
+          collect_cap: Number(p.collect_cap) || 5,
+          initial_output: Number(p.initial_output) || 0,
+        }))
+      const generatorConfig: Record<string, unknown> = {
+        production_interval_seconds: Number(values.gen_interval_seconds) || 3600,
+        tick_capacity: Number(values.gen_tick_capacity) || 24,
+        collect_destination: values.gen_collect_destination ?? 'mailbox',
+        output_pool,
+      }
+      metadata.generator_config = generatorConfig
+    } else {
+      delete metadata.generator_config
+    }
+
+    const payload: Record<string, unknown> = {
+      name: values.name?.trim() || existing.name,
+      item_code: values.item_code?.trim() || existing.item_code,
+      category: values.category ?? existing.category,
+      rarity: values.rarity ?? existing.rarity,
+      is_stackable: values.is_stackable ?? existing.is_stackable,
+      grid_width: values.grid_width != null ? Number(values.grid_width) || 1 : existing.grid_width,
+      grid_height: values.grid_height != null ? Number(values.grid_height) || 1 : existing.grid_height,
+      base_stats,
+      metadata,
+      client_writable: values.client_writable ?? existing.client_writable,
+      allow_client_update_qty: values.allow_client_update_qty ?? existing.allow_client_update_qty,
+    }
+
+    if (values.is_stackable === false) {
+      payload.max_stack_size = null
+    } else if (values.max_stack_size != null && values.max_stack_size !== '') {
+      payload.max_stack_size = Number(values.max_stack_size) || null
+    } else {
+      payload.max_stack_size = existing.max_stack_size
+    }
+
+    return payload
+  }
+
+  function openItemCodeConflictReview() {
+    if (!itemCodeConflictExisting || !itemCodeConflictInitialValues) return
+    setItemCodeConflictReviewData(
+      buildItemConflictUpdatePayload(itemCodeConflictExisting, itemCodeConflictInitialValues),
+    )
+    setItemCodeConflictReviewOpen(true)
+  }
+
   /** User chose to update the existing item with SSE data then navigate to it */
   async function handleItemCodeConflictUpdate() {
     if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
-    const values = itemCodeConflictInitialValues
     const existing = itemCodeConflictExisting
-    const patch: Record<string, unknown> = {}
-    if (values.name?.trim())                patch.name = values.name.trim()
-    if (values.item_code !== undefined)     patch.item_code = values.item_code?.trim() || undefined
-    if (values.category)                    patch.category = values.category
-    if (values.rarity)                      patch.rarity = values.rarity
-    if (values.is_stackable !== undefined)  patch.is_stackable = values.is_stackable
-    if (values.max_stack_size != null && values.max_stack_size !== '') {
-      patch.max_stack_size = Number(values.max_stack_size) || null
-    }
-    if (values.grid_width != null)          patch.grid_width = Number(values.grid_width) || 1
-    if (values.grid_height != null)         patch.grid_height = Number(values.grid_height) || 1
-    if (values.client_writable !== undefined)        patch.client_writable = values.client_writable
-    if (values.allow_client_update_qty !== undefined) patch.allow_client_update_qty = values.allow_client_update_qty
-    if (values.stats && values.stats.length > 0) {
-      const base_stats: Record<string, number> = {}
-      values.stats.forEach(({ key, value }) => {
-        if (key.trim()) base_stats[key.trim()] = Number(value) || 0
-      })
-      patch.base_stats = base_stats
-    }
-    if (values.description?.trim()) {
-      patch.metadata = { ...(existing.metadata ?? {}), description: values.description.trim() }
-    }
+    const patch = buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
     setIsApplyingConflict(true)
     try {
       await updateItemDefinition({ gameId }, existing.id, patch)
+      setItemCodeConflictReviewOpen(false)
       setItemCodeConflictOpen(false)
       // Link the updated item to the active conversation
       if (activeConvId) {
@@ -2132,6 +2339,7 @@ export function LLMConversationPanel() {
                   savedEquipmentSlotIds={savedEquipmentSlotIds}
                   savedCraftingRecipeIds={savedCraftingRecipeIds}
                   craftingRecipeNames={craftingRecipeNames}
+                  premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
@@ -2141,6 +2349,7 @@ export function LLMConversationPanel() {
                   onSaveGachaPack={handleSaveGachaPack}
                   onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
                   onSaveCraftingRecipe={handleSaveCraftingRecipe}
+                  onBuyTokens={handleBuyTokens}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
                   onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion}
@@ -2184,6 +2393,137 @@ export function LLMConversationPanel() {
         </div>
       </div>
 
+      <Dialog
+        open={craftingRecipeConflictOpen}
+        onOpenChange={(open) => {
+          if (!open && !isApplyingCraftingRecipeConflict) {
+            setCraftingRecipeConflictOpen(false)
+            setCraftingRecipeConflictExisting(null)
+            setCraftingRecipeConflictPending(null)
+          }
+        }}
+      >
+        <DialogContent id="crafting-recipe-conflict-dialog-root">
+          <DialogHeader id="crafting-recipe-conflict-dialog-header">
+            <DialogTitle id="crafting-recipe-conflict-dialog-title">{t('llmConversation.craftingRecipeConflictTitle')}</DialogTitle>
+            <DialogDescription id="crafting-recipe-conflict-dialog-desc">
+              {craftingRecipeConflictDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          {craftingRecipeConflictExisting && (
+            <Link
+              id="crafting-recipe-conflict-existing-link"
+              href={`/games/${gameId}/items?tab=crafting&expanded=${craftingRecipeConflictExisting.id}&noconvpanel=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Hammer id="crafting-recipe-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span id="crafting-recipe-conflict-existing-link-name" className="flex-1 truncate">{craftingRecipeConflictExisting.name}</span>
+              <code id="crafting-recipe-conflict-existing-link-key" className="text-xs bg-muted-foreground/20 px-1 rounded">{craftingRecipeConflictExisting.recipe_key}</code>
+              <ExternalLink id="crafting-recipe-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+
+          <Button
+            id="crafting-recipe-conflict-update-btn"
+            type="button"
+            disabled={isApplyingCraftingRecipeConflict}
+            onClick={handleCraftingRecipeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            {isApplyingCraftingRecipeConflict
+              ? <><Loader2 id="crafting-recipe-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.craftingRecipeConflictUpdating')}</>
+              : <><Hammer id="crafting-recipe-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.craftingRecipeConflictUpdate')}</>
+            }
+          </Button>
+
+          <div id="crafting-recipe-conflict-divider" className="relative flex items-center gap-2">
+            <div id="crafting-recipe-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="crafting-recipe-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="crafting-recipe-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          <div id="crafting-recipe-conflict-save-new-section" className="space-y-2">
+            <Label id="crafting-recipe-conflict-new-key-label" htmlFor="crafting-recipe-conflict-new-key-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.craftingRecipeConflictNewKeyLabel')}
+            </Label>
+            <Input
+              id="crafting-recipe-conflict-new-key-input"
+              value={newCraftingRecipeKeyInput}
+              onChange={(e) => setNewCraftingRecipeKeyInput(e.target.value)}
+              disabled={isApplyingCraftingRecipeConflict}
+              className="font-mono"
+            />
+            <Button
+              id="crafting-recipe-conflict-save-new-btn"
+              type="button"
+              disabled={isApplyingCraftingRecipeConflict || !newCraftingRecipeKeyInput.trim()}
+              onClick={handleCraftingRecipeConflictCreateNew}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <PackagePlus id="crafting-recipe-conflict-save-new-icon" className="h-4 w-4" />
+              {t('llmConversation.craftingRecipeConflictSaveNew')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={craftingRecipeReviewOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCraftingRecipeReviewCancel()
+          }
+        }}
+      >
+        <DialogContent id="crafting-recipe-review-dialog-root" className="max-w-4xl">
+          <DialogHeader id="crafting-recipe-review-dialog-header">
+            <DialogTitle id="crafting-recipe-review-dialog-title">{t('llmConversation.craftingRecipeReviewTitle')}</DialogTitle>
+            <DialogDescription id="crafting-recipe-review-dialog-desc">
+              {t('llmConversation.craftingRecipeReviewDesc')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div id="crafting-recipe-review-json-section" className="space-y-2">
+            <div id="crafting-recipe-review-json-label" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('llmConversation.craftingRecipeReviewJson')}
+            </div>
+            <ScrollArea id="crafting-recipe-review-json-scroll" className="h-[52vh] rounded-md border border-border bg-muted/30">
+              <pre
+                id="crafting-recipe-review-json-preview"
+                className="min-h-full p-4 text-xs leading-5 text-foreground whitespace-pre-wrap break-words"
+              >
+                {JSON.stringify(craftingRecipeReviewData ?? {}, null, 2)}
+              </pre>
+            </ScrollArea>
+          </div>
+
+          <div id="crafting-recipe-review-actions" className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              id="crafting-recipe-review-back-btn"
+              type="button"
+              variant="outline"
+              onClick={handleCraftingRecipeReviewCancel}
+              className="sm:min-w-32"
+            >
+              {t('llmConversation.craftingRecipeReviewBack')}
+            </Button>
+            <Button
+              id="crafting-recipe-review-confirm-btn"
+              type="button"
+              onClick={handleCraftingRecipeReviewConfirm}
+              className="sm:min-w-40 inline-flex items-center justify-center gap-2"
+              disabled={!craftingRecipeReviewData || !craftingRecipeConflictExisting || !craftingRecipeConflictPending}
+            >
+              <Hammer id="crafting-recipe-review-confirm-icon" className="h-4 w-4" />
+              {t('llmConversation.craftingRecipeReviewConfirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ConversationDialogs
         detailOpen={detailOpen}
         setDetailOpen={setDetailOpen}
@@ -2211,8 +2551,12 @@ export function LLMConversationPanel() {
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}
+        itemCodeConflictReviewOpen={itemCodeConflictReviewOpen}
+        setItemCodeConflictReviewOpen={setItemCodeConflictReviewOpen}
+        itemCodeConflictReviewData={itemCodeConflictReviewData}
         isApplyingConflict={isApplyingConflict}
         onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
+        onItemCodeConflictReview={openItemCodeConflictReview}
         onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
         presetCodeConflictOpen={presetCodeConflictOpen}
         setPresetCodeConflictOpen={setPresetCodeConflictOpen}

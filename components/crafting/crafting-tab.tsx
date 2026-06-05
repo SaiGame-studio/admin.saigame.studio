@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { toSlugUnderscore } from "@/lib/utils"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, RefreshCw, Hammer, ExternalLink, Dices, Save, X, ChevronRight, ChevronDown, Loader2, Check, ChevronsUpDown, Wand2, ArrowDownRight, ArrowUpRight, Pencil, Trash2, History } from "lucide-react"
+import { Plus, RefreshCw, Hammer, ExternalLink, Dices, Save, X, ChevronRight, ChevronDown, Loader2, Check, ChevronsUpDown, Wand2, ArrowDownRight, ArrowUpRight, Pencil, Trash2, History, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -45,9 +45,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { CopyButton } from "@/components/CopyButton"
 import { useToast } from "@/hooks/use-toast"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { safeGetItem, safeRemoveItem } from "@/lib/storage-utils"
 import { listItemDefinitions, type TenantCtx } from "@/lib/inventory-api"
-import { listCraftingRecipes, createCraftingRecipe, getCraftingRecipe, updateCraftingRecipe, deleteCraftingRecipe } from "@/lib/crafting-api"
+import { listCraftingRecipes, createCraftingRecipe, getCraftingRecipe, getCraftingRecipeByKey, updateCraftingRecipe, deleteCraftingRecipe } from "@/lib/crafting-api"
 import type { ItemDefinition, ItemCategory } from "@/types/inventory"
 import type {
   CraftingRecipe,
@@ -56,6 +58,10 @@ import type {
   CraftingRecipeInput,
   CraftingRecipeOutput,
 } from "@/types/crafting"
+import {
+  lsPendingCraftingRecipeCreate,
+  lsPendingCraftingRecipeEdit,
+} from "@/components/llm-conversations/conversation-panel-utils"
 
 function ItemSelector({
   value,
@@ -115,6 +121,94 @@ function ItemSelector({
   )
 }
 
+type PendingCraftingRecipeCreateContext = {
+  turnId: string
+  responseIdx: number
+  craftingRecipeIdx: number
+  convId?: string
+}
+
+function resolveCraftingItemRef(rawId: unknown, items: ItemDefinition[]): string {
+  const value = typeof rawId === "string" ? rawId.trim() : ""
+  if (!value) return ""
+  if (!value.startsWith("__REF:")) return value
+
+  const itemCode = value.slice("__REF:".length).trim()
+  if (!itemCode) return ""
+  const item = items.find((candidate) => candidate.item_code === itemCode)
+  return item?.id ?? ""
+}
+
+function buildCraftingFormFromDraft(
+  draft: Record<string, unknown>,
+  items: ItemDefinition[],
+): {
+  form: CreateCraftingRecipeRequest
+  meta: { key: string; value: string }[]
+} {
+  const inputs = Array.isArray(draft.inputs) ? draft.inputs : []
+  const outputs = Array.isArray(draft.outputs) ? draft.outputs : []
+  const metadata = draft.metadata && typeof draft.metadata === "object" && !Array.isArray(draft.metadata)
+    ? draft.metadata as Record<string, unknown>
+    : {}
+
+  return {
+    form: {
+      recipe_key: typeof draft.recipe_key === "string" ? draft.recipe_key : "",
+      name: typeof draft.name === "string" ? draft.name : "",
+      description: typeof draft.description === "string" ? draft.description : "",
+      category: typeof draft.category === "string" ? draft.category : "other",
+      success_rate: typeof draft.success_rate === "number" ? draft.success_rate : Number(draft.success_rate ?? 10000000),
+      bonus_rate: typeof draft.bonus_rate === "number" ? draft.bonus_rate : Number(draft.bonus_rate ?? 0),
+      available_from: typeof draft.available_from === "string" ? draft.available_from : null,
+      available_until: typeof draft.available_until === "string" ? draft.available_until : null,
+      is_active: typeof draft.is_active === "boolean" ? draft.is_active : true,
+      metadata,
+      inputs: inputs.map((input) => {
+        const entry = input as Record<string, unknown>
+        return {
+          item_definition_id: resolveCraftingItemRef(entry.item_definition_id, items),
+          quantity: Number(entry.quantity ?? 1),
+          is_consumed: typeof entry.is_consumed === "boolean" ? entry.is_consumed : true,
+        }
+      }),
+      outputs: outputs.map((output, index) => {
+        const entry = output as Record<string, unknown>
+        return {
+          item_definition_id: resolveCraftingItemRef(entry.item_definition_id, items),
+          quantity_min: Number(entry.quantity_min ?? 1),
+          quantity_max: Number(entry.quantity_max ?? entry.quantity_min ?? 1),
+          output_type: String(entry.output_type ?? "main"),
+          level_increment: entry.level_increment == null ? null : Number(entry.level_increment),
+          properties_patch: entry.properties_patch && typeof entry.properties_patch === "object" && !Array.isArray(entry.properties_patch)
+            ? entry.properties_patch as Record<string, unknown>
+            : null,
+          sort_order: Number(entry.sort_order ?? index + 1),
+        }
+      }),
+    },
+    meta: Object.entries(metadata).map(([key, value]) => ({ key, value: String(value) })),
+  }
+}
+
+function buildCraftingFormFromRecipe(
+  recipe: CraftingRecipe,
+  items: ItemDefinition[],
+  draft?: Record<string, unknown> | null,
+): {
+  form: CreateCraftingRecipeRequest
+  meta: { key: string; value: string }[]
+} {
+  return buildCraftingFormFromDraft(
+    {
+      ...recipe,
+      ...(draft ?? {}),
+      recipe_key: recipe.recipe_key,
+    },
+    items,
+  )
+}
+
 export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: string }) {
   const { toast } = useToast()
   const { t } = useTranslation()
@@ -127,7 +221,13 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
-  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [recipeKeyQuery, setRecipeKeyQuery] = useState(() => {
+    return searchParams.get("recipeKey") ?? searchParams.get("recipe_key") ?? searchParams.get("key") ?? ""
+  })
+  const [recipeKeyResult, setRecipeKeyResult] = useState<CraftingRecipe | null>(null)
+  const [recipeKeyLoading, setRecipeKeyLoading] = useState(false)
+  const [recipeKeyError, setRecipeKeyError] = useState<string | null>(null)
+  const lastRecipeKeyRef = useRef<string>("")
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(
     () => searchParams.get("expanded")
   )
@@ -209,8 +309,34 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
   const [itemsLoading, setItemsLoading] = useState(false)
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [pendingCreateDraft, setPendingCreateDraft] = useState<Record<string, unknown> | null>(null)
+  const [pendingCreateContext, setPendingCreateContext] = useState<PendingCraftingRecipeCreateContext | null>(null)
+  const [pendingEditDraft, setPendingEditDraft] = useState<Record<string, unknown> | null>(null)
+  const [pendingEditContext, setPendingEditContext] = useState<PendingCraftingRecipeCreateContext | null>(null)
+  const [editingRecipe, setEditingRecipe] = useState<CraftingRecipe | null>(null)
   const [formSaving, setFormSaving] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
+  const editFormHydratedRef = useRef(false)
+
+  function handleCreateClose() {
+    setCreateOpen(false)
+    setPendingCreateDraft(null)
+    setPendingCreateContext(null)
+  }
+
+  function handleEditClose() {
+    setEditOpen(false)
+    setEditingRecipe(null)
+    setPendingEditDraft(null)
+    setPendingEditContext(null)
+    editFormHydratedRef.current = false
+  }
+
+  function handleSheetClose() {
+    handleCreateClose()
+    handleEditClose()
+  }
 
   function getDefaultForm(): CreateCraftingRecipeRequest {
     return {
@@ -236,10 +362,9 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
     try {
       const res = await listCraftingRecipes(
         { gameId },
-        { 
-          page, 
+        {
+          page,
           page_size: pageSize,
-          category: categoryFilter === "all" ? undefined : categoryFilter 
         }
       )
       setRecipes(res.recipes || [])
@@ -249,11 +374,131 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
     } finally {
       setLoading(false)
     }
-  }, [gameId, page, pageSize, categoryFilter])
+  }, [gameId, page, pageSize])
 
   useEffect(() => {
     fetchRecipes()
   }, [fetchRecipes])
+
+  // Auto-open create sheet from URL params, using any pending draft passed by the LLM panel.
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return
+    if (searchParams.get("tab") !== "crafting") return
+
+    const pendingRaw = safeGetItem(lsPendingCraftingRecipeCreate(gameId))
+    if (!pendingRaw) {
+      handleCreateOpen()
+      return
+    }
+
+    try {
+      const pending = JSON.parse(pendingRaw) as {
+        recipe?: Record<string, unknown>
+        turnId?: string
+        responseIdx?: number
+        craftingRecipeIdx?: number
+        convId?: string
+      }
+      if (pending.recipe && typeof pending.recipe === "object") {
+        setPendingCreateDraft(pending.recipe)
+        setPendingCreateContext(
+          pending.turnId && pending.responseIdx != null && pending.craftingRecipeIdx != null
+            ? {
+                turnId: pending.turnId,
+                responseIdx: Number(pending.responseIdx),
+                craftingRecipeIdx: Number(pending.craftingRecipeIdx),
+                convId: pending.convId,
+              }
+            : null
+        )
+      }
+    } catch {
+      // ignore malformed payloads and fall back to an empty sheet
+    } finally {
+      safeRemoveItem(lsPendingCraftingRecipeCreate(gameId))
+      setForm(getDefaultForm())
+      setFormMetaEntries([])
+      setAutoSlug(false)
+      setCreateOpen(true)
+      const nextParams = new URLSearchParams(searchParams.toString())
+      nextParams.delete("create")
+      nextParams.delete("editFromLLM")
+      const nextQuery = nextParams.toString()
+      router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, searchParams, router])
+
+  // Auto-open edit sheet from URL params when the LLM wants to update an existing recipe.
+  useEffect(() => {
+    if (searchParams.get("editFromLLM") !== "1") return
+    if (searchParams.get("tab") !== "crafting") return
+
+    const pendingRaw = safeGetItem(lsPendingCraftingRecipeEdit(gameId))
+    if (!pendingRaw) return
+
+    let shouldOpenEdit = false
+    try {
+      const pending = JSON.parse(pendingRaw) as {
+        existingRecipe?: CraftingRecipe
+        recipe?: Record<string, unknown>
+        turnId?: string
+        responseIdx?: number
+        craftingRecipeIdx?: number
+        convId?: string
+      }
+      if (pending.existingRecipe && typeof pending.existingRecipe === "object") {
+        setEditingRecipe(pending.existingRecipe)
+        setPendingEditDraft(pending.recipe ?? null)
+        setPendingEditContext(
+          pending.turnId && pending.responseIdx != null && pending.craftingRecipeIdx != null
+            ? {
+                turnId: pending.turnId,
+                responseIdx: Number(pending.responseIdx),
+                craftingRecipeIdx: Number(pending.craftingRecipeIdx),
+                convId: pending.convId,
+              }
+            : null
+        )
+        shouldOpenEdit = true
+      }
+    } catch {
+      // Ignore malformed payloads and let the manual edit flow handle it.
+    } finally {
+      safeRemoveItem(lsPendingCraftingRecipeEdit(gameId))
+      if (shouldOpenEdit) {
+        setForm(getDefaultForm())
+        setFormMetaEntries([])
+        setAutoSlug(false)
+        setEditOpen(true)
+        const nextParams = new URLSearchParams(searchParams.toString())
+        nextParams.delete("editFromLLM")
+        nextParams.delete("create")
+        const nextQuery = nextParams.toString()
+        router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, searchParams, router])
+
+  useEffect(() => {
+    if (!createOpen || !pendingCreateDraft || allItems.length === 0) return
+    const { form, meta } = buildCraftingFormFromDraft(pendingCreateDraft, allItems)
+    setForm(form)
+    setFormMetaEntries(meta)
+    setAutoSlug(false)
+    setPendingCreateDraft(null)
+  }, [createOpen, pendingCreateDraft, allItems])
+
+  useEffect(() => {
+    if (!editOpen || !editingRecipe || allItems.length === 0 || editFormHydratedRef.current) return
+    const { form, meta } = buildCraftingFormFromRecipe(editingRecipe, allItems, pendingEditDraft)
+    setForm(form)
+    setFormMetaEntries(meta)
+    setAutoSlug(false)
+    editFormHydratedRef.current = true
+    setPendingEditDraft(null)
+  }, [editOpen, editingRecipe, pendingEditDraft, allItems])
 
   // Reset inline edit state when switching expanded recipe
   useEffect(() => {
@@ -266,20 +511,115 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
 
   // Load all items when creating for the first time or expanding
   useEffect(() => {
-    if ((createOpen || expandedRecipe) && allItems.length === 0 && !itemsLoading) {
+    if ((createOpen || editOpen || expandedRecipe) && allItems.length === 0 && !itemsLoading) {
       setItemsLoading(true)
       listItemDefinitions({ gameId, studioId }, { limit: 1000 })
         .then((res) => setAllItems(res.items ?? []))
         .catch((err) => console.error("Failed to fetch items:", err))
         .finally(() => setItemsLoading(false))
     }
-  }, [createOpen, expandedRecipe, allItems.length, itemsLoading, gameId, studioId])
+  }, [createOpen, editOpen, expandedRecipe, allItems.length, itemsLoading, gameId, studioId])
+
+  useEffect(() => {
+    const key = searchParams.get("recipeKey") ?? searchParams.get("recipe_key") ?? searchParams.get("key") ?? ""
+    setRecipeKeyQuery(key)
+    if (key === lastRecipeKeyRef.current) return
+
+    if (!key.trim()) {
+      lastRecipeKeyRef.current = ""
+      setRecipeKeyResult(null)
+      setRecipeKeyError(null)
+      return
+    }
+
+    void searchCraftingRecipeByKey(key, { updateUrl: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, gameId])
 
   function handleCreateOpen() {
+    setPendingCreateDraft(null)
+    setPendingCreateContext(null)
+    handleEditClose()
     setForm(getDefaultForm())
     setFormMetaEntries([])
     setAutoSlug(true)
     setCreateOpen(true)
+  }
+
+  useEscapeLayer(createOpen || editOpen, handleSheetClose)
+
+  async function searchCraftingRecipeByKey(rawKey: string, options?: { updateUrl?: boolean }) {
+    const key = rawKey.trim()
+    if (!key) {
+      setRecipeKeyQuery("")
+      setRecipeKeyResult(null)
+      setRecipeKeyError(null)
+      setExpandedRecipe(null)
+      lastRecipeKeyRef.current = ""
+      if (options?.updateUrl !== false) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.delete("recipeKey")
+        params.delete("recipe_key")
+        params.delete("key")
+        params.delete("expanded")
+        const query = params.toString()
+        router.replace(query ? `?${query}` : window.location.pathname, { scroll: false })
+      }
+      await fetchRecipes()
+      return
+    }
+
+    setRecipeKeyLoading(true)
+    setRecipeKeyError(null)
+    setRecipeKeyQuery(key)
+    lastRecipeKeyRef.current = key
+    try {
+      const recipe = await getCraftingRecipeByKey({ gameId }, key, { suppressToast: true })
+      setRecipeKeyResult(recipe)
+      setDetailCache(prev => ({ ...prev, [recipe.id]: recipe }))
+      setDetailError(prev => {
+        if (!prev[recipe.id]) return prev
+        const next = { ...prev }
+        delete next[recipe.id]
+        return next
+      })
+      setExpandedRecipe(recipe.id)
+      if (options?.updateUrl !== false) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("recipeKey", key)
+        params.delete("recipe_key")
+        params.delete("key")
+        params.set("expanded", recipe.id)
+        const query = params.toString()
+        router.replace(query ? `?${query}` : window.location.pathname, { scroll: false })
+      }
+    } catch (err: any) {
+      setRecipeKeyResult(null)
+      setExpandedRecipe(null)
+      if (err?.status !== 404) {
+        setRecipeKeyError(err?.message || t('crafting.failedLoadDetails'))
+      } else {
+        setRecipeKeyError(null)
+      }
+    } finally {
+      setRecipeKeyLoading(false)
+    }
+  }
+
+  async function handleRecipeKeySearch() {
+    await searchCraftingRecipeByKey(recipeKeyQuery)
+  }
+
+  async function handleClearRecipeKeySearch() {
+    await searchCraftingRecipeByKey("")
+  }
+
+  async function handleRefreshRecipes() {
+    if (recipeKeyQuery.trim()) {
+      await searchCraftingRecipeByKey(recipeKeyQuery, { updateUrl: false })
+      return
+    }
+    await fetchRecipes()
   }
 
   async function handleFieldSave(recipeId: string) {
@@ -367,6 +707,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
   }
 
   async function handleSaveRecipe() {
+    const failureTitle = editOpen ? t('crafting.updateFailed') : t('crafting.failedToCreate')
     if (!form.name.trim() || !form.recipe_key.trim()) {
       toast({ variant: "destructive", title: t('common.error'), description: t('crafting.nameAndKeyRequired') })
       return
@@ -393,7 +734,7 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
         if (key.trim()) metadata[key.trim()] = value
       })
 
-      const payload: CreateCraftingRecipeRequest = {
+      const basePayload = {
         ...form,
         inputs: validInputs.map(i => ({ ...i, quantity: Number(i.quantity) })),
         outputs: validOutputs.map(o => ({
@@ -407,12 +748,65 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
         metadata,
       }
 
-      await createCraftingRecipe({ gameId }, payload)
-      toast({ title: t('common.success'), description: t('crafting.recipeCreated') })
-      setCreateOpen(false)
+      if (editOpen && editingRecipe) {
+        const payload: UpdateCraftingRecipeRequest = {
+          name: basePayload.name,
+          description: basePayload.description,
+          category: basePayload.category,
+          success_rate: basePayload.success_rate,
+          bonus_rate: basePayload.bonus_rate,
+          is_active: basePayload.is_active,
+          metadata: basePayload.metadata,
+          inputs: basePayload.inputs,
+          outputs: basePayload.outputs,
+        }
+
+        const updated = await updateCraftingRecipe({ gameId }, editingRecipe.id, payload)
+        setRecipes(prev => prev.map(r => r.id === updated.id ? updated : r))
+        setDetailCache(prev => ({ ...prev, [updated.id]: updated }))
+        setRecipeKeyResult(prev => prev?.id === updated.id ? updated : prev)
+        if (expandedRecipe === updated.id) {
+          setExpandedRecipe(updated.id)
+        }
+        toast({ title: t('common.success'), description: t('crafting.recipeUpdated') })
+        handleEditClose()
+        if (pendingEditContext) {
+          window.dispatchEvent(new CustomEvent('ss:crafting-recipe-created', {
+            detail: {
+              id: updated.id,
+              name: updated.name,
+              turnId: pendingEditContext.turnId,
+              responseIdx: pendingEditContext.responseIdx,
+              craftingRecipeIdx: pendingEditContext.craftingRecipeIdx,
+              convId: pendingEditContext.convId,
+              gameId,
+            },
+          }))
+          setPendingEditContext(null)
+        }
+      } else {
+        const payload: CreateCraftingRecipeRequest = basePayload
+        const created = await createCraftingRecipe({ gameId }, payload)
+        toast({ title: t('common.success'), description: t('crafting.recipeCreated') })
+        handleCreateClose()
+        if (pendingCreateContext) {
+          window.dispatchEvent(new CustomEvent('ss:crafting-recipe-created', {
+            detail: {
+              id: created.id,
+              name: created.name,
+              turnId: pendingCreateContext.turnId,
+              responseIdx: pendingCreateContext.responseIdx,
+              craftingRecipeIdx: pendingCreateContext.craftingRecipeIdx,
+              convId: pendingCreateContext.convId,
+              gameId,
+            },
+          }))
+          setPendingCreateContext(null)
+        }
+      }
       fetchRecipes()
     } catch (err: any) {
-      toast({ variant: "destructive", title: t('crafting.failedToCreate'), description: err?.message || t('common.unknown') })
+      toast({ variant: "destructive", title: failureTitle, description: err?.message || t('common.unknown') })
     } finally {
       setFormSaving(false)
     }
@@ -429,34 +823,74 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
     return item ? item.name : id.slice(0, 8) + '...'
   }
 
+  const isRecipeKeySearchActive = recipeKeyQuery.trim() !== "" && lastRecipeKeyRef.current === recipeKeyQuery.trim()
+  const visibleRecipes = isRecipeKeySearchActive
+    ? (recipeKeyResult ? [recipeKeyResult] : [])
+    : recipes
   const totalPages = Math.ceil(total / pageSize)
+  const isRecipeSheetOpen = createOpen || editOpen
+  const recipeSheetSide = "right"
+  const recipeSheetTitle = editOpen ? t('crafting.editRecipeTitle') : t('crafting.newRecipeTitle')
+  const recipeSheetDescription = editOpen ? t('crafting.editRecipeDesc') : t('crafting.newRecipeDesc')
+  const recipeSheetSubmitLabel = editOpen ? t('crafting.updateRecipe') : t('crafting.createRecipe')
 
   return (
     <div className="space-y-4">
       {/* TOOLBAR */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">{t('crafting.title')}</h2>
           <p className="text-sm text-muted-foreground">
-            {total > 0
+            {isRecipeKeySearchActive
+              ? recipeKeyResult
+                ? t('crafting.keySearchFound').replace('{key}', recipeKeyQuery.trim())
+                : t('crafting.keySearchNotFound').replace('{key}', recipeKeyQuery.trim())
+              : total > 0
               ? `${total} ${total !== 1 ? t('crafting.recipesConfigured') : t('crafting.recipeConfigured')}`
               : t('crafting.noRecipesYet')}
           </p>
         </div>
-        <div className="flex gap-2">
-          {/* Category Filter */}
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1) }}
-          >
-            <option value="all">{t('crafting.allCategories')}</option>
-            <option value="weapons">{t('crafting.categoryWeapons')}</option>
-            <option value="armor">{t('crafting.categoryArmor')}</option>
-            <option value="consumables">{t('crafting.categoryConsumables')}</option>
-            <option value="materials">{t('crafting.categoryMaterials')}</option>
-          </select>
-          <Button variant="outline" size="icon" onClick={fetchRecipes} title={t('common.refresh')}>
+        <div className="flex flex-wrap items-end justify-end gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="relative w-[220px] sm:w-[260px]">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={recipeKeyQuery}
+                onChange={(e) => {
+                  const next = e.target.value
+                  setRecipeKeyQuery(next)
+                  if (next.trim() !== lastRecipeKeyRef.current) {
+                    setRecipeKeyError(null)
+                    setRecipeKeyResult(null)
+                    setExpandedRecipe(null)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    void handleRecipeKeySearch()
+                  }
+                }}
+                placeholder={t('crafting.searchByKey')}
+                className="h-8 pl-7 pr-7 text-xs"
+              />
+              {recipeKeyQuery.trim() && (
+                <button
+                  type="button"
+                  onClick={() => void handleClearRecipeKeySearch()}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={t('crafting.clearButton')}
+                  title={t('crafting.clearButton')}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => void handleRecipeKeySearch()} disabled={recipeKeyLoading}>
+              {recipeKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('crafting.searchButton')}
+            </Button>
+          </div>
+          <Button variant="outline" size="icon" onClick={() => void handleRefreshRecipes()} title={t('common.refresh')}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={handleCreateOpen} disabled={!studioId}>
@@ -467,7 +901,18 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       </div>
 
       {/* RECIPE LIST */}
-      {loading ? (
+      {recipeKeyLoading ? (
+        <Card className="border-dashed">
+          <CardContent className="py-16 flex flex-col items-center gap-3 text-center text-muted-foreground">
+            <Loader2 className="h-10 w-10 animate-spin" />
+            <p className="text-sm">{t('crafting.searchingRecipe')}</p>
+          </CardContent>
+        </Card>
+      ) : recipeKeyError ? (
+        <Card className="border-destructive">
+          <CardContent className="pt-6 text-destructive text-sm">{recipeKeyError}</CardContent>
+        </Card>
+      ) : loading && !isRecipeKeySearchActive ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
         </div>
@@ -475,17 +920,23 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
         <Card className="border-destructive">
           <CardContent className="pt-6 text-destructive text-sm">{error}</CardContent>
         </Card>
-      ) : recipes.length === 0 ? (
+      ) : visibleRecipes.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
             <Hammer className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">{t('crafting.noRecipesFound')}</p>
-            <Button onClick={handleCreateOpen}><Plus className="h-4 w-4 mr-2" />{t('crafting.createFirstRecipe')}</Button>
+            <p className="text-muted-foreground">
+              {isRecipeKeySearchActive
+                ? t('crafting.keySearchNoMatch').replace('{key}', recipeKeyQuery.trim())
+                : t('crafting.noRecipesFound')}
+            </p>
+            {!isRecipeKeySearchActive && (
+              <Button onClick={handleCreateOpen}><Plus className="h-4 w-4 mr-2" />{t('crafting.createFirstRecipe')}</Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {recipes.map((recipe) => {
+          {visibleRecipes.map((recipe) => {
             const isExpanded = expandedRecipe === recipe.id
             const detail = detailCache[recipe.id]
             return (
@@ -956,11 +1407,15 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
       )}
 
       {/* CREATE RECIPE SHEET */}
-      <Sheet open={createOpen} onOpenChange={(val) => { if (!val) setCreateOpen(false) }}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-0">
+      <Sheet open={isRecipeSheetOpen} onOpenChange={(val) => {
+        if (!val) {
+          handleSheetClose()
+        }
+      }}>
+        <SheetContent side={recipeSheetSide} className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-0">
           <SheetHeader className="p-6 pb-2 shrink-0">
-            <SheetTitle>{t('crafting.newRecipeTitle')}</SheetTitle>
-            <SheetDescription>{t('crafting.newRecipeDesc')}</SheetDescription>
+            <SheetTitle>{recipeSheetTitle}</SheetTitle>
+            <SheetDescription>{recipeSheetDescription}</SheetDescription>
           </SheetHeader>
           
           <div className="px-6 py-4 flex-1 overflow-y-auto space-y-6 bg-muted/5">
@@ -993,28 +1448,32 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
                     <Input
                       value={form.recipe_key}
                       onChange={e => {
+                        if (editOpen) return
                         setAutoSlug(false)
                         setForm({ ...form, recipe_key: e.target.value })
                       }}
+                      readOnly={editOpen}
                       placeholder={t('crafting.recipeKeyPlaceholder')}
-                      className="font-mono"
+                      className={`font-mono ${editOpen ? "bg-muted/40" : ""}`}
                     />
-                    <Button
-                      type="button"
-                      variant={autoSlug ? "default" : "outline"}
-                      size="icon"
-                      className="shrink-0"
-                      title={autoSlug ? t('crafting.autoSlugOn') : t('crafting.autoSlugOff')}
-                      onClick={() => {
-                        setAutoSlug(true)
-                        setForm({
-                          ...form,
-                          recipe_key: toSlugUnderscore(form.name)
-                        })
-                      }}
-                    >
-                      <Wand2 className="h-4 w-4" />
-                    </Button>
+                    {!editOpen && (
+                      <Button
+                        type="button"
+                        variant={autoSlug ? "default" : "outline"}
+                        size="icon"
+                        className="shrink-0"
+                        title={autoSlug ? t('crafting.autoSlugOn') : t('crafting.autoSlugOff')}
+                        onClick={() => {
+                          setAutoSlug(true)
+                          setForm({
+                            ...form,
+                            recipe_key: toSlugUnderscore(form.name)
+                          })
+                        }}
+                      >
+                        <Wand2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1203,10 +1662,10 @@ export function CraftingTab({ gameId, studioId }: { gameId: string; studioId: st
           </div>
           
           <SheetFooter className="p-4 shrink-0 border-t bg-background">
-            <Button variant="outline" disabled={formSaving} onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="outline" disabled={formSaving} onClick={handleSheetClose}>{t('common.cancel')}</Button>
             <Button disabled={formSaving || itemsLoading} onClick={handleSaveRecipe}>
               {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {t('crafting.createRecipe')}
+              {recipeSheetSubmitLabel}
             </Button>
           </SheetFooter>
         </SheetContent>

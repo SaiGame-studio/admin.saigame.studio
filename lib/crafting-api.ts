@@ -10,7 +10,7 @@ import type {
 } from '@/types/crafting'
 import type { Paginated } from '@/types/inventory'
 
-/** GET /api/v1/games/:gameId/crafting/recipes — List crafting recipes */
+/** GET /api/v1/games/:gameId/crafting/recipes - List crafting recipes */
 export async function listCraftingRecipes(
   ctx: TenantCtx,
   params: ListCraftingRecipesParams = {},
@@ -24,7 +24,7 @@ export async function listCraftingRecipes(
   return api.get(`/api/v1/games/${ctx.gameId}/crafting/recipes${query ? `?${query}` : ''}`)
 }
 
-/** POST /api/v1/games/:gameId/crafting/recipes — Create a crafting recipe */
+/** POST /api/v1/games/:gameId/crafting/recipes - Create a crafting recipe */
 export async function createCraftingRecipe(
   ctx: TenantCtx,
   body: CreateCraftingRecipeRequest,
@@ -32,7 +32,7 @@ export async function createCraftingRecipe(
   return api.post(`/api/v1/games/${ctx.gameId}/crafting/recipes`, body)
 }
 
-/** GET /api/v1/games/:gameId/crafting/recipes/:id — Get full crafting recipe details */
+/** GET /api/v1/games/:gameId/crafting/recipes/:id - Get full crafting recipe details */
 export async function getCraftingRecipe(
   ctx: TenantCtx,
   recipeId: string,
@@ -40,7 +40,18 @@ export async function getCraftingRecipe(
   return api.get(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`)
 }
 
-/** DELETE /api/v1/games/:gameId/crafting/recipes/:id — Delete a crafting recipe */
+/** GET /api/v1/games/:gameId/crafting/recipes-by-key/:recipeKey - Get crafting recipe by recipe_key */
+export async function getCraftingRecipeByKey(
+  ctx: TenantCtx,
+  recipeKey: string,
+  options?: { suppressToast?: boolean },
+): Promise<CraftingRecipe> {
+  return api.get(`/api/v1/games/${ctx.gameId}/crafting/recipes-by-key/${encodeURIComponent(recipeKey)}`, {
+    suppressToast: options?.suppressToast,
+  })
+}
+
+/** DELETE /api/v1/games/:gameId/crafting/recipes/:id - Delete a crafting recipe */
 export async function deleteCraftingRecipe(
   ctx: TenantCtx,
   recipeId: string,
@@ -48,7 +59,7 @@ export async function deleteCraftingRecipe(
   return api.delete(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`)
 }
 
-/** PUT /api/v1/games/:gameId/crafting/recipes/:id — Update a crafting recipe */
+/** PUT /api/v1/games/:gameId/crafting/recipes/:id - Update a crafting recipe */
 export async function updateCraftingRecipe(
   ctx: TenantCtx,
   recipeId: string,
@@ -57,7 +68,7 @@ export async function updateCraftingRecipe(
   return api.put(`/api/v1/games/${ctx.gameId}/crafting/recipes/${recipeId}`, body)
 }
 
-/** GET /api/v1/games/:gameId/crafting/recipes/:recipeId/history — List craft history */
+/** GET /api/v1/games/:gameId/crafting/recipes/:recipeId/history - List craft history */
 export async function listCraftingRecipeHistory(
   ctx: TenantCtx,
   recipeId: string,
