@@ -64,6 +64,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import {
@@ -95,6 +96,8 @@ import {
   ENTITY_RARITY_COLORS,
 } from "@/types/entity-definition"
 import type { Game } from "@/types/game"
+import { lsPendingEntityDefinitionCreate, lsEntityLinks, lsEntityNames } from "@/components/llm-conversations/conversation-panel-utils"
+import { linkConversationContent } from "@/lib/llm-conversation-api"
 
 import { EntityPoolTab } from "./EntityPoolTab"
 
@@ -177,6 +180,30 @@ function entityToForm(e: EntityDefinition): FormState {
     stats: e.stats ? JSON.stringify(e.stats, null, 2) : "",
     abilities: e.abilities ? JSON.stringify(e.abilities, null, 2) : "",
     metadata: e.metadata ? JSON.stringify(e.metadata, null, 2) : "",
+  }
+}
+
+function draftToForm(draft: Record<string, unknown>): FormState {
+  const metadata = draft.metadata && typeof draft.metadata === 'object' && !Array.isArray(draft.metadata)
+    ? (draft.metadata as Record<string, unknown>)
+    : undefined
+  const stats = draft.stats && typeof draft.stats === 'object' && !Array.isArray(draft.stats)
+    ? draft.stats as Record<string, unknown>
+    : undefined
+  const abilities = Array.isArray(draft.abilities) ? draft.abilities : undefined
+  return {
+    entity_key: typeof draft.entity_key === 'string' ? draft.entity_key : "",
+    entity_type: typeof draft.entity_type === 'string' ? draft.entity_type as EntityType : "enemy",
+    name: typeof draft.name === 'string' ? draft.name : "",
+    description: typeof draft.description === 'string'
+      ? draft.description
+      : typeof metadata?.description === 'string'
+        ? String(metadata.description)
+        : "",
+    rarity: typeof draft.rarity === 'string' ? draft.rarity as EntityRarity : "common",
+    stats: stats ? JSON.stringify(stats, null, 2) : "",
+    abilities: abilities ? JSON.stringify(abilities, null, 2) : "",
+    metadata: metadata ? JSON.stringify(metadata, null, 2) : "",
   }
 }
 
@@ -996,6 +1023,48 @@ export default function EntitiesPage() {
     }
   }, [searchParams])
 
+  useEffect(() => {
+    if (!gameId) return
+
+    function consumePendingEntityDraft() {
+      const pendingRaw = safeGetItem(lsPendingEntityDefinitionCreate(gameId))
+      if (!pendingRaw) return
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        safeRemoveItem(lsPendingEntityDefinitionCreate(gameId))
+        openCreateWithForm(draftToForm(detail), {
+          turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+          responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          entityDefinitionIdx: typeof detail.entityDefinitionIdx === 'number' ? detail.entityDefinitionIdx : Number(detail.entityDefinitionIdx ?? 0),
+          convId: typeof detail.convId === 'string' ? detail.convId : '',
+        })
+      } catch {
+        safeRemoveItem(lsPendingEntityDefinitionCreate(gameId))
+      }
+    }
+
+    function handleOpenCreateEntityDefinition(e: Event) {
+      const detail = (e as CustomEvent).detail as Record<string, unknown> | undefined
+      if (!detail) return
+      openCreateWithForm(draftToForm(detail), {
+        turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+        responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        entityDefinitionIdx: typeof detail.entityDefinitionIdx === 'number' ? detail.entityDefinitionIdx : Number(detail.entityDefinitionIdx ?? 0),
+        convId: typeof detail.convId === 'string' ? detail.convId : '',
+      })
+    }
+
+    window.addEventListener('ss:open-create-entity-definition', handleOpenCreateEntityDefinition as EventListener)
+
+    if (searchParams.get("tab") === "entities" && searchParams.get("create") === "1") {
+      consumePendingEntityDraft()
+    }
+
+    return () => {
+      window.removeEventListener('ss:open-create-entity-definition', handleOpenCreateEntityDefinition as EventListener)
+    }
+  }, [gameId, searchParams])
+
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     const newParams = new URLSearchParams(searchParams.toString())
@@ -1031,6 +1100,12 @@ export default function EntitiesPage() {
   const [saving, setSaving] = useState(false)
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({})
   const [autoSlug, setAutoSlug] = useState(true)
+  const [createEntityConvContext, setCreateEntityConvContext] = useState<{
+    turnId: string
+    responseIdx: number
+    entityDefinitionIdx: number
+    convId: string
+  } | undefined>(undefined)
 
   // ── delete dialog ────────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null)
@@ -1135,6 +1210,27 @@ export default function EntitiesPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  function openCreateWithForm(
+    nextForm?: FormState,
+    context?: {
+      turnId: string
+      responseIdx: number
+      entityDefinitionIdx: number
+      convId: string
+    },
+  ) {
+    setForm(nextForm ?? emptyForm())
+    setJsonErrors({})
+    setAutoSlug(!(nextForm?.entity_key?.trim()))
+    setCreateEntityConvContext(context)
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.set("tab", "entities")
+    sp.set("create", "1")
+    sp.delete("editFromLLM")
+    router.replace(`${window.location.pathname}?${sp.toString()}`)
+    setSheetOpen(true)
+  }
+
   function validateJsonField(key: string, value: string): boolean {
     if (!value.trim()) {
       setJsonErrors((prev) => { const n = { ...prev }; delete n[key]; return n })
@@ -1151,10 +1247,7 @@ export default function EntitiesPage() {
   }
 
   function openCreate() {
-    setForm(emptyForm())
-    setJsonErrors({})
-    setAutoSlug(true)
-    setSheetOpen(true)
+    openCreateWithForm()
   }
 
   async function handleSave() {
@@ -1189,6 +1282,49 @@ export default function EntitiesPage() {
       }
       const created = await createEntityDefinition(gameId, body)
       setEntities((prev) => [...prev, created])
+      if (createEntityConvContext?.convId && createEntityConvContext.turnId && createEntityConvContext.responseIdx != null && createEntityConvContext.entityDefinitionIdx != null) {
+        const entityKey = `${createEntityConvContext.turnId}:${createEntityConvContext.responseIdx}:${createEntityConvContext.entityDefinitionIdx}`
+        const convId = createEntityConvContext.convId
+        const existingRaw = safeGetItem(lsEntityLinks(convId))
+        let mapped: Record<string, string> = {}
+        if (existingRaw) {
+          try {
+            mapped = JSON.parse(existingRaw) as Record<string, string>
+          } catch {
+            mapped = {}
+          }
+        }
+        const updated = { ...mapped, [entityKey]: created.id }
+        safeSetItem(lsEntityLinks(convId), JSON.stringify(updated))
+        let namesMap: Record<string, string> = {}
+        const existingNamesRaw = safeGetItem(lsEntityNames(convId))
+        if (existingNamesRaw) {
+          try {
+            namesMap = JSON.parse(existingNamesRaw) as Record<string, string>
+          } catch {
+            namesMap = {}
+          }
+        }
+        safeSetItem(lsEntityNames(convId), JSON.stringify({ ...namesMap, [created.id]: created.name }))
+        void linkConversationContent(gameId, convId, 'entity_definition', created.id)
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('ss:entity-created', {
+              detail: {
+                entityId: created.id,
+                entityName: created.name,
+                turnId: createEntityConvContext.turnId,
+                responseIdx: createEntityConvContext.responseIdx,
+                entityDefinitionIdx: createEntityConvContext.entityDefinitionIdx,
+                convId,
+                gameId,
+              },
+            }))
+            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+              detail: { convId, gameId, contentType: 'entity_definition', contentId: created.id, contentName: created.name },
+            }))
+          })
+          .catch(() => { /* best-effort */ })
+      }
       toast({ title: t('common.added'), description: t('entity.entityCreated').replace('{name}', created.name) })
       setSheetOpen(false)
       // Refresh game data to update usage count
@@ -1455,7 +1591,18 @@ export default function EntitiesPage() {
 
 
       {/* Create / Edit Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open)
+          if (!open) {
+            const sp = new URLSearchParams(searchParams.toString())
+            sp.delete("create")
+            sp.delete("editFromLLM")
+            router.replace(`${window.location.pathname}?${sp.toString()}`)
+          }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('entity.createTitle')}</SheetTitle>

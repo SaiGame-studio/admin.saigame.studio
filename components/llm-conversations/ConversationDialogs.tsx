@@ -202,6 +202,8 @@ export function ConversationDialogs({
   const detailGeneratedItems = convGeneratedItems.length > 0
     ? convGeneratedItems
     : (activeConv?.AccumulatedContent?.items ?? [])
+  const detailGeneratedEntityDefinitions = activeConv?.AccumulatedContent?.entity_definitions ?? []
+  const detailGeneratedRecordCount = detailGeneratedItems.length + detailGeneratedEntityDefinitions.length
 
   // ── Title combobox state ──
   const [titleInput, setTitleInput] = useState('')
@@ -536,7 +538,7 @@ export function ConversationDialogs({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('llmConversation.createRecordsTitle')}</AlertDialogTitle>
             <AlertDialogDescription id="conv-panel-create-records-dialog-desc">
-              {t('llmConversation.createRecordsDesc').replace('{count}', String(activeConv?.AccumulatedContent?.items?.length ?? 0))}
+              {t('llmConversation.createRecordsDesc').replace('{count}', String(detailGeneratedRecordCount))}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

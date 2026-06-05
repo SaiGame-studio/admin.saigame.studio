@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X, Plus } from 'lucide-react'
+import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X, Plus, Shield } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitEntityDefinitionResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -19,6 +19,7 @@ interface ConversationChatHistoryProps {
   savedLoreIds: Record<string, string>
   loreEntryTitles: Record<string, string>
   savedItemDefinitionIds: Record<string, string>
+  savedEntityDefinitionIds: Record<string, string>
   savedPresetDefinitionIds: Record<string, string>
   savedContainerDefinitionIds: Record<string, string>
   savedGachaPackIds: Record<string, string>
@@ -30,6 +31,7 @@ interface ConversationChatHistoryProps {
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
+  onSaveEntityDefinition: (entityDefinition: Record<string, unknown>, turnId: string, responseIdx: number, entityDefinitionIdx: number) => void
   onSavePresetDefinition: (preset: Record<string, unknown>, turnId: string, responseIdx: number, presetIdx: number) => void
   onSaveContainerDefinition: (container: Record<string, unknown>, turnId: string, responseIdx: number, containerIdx: number) => void
   onSaveGachaPack: (pack: Record<string, unknown>, turnId: string, responseIdx: number, gachaPackIdx: number) => void
@@ -249,6 +251,7 @@ export function ConversationChatHistory({
   savedLoreIds,
   loreEntryTitles,
   savedItemDefinitionIds,
+  savedEntityDefinitionIds,
   savedPresetDefinitionIds,
   savedContainerDefinitionIds,
   savedGachaPackIds,
@@ -260,6 +263,7 @@ export function ConversationChatHistory({
   onRetryResponse,
   onOpenLoreReview,
   onSaveItemDefinition,
+  onSaveEntityDefinition,
   onSavePresetDefinition,
   onSaveContainerDefinition,
   onSaveGachaPack,
@@ -309,6 +313,72 @@ export function ConversationChatHistory({
     saveTimerRef.current = setTimeout(() => {
       safeSetItem(lsScrollPos(activeConvId), String(pos))
     }, 300)
+  }
+
+  function renderEntityDefinitionResponse(
+    turn: ChatTurn,
+    response: NonNullable<ChatTurn['responses']>[number],
+    idx: number,
+  ) {
+    const segments = splitEntityDefinitionResponseSegments(response.responseText)
+
+    return (
+      <div id={`conv-panel-ai-response-entity-defs-${turn.id}-${idx}`} className="flex flex-col gap-1">
+        {segments.map((seg, segIdx) => {
+          if (seg.type === 'text') {
+            return (
+              <div key={segIdx} id={`conv-panel-entity-def-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                  {seg.text}
+                </ReactMarkdown>
+              </div>
+            )
+          }
+
+          if (seg.type === 'entityDefinition') {
+            const entityKey = `${turn.id}:${idx}:${seg.entityDefinitionIdx}`
+            const savedEntityId = savedEntityDefinitionIds[entityKey]
+            const entityName = typeof seg.entityDefinition.name === 'string' ? seg.entityDefinition.name : `Entity ${seg.entityDefinitionIdx + 1}`
+            const entityType = typeof seg.entityDefinition.entity_type === 'string' ? seg.entityDefinition.entity_type : ''
+
+            return (
+              <div key={segIdx} id={`conv-panel-entity-def-segment-${turn.id}-${idx}-${seg.entityDefinitionIdx}`} className="flex flex-col gap-1">
+                <div id={`conv-panel-entity-def-segment-json-${turn.id}-${idx}-${seg.entityDefinitionIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                    {seg.text}
+                  </ReactMarkdown>
+                </div>
+                {savedEntityId ? (
+                  <Link
+                    id={`conv-panel-entity-link-${turn.id}-${idx}-${seg.entityDefinitionIdx}`}
+                    href={`/games/${gameId}/entities?expanded=${savedEntityId}`}
+                    className="self-start inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
+                    title={entityName}
+                  >
+                    <Shield className="h-3 w-3 shrink-0" />
+                    <span id={`conv-panel-entity-link-label-${turn.id}-${idx}-${seg.entityDefinitionIdx}`} className="truncate">{t('llmConversation.viewEntityDefinition')}: {entityName}</span>
+                  </Link>
+                ) : (
+                  <button
+                    id={`conv-panel-save-entity-btn-${turn.id}-${idx}-${seg.entityDefinitionIdx}`}
+                    onClick={() => onSaveEntityDefinition(seg.entityDefinition, turn.id, idx, seg.entityDefinitionIdx)}
+                    className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                  >
+                    <Shield className="h-3 w-3" />
+                    <span id={`conv-panel-save-entity-btn-label-${turn.id}-${idx}-${seg.entityDefinitionIdx}`}>{t('llmConversation.saveAsEntityDefinition')}: {entityName}{entityType ? ` (${entityType})` : ''}</span>
+                  </button>
+                )}
+              </div>
+            )
+          }
+
+          return null
+        })}
+        {!response.done && (
+          <Loader2 id={`conv-panel-ai-response-cursor-entity-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+        )}
+      </div>
+    )
   }
 
   return (
@@ -382,7 +452,7 @@ export function ConversationChatHistory({
                           <span className="text-primary font-semibold">
                             {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
                           </span>
-                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation') && response.entityType && (
+                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation' || response.intentType === 'entity_definition_generation') && response.entityType && (
                             <span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded-full bg-muted px-2 py-0.5 text-[10px] normal-case font-medium text-muted-foreground">
                               {response.entityType}
                             </span>
@@ -501,6 +571,8 @@ export function ConversationChatHistory({
                               <Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                             )}
                           </div>
+                        ) : response.intentType === 'entity_definition_generation' ? (
+                          renderEntityDefinitionResponse(turn, response, idx)
                         ) : response.intentType === 'preset_generation' ? (
                           <div id={`conv-panel-ai-response-presets-${turn.id}-${idx}`} className="flex flex-col gap-1">
                             {splitPresetResponseSegments(response.responseText).map((seg, segIdx) =>

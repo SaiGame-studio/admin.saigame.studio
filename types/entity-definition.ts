@@ -2,7 +2,7 @@
  * Entity Definition types — mirrors the SS-GO entity-definitions API
  */
 
-export type EntityType = 'enemy' | 'boss' | 'room' | 'relic' | 'defense_unit' | 'npc'
+export type EntityType = 'enemy' | 'boss' | 'room' | 'relic' | 'defense_unit' | 'npc' | 'other'
 
 export type EntityRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
 
@@ -65,6 +65,7 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   relic: 'Relic',
   defense_unit: 'Defense Unit',
   npc: 'NPC',
+  other: 'Other',
 }
 
 export const ENTITY_RARITY_COLORS: Record<EntityRarity, { text: string; border: string; bg: string }> = {

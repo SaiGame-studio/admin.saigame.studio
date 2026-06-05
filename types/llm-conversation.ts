@@ -15,6 +15,7 @@ export interface Conversation {
 
 export interface AccumulatedContent {
   items?: ItemDraft[]
+  entity_definitions?: EntityDraft[]
   lore?: LoreDraft[]
 }
 
@@ -30,6 +31,19 @@ export interface LoreDraft {
   title: string
   summary?: string
   content: string
+}
+
+export interface EntityDraft {
+  entity_key: string
+  entity_type: string
+  name: string
+  description?: string
+  icon_url?: string
+  rarity?: string
+  stats?: Record<string, unknown>
+  abilities?: Record<string, unknown>[]
+  metadata?: Record<string, unknown>
+  is_active?: boolean
 }
 
 export interface ListConversationsResponse {
@@ -74,6 +88,7 @@ export interface CreateRecordsResponse {
   created_count: number
   item_definition_ids: string[]
   container_definition_ids?: string[]
+  entity_definition_ids?: string[]
 }
 
 export interface CreateLoreRecordsResponse {
