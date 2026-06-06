@@ -51,7 +51,7 @@ export function ConversationLinkedContent({
     const href = isItem
       ? `/games/${gameId}/items/${link.content_id}`
       : isEntity
-        ? `/games/${gameId}/entities?expanded=${link.content_id}`
+        ? `/games/${gameId}/entities?tab=entities&expanded=${link.content_id}`
       : isContainer
         ? `/games/${gameId}/items?tab=containers&q=${link.content_id}`
         : isGachaPack

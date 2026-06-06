@@ -91,7 +91,8 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { getEntityDefinition } from '@/lib/entity-definition-api'
+import { listEntityDefinitions, getEntityDefinition, updateEntityDefinition } from '@/lib/entity-definition-api'
+import type { EntityDefinition, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
@@ -201,6 +202,17 @@ export function LLMConversationPanel() {
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
   const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
   const [entityDefinitionNames, setEntityDefinitionNames] = useState<Record<string, string>>({})
+  const [entityDefinitionConflictOpen, setEntityDefinitionConflictOpen] = useState(false)
+  const [entityDefinitionConflictExisting, setEntityDefinitionConflictExisting] = useState<EntityDefinition | null>(null)
+  const [entityDefinitionConflictReviewOpen, setEntityDefinitionConflictReviewOpen] = useState(false)
+  const [entityDefinitionConflictReviewData, setEntityDefinitionConflictReviewData] = useState<UpdateEntityDefinitionRequest | null>(null)
+  const [entityDefinitionConflictPending, setEntityDefinitionConflictPending] = useState<{
+    entityDefinition: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    entityDefinitionIdx: number
+  } | null>(null)
+  const [isApplyingEntityDefinitionConflict, setIsApplyingEntityDefinitionConflict] = useState(false)
 
   // Tag suggestion — tracks which individual tags have been applied per response
   const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
@@ -579,6 +591,12 @@ export function LLMConversationPanel() {
   // Load active conversation when activeConvId changes
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    setEntityDefinitionConflictOpen(false)
+    setEntityDefinitionConflictExisting(null)
+    setEntityDefinitionConflictReviewOpen(false)
+    setEntityDefinitionConflictReviewData(null)
+    setEntityDefinitionConflictPending(null)
+    setIsApplyingEntityDefinitionConflict(false)
     if (!gameId || !activeConvId) {
       setActiveConv(null)
       setLinkedContent([])
@@ -2085,14 +2103,12 @@ export function LLMConversationPanel() {
     }
   }
 
-  function handleSaveEntityDefinition(
+  function buildEntityDefinitionDraft(
     entityDefinition: Record<string, unknown>,
     turnId: string,
     responseIdx: number,
     entityDefinitionIdx: number,
   ) {
-    if (!gameId) return
-
     const rawMetadata = entityDefinition.metadata
     const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
       ? { ...(rawMetadata as Record<string, unknown>) }
@@ -2105,7 +2121,7 @@ export function LLMConversationPanel() {
       metadata.description = description || metadata.description
     }
 
-    const draft = {
+    return {
       entityDefinition,
       entity_key: typeof entityDefinition.entity_key === 'string' ? entityDefinition.entity_key.trim() : '',
       entity_type: typeof entityDefinition.entity_type === 'string' && entityDefinition.entity_type.trim()
@@ -2127,7 +2143,12 @@ export function LLMConversationPanel() {
       convId: activeConvId,
       gameId,
     }
+  }
 
+  function fireOpenCreateEntityDefinition(
+    draft: ReturnType<typeof buildEntityDefinitionDraft>,
+  ) {
+    if (!gameId) return
     const isOnEntitiesPage = pathname === `/games/${gameId}/entities`
     if (isOnEntitiesPage) {
       window.dispatchEvent(new CustomEvent('ss:open-create-entity-definition', { detail: draft }))
@@ -2135,6 +2156,143 @@ export function LLMConversationPanel() {
       safeSetItem(lsPendingEntityDefinitionCreate(gameId), JSON.stringify(draft))
       router.push(`/games/${gameId}/entities?tab=entities&create=1`)
     }
+  }
+
+  async function handleSaveEntityDefinition(
+    entityDefinition: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    entityDefinitionIdx: number,
+  ) {
+    if (!gameId) return
+
+    const draft = buildEntityDefinitionDraft(entityDefinition, turnId, responseIdx, entityDefinitionIdx)
+    const entityKey = draft.entity_key
+
+    if (entityKey) {
+      try {
+        const results = await listEntityDefinitions(gameId, { search: entityKey })
+        const existing = (results ?? []).find((candidate) => candidate.entity_key === entityKey) ?? null
+        if (existing) {
+          setEntityDefinitionConflictExisting(existing)
+          setEntityDefinitionConflictPending({ entityDefinition, turnId, responseIdx, entityDefinitionIdx })
+          setEntityDefinitionConflictReviewData(buildEntityDefinitionUpdatePayload(existing, entityDefinition))
+          setEntityDefinitionConflictOpen(true)
+          return
+        }
+      } catch {
+        // fall through to create flow on lookup errors
+      }
+    }
+
+    fireOpenCreateEntityDefinition(draft)
+  }
+
+  function buildEntityDefinitionUpdatePayload(
+    existing: EntityDefinition,
+    entityDefinition: Record<string, unknown>,
+  ): UpdateEntityDefinitionRequest {
+    const rawMetadata = entityDefinition.metadata
+    const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
+      ? { ...(existing.metadata ?? {}), ...(rawMetadata as Record<string, unknown>) }
+      : (existing.metadata ? { ...existing.metadata } : undefined)
+    const description =
+      typeof entityDefinition.description === 'string' ? entityDefinition.description.trim()
+      : typeof metadata?.description === 'string' ? String(metadata.description).trim()
+      : existing.description
+    if (metadata) {
+      metadata.description = description || metadata.description
+    }
+
+    const stats = entityDefinition.stats && typeof entityDefinition.stats === 'object' && !Array.isArray(entityDefinition.stats)
+      ? entityDefinition.stats as Record<string, unknown>
+      : existing.stats
+    const abilities = Array.isArray(entityDefinition.abilities)
+      ? entityDefinition.abilities as EntityDefinition['abilities']
+      : existing.abilities
+
+    return {
+      entity_type: typeof entityDefinition.entity_type === 'string' && entityDefinition.entity_type.trim()
+        ? entityDefinition.entity_type.trim() as EntityDefinition['entity_type']
+        : existing.entity_type,
+      name: typeof entityDefinition.name === 'string' && entityDefinition.name.trim()
+        ? entityDefinition.name.trim()
+        : existing.name,
+      description: description ? description : undefined,
+      icon_url: typeof entityDefinition.icon_url === 'string' && entityDefinition.icon_url.trim()
+        ? entityDefinition.icon_url.trim()
+        : existing.icon_url,
+      rarity: typeof entityDefinition.rarity === 'string' && entityDefinition.rarity.trim()
+        ? entityDefinition.rarity.trim() as EntityDefinition['rarity']
+        : existing.rarity,
+      stats,
+      abilities,
+      metadata: metadata && Object.keys(metadata).length > 0 ? metadata : undefined,
+    }
+  }
+
+  function openEntityDefinitionConflictReview() {
+    if (!entityDefinitionConflictExisting || !entityDefinitionConflictPending) return
+    setEntityDefinitionConflictReviewData(
+      buildEntityDefinitionUpdatePayload(entityDefinitionConflictExisting, entityDefinitionConflictPending.entityDefinition),
+    )
+    setEntityDefinitionConflictReviewOpen(true)
+  }
+
+  async function handleEntityDefinitionConflictUpdate(reviewData?: UpdateEntityDefinitionRequest) {
+    if (!entityDefinitionConflictExisting || !entityDefinitionConflictPending || !gameId || !activeConvId) return
+    const { entityDefinition, turnId, responseIdx, entityDefinitionIdx } = entityDefinitionConflictPending
+    setIsApplyingEntityDefinitionConflict(true)
+    try {
+      const payload = reviewData ?? buildEntityDefinitionUpdatePayload(entityDefinitionConflictExisting, entityDefinition)
+      const updated = await updateEntityDefinition(gameId, entityDefinitionConflictExisting.id, payload)
+      const entityKey = `${turnId}:${responseIdx}:${entityDefinitionIdx}`
+      setSavedEntityDefinitionIds(prev => {
+        const next = { ...prev, [entityKey]: updated.id }
+        safeSetItem(lsEntityLinks(activeConvId), JSON.stringify(next))
+        return next
+      })
+      setEntityDefinitionNames(prev => ({ ...prev, [updated.id]: updated.name }))
+      const existingNamesRaw = safeGetItem(lsEntityNames(activeConvId))
+      let existingNames: Record<string, string> = {}
+      if (existingNamesRaw) {
+        try {
+          existingNames = JSON.parse(existingNamesRaw) as Record<string, string>
+        } catch {
+          existingNames = {}
+        }
+      }
+      safeSetItem(lsEntityNames(activeConvId), JSON.stringify({ ...existingNames, [updated.id]: updated.name }))
+      void linkConversationContent(gameId, activeConvId, 'entity_definition', updated.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId))
+        .catch(() => { /* best-effort */ })
+      setEntityDefinitionConflictOpen(false)
+      setEntityDefinitionConflictReviewOpen(false)
+      setEntityDefinitionConflictPending(null)
+      setEntityDefinitionConflictExisting(null)
+      setEntityDefinitionConflictReviewData(null)
+      toast({ title: t('llmConversation.entityDefinitionSaved'), description: updated.name })
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityDefinition'), description: err?.message })
+    } finally {
+      setIsApplyingEntityDefinitionConflict(false)
+    }
+  }
+
+  function handleEntityDefinitionConflictSaveNew(newEntityKey: string) {
+    if (!entityDefinitionConflictPending) return
+    const nextKey = newEntityKey.trim()
+    if (!nextKey) return
+    const { entityDefinition, turnId, responseIdx, entityDefinitionIdx } = entityDefinitionConflictPending
+    setEntityDefinitionConflictOpen(false)
+    setEntityDefinitionConflictExisting(null)
+    setEntityDefinitionConflictPending(null)
+    setEntityDefinitionConflictReviewOpen(false)
+    setEntityDefinitionConflictReviewData(null)
+    fireOpenCreateEntityDefinition({
+      ...buildEntityDefinitionDraft(entityDefinition, turnId, responseIdx, entityDefinitionIdx),
+      entity_key: nextKey,
+    })
   }
 
   async function handleOpenItemDefinitionReview(
@@ -2320,10 +2478,10 @@ export function LLMConversationPanel() {
   }
 
   /** User chose to update the existing item with SSE data then navigate to it */
-  async function handleItemCodeConflictUpdate() {
+  async function handleItemCodeConflictUpdate(reviewData?: Record<string, unknown>) {
     if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
     const existing = itemCodeConflictExisting
-    const patch = buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
+    const patch = reviewData ?? buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
     setIsApplyingConflict(true)
     try {
       await updateItemDefinition({ gameId }, existing.id, patch)
@@ -2700,6 +2858,16 @@ export function LLMConversationPanel() {
         setItemDefReviewOpen={setItemDefReviewOpen}
         itemInitialValues={itemInitialValues}
         onItemDefCreated={handleItemDefCreated}
+        entityDefinitionConflictOpen={entityDefinitionConflictOpen}
+        setEntityDefinitionConflictOpen={setEntityDefinitionConflictOpen}
+        entityDefinitionConflictExisting={entityDefinitionConflictExisting}
+        entityDefinitionConflictReviewOpen={entityDefinitionConflictReviewOpen}
+        setEntityDefinitionConflictReviewOpen={setEntityDefinitionConflictReviewOpen}
+        entityDefinitionConflictReviewData={entityDefinitionConflictReviewData}
+        isApplyingEntityDefinitionConflict={isApplyingEntityDefinitionConflict}
+        onEntityDefinitionConflictUpdate={handleEntityDefinitionConflictUpdate}
+        onEntityDefinitionConflictReview={openEntityDefinitionConflictReview}
+        onEntityDefinitionConflictSaveNew={handleEntityDefinitionConflictSaveNew}
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}

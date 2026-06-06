@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Dices, ExternalLink, Layers, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive } from 'lucide-react'
+import { BookOpen, Dices, ExternalLink, Layers, Loader2, LayoutTemplate, Package, PackagePlus, Search, Archive, Shield } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -13,7 +13,9 @@ import { Label } from '@/components/ui/label'
 import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
+import { listEntityDefinitions } from '@/lib/entity-definition-api'
 import type { LoreEntry } from '@/types/lore'
+import type { EntityDefinition, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
@@ -81,6 +83,17 @@ interface ConversationDialogsProps {
   setItemDefReviewOpen: (v: boolean) => void
   itemInitialValues: CreateItemInitialValues | null
   onItemDefCreated: (itemId: string) => void
+  // Entity definition conflict dialog
+  entityDefinitionConflictOpen: boolean
+  setEntityDefinitionConflictOpen: (v: boolean) => void
+  entityDefinitionConflictExisting: EntityDefinition | null
+  entityDefinitionConflictReviewOpen: boolean
+  setEntityDefinitionConflictReviewOpen: (v: boolean) => void
+  entityDefinitionConflictReviewData: UpdateEntityDefinitionRequest | null
+  isApplyingEntityDefinitionConflict: boolean
+  onEntityDefinitionConflictUpdate: (reviewData: UpdateEntityDefinitionRequest) => void
+  onEntityDefinitionConflictReview: () => void
+  onEntityDefinitionConflictSaveNew: (newEntityKey: string) => void
   // Item code conflict dialog
   itemCodeConflictOpen: boolean
   setItemCodeConflictOpen: (v: boolean) => void
@@ -89,7 +102,7 @@ interface ConversationDialogsProps {
   setItemCodeConflictReviewOpen: (v: boolean) => void
   itemCodeConflictReviewData: Record<string, unknown> | null
   isApplyingConflict: boolean
-  onItemCodeConflictUpdate: () => void
+  onItemCodeConflictUpdate: (reviewData: Record<string, unknown>) => void
   onItemCodeConflictReview: () => void
   onItemCodeConflictSaveNew: (newItemCode: string) => void
   // Preset code conflict dialog
@@ -138,6 +151,22 @@ const MARKDOWN_COMPONENTS = {
   ),
 }
 
+function parseJsonObjectEditor(value: string): { data: Record<string, unknown> | null; error: string | null } {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return { data: null, error: 'Invalid JSON' }
+  }
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { data: parsed as Record<string, unknown>, error: null }
+    }
+    return { data: null, error: 'Invalid JSON' }
+  } catch {
+    return { data: null, error: 'Invalid JSON' }
+  }
+}
+
 export function ConversationDialogs({
   detailOpen,
   setDetailOpen,
@@ -162,6 +191,16 @@ export function ConversationDialogs({
   setItemDefReviewOpen,
   itemInitialValues,
   onItemDefCreated,
+  entityDefinitionConflictOpen,
+  setEntityDefinitionConflictOpen,
+  entityDefinitionConflictExisting,
+  entityDefinitionConflictReviewOpen,
+  setEntityDefinitionConflictReviewOpen,
+  entityDefinitionConflictReviewData,
+  isApplyingEntityDefinitionConflict,
+  onEntityDefinitionConflictUpdate,
+  onEntityDefinitionConflictReview,
+  onEntityDefinitionConflictSaveNew,
   itemCodeConflictOpen,
   setItemCodeConflictOpen,
   itemCodeConflictExisting,
@@ -212,6 +251,12 @@ export function ConversationDialogs({
   const [showTitleDropdown, setShowTitleDropdown] = useState(false)
   const [matchedLoreEntry, setMatchedLoreEntry] = useState<LoreEntry | null>(null)
   const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Entity definition conflict dialog state
+  const [newEntityKeyInput, setNewEntityKeyInput] = useState('')
+  const [newEntityKeyDuplicate, setNewEntityKeyDuplicate] = useState<EntityDefinition | null>(null)
+  const [isCheckingNewEntityKey, setIsCheckingNewEntityKey] = useState(false)
+  const newEntityKeyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Item code conflict dialog state ──
   const [newItemCodeInput, setNewItemCodeInput] = useState('')
@@ -301,6 +346,38 @@ export function ConversationDialogs({
   }, [equipmentSlotKeyConflictOpen, equipmentSlotKeyConflictExisting?.slot_key])
 
   useEffect(() => {
+    if (entityDefinitionConflictOpen && entityDefinitionConflictExisting?.entity_key) {
+      setNewEntityKeyInput(`${entityDefinitionConflictExisting.entity_key}_2`)
+    } else if (!entityDefinitionConflictOpen) {
+      setNewEntityKeyInput('')
+      setNewEntityKeyDuplicate(null)
+    }
+  }, [entityDefinitionConflictOpen, entityDefinitionConflictExisting?.entity_key])
+
+  useEffect(() => {
+    if (newEntityKeyDebounceRef.current) clearTimeout(newEntityKeyDebounceRef.current)
+    const key = newEntityKeyInput.trim()
+    if (!key || !entityDefinitionConflictOpen) {
+      setNewEntityKeyDuplicate(null)
+      setIsCheckingNewEntityKey(false)
+      return
+    }
+    setIsCheckingNewEntityKey(true)
+    newEntityKeyDebounceRef.current = setTimeout(async () => {
+      try {
+        const results = await listEntityDefinitions(gameId, { search: key })
+        const existing = (results ?? []).find((candidate) => candidate.entity_key === key) ?? null
+        setNewEntityKeyDuplicate(existing)
+      } catch {
+        setNewEntityKeyDuplicate(null)
+      } finally {
+        setIsCheckingNewEntityKey(false)
+      }
+    }, 400)
+    return () => { if (newEntityKeyDebounceRef.current) clearTimeout(newEntityKeyDebounceRef.current) }
+  }, [newEntityKeyInput, entityDefinitionConflictOpen, gameId, entityDefinitionConflictExisting?.id])
+
+  useEffect(() => {
     if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
     const code = newPresetCodeInput.trim()
     if (!code || !presetCodeConflictOpen) {
@@ -345,6 +422,29 @@ export function ConversationDialogs({
   useEscapeLayer(equipmentSlotKeyConflictOpen, () => {
     if (!isApplyingEquipmentSlotConflict) { setEquipmentSlotKeyConflictOpen(false); setNewEquipmentSlotKeyInput('') }
   })
+  useEscapeLayer(entityDefinitionConflictReviewOpen, () => setEntityDefinitionConflictReviewOpen(false))
+  useEscapeLayer(entityDefinitionConflictOpen, () => {
+    if (!isApplyingEntityDefinitionConflict) { setEntityDefinitionConflictOpen(false); setNewEntityKeyInput('') }
+  })
+
+  const [entityDefinitionConflictReviewText, setEntityDefinitionConflictReviewText] = useState('')
+  const [itemCodeConflictReviewText, setItemCodeConflictReviewText] = useState('')
+
+  useEffect(() => {
+    if (entityDefinitionConflictReviewOpen) {
+      setEntityDefinitionConflictReviewText(JSON.stringify(entityDefinitionConflictReviewData ?? {}, null, 2))
+    } else {
+      setEntityDefinitionConflictReviewText('')
+    }
+  }, [entityDefinitionConflictReviewOpen, entityDefinitionConflictReviewData])
+
+  useEffect(() => {
+    if (itemCodeConflictReviewOpen) {
+      setItemCodeConflictReviewText(JSON.stringify(itemCodeConflictReviewData ?? {}, null, 2))
+    } else {
+      setItemCodeConflictReviewText('')
+    }
+  }, [itemCodeConflictReviewOpen, itemCodeConflictReviewData])
   // ──────────────────────────────────────────────────────────────────────────
 
   // Sync titleInput when dialog opens and auto-detect if title already matches an existing lore
@@ -673,6 +773,180 @@ export function ConversationDialogs({
         initialValues={itemInitialValues ?? undefined}
       />
 
+      {/* Entity definition conflict dialog */}
+      <Dialog
+        open={entityDefinitionConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingEntityDefinitionConflict) { setEntityDefinitionConflictOpen(false); setNewEntityKeyInput('') } }}
+      >
+        <DialogContent id="entity-definition-conflict-dialog-root">
+          <DialogHeader id="entity-definition-conflict-dialog-header">
+            <DialogTitle id="entity-definition-conflict-dialog-title">{t('llmConversation.entityDefinitionConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="entity-definition-conflict-dialog-body" className="space-y-3">
+            <p id="entity-definition-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.entityDefinitionConflictDesc')
+                .replace('{key}', entityDefinitionConflictExisting?.entity_key ?? '')}
+            </p>
+            {entityDefinitionConflictExisting && (
+              <a
+                id="entity-definition-conflict-existing-link"
+                href={`/games/${gameId}/entities?expanded=${entityDefinitionConflictExisting.id}&noconvpanel=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Shield id="entity-definition-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="entity-definition-conflict-existing-link-name" className="flex-1 truncate">{entityDefinitionConflictExisting.name}</span>
+                <code id="entity-definition-conflict-existing-link-key" className="text-xs bg-muted-foreground/20 px-1 rounded">{entityDefinitionConflictExisting.entity_key}</code>
+                <ExternalLink id="entity-definition-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+          <div id="entity-definition-conflict-actions" className="grid grid-cols-2 gap-2">
+            <button
+              id="entity-definition-conflict-update-btn"
+              type="button"
+              disabled={isApplyingEntityDefinitionConflict}
+              onClick={() => {
+                if (entityDefinitionConflictReviewData) {
+                  onEntityDefinitionConflictUpdate(entityDefinitionConflictReviewData)
+                }
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingEntityDefinitionConflict
+                ? <><Loader2 id="entity-definition-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityDefinitionConflictUpdating')}</>
+                : <><Shield id="entity-definition-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.entityDefinitionConflictUpdate')}</>
+              }
+            </button>
+            <button
+              id="entity-definition-conflict-review-btn"
+              type="button"
+              disabled={isApplyingEntityDefinitionConflict || !entityDefinitionConflictReviewData}
+              onClick={onEntityDefinitionConflictReview}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Search id="entity-definition-conflict-review-icon" className="h-4 w-4" />
+              {t('llmConversation.entityDefinitionConflictReview')}
+            </button>
+          </div>
+          <div id="entity-definition-conflict-divider" className="relative flex items-center gap-2">
+            <div id="entity-definition-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="entity-definition-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="entity-definition-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+          <div id="entity-definition-conflict-create-new-section" className="space-y-2">
+            <Label id="entity-definition-conflict-new-key-label" htmlFor="entity-definition-conflict-new-key-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.entityDefinitionConflictNewKeyLabel')}
+            </Label>
+            <div id="entity-definition-conflict-new-key-input-wrap" className="relative">
+              <Input
+                id="entity-definition-conflict-new-key-input"
+                value={newEntityKeyInput}
+                onChange={(e) => setNewEntityKeyInput(e.target.value)}
+                disabled={isApplyingEntityDefinitionConflict}
+                className={newEntityKeyDuplicate ? 'border-destructive focus-visible:ring-destructive pr-8' : isCheckingNewEntityKey ? 'pr-8' : ''}
+              />
+              {isCheckingNewEntityKey && (
+                <Loader2 id="entity-definition-conflict-new-key-checking-spinner" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {newEntityKeyDuplicate ? (
+              <a
+                id="entity-definition-conflict-new-key-duplicate-link"
+                href={`/games/${gameId}/entities?expanded=${newEntityKeyDuplicate.id}&noconvpanel=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors"
+              >
+                <Shield id="entity-definition-conflict-new-key-duplicate-link-icon" className="h-4 w-4 shrink-0" />
+                <span id="entity-definition-conflict-new-key-duplicate-link-name" className="flex-1 truncate">{newEntityKeyDuplicate.name}</span>
+                <code id="entity-definition-conflict-new-key-duplicate-link-key" className="text-xs bg-destructive/20 px-1 rounded">{newEntityKeyDuplicate.entity_key}</code>
+                <ExternalLink id="entity-definition-conflict-new-key-duplicate-link-ext-icon" className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            ) : (
+              <button
+                id="entity-definition-conflict-save-new-btn"
+                type="button"
+                disabled={isApplyingEntityDefinitionConflict || !newEntityKeyInput.trim() || isCheckingNewEntityKey}
+                onClick={() => { onEntityDefinitionConflictSaveNew(newEntityKeyInput); setNewEntityKeyInput('') }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                <PackagePlus id="entity-definition-conflict-save-new-icon" className="h-4 w-4" />
+                {t('llmConversation.entityDefinitionConflictSaveNew')}
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entity definition conflict review dialog */}
+      <Dialog
+        open={entityDefinitionConflictReviewOpen}
+        onOpenChange={setEntityDefinitionConflictReviewOpen}
+      >
+        <DialogContent id="entity-definition-conflict-review-dialog-root" className="max-w-3xl">
+          <DialogHeader id="entity-definition-conflict-review-dialog-header">
+            <DialogTitle id="entity-definition-conflict-review-dialog-title">{t('llmConversation.entityDefinitionConflictReviewTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="entity-definition-conflict-review-dialog-body" className="space-y-3">
+            <p id="entity-definition-conflict-review-dialog-desc" className="text-sm text-muted-foreground">
+              {t('llmConversation.entityDefinitionConflictReviewDesc')}
+            </p>
+            <div id="entity-definition-conflict-review-json-wrap" className="rounded-md border border-border bg-muted/40">
+              <div id="entity-definition-conflict-review-json-label" className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+                {t('llmConversation.entityDefinitionConflictReviewJson')}
+              </div>
+              {(() => {
+                const parsed = parseJsonObjectEditor(entityDefinitionConflictReviewText)
+                return (
+                  <div id="entity-definition-conflict-review-json-editor" className="space-y-2 px-3 py-3">
+                    <Textarea
+                      id="entity-definition-conflict-review-json"
+                      value={entityDefinitionConflictReviewText}
+                      onChange={(e) => setEntityDefinitionConflictReviewText(e.target.value)}
+                      className="min-h-[420px] font-mono text-xs leading-relaxed"
+                      spellCheck={false}
+                    />
+                    {parsed.error && (
+                      <p id="entity-definition-conflict-review-json-error" className="text-xs text-destructive">
+                        {t('common.invalidJson')}
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+          <DialogFooter id="entity-definition-conflict-review-dialog-footer" className="gap-2 sm:gap-0">
+            <button
+              id="entity-definition-conflict-review-back-btn"
+              type="button"
+              onClick={() => setEntityDefinitionConflictReviewOpen(false)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              {t('llmConversation.entityDefinitionConflictReviewBack')}
+            </button>
+            <button
+              id="entity-definition-conflict-review-update-btn"
+              type="button"
+              disabled={isApplyingEntityDefinitionConflict || parseJsonObjectEditor(entityDefinitionConflictReviewText).error !== null}
+              onClick={() => {
+                const parsed = parseJsonObjectEditor(entityDefinitionConflictReviewText)
+                if (!parsed.data) return
+                onEntityDefinitionConflictUpdate(parsed.data as UpdateEntityDefinitionRequest)
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingEntityDefinitionConflict
+                ? <><Loader2 id="entity-definition-conflict-review-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityDefinitionConflictUpdating')}</>
+                : <><Shield id="entity-definition-conflict-review-update-icon" className="h-4 w-4" />{t('llmConversation.entityDefinitionConflictUpdate')}</>
+              }
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Item code conflict dialog */}
       <Dialog
         open={itemCodeConflictOpen}
@@ -708,7 +982,11 @@ export function ConversationDialogs({
               id="item-code-conflict-update-btn"
               type="button"
               disabled={isApplyingConflict}
-              onClick={onItemCodeConflictUpdate}
+              onClick={() => {
+                if (itemCodeConflictReviewData) {
+                  onItemCodeConflictUpdate(itemCodeConflictReviewData)
+                }
+              }}
               className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             >
               {isApplyingConflict
@@ -797,12 +1075,25 @@ export function ConversationDialogs({
               <div id="item-code-conflict-review-json-label" className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
                 {t('llmConversation.itemCodeConflictReviewJson')}
               </div>
-              <pre
-                id="item-code-conflict-review-json"
-                className="max-h-[50vh] overflow-auto px-3 py-3 text-xs leading-relaxed whitespace-pre-wrap break-words"
-              >
-                {JSON.stringify(itemCodeConflictReviewData ?? {}, null, 2)}
-              </pre>
+              {(() => {
+                const parsed = parseJsonObjectEditor(itemCodeConflictReviewText)
+                return (
+                  <div id="item-code-conflict-review-json-editor" className="space-y-2 px-3 py-3">
+                    <Textarea
+                      id="item-code-conflict-review-json"
+                      value={itemCodeConflictReviewText}
+                      onChange={(e) => setItemCodeConflictReviewText(e.target.value)}
+                      className="min-h-[420px] font-mono text-xs leading-relaxed"
+                      spellCheck={false}
+                    />
+                    {parsed.error && (
+                      <p id="item-code-conflict-review-json-error" className="text-xs text-destructive">
+                        {t('common.invalidJson')}
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
           <DialogFooter id="item-code-conflict-review-dialog-footer" className="gap-2 sm:gap-0">
@@ -817,8 +1108,12 @@ export function ConversationDialogs({
             <button
               id="item-code-conflict-review-update-btn"
               type="button"
-              disabled={isApplyingConflict || !itemCodeConflictReviewData}
-              onClick={onItemCodeConflictUpdate}
+              disabled={isApplyingConflict || parseJsonObjectEditor(itemCodeConflictReviewText).error !== null}
+              onClick={() => {
+                const parsed = parseJsonObjectEditor(itemCodeConflictReviewText)
+                if (!parsed.data) return
+                onItemCodeConflictUpdate(parsed.data)
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             >
               {isApplyingConflict

@@ -5,7 +5,7 @@ import { toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
-  Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft,
+  Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft, Bot,
   ChevronRight, ChevronDown, Wand2, Hammer, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -62,6 +62,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
 import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils"
@@ -96,8 +97,8 @@ import {
   ENTITY_RARITY_COLORS,
 } from "@/types/entity-definition"
 import type { Game } from "@/types/game"
-import { lsPendingEntityDefinitionCreate, lsEntityLinks, lsEntityNames } from "@/components/llm-conversations/conversation-panel-utils"
-import { linkConversationContent } from "@/lib/llm-conversation-api"
+import { lsPendingEntityDefinitionCreate, lsEntityLinks, lsEntityNames, lsActiveConv } from "@/components/llm-conversations/conversation-panel-utils"
+import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api"
 
 import { EntityPoolTab } from "./EntityPoolTab"
 
@@ -1014,6 +1015,8 @@ export default function EntitiesPage() {
   const { t } = useTranslation()
 
   const [activeTab, setActiveTab] = useState("entities")
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
+  const [convActiveId, setConvActiveId] = useState<string | null>(null)
 
   // initialize tab from URL params
   useEffect(() => {
@@ -1022,6 +1025,21 @@ export default function EntitiesPage() {
       setActiveTab(tab)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    function readConvState() {
+      setConvPanelOpen(safeGetItem('ss_conv_panel_open') === 'true')
+      setConvActiveId(safeGetItem(lsActiveConv(gameId)) ?? null)
+    }
+    readConvState()
+    const handler = () => readConvState()
+    window.addEventListener('storage', handler)
+    window.addEventListener('ss:conv-state-changed', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+      window.removeEventListener('ss:conv-state-changed', handler)
+    }
+  }, [gameId])
 
   useEffect(() => {
     if (!gameId) return
@@ -1087,11 +1105,11 @@ export default function EntitiesPage() {
 
   // Sync search from URL params (e.g. navigating from pool tab link)
   useEffect(() => {
+    const urlExpanded = searchParams.get("expanded") ?? ""
     const urlSearch = searchParams.get("search") ?? ""
-    if (urlSearch && urlSearch !== searchQuery) {
-      setSearchInput(urlSearch)
-      setSearchQuery(urlSearch)
-    }
+    const nextSearch = urlExpanded || urlSearch
+    setSearchInput((prev) => (prev === nextSearch ? prev : nextSearch))
+    setSearchQuery((prev) => (prev === nextSearch ? prev : nextSearch))
   }, [searchParams])
 
   // ── create sheet state ───────────────────────────────────────────────────────
@@ -1106,8 +1124,12 @@ export default function EntitiesPage() {
     entityDefinitionIdx: number
     convId: string
   } | undefined>(undefined)
+  const [linkingEntityId, setLinkingEntityId] = useState<string | null>(null)
 
   // ── delete dialog ────────────────────────────────────────────────────────────
+  // Keep the create/edit sheet above the conversation panel in the Escape stack.
+  useEscapeLayer(sheetOpen, () => setSheetOpen(false), 1)
+
   const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -1118,16 +1140,16 @@ export default function EntitiesPage() {
   const [detailCache, setDetailCache] = useState<Record<string, EntityDefinition | "loading" | "error">>({}
   )
 
-  // On mount: if URL already has ?expanded=..., kick off its detail fetch
+  // Keep expanded row in sync with URL changes so linked-content navigation opens the row directly.
   useEffect(() => {
     const id = searchParams.get("expanded")
-    if (!id) return
+    setExpandedId(id)
+    if (!id || detailCache[id] === 'loading' || (detailCache[id] && detailCache[id] !== 'error')) return
     setDetailCache((prev) => ({ ...prev, [id]: "loading" }))
     getEntityDefinition(gameId, id)
       .then((detail) => setDetailCache((prev) => ({ ...prev, [id]: detail })))
       .catch(() => setDetailCache((prev) => ({ ...prev, [id]: "error" })))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [gameId, searchParams, detailCache])
 
   function toggleExpand(entity: EntityDefinition) {
     const next = expandedId === entity.id ? null : entity.id
@@ -1203,6 +1225,12 @@ export default function EntitiesPage() {
   function clearSearch() {
     setSearchInput("")
     setSearchQuery("")
+    setExpandedId(null)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.delete("search")
+    newParams.delete("expanded")
+    const qs = newParams.toString()
+    router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
   }
 
   // ── form helpers ─────────────────────────────────────────────────────────────
@@ -1248,6 +1276,35 @@ export default function EntitiesPage() {
 
   function openCreate() {
     openCreateWithForm()
+  }
+
+  async function handleLinkEntityToConversation(entity: EntityDefinition) {
+    setLinkingEntityId(entity.id)
+    try {
+      let convId: string | null = safeGetItem(lsActiveConv(gameId))
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Entity: ${entity.name}`,
+          goal: t('entity.linkToConvGoal').replace('{name}', entity.name),
+        })
+        convId = newConv.ID
+      }
+      safeSetItem(lsActiveConv(gameId), convId)
+      await linkConversationContent(gameId, convId, 'entity_definition', entity.id)
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+        detail: { convId, gameId, contentType: 'entity_definition', contentId: entity.id, contentName: entity.name },
+      }))
+      toast({ title: t('entity.linkToConvSuccess'), description: entity.name })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('entity.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingEntityId(null)
+    }
   }
 
   async function handleSave() {
@@ -1430,9 +1487,9 @@ export default function EntitiesPage() {
         <TabsContent value="entities" className="space-y-4">
           <TooltipProvider>
             {/* Entities Tab Toolbar */}
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-                <div className="relative flex-1">
+            <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
+              <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
+                <div className="relative w-full max-w-[50%] min-w-[180px]">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t('entity.searchPlaceholder')}
@@ -1476,6 +1533,7 @@ export default function EntitiesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {convPanelOpen && convActiveId && <TableHead className="w-[56px]"></TableHead>}
                     <TableHead className="w-[50px]"></TableHead>
                     <TableHead>{t('entity.thName')}</TableHead>
                     <TableHead className="w-[200px]">{t('entity.thKey')}</TableHead>
@@ -1489,12 +1547,12 @@ export default function EntitiesPage() {
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell>
+                        <TableCell colSpan={convPanelOpen && convActiveId ? 8 : 7}><Skeleton className="h-12 w-full" /></TableCell>
                       </TableRow>
                     ))
                   ) : entities.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={convPanelOpen && convActiveId ? 8 : 7} className="h-32 text-center text-muted-foreground">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Skull className="h-8 w-8 opacity-20" />
                           <p>{searchQuery ? t('entity.noEntitiesFound') : t('entity.createFirstEntity')}</p>
@@ -1513,6 +1571,28 @@ export default function EntitiesPage() {
                               className={`group cursor-pointer hover:bg-muted/50 ${isExpanded ? "bg-muted/30" : ""}`}
                               onClick={() => toggleExpand(entity)}
                             >
+                              {convPanelOpen && convActiveId && (
+                                <TableCell>
+                                  <Button
+                                    id={`entity-row-${entity.id}-link-conv-btn`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                                    disabled={linkingEntityId === entity.id}
+                                    title={t('entity.linkToConv')}
+                                    onClick={(e) => { e.stopPropagation(); void handleLinkEntityToConversation(entity) }}
+                                  >
+                                    {linkingEntityId === entity.id
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : (
+                                        <span id={`entity-row-${entity.id}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                                          <Bot className="h-3.5 w-3.5" />
+                                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                                        </span>
+                                      )}
+                                  </Button>
+                                </TableCell>
+                              )}
                               <TableCell>
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                               </TableCell>
