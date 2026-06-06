@@ -18,6 +18,8 @@ export const lsItemNames = (convId: string) => `ss_conv_item_names_${convId}`
 export const lsEntityNames = (convId: string) => `ss_conv_entity_names_${convId}`
 export const lsPresetNames = (convId: string) => `ss_conv_preset_names_${convId}`
 export const lsContainerNames = (convId: string) => `ss_conv_container_names_${convId}`
+export const lsEntityPoolLinks = (convId: string) => `ss_conv_entity_pool_links_${convId}`
+export const lsEntityPoolNames = (convId: string) => `ss_conv_entity_pool_names_${convId}`
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
@@ -190,6 +192,7 @@ export type ResponseSegment =
   | { type: 'gachaPack'; text: string; gachaPack: Record<string, unknown>; gachaPackIdx: number }
   | { type: 'equipmentSlot'; text: string; equipmentSlot: Record<string, unknown>; equipmentSlotIdx: number }
   | { type: 'craftingRecipe'; text: string; craftingRecipe: Record<string, unknown>; craftingRecipeIdx: number }
+  | { type: 'entityPool'; text: string; entityPool: Record<string, unknown>; entityPoolIdx: number }
 
 export function splitItemResponseSegments(text: string): ResponseSegment[] {
   const looksLikeItem = (obj: Record<string, unknown>) =>
@@ -326,6 +329,83 @@ export function splitEntityDefinitionResponseSegments(text: string): ResponseSeg
       text: text.slice(boundary.start, boundary.end),
       entityDefinition: boundary.entityDefinition,
       entityDefinitionIdx: entityDefinitionIdx++,
+    })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
+
+export function splitEntityPoolResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeEntityPool = (obj: Record<string, unknown>) =>
+    typeof obj.pool_key === 'string' &&
+    typeof obj.name === 'string' &&
+    Array.isArray(obj.entries)
+
+  const boundaries: Array<{ start: number; end: number; entityPool: Record<string, unknown> }> = []
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeEntityPool(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, entityPool: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeEntityPool(obj)) boundaries.push({ start, end: i + 1, entityPool: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let entityPoolIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({
+      type: 'entityPool',
+      text: text.slice(boundary.start, boundary.end),
+      entityPool: boundary.entityPool,
+      entityPoolIdx: entityPoolIdx++,
     })
     lastEnd = boundary.end
   }
@@ -604,6 +684,73 @@ export const lsCraftingRecipeLinks = (convId: string) => `ss_conv_crafting_recip
 export const lsCraftingRecipeNames = (convId: string) => `ss_conv_crafting_recipe_names_${convId}`
 export const lsPendingCraftingRecipeCreate = (gameId: string) => `ss_pending_crafting_recipe_create_${gameId}`
 export const lsPendingEntityDefinitionCreate = (gameId: string) => `ss_pending_entity_definition_create_${gameId}`
+
+// ---------------------------------------------------------------------------
+// Parse generated entity pools from entity_pool_creating response text.
+// Each pool is emitted as its own fenced JSON block or bare JSON object.
+// ---------------------------------------------------------------------------
+
+export function parseGeneratedEntityPoolsResponse(text: string): unknown[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const looksLikeEntityPool = (obj: Record<string, unknown>) =>
+    typeof obj.pool_key === 'string' &&
+    typeof obj.name === 'string' &&
+    Array.isArray(obj.entries)
+
+  const tryParse = (input: string): unknown[] | null => {
+    try {
+      const parsed: unknown = JSON.parse(input)
+      if (Array.isArray(parsed)) {
+        const pools = parsed.filter((el) => el && typeof el === 'object' && looksLikeEntityPool(el as Record<string, unknown>))
+        if (pools.length > 0) return pools
+        return parsed
+      }
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        if (Array.isArray(record.pools)) return record.pools
+        if (Array.isArray(record.generated_pools)) return record.generated_pools
+        if (looksLikeEntityPool(record)) return [record]
+      }
+    } catch {
+      // ignore parse failures
+    }
+    return null
+  }
+
+  const direct = tryParse(trimmed)
+  if (direct) return direct
+
+  const fencedBlocks = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)).map((m) => m[1].trim())
+  const fencedPools: unknown[] = []
+  for (const block of fencedBlocks) {
+    const parsed = tryParse(block)
+    if (parsed) fencedPools.push(...parsed)
+  }
+  if (fencedPools.length > 0) return fencedPools
+
+  const arrayCandidate = trimmed.match(/\[[\s\S]*\]/)
+  if (arrayCandidate) {
+    const parsed = tryParse(arrayCandidate[0])
+    if (parsed) return parsed
+  }
+
+  const extracted = extractTopLevelJsonObjects(trimmed)
+  if (extracted.length > 0) {
+    const pools = extracted.filter((el) => el && typeof el === 'object' && !Array.isArray(el) && looksLikeEntityPool(el as Record<string, unknown>))
+    if (pools.length > 0) return pools
+    if (extracted.length > 1) return extracted
+  }
+
+  const objectCandidate = trimmed.match(/\{[\s\S]*\}/)
+  if (objectCandidate) {
+    const parsed = tryParse(objectCandidate[0])
+    if (parsed) return parsed
+  }
+
+  return []
+}
 
 // ---------------------------------------------------------------------------
 // Parse generated crafting recipes from crafting_recipe_creating response text.

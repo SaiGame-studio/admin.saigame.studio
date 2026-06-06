@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import type { ChatTurn } from '@/hooks/use-chat-pipeline'
-import { splitItemResponseSegments, splitEntityDefinitionResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, lsScrollPos } from './conversation-panel-utils'
+import { splitItemResponseSegments, splitEntityDefinitionResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, splitEntityPoolResponseSegments, lsScrollPos } from './conversation-panel-utils'
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils'
 
 interface ConversationChatHistoryProps {
@@ -25,7 +25,9 @@ interface ConversationChatHistoryProps {
   savedGachaPackIds: Record<string, string>
   savedEquipmentSlotIds: Record<string, string>
   savedCraftingRecipeIds: Record<string, string>
+  savedEntityPoolIds: Record<string, string>
   craftingRecipeNames: Record<string, string>
+  entityPoolNames: Record<string, string>
   premiumTokensRemaining: number | null
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
   onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
@@ -37,6 +39,7 @@ interface ConversationChatHistoryProps {
   onSaveGachaPack: (pack: Record<string, unknown>, turnId: string, responseIdx: number, gachaPackIdx: number) => void
   onSaveEquipmentSlot: (slot: Record<string, unknown>, turnId: string, responseIdx: number, equipmentSlotIdx: number) => void
   onSaveCraftingRecipe: (recipe: Record<string, unknown>, turnId: string, responseIdx: number, craftingRecipeIdx: number) => void
+  onSaveEntityPool: (entityPool: Record<string, unknown>, turnId: string, responseIdx: number, entityPoolIdx: number) => void
   onBuyTokens: () => void
   onApplyTagSuggestion?: (tag: string, turnId: string, responseIdx: number) => void
   onRemoveGameTag?: (tag: string, turnId: string, responseIdx: number) => void
@@ -257,7 +260,9 @@ export function ConversationChatHistory({
   savedGachaPackIds,
   savedEquipmentSlotIds,
   savedCraftingRecipeIds,
+  savedEntityPoolIds,
   craftingRecipeNames,
+  entityPoolNames,
   premiumTokensRemaining,
   onRetry,
   onRetryResponse,
@@ -269,6 +274,7 @@ export function ConversationChatHistory({
   onSaveGachaPack,
   onSaveEquipmentSlot,
   onSaveCraftingRecipe,
+  onSaveEntityPool,
   onBuyTokens,
   onApplyTagSuggestion,
   onRemoveGameTag,
@@ -803,7 +809,7 @@ export function ConversationChatHistory({
                                       <button
                                         id={`conv-panel-save-crafting-recipe-btn-${turn.id}-${idx}-${seg.craftingRecipeIdx}`}
                                         onClick={() => onSaveCraftingRecipe(seg.craftingRecipe, turn.id, idx, seg.craftingRecipeIdx)}
-                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px] disabled:opacity-40 disabled:cursor-not-allowed"
                                       >
                                         <Hammer className="h-3 w-3" />
                                         <span id={`conv-panel-save-crafting-recipe-btn-label-${turn.id}-${idx}-${seg.craftingRecipeIdx}`}>{t('llmConversation.saveAsCraftingRecipe')}: {recipeName}</span>
@@ -815,6 +821,78 @@ export function ConversationChatHistory({
                             )}
                             {!response.done && (
                               <Loader2 id={`conv-panel-ai-response-cursor-crafting-recipe-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : response.intentType === 'entity_pool_creating' ? (
+                          <div id={`conv-panel-ai-response-entity-pools-${turn.id}-${idx}`} className="flex flex-col gap-1">
+                            {splitEntityPoolResponseSegments(response.responseText).map((seg, segIdx) =>
+                              seg.type === 'text' ? (
+                                <div key={segIdx} id={`conv-panel-entity-pool-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                    {seg.text}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : seg.type === 'entityPool' ? (
+                                <div key={segIdx} id={`conv-panel-entity-pool-segment-${turn.id}-${idx}-${seg.entityPoolIdx}`} className="flex flex-col gap-1">
+                                  <div id={`conv-panel-entity-pool-segment-json-${turn.id}-${idx}-${seg.entityPoolIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                                      {seg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  {(() => {
+                                    const poolKey = `${turn.id}:${idx}:${seg.entityPoolIdx}`
+                                    const savedPoolId = savedEntityPoolIds[poolKey]
+                                    const metadata = seg.entityPool.metadata && typeof seg.entityPool.metadata === 'object' && !Array.isArray(seg.entityPool.metadata)
+                                      ? (seg.entityPool.metadata as Record<string, unknown>)
+                                      : undefined
+                                    const poolName = typeof seg.entityPool.name === 'string'
+                                      ? seg.entityPool.name
+                                      : (typeof seg.entityPool.pool_key === 'string' ? seg.entityPool.pool_key : `Entity Pool ${seg.entityPoolIdx + 1}`)
+                                    const rawDescription = typeof seg.entityPool.description === 'string'
+                                      ? seg.entityPool.description.trim()
+                                      : (typeof metadata?.description === 'string'
+                                        ? String(metadata.description).trim()
+                                        : '')
+                                    const poolKeyValue = typeof seg.entityPool.pool_key === 'string' ? seg.entityPool.pool_key.trim() : ''
+                                    const entries = Array.isArray(seg.entityPool.entries) ? seg.entityPool.entries : []
+                                    const entriesCount = entries.length
+                                    const entriesHaveValidWeights = entries.every((entry) => {
+                                      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false
+                                      const weight = (entry as Record<string, unknown>).weight
+                                      const numericWeight = typeof weight === 'number' ? weight : Number(weight)
+                                      return Number.isFinite(numericWeight) && numericWeight >= 0
+                                    })
+                                    const isValidPoolKey = /^[a-z][a-z0-9_]{0,63}$/.test(poolKeyValue)
+                                    const canSave = Boolean(poolKeyValue && isValidPoolKey && poolName.trim() && rawDescription && entriesCount > 0 && entriesHaveValidWeights)
+                                    const linkedName = savedPoolId ? (entityPoolNames[savedPoolId] ?? poolName) : poolName
+                                    return savedPoolId ? (
+                                      <Link
+                                        id={`conv-panel-entity-pool-link-${turn.id}-${idx}-${seg.entityPoolIdx}`}
+                                        href={`/games/${gameId}/entities?tab=pools&poolExpanded=${savedPoolId}`}
+                                        className="self-start inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
+                                        title={linkedName}
+                                      >
+                                        <Layers className="h-3 w-3 shrink-0" />
+                                        <span id={`conv-panel-entity-pool-link-label-${turn.id}-${idx}-${seg.entityPoolIdx}`} className="truncate">{t('llmConversation.viewEntityPool')}: {linkedName}</span>
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        id={`conv-panel-save-entity-pool-btn-${turn.id}-${idx}-${seg.entityPoolIdx}`}
+                                        onClick={() => onSaveEntityPool(seg.entityPool, turn.id, idx, seg.entityPoolIdx)}
+                                        disabled={!canSave}
+                                        title={!canSave ? t('llmConversation.errorSaveEntityPool') : undefined}
+                                        className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
+                                      >
+                                        <Layers className="h-3 w-3" />
+                                        <span id={`conv-panel-save-entity-pool-btn-label-${turn.id}-${idx}-${seg.entityPoolIdx}`}>{t('llmConversation.saveAsEntityPool')}: {poolName}</span>
+                                      </button>
+                                    )
+                                  })()}
+                                </div>
+                              ) : null
+                            )}
+                            {!response.done && (
+                              <Loader2 id={`conv-panel-ai-response-cursor-entity-pool-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground" />
                             )}
                           </div>
                         ) : (

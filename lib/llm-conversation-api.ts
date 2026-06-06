@@ -225,6 +225,34 @@ export interface GachaPackPlanningResponse {
   }
 }
 
+export interface EntityPoolCreatingPlanningAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  pool_key?: string
+  pool_name?: string
+  entity_key?: string
+  entity_name?: string
+  entity_definition_ids?: string[]
+  depends_on?: number[]
+}
+
+export interface EntityPoolCreatingPlanningResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: {
+    language?: string
+    summary?: string
+    requires_entity_generation?: boolean
+    actions?: EntityPoolCreatingPlanningAction[]
+    clarification?: string
+  }
+}
+
 export interface GeneratorItemCreatingPlanningAction {
   type: string
   entity_type?: string
@@ -268,6 +296,7 @@ export interface ConversationContextIds {
   lore_entry_ids: string[]
   item_definition_ids: string[]
   container_definition_ids: string[]
+  entity_definition_ids: string[]
 }
 
 function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedIntentResult {
@@ -319,6 +348,8 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     gacha_pack_creating_planning: 2,
     crafting_recipe_creating_planning: 2,
     generator_item_creating_planning: 2,
+    entity_pool_creating_planning: 2,
+    entity_pool_creating: 3,
     crafting_recipe_creating: 3,
   }
   intents = [...intents].sort((a, b) => {
@@ -363,6 +394,7 @@ export async function streamDetectIntent(
         lore_entry_ids: contextIds.lore_entry_ids,
         item_definition_ids: contextIds.item_definition_ids,
         container_definition_ids: contextIds.container_definition_ids,
+        entity_definition_ids: contextIds.entity_definition_ids,
         ...(history.length > 0 ? { history } : {}),
       }),
     },
@@ -438,6 +470,7 @@ export async function requestContainerCreatingPlanning(
     lore_entry_ids: contextIds.lore_entry_ids,
     item_definition_ids: contextIds.item_definition_ids,
     container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
   }
   if (options?.entityType) body.entity_type = options.entityType
   if (options?.goals?.length) body.goals = options.goals
@@ -462,6 +495,8 @@ export async function requestCraftingRecipeCreatingPlanning(
     user_prompt: userPrompt,
     lore_entry_ids: contextIds.lore_entry_ids,
     item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
   }
   if (options?.language) body.language = options.language
   if (options?.entityType) body.entity_type = options.entityType
@@ -488,6 +523,7 @@ export async function requestGachaPackCreatingPlanning(
     lore_entry_ids: contextIds.lore_entry_ids,
     item_definition_ids: contextIds.item_definition_ids,
     container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
   }
   if (options?.language) body.language = options.language
   if (options?.entityType) body.entity_type = options.entityType
@@ -513,6 +549,8 @@ export async function requestGeneratorItemCreatingPlanning(
     user_prompt: userPrompt,
     lore_entry_ids: contextIds.lore_entry_ids,
     item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
   }
   if (options?.language) body.language = options.language
   if (options?.entityType) body.entity_type = options.entityType
@@ -520,6 +558,33 @@ export async function requestGeneratorItemCreatingPlanning(
   if (options?.history?.length) body.history = options.history
 
   return api.post(`${base(gameId)}/${conversationId}/requests/generator-item-creating-planning`, body)
+}
+
+export async function requestEntityPoolCreatingPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    language?: string
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+  },
+): Promise<EntityPoolCreatingPlanningResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/entity-pool-creating-planning`, body)
 }
 
 function requestPathForType(requestType: string): string {
@@ -555,13 +620,14 @@ export async function streamRequest(
   body.lore_entry_ids = contextIds?.lore_entry_ids ?? []
   body.item_definition_ids = contextIds?.item_definition_ids ?? []
   body.container_definition_ids = contextIds?.container_definition_ids ?? []
-  if ((requestType === 'lore_creating' || requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation') && entityType) {
+  body.entity_definition_ids = contextIds?.entity_definition_ids ?? []
+  if ((requestType === 'lore_creating' || requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation' || requestType === 'entity_pool_creating') && entityType) {
     body.entity_type = entityType
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation') && goals && goals.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation' || requestType === 'entity_pool_creating') && goals && goals.length > 0) {
     body.goals = goals
   }
-  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation') && Array.isArray(generatedItems) && generatedItems.length > 0) {
+  if ((requestType === 'item_generation' || requestType === 'item_modify' || requestType === 'generator_item_creating' || requestType === 'preset_generation' || requestType === 'container_creating' || requestType === 'gacha_pack_creating' || requestType === 'equipment_slot_generation' || requestType === 'crafting_recipe_creating' || requestType === 'entity_definition_generation' || requestType === 'entity_pool_creating') && Array.isArray(generatedItems) && generatedItems.length > 0) {
     body.generated_items = generatedItems
   }
   if (requestHistory && requestHistory.length > 0) {

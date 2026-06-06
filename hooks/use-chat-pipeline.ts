@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestEntityPoolCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
 import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 import type { ItemCategory, ItemRarity } from '@/types/inventory'
@@ -64,6 +64,7 @@ export function useChatPipeline() {
     historyContext?: DetectIntentHistoryEntry[],
     generatedItems?: unknown[],
     itemDefinitionIds?: string[],
+    entityDefinitionIds?: string[],
     generatedPresets?: unknown[],
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
@@ -71,6 +72,7 @@ export function useChatPipeline() {
     generatedEquipmentSlots?: unknown[],
     generatedCraftingRecipes?: unknown[],
     generatedEntityDefinitions?: unknown[],
+    generatedEntityPools?: unknown[],
   ): Promise<void> => {
 
     const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -111,6 +113,7 @@ export function useChatPipeline() {
         lore_entry_ids: loreEntryIds ?? [],
         item_definition_ids: itemDefinitionIds ?? [],
         container_definition_ids: containerDefinitionIds ?? [],
+        entity_definition_ids: entityDefinitionIds ?? [],
       }
 
       let resolvedIntents: PipelineIntent[] = []
@@ -153,7 +156,7 @@ export function useChatPipeline() {
 
       // ── Step 3: stream each intent sequentially ──────────────────────────────
       const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
-        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning') return [intent]
+        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning' && intent.type !== 'entity_pool_creating_planning') return [intent]
 
         const goals = intent.goals ?? []
         const entityType = intent.entityType || fallbackEntityType || undefined
@@ -180,6 +183,13 @@ export function useChatPipeline() {
               planningAction: action,
             }
           }
+          if (action.type === 'entity_definition_generation') {
+            return {
+              type: 'entity_definition_generation',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+            }
+          }
           if (action.type === 'container_creating') {
             return {
               type: 'container_creating',
@@ -197,6 +207,13 @@ export function useChatPipeline() {
           if (action.type === 'generator_item_creating') {
             return {
               type: 'generator_item_creating',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+            }
+          }
+          if (action.type === 'entity_pool_creating') {
+            return {
+              type: 'entity_pool_creating',
               entityType: action.entity_type || entityType,
               goals: actionGoals,
             }
@@ -236,8 +253,21 @@ export function useChatPipeline() {
                   history: historyContext,
                 },
               )
-            : intent.type === 'generator_item_creating_planning'
+          : intent.type === 'generator_item_creating_planning'
               ? await requestGeneratorItemCreatingPlanning(
+                  gameId,
+                  resolvedConvId,
+                  userPrompt,
+                  contextIds,
+                  {
+                    language: detectedLanguage,
+                    entityType,
+                    goals,
+                    history: historyContext,
+                  },
+                )
+            : intent.type === 'entity_pool_creating_planning'
+              ? await requestEntityPoolCreatingPlanning(
                   gameId,
                   resolvedConvId,
                   userPrompt,
@@ -273,6 +303,8 @@ export function useChatPipeline() {
               ? [{ type: 'container_creating', entityType, goals }]
               : intent.type === 'generator_item_creating_planning'
                 ? [{ type: 'generator_item_creating', entityType, goals }]
+                : intent.type === 'entity_pool_creating_planning'
+                  ? [{ type: 'entity_pool_creating', entityType, goals }]
                 : intent.type === 'crafting_recipe_creating_planning'
                 ? [{ type: 'crafting_recipe_creating', entityType, goals }]
                 : [{ type: 'gacha_pack_creating', entityType, goals }]
@@ -312,11 +344,13 @@ export function useChatPipeline() {
                 ? generatedContainers
                 : intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0
                   ? generatedGachaPacks
-                  : intent.type === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0
-                    ? generatedEquipmentSlots
-                    : intent.type === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0
-                      ? generatedCraftingRecipes
-                      : (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0
+          : intent.type === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0
+            ? generatedEquipmentSlots
+              : intent.type === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0
+                ? generatedCraftingRecipes
+                : intent.type === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0
+                  ? generatedEntityPools
+                : (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0
                         ? generatedItems
                         : undefined
         await streamRequest(
@@ -426,6 +460,7 @@ export function useChatPipeline() {
     generatedItems?: unknown[],
     loreEntryIds?: string[],
     itemDefinitionIds?: string[],
+    entityDefinitionIds?: string[],
     generatedPresets?: unknown[],
     generatedContainers?: unknown[],
     containerDefinitionIds?: string[],
@@ -433,6 +468,7 @@ export function useChatPipeline() {
     generatedEquipmentSlots?: unknown[],
     generatedCraftingRecipes?: unknown[],
     generatedEntityDefinitions?: unknown[],
+    generatedEntityPools?: unknown[],
   ): Promise<void> => {
     if (!gameId || !convId || isRunningRef.current) return
 
@@ -494,7 +530,12 @@ export function useChatPipeline() {
           )
         },
         requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
-        { lore_entry_ids: loreEntryIds ?? [], item_definition_ids: itemDefinitionIds ?? [], container_definition_ids: containerDefinitionIds ?? [] },
+        {
+          lore_entry_ids: loreEntryIds ?? [],
+          item_definition_ids: itemDefinitionIds ?? [],
+          container_definition_ids: containerDefinitionIds ?? [],
+          entity_definition_ids: entityDefinitionIds ?? [],
+        },
         undefined,
         undefined,
         intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0
@@ -509,6 +550,8 @@ export function useChatPipeline() {
                   ? generatedCraftingRecipes
                   : intentType === 'entity_definition_generation' && generatedEntityDefinitions && generatedEntityDefinitions.length > 0
                     ? generatedEntityDefinitions
+                    : intentType === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0
+                      ? generatedEntityPools
                     : (intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0
                     ? generatedItems
                     : undefined,
