@@ -15,7 +15,7 @@ import { listLoreEntries } from '@/lib/lore-api'
 import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
 import { listEntityDefinitions } from '@/lib/entity-definition-api'
 import type { LoreEntry } from '@/types/lore'
-import type { EntityDefinition, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
+import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
@@ -94,6 +94,17 @@ interface ConversationDialogsProps {
   onEntityDefinitionConflictUpdate: (reviewData: UpdateEntityDefinitionRequest) => void
   onEntityDefinitionConflictReview: () => void
   onEntityDefinitionConflictSaveNew: (newEntityKey: string) => void
+  // Entity pool conflict dialog
+  entityPoolConflictOpen: boolean
+  setEntityPoolConflictOpen: (v: boolean) => void
+  entityPoolConflictExisting: EntityPool | null
+  entityPoolConflictReviewOpen: boolean
+  setEntityPoolConflictReviewOpen: (v: boolean) => void
+  entityPoolConflictReviewData: Record<string, unknown> | null
+  isApplyingEntityPoolConflict: boolean
+  onEntityPoolConflictUpdate: (reviewData: Record<string, unknown>) => void
+  onEntityPoolConflictReview: () => void
+  onEntityPoolConflictSaveNew: (newPoolKey: string) => void
   // Item code conflict dialog
   itemCodeConflictOpen: boolean
   setItemCodeConflictOpen: (v: boolean) => void
@@ -201,6 +212,16 @@ export function ConversationDialogs({
   onEntityDefinitionConflictUpdate,
   onEntityDefinitionConflictReview,
   onEntityDefinitionConflictSaveNew,
+  entityPoolConflictOpen,
+  setEntityPoolConflictOpen,
+  entityPoolConflictExisting,
+  entityPoolConflictReviewOpen,
+  setEntityPoolConflictReviewOpen,
+  entityPoolConflictReviewData,
+  isApplyingEntityPoolConflict,
+  onEntityPoolConflictUpdate,
+  onEntityPoolConflictReview,
+  onEntityPoolConflictSaveNew,
   itemCodeConflictOpen,
   setItemCodeConflictOpen,
   itemCodeConflictExisting,
@@ -257,6 +278,8 @@ export function ConversationDialogs({
   const [newEntityKeyDuplicate, setNewEntityKeyDuplicate] = useState<EntityDefinition | null>(null)
   const [isCheckingNewEntityKey, setIsCheckingNewEntityKey] = useState(false)
   const newEntityKeyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [newEntityPoolKeyInput, setNewEntityPoolKeyInput] = useState('')
+  const [entityPoolConflictReviewText, setEntityPoolConflictReviewText] = useState('')
 
   // ── Item code conflict dialog state ──
   const [newItemCodeInput, setNewItemCodeInput] = useState('')
@@ -355,6 +378,14 @@ export function ConversationDialogs({
   }, [entityDefinitionConflictOpen, entityDefinitionConflictExisting?.entity_key])
 
   useEffect(() => {
+    if (entityPoolConflictOpen && entityPoolConflictExisting?.pool_key) {
+      setNewEntityPoolKeyInput(`${entityPoolConflictExisting.pool_key}_2`)
+    } else if (!entityPoolConflictOpen) {
+      setNewEntityPoolKeyInput('')
+    }
+  }, [entityPoolConflictOpen, entityPoolConflictExisting?.pool_key])
+
+  useEffect(() => {
     if (newEntityKeyDebounceRef.current) clearTimeout(newEntityKeyDebounceRef.current)
     const key = newEntityKeyInput.trim()
     if (!key || !entityDefinitionConflictOpen) {
@@ -376,6 +407,11 @@ export function ConversationDialogs({
     }, 400)
     return () => { if (newEntityKeyDebounceRef.current) clearTimeout(newEntityKeyDebounceRef.current) }
   }, [newEntityKeyInput, entityDefinitionConflictOpen, gameId, entityDefinitionConflictExisting?.id])
+
+  useEffect(() => {
+    if (!entityPoolConflictReviewOpen) return
+    setEntityPoolConflictReviewText(JSON.stringify(entityPoolConflictReviewData ?? {}, null, 2))
+  }, [entityPoolConflictReviewOpen, entityPoolConflictReviewData])
 
   useEffect(() => {
     if (newPresetCodeDebounceRef.current) clearTimeout(newPresetCodeDebounceRef.current)
@@ -410,6 +446,10 @@ export function ConversationDialogs({
     if (!isApplyingConflict) { setItemCodeConflictOpen(false); setNewItemCodeInput('') }
   })
   useEscapeLayer(itemCodeConflictReviewOpen, () => setItemCodeConflictReviewOpen(false))
+  useEscapeLayer(entityPoolConflictOpen, () => {
+    if (!isApplyingEntityPoolConflict) { setEntityPoolConflictOpen(false); setNewEntityPoolKeyInput('') }
+  })
+  useEscapeLayer(entityPoolConflictReviewOpen, () => setEntityPoolConflictReviewOpen(false))
   useEscapeLayer(presetCodeConflictOpen, () => {
     if (!isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') }
   })
@@ -941,6 +981,163 @@ export function ConversationDialogs({
               {isApplyingEntityDefinitionConflict
                 ? <><Loader2 id="entity-definition-conflict-review-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityDefinitionConflictUpdating')}</>
                 : <><Shield id="entity-definition-conflict-review-update-icon" className="h-4 w-4" />{t('llmConversation.entityDefinitionConflictUpdate')}</>
+              }
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entity pool conflict dialog */}
+      <Dialog
+        open={entityPoolConflictOpen}
+        onOpenChange={(o) => { if (!o && !isApplyingEntityPoolConflict) { setEntityPoolConflictOpen(false); setNewEntityPoolKeyInput('') } }}
+      >
+        <DialogContent id="entity-pool-conflict-dialog-root">
+          <DialogHeader id="entity-pool-conflict-dialog-header">
+            <DialogTitle id="entity-pool-conflict-dialog-title">{t('llmConversation.entityPoolConflictTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="entity-pool-conflict-dialog-body" className="space-y-3">
+            <p id="entity-pool-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
+              {t('llmConversation.entityPoolConflictDesc')
+                .replace('{key}', entityPoolConflictExisting?.pool_key ?? '')}
+            </p>
+            {entityPoolConflictExisting && (
+              <a
+                id="entity-pool-conflict-existing-link"
+                href={`/games/${gameId}/entities?tab=pools&poolExpanded=${entityPoolConflictExisting.id}&noconvpanel=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Layers id="entity-pool-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span id="entity-pool-conflict-existing-link-name" className="flex-1 truncate">{entityPoolConflictExisting.name}</span>
+                <code id="entity-pool-conflict-existing-link-key" className="text-xs bg-muted-foreground/20 px-1 rounded">{entityPoolConflictExisting.pool_key}</code>
+                <ExternalLink id="entity-pool-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+          <div id="entity-pool-conflict-actions" className="grid grid-cols-2 gap-2">
+            <button
+              id="entity-pool-conflict-update-btn"
+              type="button"
+              disabled={isApplyingEntityPoolConflict}
+              onClick={() => {
+                if (entityPoolConflictReviewData) {
+                  onEntityPoolConflictUpdate(entityPoolConflictReviewData)
+                }
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingEntityPoolConflict
+                ? <><Loader2 id="entity-pool-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityPoolConflictUpdating')}</>
+                : <><Shield id="entity-pool-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.entityPoolConflictUpdate')}</>
+              }
+            </button>
+            <button
+              id="entity-pool-conflict-review-btn"
+              type="button"
+              disabled={isApplyingEntityPoolConflict || !entityPoolConflictReviewData}
+              onClick={onEntityPoolConflictReview}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Search id="entity-pool-conflict-review-icon" className="h-4 w-4" />
+              {t('llmConversation.entityPoolConflictReview')}
+            </button>
+          </div>
+          <div id="entity-pool-conflict-divider" className="relative flex items-center gap-2">
+            <div id="entity-pool-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="entity-pool-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="entity-pool-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+          <div id="entity-pool-conflict-create-new-section" className="space-y-2">
+            <Label id="entity-pool-conflict-new-key-label" htmlFor="entity-pool-conflict-new-key-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.entityPoolConflictNewKeyLabel')}
+            </Label>
+            <Input
+              id="entity-pool-conflict-new-key-input"
+              value={newEntityPoolKeyInput}
+              onChange={(e) => setNewEntityPoolKeyInput(e.target.value)}
+              disabled={isApplyingEntityPoolConflict}
+              className="font-mono"
+            />
+            <button
+              id="entity-pool-conflict-save-new-btn"
+              type="button"
+              disabled={isApplyingEntityPoolConflict || !newEntityPoolKeyInput.trim()}
+              onClick={() => {
+                onEntityPoolConflictSaveNew(newEntityPoolKeyInput)
+                setNewEntityPoolKeyInput('')
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <PackagePlus id="entity-pool-conflict-save-new-icon" className="h-4 w-4" />
+              {t('llmConversation.entityPoolConflictSaveNew')}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entity pool conflict review dialog */}
+      <Dialog
+        open={entityPoolConflictReviewOpen}
+        onOpenChange={setEntityPoolConflictReviewOpen}
+      >
+        <DialogContent id="entity-pool-conflict-review-dialog-root" className="max-w-3xl">
+          <DialogHeader id="entity-pool-conflict-review-dialog-header">
+            <DialogTitle id="entity-pool-conflict-review-dialog-title">{t('llmConversation.entityPoolConflictReviewTitle')}</DialogTitle>
+          </DialogHeader>
+          <div id="entity-pool-conflict-review-dialog-body" className="space-y-3">
+            <p id="entity-pool-conflict-review-dialog-desc" className="text-sm text-muted-foreground">
+              {t('llmConversation.entityPoolConflictReviewDesc')}
+            </p>
+            <div id="entity-pool-conflict-review-json-wrap" className="rounded-md border border-border bg-muted/40">
+              <div id="entity-pool-conflict-review-json-label" className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+                {t('llmConversation.entityPoolConflictReviewJson')}
+              </div>
+              {(() => {
+                const parsed = parseJsonObjectEditor(entityPoolConflictReviewText)
+                return (
+                  <div id="entity-pool-conflict-review-json-editor" className="space-y-2 px-3 py-3">
+                    <Textarea
+                      id="entity-pool-conflict-review-json"
+                      value={entityPoolConflictReviewText}
+                      onChange={(e) => setEntityPoolConflictReviewText(e.target.value)}
+                      className="min-h-[240px] font-mono text-xs leading-relaxed"
+                      spellCheck={false}
+                    />
+                    {parsed.error && (
+                      <p id="entity-pool-conflict-review-json-error" className="text-xs text-destructive">
+                        {t('common.invalidJson')}
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+          <DialogFooter id="entity-pool-conflict-review-dialog-footer" className="gap-2 sm:gap-0">
+            <button
+              id="entity-pool-conflict-review-back-btn"
+              type="button"
+              onClick={() => setEntityPoolConflictReviewOpen(false)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              {t('llmConversation.entityPoolConflictReviewBack')}
+            </button>
+            <button
+              id="entity-pool-conflict-review-update-btn"
+              type="button"
+              disabled={isApplyingEntityPoolConflict || parseJsonObjectEditor(entityPoolConflictReviewText).error !== null}
+              onClick={() => {
+                const parsed = parseJsonObjectEditor(entityPoolConflictReviewText)
+                if (!parsed.data) return
+                onEntityPoolConflictUpdate(parsed.data)
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isApplyingEntityPoolConflict
+                ? <><Loader2 id="entity-pool-conflict-review-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityPoolConflictUpdating')}</>
+                : <><Shield id="entity-pool-conflict-review-update-icon" className="h-4 w-4" />{t('llmConversation.entityPoolConflictUpdate')}</>
               }
             </button>
           </DialogFooter>

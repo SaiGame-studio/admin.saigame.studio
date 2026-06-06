@@ -684,6 +684,7 @@ export const lsCraftingRecipeLinks = (convId: string) => `ss_conv_crafting_recip
 export const lsCraftingRecipeNames = (convId: string) => `ss_conv_crafting_recipe_names_${convId}`
 export const lsPendingCraftingRecipeCreate = (gameId: string) => `ss_pending_crafting_recipe_create_${gameId}`
 export const lsPendingEntityDefinitionCreate = (gameId: string) => `ss_pending_entity_definition_create_${gameId}`
+export const lsPendingEntityPoolCreate = (gameId: string) => `ss_pending_entity_pool_create_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Parse generated entity pools from entity_pool_creating response text.

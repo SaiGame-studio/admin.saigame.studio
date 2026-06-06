@@ -71,6 +71,7 @@ import {
   lsPendingEquipmentSlotCreate,
   lsPendingEquipmentSlotEdit,
   lsPendingEntityDefinitionCreate,
+  lsPendingEntityPoolCreate,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
@@ -94,8 +95,8 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
-import { listEntityDefinitions, getEntityDefinition, getEntityPool, createEntityPool, createEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
-import type { EntityDefinition, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
+import { listEntityDefinitions, getEntityDefinition, getEntityPool, createEntityPool, createEntityPoolEntry, deleteEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
+import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
@@ -216,6 +217,17 @@ export function LLMConversationPanel() {
     entityDefinitionIdx: number
   } | null>(null)
   const [isApplyingEntityDefinitionConflict, setIsApplyingEntityDefinitionConflict] = useState(false)
+  const [entityPoolConflictOpen, setEntityPoolConflictOpen] = useState(false)
+  const [entityPoolConflictExisting, setEntityPoolConflictExisting] = useState<EntityPool | null>(null)
+  const [entityPoolConflictReviewOpen, setEntityPoolConflictReviewOpen] = useState(false)
+  const [entityPoolConflictReviewData, setEntityPoolConflictReviewData] = useState<Record<string, unknown> | null>(null)
+  const [entityPoolConflictPending, setEntityPoolConflictPending] = useState<{
+    entityPool: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    entityPoolIdx: number
+  } | null>(null)
+  const [isApplyingEntityPoolConflict, setIsApplyingEntityPoolConflict] = useState(false)
 
   // Tag suggestion — tracks which individual tags have been applied per response
   const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
@@ -1034,7 +1046,7 @@ export function LLMConversationPanel() {
           : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
         entityLinks.length > 0
           ? Promise.allSettled(entityLinks.map(l => getEntityDefinition(gId, l.content_id)))
-          : Promise.resolve([] as PromiseSettledResult<{ name: string }>[]),
+          : Promise.resolve([] as PromiseSettledResult<EntityDefinition>[]),
         entityPoolLinks.length > 0
           ? Promise.allSettled(entityPoolLinks.map(l => getEntityPool(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ name: string; pool_key: string }>[]),
@@ -2390,9 +2402,6 @@ export function LLMConversationPanel() {
       typeof entityPool.description === 'string' ? entityPool.description.trim()
       : typeof metadata?.description === 'string' ? String(metadata.description).trim()
       : ''
-    if (metadata) {
-      metadata.description = description || metadata.description
-    }
     const entries = Array.isArray(entityPool.entries)
       ? entityPool.entries.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)).map((entry) => {
         const record = entry as Record<string, unknown>
@@ -2434,6 +2443,144 @@ export function LLMConversationPanel() {
     return keyToId
   }
 
+  async function fireOpenCreateEntityPool(
+    draft: Record<string, unknown>,
+    context: { turnId: string; responseIdx: number; entityPoolIdx: number },
+  ) {
+    if (!gameId || !activeConvId) return
+    const resolvedDraft = await resolveEntityPoolDraftForCreate(draft)
+    const payload = {
+      ...resolvedDraft,
+      turnId: context.turnId,
+      responseIdx: context.responseIdx,
+      entityPoolIdx: context.entityPoolIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingEntityPoolCreate(gameId), JSON.stringify(payload))
+    window.dispatchEvent(new CustomEvent('ss:open-create-entity-pool', { detail: payload }))
+    router.push(`/games/${gameId}/entities?tab=pools&create=1`)
+  }
+
+  function openEntityPoolConflictReview() {
+    if (!entityPoolConflictExisting || !entityPoolConflictPending) return
+    setEntityPoolConflictReviewData(
+      entityPoolConflictPending.entityPool,
+    )
+    setEntityPoolConflictReviewOpen(true)
+  }
+
+  async function resolveEntityPoolEntries(entityPool: Record<string, unknown>) {
+    const entityKeyMap = await resolveEntityPoolEntityDefinitionMap()
+    const entries = Array.isArray(entityPool.entries) ? entityPool.entries : []
+    return entries.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)).map((entry) => {
+      const record = entry as Record<string, unknown>
+      const rawId = String(record.entity_definition_id ?? '').trim()
+      const resolvedId = rawId.startsWith('__REF:')
+        ? (entityKeyMap[rawId.slice('__REF:'.length)] ?? '')
+        : rawId
+      if (!resolvedId) {
+        throw new Error(`Could not resolve entity reference "${rawId}".`)
+      }
+      const weight = typeof record.weight === 'number'
+        ? record.weight
+        : (typeof record.weight === 'string' ? Number(record.weight) : NaN)
+      if (!Number.isFinite(weight) || weight < 0) {
+        throw new Error('Invalid entry weight.')
+      }
+      return {
+        entity_definition_id: resolvedId,
+        weight,
+      }
+    })
+  }
+
+  async function resolveEntityPoolDraftForCreate(entityPool: Record<string, unknown>) {
+    const entries = Array.isArray(entityPool.entries) ? entityPool.entries : []
+    const resolvedEntries: Record<string, unknown>[] = []
+
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+      const record = entry as Record<string, unknown>
+      const rawId = String(record.entity_definition_id ?? '').trim()
+
+      if (!rawId.startsWith('__REF:')) {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+          entity_definition_name: typeof record.entity_definition_name === 'string'
+            ? record.entity_definition_name
+            : (typeof record.entity_name === 'string' ? record.entity_name : rawId),
+          entity_definition_key: typeof record.entity_definition_key === 'string'
+            ? record.entity_definition_key
+            : (typeof record.entity_key === 'string' ? record.entity_key : rawId),
+        })
+        continue
+      }
+
+      const entityKey = rawId.slice('__REF:'.length).trim()
+      if (!entityKey) {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+        })
+        continue
+      }
+
+      try {
+        const results = await listEntityDefinitions(gameId!, { search: entityKey })
+        const entity = (results ?? []).find((candidate) => candidate.entity_key === entityKey) ?? null
+        if (!entity) throw new Error(`Entity "${entityKey}" not found.`)
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: entity.id,
+          entity_definition_name: entity.name,
+          entity_definition_key: entity.entity_key,
+        })
+      } catch {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+          entity_definition_name: typeof record.entity_definition_name === 'string'
+            ? record.entity_definition_name
+            : entityKey,
+          entity_definition_key: typeof record.entity_definition_key === 'string'
+            ? record.entity_definition_key
+            : entityKey,
+        })
+      }
+    }
+
+    return {
+      ...entityPool,
+      entries: resolvedEntries,
+    }
+  }
+
+  async function saveEntityPoolDirect(
+    draft: ReturnType<typeof buildEntityPoolDraft>,
+    resolvedEntries: Array<{ entity_definition_id: string; weight: number }>,
+  ) {
+    const created = await createEntityPool(gameId!, {
+      pool_key: draft.pool_key,
+      name: draft.name,
+      description: draft.description || undefined,
+    })
+
+    if (draft.metadata || draft.is_active === false) {
+      await updateEntityPool(gameId!, created.id, {
+        ...(draft.metadata && Object.keys(draft.metadata).length > 0 ? { metadata: draft.metadata } : {}),
+        ...(draft.is_active === false ? { is_active: false } : {}),
+      })
+    }
+
+    for (const entry of resolvedEntries) {
+      await createEntityPoolEntry(gameId!, created.id, entry)
+    }
+
+    return created
+  }
+
   async function handleSaveEntityPool(
     entityPool: Record<string, unknown>,
     turnId: string,
@@ -2450,59 +2597,70 @@ export function LLMConversationPanel() {
     }
 
     try {
-      const entityKeyMap = await resolveEntityPoolEntityDefinitionMap()
-      const resolvedEntries = draft.entries.map((entry) => {
-        const rawId = String(entry.entity_definition_id ?? '').trim()
-        const resolvedId = rawId.startsWith('__REF:')
-          ? (entityKeyMap[rawId.slice('__REF:'.length)] ?? '')
-          : rawId
-        if (!resolvedId) {
-          throw new Error(`Could not resolve entity reference "${rawId}".`)
-        }
-        if (!Number.isFinite(entry.weight) || entry.weight < 0) {
-          throw new Error('Invalid entry weight.')
-        }
-        return {
-          entity_definition_id: resolvedId,
-          weight: entry.weight,
-        }
-      })
-
-      const created = await createEntityPool(gameId, {
-        pool_key: draft.pool_key,
-        name: draft.name,
-        description: draft.description || undefined,
-      })
-
-      if (draft.metadata || draft.is_active === false) {
-        await updateEntityPool(gameId, created.id, {
-          ...(draft.metadata && Object.keys(draft.metadata).length > 0 ? { metadata: draft.metadata } : {}),
-          ...(draft.is_active === false ? { is_active: false } : {}),
-        })
-      }
-
-      for (const entry of resolvedEntries) {
-        await createEntityPoolEntry(gameId, created.id, entry)
-      }
-
-      const poolKey = `${turnId}:${responseIdx}:${entityPoolIdx}`
-      setSavedEntityPoolIds((prev) => {
-        const updated = { ...prev, [poolKey]: created.id }
-        safeSetItem(lsEntityPoolLinks(activeConvId), JSON.stringify(updated))
-        return updated
-      })
-      setEntityPoolNames((prev) => {
-        const updated = { ...prev, [created.id]: created.name }
-        safeSetItem(lsEntityPoolNames(activeConvId), JSON.stringify(updated))
-        return updated
-      })
-      void linkConversationContent(gameId, activeConvId, 'entity_pool', created.id)
-        .then(() => void loadLinkedContent(gameId, activeConvId))
-        .catch(() => { /* best-effort */ })
-      toast({ title: t('llmConversation.entityPoolSaved'), description: created.name })
+      await fireOpenCreateEntityPool(draft, { turnId, responseIdx, entityPoolIdx })
     } catch (err: any) {
       toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityPool'), description: err?.message })
     }
+  }
+
+  async function handleEntityPoolConflictUpdate(reviewData?: Record<string, unknown>) {
+    if (!entityPoolConflictExisting || !entityPoolConflictPending || !gameId || !activeConvId) return
+    const { entityPool, turnId, responseIdx, entityPoolIdx } = entityPoolConflictPending
+    setIsApplyingEntityPoolConflict(true)
+    try {
+      const source = reviewData ?? entityPool
+      await fireOpenCreateEntityPool(source, { turnId, responseIdx, entityPoolIdx })
+      setEntityPoolConflictOpen(false)
+      setEntityPoolConflictReviewOpen(false)
+      setEntityPoolConflictExisting(null)
+      setEntityPoolConflictPending(null)
+      setEntityPoolConflictReviewData(null)
+    } finally {
+      setIsApplyingEntityPoolConflict(false)
+    }
+  }
+
+  function handleEntityPoolConflictSaveNew(newPoolKey: string) {
+    if (!entityPoolConflictPending || !gameId || !activeConvId) return
+    const nextKey = newPoolKey.trim()
+    if (!nextKey || !/^[a-z][a-z0-9_]{0,63}$/.test(nextKey)) {
+      toast({ title: t('llmConversation.errorSaveEntityPool'), variant: 'destructive' })
+      return
+    }
+
+    const { entityPool, turnId, responseIdx, entityPoolIdx } = entityPoolConflictPending
+    void (async () => {
+      setIsApplyingEntityPoolConflict(true)
+      try {
+        const draft = buildEntityPoolDraft(entityPool, turnId, responseIdx, entityPoolIdx)
+        const resolvedEntries = await resolveEntityPoolEntries(entityPool)
+        const created = await saveEntityPoolDirect({ ...draft, pool_key: nextKey }, resolvedEntries)
+        const poolKey = `${turnId}:${responseIdx}:${entityPoolIdx}`
+        setSavedEntityPoolIds((prev) => {
+          const updated = { ...prev, [poolKey]: created.id }
+          safeSetItem(lsEntityPoolLinks(activeConvId), JSON.stringify(updated))
+          return updated
+        })
+        setEntityPoolNames((prev) => {
+          const updated = { ...prev, [created.id]: created.name }
+          safeSetItem(lsEntityPoolNames(activeConvId), JSON.stringify(updated))
+          return updated
+        })
+        void linkConversationContent(gameId, activeConvId, 'entity_pool', created.id)
+          .then(() => void loadLinkedContent(gameId, activeConvId))
+          .catch(() => { /* best-effort */ })
+        setEntityPoolConflictOpen(false)
+        setEntityPoolConflictReviewOpen(false)
+        setEntityPoolConflictExisting(null)
+        setEntityPoolConflictPending(null)
+        setEntityPoolConflictReviewData(null)
+        toast({ title: t('llmConversation.entityPoolSaved'), description: created.name })
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityPool'), description: err?.message })
+      } finally {
+        setIsApplyingEntityPoolConflict(false)
+      }
+    })()
   }
 
   async function handleOpenItemDefinitionReview(
@@ -3082,6 +3240,16 @@ export function LLMConversationPanel() {
         onEntityDefinitionConflictUpdate={handleEntityDefinitionConflictUpdate}
         onEntityDefinitionConflictReview={openEntityDefinitionConflictReview}
         onEntityDefinitionConflictSaveNew={handleEntityDefinitionConflictSaveNew}
+        entityPoolConflictOpen={entityPoolConflictOpen}
+        setEntityPoolConflictOpen={setEntityPoolConflictOpen}
+        entityPoolConflictExisting={entityPoolConflictExisting}
+        entityPoolConflictReviewOpen={entityPoolConflictReviewOpen}
+        setEntityPoolConflictReviewOpen={setEntityPoolConflictReviewOpen}
+        entityPoolConflictReviewData={entityPoolConflictReviewData}
+        isApplyingEntityPoolConflict={isApplyingEntityPoolConflict}
+        onEntityPoolConflictUpdate={handleEntityPoolConflictUpdate}
+        onEntityPoolConflictReview={openEntityPoolConflictReview}
+        onEntityPoolConflictSaveNew={handleEntityPoolConflictSaveNew}
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}
