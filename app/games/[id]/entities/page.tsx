@@ -1487,9 +1487,9 @@ export default function EntitiesPage() {
         <TabsContent value="entities" className="space-y-4">
           <TooltipProvider>
             {/* Entities Tab Toolbar */}
-            <div className="flex items-center gap-2 flex-wrap justify-end mb-4">
-              <div className="flex items-center gap-2 flex-wrap justify-end ml-auto">
-                <div className="relative w-full max-w-[50%] min-w-[180px]">
+            <div className="mb-4 flex items-center justify-end gap-2">
+              <div className="ml-auto flex items-center justify-end gap-2">
+                <div className="relative w-[400px] shrink-0">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t('entity.searchPlaceholder')}
@@ -1509,7 +1509,7 @@ export default function EntitiesPage() {
                   )}
                 </div>
                 <Select value={typeFilter || "all"} onValueChange={(v) => setTypeFilter(v === "all" ? "all" : v as EntityType)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] shrink-0">
                     <SelectValue placeholder={t('entity.allTypes')} />
                   </SelectTrigger>
                   <SelectContent>
