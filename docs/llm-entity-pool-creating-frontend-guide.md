@@ -38,7 +38,7 @@ The planning response returns `content.actions`.
 Follow `content.actions` in sequence.
 
 - For `entity_definition_generation`, send the **full planning action** to `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/entity-definition-generation` via `generated_items`. This keeps `entity_key`, `entity_name`, `entity_type`, and `depends_on` intact for the LLM. Then parse the generated entity output and save it through `POST /api/v1/games/{game_id}/entity-definitions`.
-- For `entity_pool_creating`, call `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/entity-pool-creating`.
+- For `entity_pool_creating`, send the **full planning action** to `POST /api/v1/games/{game_id}/llm/conversations/{conversation_id}/requests/entity-pool-creating` via `generated_items`. This keeps `pool_key`, `pool_name`, `entity_definition_ids`, and `depends_on` intact for the LLM.
 
 If planning created new entity refs, pass those UUIDs in `entity_definition_ids` when calling `entity-pool-creating`.
 
@@ -402,7 +402,7 @@ Front-end execution order:
 2. Call `entity-pool-creating-planning` with the detected planning intent.
 3. Execute any `entity_definition_generation` actions returned by planning by forwarding the full action object to `entity-definition-generation`.
 4. Save the generated entity definitions and add their IDs to the final `entity_definition_ids` list.
-5. Call `entity-pool-creating` with the complete entity definition list and the detected pool goal.
+5. Execute the final `entity_pool_creating` action by forwarding the full action object to `entity-pool-creating`.
 6. After parsing the draft, validate the expected pool size and member count before enabling Save.
 
 If the parsed pool does not match the expected structure, for example the goal says `2 pool members` but `entries.length` is `1`, do not save the draft. Regenerate with a corrective goal or ask the user to edit the draft.

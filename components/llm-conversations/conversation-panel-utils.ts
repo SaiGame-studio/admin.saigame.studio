@@ -20,10 +20,12 @@ export const lsPresetNames = (convId: string) => `ss_conv_preset_names_${convId}
 export const lsContainerNames = (convId: string) => `ss_conv_container_names_${convId}`
 export const lsEntityPoolLinks = (convId: string) => `ss_conv_entity_pool_links_${convId}`
 export const lsEntityPoolNames = (convId: string) => `ss_conv_entity_pool_names_${convId}`
+export const lsEntityPoolKeys = (convId: string) => `ss_conv_entity_pool_keys_${convId}`
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
 export const lsPendingCraftingRecipeEdit = (gameId: string) => `ss_pending_crafting_recipe_edit_${gameId}`
+export const lsPendingEntityPoolEdit = (gameId: string) => `ss_pending_entity_pool_edit_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions

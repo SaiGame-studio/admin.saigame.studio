@@ -30,7 +30,7 @@ interface ConversationChatHistoryProps {
   entityPoolNames: Record<string, string>
   premiumTokensRemaining: number | null
   onRetry: (turn: { id: string; userMessage: string; detectedType: string | null }) => void
-  onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string) => void
+  onRetryResponse: (turnId: string, responseIdx: number, intentType: string, userMessage: string, planningAction?: Record<string, unknown>) => void
   onOpenLoreReview: (turn: ChatTurn, idx: number, responseText: string, entityType: string) => void
   onSaveItemDefinition: (item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) => void
   onSaveEntityDefinition: (entityDefinition: Record<string, unknown>, turnId: string, responseIdx: number, entityDefinitionIdx: number) => void
@@ -477,6 +477,7 @@ export function ConversationChatHistory({
                                   turn.id, idx,
                                   response.intentType,
                                   turn.userMessage,
+                                  response.planningAction,
                                 )}
                                 disabled={isStreaming || !activeConvId || isRetryDisabledForTokenQuotaError()}
                                 className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
@@ -502,6 +503,7 @@ export function ConversationChatHistory({
                                 turn.id, idx,
                                 response.intentType,
                                 turn.userMessage,
+                                response.planningAction,
                               )}
                               disabled={isStreaming || !activeConvId}
                               className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
@@ -868,7 +870,7 @@ export function ConversationChatHistory({
                                     return savedPoolId ? (
                                       <Link
                                         id={`conv-panel-entity-pool-link-${turn.id}-${idx}-${seg.entityPoolIdx}`}
-                                        href={`/games/${gameId}/entities?tab=pools&poolExpanded=${savedPoolId}`}
+                                        href={`/games/${gameId}/entities?tab=pools&poolExpanded=${savedPoolId}${poolKeyValue ? `&poolKey=${encodeURIComponent(poolKeyValue)}` : ''}`}
                                         className="self-start inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={linkedName}
                                       >

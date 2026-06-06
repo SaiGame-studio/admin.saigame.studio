@@ -1,6 +1,6 @@
 'use client'
 
-import { Archive, BookOpen, Dices, Hammer, Layers, Link2, Loader2, PackagePlus, Shield, X } from 'lucide-react'
+import { Archive, BookOpen, Dices, Hammer, Layers, Link2, Loader2, PackagePlus, Skull, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ConversationContentLink } from '@/types/llm-conversation'
 
@@ -16,6 +16,7 @@ interface ConversationLinkedContentProps {
   gachaPackNames: Record<string, string>
   craftingRecipeNames: Record<string, string>
   entityPoolNames: Record<string, string>
+  entityPoolKeys: Record<string, string>
   onUnlink: (linkId: string, contentType: string, contentId: string) => void
   t: (key: string) => string
 }
@@ -32,6 +33,7 @@ export function ConversationLinkedContent({
   gachaPackNames,
   craftingRecipeNames,
   entityPoolNames,
+  entityPoolKeys,
   onUnlink,
   t,
 }: ConversationLinkedContentProps) {
@@ -52,6 +54,7 @@ export function ConversationLinkedContent({
     const isGachaPack = link.content_type === 'gacha_pack'
     const isCraftingRecipe = link.content_type === 'crafting_recipe'
     const isEntityPool = link.content_type === 'entity_pool'
+    const poolKey = isEntityPool ? entityPoolKeys[link.content_id] : ''
     const href = isItem
       ? `/games/${gameId}/items/${link.content_id}`
       : isEntity
@@ -63,7 +66,7 @@ export function ConversationLinkedContent({
           : isCraftingRecipe
             ? `/games/${gameId}/items?tab=crafting&expanded=${link.content_id}`
             : isEntityPool
-              ? `/games/${gameId}/entities?tab=pools&poolExpanded=${link.content_id}`
+              ? `/games/${gameId}/entities?tab=pools&poolExpanded=${link.content_id}${poolKey ? `&poolKey=${encodeURIComponent(poolKey)}` : ''}`
             : `/games/${gameId}/lore?lore_id=${link.content_id}`
     const displayName = itemDefinitionNames[link.content_id]
       ?? entityDefinitionNames[link.content_id]
@@ -86,7 +89,7 @@ export function ConversationLinkedContent({
             : isEntityPool
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
             : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-    const TypeIcon = isItem ? PackagePlus : isEntity ? Shield : isContainer ? Archive : isGachaPack ? Dices : isCraftingRecipe ? Hammer : isEntityPool ? Layers : BookOpen
+    const TypeIcon = isItem ? PackagePlus : isEntity ? Skull : isContainer ? Archive : isGachaPack ? Dices : isCraftingRecipe ? Hammer : isEntityPool ? Layers : BookOpen
     return (
       <span
         key={link.id}
@@ -149,7 +152,7 @@ export function ConversationLinkedContent({
         {entityLinks.length > 0 && (
           <div id="conv-panel-linked-content-entity-defs-group">
             <div id="conv-panel-linked-content-entity-defs-label" className="flex items-center gap-1 mb-0.5">
-              <Shield className="h-2.5 w-2.5 text-sky-400" />
+              <Skull className="h-2.5 w-2.5 text-sky-400" />
               <span id="conv-panel-linked-content-entity-defs-heading" className="text-[9px] font-semibold text-sky-400/70 uppercase tracking-wider">
                 {t('llmConversation.contentType.entity_definition')}
               </span>

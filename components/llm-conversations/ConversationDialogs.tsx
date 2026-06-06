@@ -1016,32 +1016,18 @@ export function ConversationDialogs({
               </a>
             )}
           </div>
-          <div id="entity-pool-conflict-actions" className="grid grid-cols-2 gap-2">
+          <div id="entity-pool-conflict-actions" className="flex justify-center">
             <button
               id="entity-pool-conflict-update-btn"
               type="button"
               disabled={isApplyingEntityPoolConflict}
-              onClick={() => {
-                if (entityPoolConflictReviewData) {
-                  onEntityPoolConflictUpdate(entityPoolConflictReviewData)
-                }
-              }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              onClick={onEntityPoolConflictReview}
+              className="inline-flex min-w-[260px] items-center justify-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap text-center"
             >
               {isApplyingEntityPoolConflict
                 ? <><Loader2 id="entity-pool-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.entityPoolConflictUpdating')}</>
                 : <><Shield id="entity-pool-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.entityPoolConflictUpdate')}</>
               }
-            </button>
-            <button
-              id="entity-pool-conflict-review-btn"
-              type="button"
-              disabled={isApplyingEntityPoolConflict || !entityPoolConflictReviewData}
-              onClick={onEntityPoolConflictReview}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-            >
-              <Search id="entity-pool-conflict-review-icon" className="h-4 w-4" />
-              {t('llmConversation.entityPoolConflictReview')}
             </button>
           </div>
           <div id="entity-pool-conflict-divider" className="relative flex items-center gap-2">
@@ -1102,7 +1088,7 @@ export function ConversationDialogs({
                       id="entity-pool-conflict-review-json"
                       value={entityPoolConflictReviewText}
                       onChange={(e) => setEntityPoolConflictReviewText(e.target.value)}
-                      className="min-h-[240px] font-mono text-xs leading-relaxed"
+                      className="min-h-[360px] font-mono text-xs leading-relaxed"
                       spellCheck={false}
                     />
                     {parsed.error && (
