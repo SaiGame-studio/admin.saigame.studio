@@ -65,6 +65,9 @@ import {
   lsEntityPoolLinks,
   lsEntityPoolNames,
   lsEntityPoolKeys,
+  lsQuestLinks,
+  lsQuestNames,
+  lsQuestCodes,
   lsPendingCraftingRecipeCreate,
   lsPendingCraftingRecipeEdit,
   lsPendingGachaCreate,
@@ -74,6 +77,8 @@ import {
   lsPendingEntityDefinitionCreate,
   lsPendingEntityPoolCreate,
   lsPendingEntityPoolEdit,
+  lsPendingQuestCreate,
+  lsPendingQuestEdit,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
@@ -104,6 +109,8 @@ import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } fr
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
 import type { CraftingRecipe } from '@/types/crafting'
+import { listQuestDefinitions } from '@/lib/quest-api'
+import type { QuestDefinition } from '@/lib/quest-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -201,6 +208,8 @@ export function LLMConversationPanel() {
   const [savedPresetDefinitionIds, setSavedPresetDefinitionIds] = useState<Record<string, string>>({})
   // Container definition saved IDs (keyed as "turnId:responseIdx:containerIdx")
   const [savedContainerDefinitionIds, setSavedContainerDefinitionIds] = useState<Record<string, string>>({})
+  // Quest definition saved IDs (keyed as "turnId:responseIdx:questDefinitionIdx")
+  const [savedQuestDefinitionIds, setSavedQuestDefinitionIds] = useState<Record<string, string>>({})
   const [itemDefReviewOpen, setItemDefReviewOpen] = useState(false)
   const [itemDefReviewItem, setItemDefReviewItem] = useState<Record<string, unknown> | null>(null)
   const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
@@ -230,6 +239,17 @@ export function LLMConversationPanel() {
     entityPoolIdx: number
   } | null>(null)
   const [isApplyingEntityPoolConflict, setIsApplyingEntityPoolConflict] = useState(false)
+  const [questDefinitionNames, setQuestDefinitionNames] = useState<Record<string, string>>({})
+  const [questDefinitionCodes, setQuestDefinitionCodes] = useState<Record<string, string>>({})
+  const [questCodeConflictOpen, setQuestCodeConflictOpen] = useState(false)
+  const [questCodeConflictExisting, setQuestCodeConflictExisting] = useState<QuestDefinition | null>(null)
+  const [questCodeConflictPending, setQuestCodeConflictPending] = useState<{
+    questDefinition: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    questDefinitionIdx: number
+  } | null>(null)
+  const [newQuestCodeInput, setNewQuestCodeInput] = useState('')
 
   // Tag suggestion — tracks which individual tags have been applied per response
   const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
@@ -662,6 +682,8 @@ export function LLMConversationPanel() {
       setEntityDefinitionNames({})
       setEntityPoolNames({})
       setEntityPoolKeys({})
+      setQuestDefinitionNames({})
+      setQuestDefinitionCodes({})
       setContainerDefinitionNames({})
       setGachaPackNames({})
       chatHistoryConvIdRef.current = null
@@ -741,6 +763,12 @@ export function LLMConversationPanel() {
     if (rawCraftingRecipeNames) { try { setCraftingRecipeNames(JSON.parse(rawCraftingRecipeNames)) } catch { setCraftingRecipeNames({}) } }
     const rawEntityPoolNames = safeGetItem(lsEntityPoolNames(activeConvId))
     if (rawEntityPoolNames) { try { setEntityPoolNames(JSON.parse(rawEntityPoolNames)) } catch { setEntityPoolNames({}) } }
+    const rawQuestLinks = safeGetItem(lsQuestLinks(activeConvId))
+    if (rawQuestLinks) { try { setSavedQuestDefinitionIds(JSON.parse(rawQuestLinks)) } catch { setSavedQuestDefinitionIds({}) } }
+    const rawQuestNames = safeGetItem(lsQuestNames(activeConvId))
+    if (rawQuestNames) { try { setQuestDefinitionNames(JSON.parse(rawQuestNames)) } catch { setQuestDefinitionNames({}) } }
+    const rawQuestCodes = safeGetItem(lsQuestCodes(activeConvId))
+    if (rawQuestCodes) { try { setQuestDefinitionCodes(JSON.parse(rawQuestCodes)) } catch { setQuestDefinitionCodes({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -797,6 +825,8 @@ export function LLMConversationPanel() {
           setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'crafting_recipe') {
           setCraftingRecipeNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'quest_definition') {
+          setQuestDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -975,6 +1005,44 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
     return () => window.removeEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful quest creation triggered from the quest page, map turn context → quest ID
+  useEffect(() => {
+    function handleQuestCreated(e: Event) {
+      const detail = (e as CustomEvent<{ questId: string; questName?: string; questCodeName?: string; turnId?: string; responseIdx?: number; questDefinitionIdx?: number; convId?: string; gameId?: string }>).detail
+      if (!gameId) return
+      if (detail.gameId && detail.gameId !== gameId) return
+      const convId = detail.convId ?? activeConvId
+      if (!convId) return
+      if (detail.turnId !== undefined && detail.responseIdx !== undefined && detail.questDefinitionIdx !== undefined) {
+        const questKey = `${detail.turnId}:${detail.responseIdx}:${detail.questDefinitionIdx}`
+        setSavedQuestDefinitionIds(prev => {
+          const updated = { ...prev, [questKey]: detail.questId }
+          safeSetItem(lsQuestLinks(convId), JSON.stringify(updated))
+          return updated
+        })
+      }
+      if (detail.questName) {
+        setQuestDefinitionNames(prev => {
+          const next = { ...prev, [detail.questId]: detail.questName! }
+          safeSetItem(lsQuestNames(convId), JSON.stringify(next))
+          return next
+        })
+      }
+      if (detail.questCodeName) {
+        setQuestDefinitionCodes(prev => {
+          const next = { ...prev, [detail.questId]: detail.questCodeName! }
+          safeSetItem(lsQuestCodes(convId), JSON.stringify(next))
+          return next
+        })
+      }
+      void linkConversationContent(gameId, convId, 'quest_definition', detail.questId)
+        .then(() => void loadLinkedContent(gameId, convId))
+        .catch(() => { /* best-effort */ })
+    }
+    window.addEventListener('ss:quest-created', handleQuestCreated)
+    return () => window.removeEventListener('ss:quest-created', handleQuestCreated)
   }, [activeConvId, gameId])
 
   // ---------------------------------------------------------------------------
@@ -1410,6 +1478,9 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsEquipmentSlotNames(deleteTarget.ID))
       safeRemoveItem(lsCraftingRecipeLinks(deleteTarget.ID))
       safeRemoveItem(lsCraftingRecipeNames(deleteTarget.ID))
+      safeRemoveItem(lsQuestLinks(deleteTarget.ID))
+      safeRemoveItem(lsQuestNames(deleteTarget.ID))
+      safeRemoveItem(lsQuestCodes(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -1447,6 +1518,9 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsEquipmentSlotNames(conv.ID))
       safeRemoveItem(lsTagApplied(conv.ID))
       safeRemoveItem(lsItemTagCreated(conv.ID))
+      safeRemoveItem(lsQuestLinks(conv.ID))
+      safeRemoveItem(lsQuestNames(conv.ID))
+      safeRemoveItem(lsQuestCodes(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       if (activeConvId === conv.ID) {
         safeRemoveItem(lsActiveConv(gameId))
@@ -2656,6 +2730,118 @@ export function LLMConversationPanel() {
     })()
   }
 
+  function openQuestDefinitionCreate(
+    questDefinition: Record<string, unknown>,
+    turnId?: string,
+    responseIdx?: number,
+    questDefinitionIdx?: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      questDefinition,
+      turnId,
+      responseIdx,
+      questDefinitionIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    const isOnQuestsPage = pathname === `/games/${gameId}/quests`
+    if (isOnQuestsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-create-quest-definition', { detail: pending }))
+    } else {
+      safeSetItem(lsPendingQuestCreate(gameId), JSON.stringify(pending))
+      router.push(`/games/${gameId}/quests?create=1`)
+    }
+  }
+
+  function openQuestDefinitionEdit(
+    existingQuestId: string,
+    questDefinition: Record<string, unknown>,
+    turnId?: string,
+    responseIdx?: number,
+    questDefinitionIdx?: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      existingQuestId,
+      questDefinition,
+      turnId,
+      responseIdx,
+      questDefinitionIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    const isOnQuestsPage = pathname === `/games/${gameId}/quests`
+    if (isOnQuestsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-edit-quest-definition', { detail: pending }))
+    } else {
+      safeSetItem(lsPendingQuestEdit(gameId), JSON.stringify(pending))
+      router.push(`/games/${gameId}/quests?editQuestId=${existingQuestId}`)
+    }
+  }
+
+  async function handleSaveQuestDefinition(
+    questDefinition: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    questDefinitionIdx: number,
+  ) {
+    if (!gameId) return
+    const codeName = typeof questDefinition.code_name === 'string' ? questDefinition.code_name.trim() : ''
+    if (codeName) {
+      try {
+        const game = await getGame(gameId)
+        const res = await listQuestDefinitions(game.studio_id, gameId, { limit: 1000 })
+        const existing = (res.quests ?? []).find((quest) => (quest.code_name ?? '').trim() === codeName) ?? null
+        if (existing) {
+          setQuestCodeConflictExisting(existing)
+          setQuestCodeConflictPending({ questDefinition, turnId, responseIdx, questDefinitionIdx })
+          setNewQuestCodeInput(`${existing.code_name ?? codeName}_2`)
+          setQuestCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // Fall through to create flow if lookup fails.
+      }
+    }
+    openQuestDefinitionCreate(questDefinition, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  function handleQuestCodeConflictUpdate() {
+    if (!questCodeConflictExisting || !questCodeConflictPending) return
+    const { questDefinition, turnId, responseIdx, questDefinitionIdx } = questCodeConflictPending
+    setQuestCodeConflictOpen(false)
+    setQuestCodeConflictExisting(null)
+    setQuestCodeConflictPending(null)
+    openQuestDefinitionEdit(questCodeConflictExisting.id, questDefinition, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  function handleQuestCodeConflictSaveNew(newCodeName: string) {
+    if (!questCodeConflictPending) return
+    const nextCode = newCodeName.trim()
+    if (!nextCode) {
+      toast({ title: t('common.error'), variant: 'destructive' })
+      return
+    }
+    const { questDefinition, turnId, responseIdx, questDefinitionIdx } = questCodeConflictPending
+    setQuestCodeConflictOpen(false)
+    setQuestCodeConflictExisting(null)
+    setQuestCodeConflictPending(null)
+    openQuestDefinitionCreate({ ...questDefinition, code_name: nextCode }, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  useEffect(() => {
+    if (questCodeConflictOpen && questCodeConflictExisting?.code_name) {
+      setNewQuestCodeInput(`${questCodeConflictExisting.code_name}_2`)
+    } else if (!questCodeConflictOpen) {
+      setNewQuestCodeInput('')
+    }
+  }, [questCodeConflictOpen, questCodeConflictExisting?.code_name])
+
+  const questCodeConflictDescription = questCodeConflictExisting
+    ? t('llmConversation.questCodeConflictDesc').replace('{code}', questCodeConflictExisting.code_name ?? '')
+    : ''
+
   async function handleOpenItemDefinitionReview(
     item: Record<string, unknown>,
     turnId: string,
@@ -3008,8 +3194,10 @@ export function LLMConversationPanel() {
                   savedEquipmentSlotIds={savedEquipmentSlotIds}
                   savedCraftingRecipeIds={savedCraftingRecipeIds}
                   savedEntityPoolIds={savedEntityPoolIds}
+                  savedQuestDefinitionIds={savedQuestDefinitionIds}
                   craftingRecipeNames={craftingRecipeNames}
                   entityPoolNames={entityPoolNames}
+                  questDefinitionNames={questDefinitionNames}
                   premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
@@ -3022,6 +3210,7 @@ export function LLMConversationPanel() {
                   onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
                   onSaveCraftingRecipe={handleSaveCraftingRecipe}
                   onSaveEntityPool={handleSaveEntityPool}
+                  onSaveQuestDefinition={handleSaveQuestDefinition}
                   onBuyTokens={handleBuyTokens}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
@@ -3047,6 +3236,7 @@ export function LLMConversationPanel() {
                 gachaPackNames={gachaPackNames}
                 entityPoolNames={entityPoolNames}
                 entityPoolKeys={entityPoolKeys}
+                questDefinitionNames={questDefinitionNames}
                 craftingRecipeNames={craftingRecipeNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
@@ -3195,6 +3385,80 @@ export function LLMConversationPanel() {
             >
               <Hammer id="crafting-recipe-review-confirm-icon" className="h-4 w-4" />
               {t('llmConversation.craftingRecipeReviewConfirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={questCodeConflictOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuestCodeConflictOpen(false)
+            setQuestCodeConflictExisting(null)
+            setQuestCodeConflictPending(null)
+          }
+        }}
+      >
+        <DialogContent id="quest-code-conflict-dialog-root">
+          <DialogHeader id="quest-code-conflict-dialog-header">
+            <DialogTitle id="quest-code-conflict-dialog-title">{t('llmConversation.questCodeConflictTitle')}</DialogTitle>
+            <DialogDescription id="quest-code-conflict-dialog-desc">
+              {questCodeConflictDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          {questCodeConflictExisting && (
+            <Link
+              id="quest-code-conflict-existing-link"
+              href={`/games/${gameId}/quests?editQuestId=${questCodeConflictExisting.id}&noconvpanel=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Hammer id="quest-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span id="quest-code-conflict-existing-link-name" className="flex-1 truncate">{questCodeConflictExisting.name}</span>
+              <code id="quest-code-conflict-existing-link-code" className="text-xs bg-muted-foreground/20 px-1 rounded">{questCodeConflictExisting.code_name ?? ''}</code>
+              <ExternalLink id="quest-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+
+          <Button
+            id="quest-code-conflict-update-btn"
+            type="button"
+            onClick={handleQuestCodeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+            disabled={!questCodeConflictExisting || !questCodeConflictPending}
+          >
+            <Hammer id="quest-code-conflict-update-icon" className="h-4 w-4" />
+            {t('llmConversation.questCodeConflictUpdate')}
+          </Button>
+
+          <div id="quest-code-conflict-divider" className="relative flex items-center gap-2">
+            <div id="quest-code-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="quest-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="quest-code-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          <div id="quest-code-conflict-save-new-section" className="space-y-2">
+            <Label id="quest-code-conflict-new-code-label" htmlFor="quest-code-conflict-new-code-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.questCodeConflictNewCodeLabel')}
+            </Label>
+            <Input
+              id="quest-code-conflict-new-code-input"
+              value={newQuestCodeInput}
+              onChange={(e) => setNewQuestCodeInput(e.target.value)}
+              className="font-mono"
+            />
+            <Button
+              id="quest-code-conflict-save-new-btn"
+              type="button"
+              onClick={() => handleQuestCodeConflictSaveNew(newQuestCodeInput)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+              disabled={!questCodeConflictPending}
+            >
+              <PackagePlus id="quest-code-conflict-save-new-icon" className="h-4 w-4" />
+              {t('llmConversation.questCodeConflictSaveNew')}
             </Button>
           </div>
         </DialogContent>

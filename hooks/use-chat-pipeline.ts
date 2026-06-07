@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestEntityPoolCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
+import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestEntityPoolCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, requestQuestDefinitionGeneration, requestQuestDefinitionGenerationPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
 import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
 import type { Conversation } from '@/types/llm-conversation'
 import type { ItemCategory, ItemRarity } from '@/types/inventory'
@@ -157,7 +157,7 @@ export function useChatPipeline() {
 
       // ── Step 3: stream each intent sequentially ──────────────────────────────
       const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
-        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning' && intent.type !== 'entity_pool_creating_planning') return [intent]
+        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning' && intent.type !== 'entity_pool_creating_planning' && intent.type !== 'quest_definition_generation_planning') return [intent]
 
         const goals = intent.goals ?? []
         const entityType = intent.entityType || fallbackEntityType || undefined
@@ -232,6 +232,14 @@ export function useChatPipeline() {
               planningAction: action,
             }
           }
+          if (action.type === 'quest_definition_generation') {
+            return {
+              type: 'quest_definition_generation',
+              entityType: action.entity_type || entityType,
+              goals: actionGoals,
+              planningAction: action,
+            }
+          }
           return null
         }
 
@@ -247,6 +255,20 @@ export function useChatPipeline() {
                 history: historyContext,
               },
             )
+          : intent.type === 'quest_definition_generation_planning'
+            ? await requestQuestDefinitionGenerationPlanning(
+                gameId,
+                resolvedConvId,
+                userPrompt,
+                contextIds,
+                {
+                  language: detectedLanguage,
+                  entityType,
+                  goals,
+                  history: historyContext,
+                  requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
+                },
+              )
           : intent.type === 'crafting_recipe_creating_planning'
             ? await requestCraftingRecipeCreatingPlanning(
                 gameId,
@@ -313,8 +335,10 @@ export function useChatPipeline() {
                 : intent.type === 'entity_pool_creating_planning'
                   ? [{ type: 'entity_pool_creating', entityType, goals }]
                 : intent.type === 'crafting_recipe_creating_planning'
-                ? [{ type: 'crafting_recipe_creating', entityType, goals }]
-                : [{ type: 'gacha_pack_creating', entityType, goals }]
+                  ? [{ type: 'crafting_recipe_creating', entityType, goals }]
+                  : intent.type === 'quest_definition_generation_planning'
+                    ? [{ type: 'quest_definition_generation', entityType, goals }]
+                    : [{ type: 'gacha_pack_creating', entityType, goals }]
           )
       }
 
@@ -344,6 +368,10 @@ export function useChatPipeline() {
         const intent = executionIntents[i]
         let currentResponseText = ''
         const generatedItemsForRequest = (() => {
+          if (intent.type === 'quest_definition_generation') {
+            if (generatedItems && generatedItems.length > 0) return generatedItems
+            return undefined
+          }
           if (intent.planningAction) return [intent.planningAction]
           if (intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0) return generatedPresets
           if (intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0) return generatedContainers
@@ -354,6 +382,53 @@ export function useChatPipeline() {
           if ((intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0) return generatedItems
           return undefined
         })()
+
+        if (intent.type === 'quest_definition_generation') {
+          let requestError = ''
+          try {
+            const response = await requestQuestDefinitionGeneration(
+              gameId,
+              resolvedConvId,
+              userPrompt,
+              contextIds,
+              {
+                language: detectedLanguage,
+                entityType: intent.entityType || fallbackEntityType || undefined,
+                goals: intent.goals,
+                history: historyContext,
+                requestHistory: activeHistory.length > 0 ? [...activeHistory] : undefined,
+                generatedItems: generatedItemsForRequest,
+              },
+            )
+            currentResponseText = JSON.stringify(response.content ?? {}, null, 2)
+            setChatHistory((prev) =>
+              prev.map((t) => {
+                if (t.id !== turnId) return t
+                const responses = (t.responses ?? []).map((r, idx) =>
+                  idx === i ? { ...r, responseText: currentResponseText, done: true } : r
+                )
+                return { ...t, responses }
+              })
+            )
+          } catch (err) {
+            requestError = err instanceof Error ? err.message : 'Unknown error'
+            setChatHistory((prev) =>
+              prev.map((t) => {
+                if (t.id !== turnId) return t
+                const responses = (t.responses ?? []).map((r, idx) =>
+                  idx === i ? { ...r, error: requestError, done: true } : r
+                )
+                return { ...t, responses }
+              })
+            )
+          }
+          if (requestError) { finish(); return }
+          if (currentResponseText) {
+            activeHistory.push({ request_type: intent.type, response_text: currentResponseText })
+          }
+          continue
+        }
+
         await streamRequest(
           gameId,
           resolvedConvId,
@@ -493,6 +568,10 @@ export function useChatPipeline() {
 
     try {
       const generatedItemsForRetry = (() => {
+        if (intentType === 'quest_definition_generation') {
+          if (generatedItems && generatedItems.length > 0) return generatedItems
+          return undefined
+        }
         if (planningAction) return [planningAction]
         if (intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0) return generatedPresets
         if (intentType === 'container_creating' && generatedContainers && generatedContainers.length > 0) return generatedContainers
@@ -504,6 +583,39 @@ export function useChatPipeline() {
         if (intentType === 'entity_definition_generation' && generatedEntityDefinitions && generatedEntityDefinitions.length > 0) return generatedEntityDefinitions
         return undefined
       })()
+
+      if (intentType === 'quest_definition_generation') {
+        const response = await requestQuestDefinitionGeneration(
+          gameId,
+          convId,
+          userMessage,
+          {
+            lore_entry_ids: loreEntryIds ?? [],
+            item_definition_ids: itemDefinitionIds ?? [],
+            container_definition_ids: containerDefinitionIds ?? [],
+            entity_definition_ids: entityDefinitionIds ?? [],
+          },
+          {
+            goals: planningAction && Array.isArray((planningAction as { goals?: string[] }).goals)
+              ? (planningAction as { goals?: string[] }).goals
+              : undefined,
+            requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
+            generatedItems: generatedItemsForRetry,
+          },
+        )
+        const currentResponseText = JSON.stringify(response.content ?? {}, null, 2)
+        setChatHistory((prev) =>
+          prev.map((t) => {
+            if (t.id !== turnId) return t
+            const responses = (t.responses ?? []).map((r, idx) =>
+              idx === responseIdx ? { ...r, responseText: currentResponseText, done: true } : r
+            )
+            return { ...t, responses }
+          })
+        )
+        finish()
+        return
+      }
 
       await streamRequest(
         gameId,

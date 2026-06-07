@@ -72,9 +72,11 @@ import {
 import { listGachaPacks, listItemDefinitions } from "@/lib/inventory-api"
 import type { GachaPack, ItemDefinition, Paginated } from "@/types/inventory"
 import { useToast } from "@/hooks/use-toast"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 import { getGame } from "@/lib/game-api"
 import { fetchStudioWithCache } from "@/lib/studio-api"
 import { ApiError } from "@/lib/api-client"
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils"
 import type { Studio } from "@/types/studio"
 import {
   listQuestDefinitions,
@@ -99,6 +101,7 @@ import { ChainTab } from "./ChainTab"
 import { SettingsTab } from "./SettingsTab"
 import { QuestDeliveryOverride } from "./QuestDeliveryOverride"
 import type { Game } from "@/types/game"
+import { lsPendingQuestCreate, lsPendingQuestEdit } from "@/components/llm-conversations/conversation-panel-utils"
 
 // ─── Tab config ────────────────────────────────────────────────────────────────
 
@@ -118,6 +121,15 @@ function getItemDefsCached(gameId: string, limit = 200): Promise<Paginated<ItemD
     itemDefsCache.set(key, p)
   }
   return p
+}
+
+function mergeItemDefs(base: ItemDefinition[], extra: ItemDefinition[]): ItemDefinition[] {
+  const merged = new Map<string, ItemDefinition>()
+  for (const def of base) merged.set(def.id, def)
+  for (const def of extra) {
+    if (!merged.has(def.id)) merged.set(def.id, def)
+  }
+  return [...merged.values()]
 }
 
 const TABS: { value: TabValue; labelKey: string }[] = [
@@ -162,6 +174,50 @@ const DEFAULT_FORM: CreateQuestDefinitionRequest = {
   rewards: [],
 }
 
+function stripQuestUiFields<T>(value: T): T {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value
+  const record = value as Record<string, unknown>
+  if (Array.isArray(record.clauses)) {
+    return {
+      ...record,
+      clauses: record.clauses.map((clause) => stripQuestUiFields(clause)),
+    } as T
+  }
+  if (Array.isArray(record.items)) {
+    return {
+      ...record,
+      items: record.items.map((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return item
+        const itemRecord = item as Record<string, unknown>
+        const { item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = itemRecord
+        return rest
+      }),
+    } as T
+  }
+  if (Array.isArray(record.rewards)) {
+    return {
+      ...record,
+      rewards: record.rewards.map((reward) => {
+        if (!reward || typeof reward !== "object" || Array.isArray(reward)) return reward
+        const rewardRecord = reward as Record<string, unknown>
+        const { item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = rewardRecord
+        return rest
+      }),
+    } as T
+  }
+  if (record.conditions) {
+    return {
+      ...record,
+      conditions: stripQuestUiFields(record.conditions),
+    } as T
+  }
+  if (typeof record.item_definition_id === "string") {
+    const { item_definition_id: _ignoredId, item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = record
+    return rest as T
+  }
+  return record as T
+}
+
 // ─── Helper ────────────────────────────────────────────────────────────────────
 
 function questTypeBadgeVariant(type: QuestType) {
@@ -181,6 +237,7 @@ interface ConditionEditorProps {
   conditions: QuestConditionGroup
   onChange: (c: QuestConditionGroup) => void
   gameId: string
+  prefetchedItemDefs?: ItemDefinition[]
 }
 
 function genClauseId(type: string) {
@@ -200,7 +257,7 @@ function newLeaf(): QuestConditionLeaf {
   return { clause_id: genClauseId("login"), type: "login", target: 1 }
 }
 
-function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps) {
+function ConditionEditor({ conditions, onChange, gameId, prefetchedItemDefs = [] }: ConditionEditorProps) {
   const { t } = useTranslation()
   const [gachaPacks, setGachaPacks] = useState<GachaPack[]>([])
   const [gachaPacksLoading, setGachaPacksLoading] = useState(false)
@@ -226,7 +283,20 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
   }, [gameId])
+  const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs])
   const setOperator = (op: 'AND' | 'OR') => onChange({ ...conditions, operator: op })
+  const resolveItemDef = useCallback((rawValue: string) => {
+    const normalized = rawValue.trim()
+    if (!normalized) return null
+    const refCode = normalized.startsWith("__REF:") ? normalized.slice("__REF:".length).trim() : ""
+    return (
+      mergedItemDefs.find((def) =>
+        def.id === normalized ||
+        def.item_code === normalized ||
+        (refCode ? def.id === refCode || def.item_code === refCode : false)
+      ) ?? null
+    )
+  }, [mergedItemDefs])
 
   const addClause = () =>
     onChange({ ...conditions, clauses: [...conditions.clauses, newLeaf()] })
@@ -245,7 +315,16 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
   const updateItem = (clauseIdx: number, itemIdx: number, patch: Partial<ItemRequirement>) => {
     const clause = conditions.clauses[clauseIdx]
     if (!isConditionLeaf(clause)) return
-    const items = (clause.items ?? []).map((it, ii) => (ii === itemIdx ? { ...it, ...patch } : it))
+    const nextPatch: Partial<ItemRequirement> = { ...patch }
+    if (typeof patch.item_definition_id === "string" && patch.item_definition_id.trim()) {
+      const resolved = resolveItemDef(patch.item_definition_id)
+      if (resolved) {
+        nextPatch.item_definition_id = resolved.id
+        nextPatch.item_definition_name = resolved.name
+        nextPatch.item_definition_code = resolved.item_code
+      }
+    }
+    const items = (clause.items ?? []).map((it, ii) => (ii === itemIdx ? { ...it, ...nextPatch } : it))
     updateLeaf(clauseIdx, { items })
   }
 
@@ -260,6 +339,55 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
     if (!isConditionLeaf(clause)) return
     updateLeaf(clauseIdx, { items: (clause.items ?? []).filter((_, ii) => ii !== itemIdx) })
   }
+
+  useEffect(() => {
+    const collectTypes = new Set(["collect_and_keep", "collect_and_submit", "not_have_item"])
+    for (let i = 0; i < conditions.clauses.length; i++) {
+      const clause = conditions.clauses[i]
+      if (!isConditionLeaf(clause)) continue
+      if (!collectTypes.has(clause.type)) continue
+      const directId = typeof clause.item_definition_id === "string" ? clause.item_definition_id.trim() : ""
+      const currentItems = clause.items ?? []
+      if (currentItems.length === 0) {
+        if (!directId) continue
+        const resolved = resolveItemDef(directId)
+        updateLeaf(i, {
+          items: [{
+            item_definition_id: resolved?.id ?? directId,
+            item_definition_name: resolved?.name,
+            item_definition_code: resolved?.item_code,
+            quantity: 1,
+          }],
+        })
+        continue
+      }
+
+      const normalizedItems = currentItems.map((item) => {
+        const rawId = String(item.item_definition_id ?? "").trim()
+        if (!rawId) return item
+        const resolved = resolveItemDef(rawId)
+        if (!resolved) return item
+        if (
+          item.item_definition_id === resolved.id &&
+          item.item_definition_name === resolved.name &&
+          item.item_definition_code === resolved.item_code
+        ) {
+          return item
+        }
+        return {
+          ...item,
+          item_definition_id: resolved.id,
+          item_definition_name: resolved.name,
+          item_definition_code: resolved.item_code,
+        }
+      })
+
+      const changed = normalizedItems.some((item, idx) => item !== currentItems[idx])
+      if (changed) {
+        updateLeaf(i, { items: normalizedItems as ItemRequirement[] })
+      }
+    }
+  }, [conditions, resolveItemDef, updateLeaf])
 
   const handleTypeChange = (i: number, v: string) => {
     const clause = conditions.clauses[i]
@@ -372,9 +500,9 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                         >
                           <span className="truncate">
                             {item.item_definition_id
-                              ? (itemDefs.find((d) => d.id === item.item_definition_id)
-                                  ? `${itemDefs.find((d) => d.id === item.item_definition_id)!.name}`
-                                  : item.item_definition_id)
+                              ? (item.item_definition_name
+                                  ?? mergedItemDefs.find((d) => d.id === item.item_definition_id)?.name
+                                  ?? item.item_definition_id)
                               : (itemDefsLoading ? t('common.loading') : t('quest.selectItem'))}
                           </span>
                           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
@@ -388,12 +516,16 @@ function ConditionEditor({ conditions, onChange, gameId }: ConditionEditorProps)
                               {itemDefsLoading ? t('common.loading') : t('common.noItemsFound')}
                             </CommandEmpty>
                             <CommandGroup>
-                              {itemDefs.map((def) => (
+                              {mergedItemDefs.map((def) => (
                                 <CommandItem
                                   key={def.id}
                                   value={`${def.name} ${def.item_code} ${def.id}`}
                                   onSelect={() => {
-                                    updateItem(i, ii, { item_definition_id: def.id })
+                                    updateItem(i, ii, {
+                                      item_definition_id: def.id,
+                                      item_definition_name: def.name,
+                                      item_definition_code: def.item_code,
+                                    })
                                     setItemPopoverOpen(null)
                                   }}
                                 >
@@ -536,9 +668,10 @@ interface RewardEditorProps {
   rewards: QuestReward[]
   onChange: (rewards: QuestReward[]) => void
   gameId: string
+  prefetchedItemDefs?: ItemDefinition[]
 }
 
-function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
+function RewardEditor({ rewards, onChange, gameId, prefetchedItemDefs = [] }: RewardEditorProps) {
   const { t } = useTranslation()
   const [itemDefs, setItemDefs] = useState<ItemDefinition[]>([])
   const [itemDefsLoading, setItemDefsLoading] = useState(false)
@@ -552,6 +685,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
       .catch(() => setItemDefs([]))
       .finally(() => setItemDefsLoading(false))
   }, [gameId])
+  const mergedItemDefs = useMemo(() => mergeItemDefs(itemDefs, prefetchedItemDefs), [itemDefs, prefetchedItemDefs])
 
   const addReward = () => onChange([...rewards, { reward_type: "item", item_definition_id: "", quantity_min: 1, quantity_max: 1 }])
   const removeReward = (i: number) => onChange(rewards.filter((_, idx) => idx !== i))
@@ -584,9 +718,9 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                     >
                       <span className="truncate">
                         {r.item_definition_id
-                          ? (itemDefs.find((d) => d.id === r.item_definition_id)
-                              ? itemDefs.find((d) => d.id === r.item_definition_id)!.name
-                              : r.item_definition_id)
+                          ? (r.item_definition_name
+                              ?? mergedItemDefs.find((d) => d.id === r.item_definition_id)?.name
+                              ?? r.item_definition_id)
                           : (itemDefsLoading ? t('common.loading') : t('quest.selectItem'))}
                       </span>
                       <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
@@ -598,7 +732,7 @@ function RewardEditor({ rewards, onChange, gameId }: RewardEditorProps) {
                       <CommandList>
                         <CommandEmpty>{itemDefsLoading ? t('common.loading') : t('common.noItemsFound')}</CommandEmpty>
                         <CommandGroup>
-                          {itemDefs.map((def) => (
+                          {mergedItemDefs.map((def) => (
                             <CommandItem
                               key={def.id}
                               value={`${def.name} ${def.item_code} ${def.id}`}
@@ -720,6 +854,22 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const [autoSlug, setAutoSlug] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [createQuestConvContext, setCreateQuestConvContext] = useState<{
+    turnId: string
+    responseIdx: number
+    questDefinitionIdx: number
+    convId: string
+    gameId: string
+  } | null>(null)
+  const [createQuestResolvedItemDefs, setCreateQuestResolvedItemDefs] = useState<ItemDefinition[]>([])
+  const [editQuestResolvedItemDefs, setEditQuestResolvedItemDefs] = useState<ItemDefinition[]>([])
+  const [editQuestConvContext, setEditQuestConvContext] = useState<{
+    turnId: string
+    responseIdx: number
+    questDefinitionIdx: number
+    convId: string
+    gameId: string
+  } | null>(null)
 
   // Filters — initialized from URL so F5 preserves them
   const [filterSearch, setFilterSearch] = useState(() => searchParams.get("q") ?? "")
@@ -739,6 +889,27 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterSearch, filterType, filterActive, sortBy, sortOrder])
+
+  useEffect(() => {
+    const nextSearch = searchParams.get("q") ?? ""
+    if (nextSearch !== filterSearch) setFilterSearch(nextSearch)
+
+    const nextType = searchParams.get("type") ?? "all"
+    if (nextType !== filterType) setFilterType(nextType)
+
+    const nextActive = searchParams.get("active") ?? "all"
+    if (nextActive !== filterActive) setFilterActive(nextActive)
+
+    const nextSortBy = searchParams.get("sortBy") ?? "updated_at"
+    if (nextSortBy !== sortBy) setSortBy(nextSortBy)
+
+    const nextSortOrder = searchParams.get("sortOrder") ?? "desc"
+    if (nextSortOrder !== sortOrder) setSortOrder(nextSortOrder)
+
+    const expandQuest = searchParams.get("expandQuest")
+    if (expandQuest !== expandedQuestId) setExpandedQuestId(expandQuest)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Quest type options:
   // - Prefer i18n labels/descriptions for known quest types
@@ -784,7 +955,11 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     if (filterSearch.trim()) {
       const q = filterSearch.toLowerCase()
       result = result.filter(
-        (d) => d.name.toLowerCase().includes(q) || (d.description ?? "").toLowerCase().includes(q) || d.id.toLowerCase().includes(q),
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          (d.code_name ?? "").toLowerCase().includes(q) ||
+          (d.description ?? "").toLowerCase().includes(q) ||
+          d.id.toLowerCase().includes(q),
       )
     }
     if (filterType !== "all") {
@@ -824,19 +999,45 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   // ── Edit ─────────────────────────────────────────────────────────────────────
 
-  const openEdit = useCallback((q: QuestDefinition) => {
-    setForm({
-      name: q.name,
-      code_name: q.code_name ?? "",
-      description: q.description ?? "",
-      quest_type: q.quest_type,
-      conditions: q.conditions ?? { operator: "AND", clauses: [] },
-      is_active: q.is_active,
-      sort_order: q.sort_order,
-      rewards: q.rewards ?? [],
-    })
+  const openEdit = useCallback(async (
+    q: QuestDefinition,
+    draft?: Partial<CreateQuestDefinitionRequest>,
+    turnContext?: {
+      turnId: string
+      responseIdx: number
+      questDefinitionIdx: number
+      convId: string
+      gameId: string
+    } | null,
+  ) => {
+    const nextName = typeof draft?.name === "string" && draft.name.trim() ? draft.name : q.name
+    const nextCodeName = typeof draft?.code_name === "string" ? draft.code_name : (q.code_name ?? "")
+    const nextDescription = typeof draft?.description === "string" ? draft.description : (q.description ?? "")
+    const nextQuestType = (draft?.quest_type as QuestType) ?? q.quest_type
+    const nextConditions = (draft?.conditions ?? q.conditions ?? { operator: "AND", clauses: [] }) as QuestConditionGroup
+    const nextIsActive = typeof draft?.is_active === "boolean" ? draft.is_active : q.is_active
+    const nextSortOrder = typeof draft?.sort_order === "number" ? draft.sort_order : q.sort_order
+    const nextRewards = Array.isArray(draft?.rewards) ? (draft.rewards as QuestReward[]) : (q.rewards ?? [])
+    const nextMetadata = draft?.metadata && typeof draft.metadata === "object" && !Array.isArray(draft.metadata)
+      ? draft.metadata as Record<string, unknown>
+      : (q.metadata ?? undefined)
+    const nextForm: CreateQuestDefinitionRequest = {
+      name: nextName,
+      code_name: nextCodeName,
+      description: nextDescription,
+      quest_type: nextQuestType,
+      conditions: nextConditions,
+      is_active: nextIsActive,
+      sort_order: nextSortOrder,
+      rewards: nextRewards,
+      metadata: nextMetadata as Record<string, unknown> | undefined,
+    }
+    const prepared = await resolveQuestDraftForCreate(nextForm)
+    setForm(prepared.draft)
+    setEditQuestResolvedItemDefs(prepared.resolvedItemDefs)
     setAutoSlug(false)
     setEditQuest(q)
+    setEditQuestConvContext(turnContext ?? null)
     // Reflect the edit target in the URL so the link can be shared
     const sp = new URLSearchParams(searchParams.toString())
     sp.set("editQuestId", q.id)
@@ -848,10 +1049,34 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
   const handledEditQuestId = useRef<string | null>(null)
   useEffect(() => {
     if (!editQuestId || editQuestId === handledEditQuestId.current || quests.length === 0) return
-    handledEditQuestId.current = editQuestId
     const q = quests.find((qd) => qd.id === editQuestId)
-    if (q) openEdit(q)
-  }, [editQuestId, quests, openEdit])
+    if (!q) return
+    const pendingRaw = safeGetItem(lsPendingQuestEdit(gameId))
+    if (pendingRaw) {
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
+          ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
+          : (detail as Partial<CreateQuestDefinitionRequest>)
+        const turnContext = {
+          turnId: typeof detail.turnId === "string" ? detail.turnId : "",
+          responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          questDefinitionIdx: typeof detail.questDefinitionIdx === "number" ? detail.questDefinitionIdx : Number(detail.questDefinitionIdx ?? 0),
+          convId: typeof detail.convId === "string" ? detail.convId : "",
+          gameId: typeof detail.gameId === "string" ? detail.gameId : gameId,
+        }
+        void openEdit(q, draft, turnContext).catch(() => {})
+        } catch {
+          void openEdit(q).catch(() => {})
+        } finally {
+          safeRemoveItem(lsPendingQuestEdit(gameId))
+        }
+      handledEditQuestId.current = editQuestId
+      return
+    }
+    void openEdit(q).catch(() => {})
+    handledEditQuestId.current = editQuestId
+  }, [editQuestId, gameId, quests, openEdit])
 
   const refresh = async () => {
     setRefreshing(true)
@@ -861,10 +1086,382 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   // ── Create ───────────────────────────────────────────────────────────────────
 
-  const openCreate = () => {
-    setForm({ ...DEFAULT_FORM })
-    setAutoSlug(true)
+  const resolveQuestDraftForCreate = useCallback(async (questDefinition: CreateQuestDefinitionRequest) => {
+    if (!gameId) {
+      return { draft: questDefinition, resolvedItemDefs: [] as ItemDefinition[] }
+    }
+
+    const refs = new Set<string>()
+    const walk = (value: unknown): void => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return
+      const record = value as Record<string, unknown>
+      const directId = String(record.item_definition_id ?? "").trim()
+      if (directId.startsWith("__REF:")) refs.add(directId.slice("__REF:".length).trim())
+      if (Array.isArray(record.clauses)) record.clauses.forEach(walk)
+      if (Array.isArray(record.items)) {
+        for (const item of record.items) {
+          if (!item || typeof item !== "object" || Array.isArray(item)) continue
+          const rawId = String((item as Record<string, unknown>).item_definition_id ?? "").trim()
+          if (rawId.startsWith("__REF:")) refs.add(rawId.slice("__REF:".length).trim())
+        }
+      }
+      if (Array.isArray(record.rewards)) {
+        for (const reward of record.rewards) {
+          if (!reward || typeof reward !== "object" || Array.isArray(reward)) continue
+          const rawId = String((reward as Record<string, unknown>).item_definition_id ?? "").trim()
+          if (rawId.startsWith("__REF:")) refs.add(rawId.slice("__REF:".length).trim())
+        }
+      }
+      if (record.conditions) walk(record.conditions)
+    }
+    walk(questDefinition)
+
+    if (refs.size === 0) {
+      return { draft: questDefinition, resolvedItemDefs: [] as ItemDefinition[] }
+    }
+
+    const codeToItem = new Map<string, ItemDefinition>()
+    await Promise.allSettled(
+      [...refs].map(async (code) => {
+        if (!code) return
+        const res = await listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+        const item = (res.items ?? []).find((candidate) => candidate.item_code === code) ?? null
+        if (item) {
+          codeToItem.set(code, item)
+        }
+      })
+    )
+
+    const replaceRefs = (value: unknown): unknown => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return value
+      const record = value as Record<string, unknown>
+      if (Array.isArray(record.clauses)) {
+        return {
+          ...record,
+          clauses: record.clauses.map((clause) => replaceRefs(clause)),
+        }
+      }
+      const type = typeof record.type === "string" ? record.type : ""
+      const directId = String(record.item_definition_id ?? "").trim()
+      const canCarryItem = type === "collect_and_keep" || type === "collect_and_submit" || type === "not_have_item"
+      if (canCarryItem && directId) {
+        const resolved = directId.startsWith("__REF:")
+          ? codeToItem.get(directId.slice("__REF:".length).trim()) ?? null
+          : [...codeToItem.values()].find((item) => item.id === directId || item.item_code === directId) ?? null
+        const currentItems = Array.isArray(record.items) ? record.items : []
+        const nextItems = currentItems.length > 0
+          ? currentItems
+          : resolved
+            ? [{
+                item_definition_id: resolved.id,
+                item_definition_name: resolved.name,
+                item_definition_code: resolved.item_code,
+                quantity: 1,
+              }]
+            : [{
+                item_definition_id: directId,
+                quantity: 1,
+              }]
+        const { item_definition_id: _ignoredId, item_definition_name: _ignoredName, item_definition_code: _ignoredCode, ...rest } = record
+        return {
+          ...rest,
+          items: nextItems,
+        }
+      }
+      if (Array.isArray(record.items)) {
+        return {
+          ...record,
+          items: record.items.map((item) => {
+            if (!item || typeof item !== "object" || Array.isArray(item)) return item
+            const itemRecord = item as Record<string, unknown>
+            const rawId = String(itemRecord.item_definition_id ?? "").trim()
+            if (rawId.startsWith("__REF:")) {
+              const code = rawId.slice("__REF:".length).trim()
+              const resolved = codeToItem.get(code)
+              return resolved
+                ? { ...itemRecord, item_definition_id: resolved.id, item_definition_name: resolved.name, item_definition_code: resolved.item_code }
+                : itemRecord
+            }
+            return itemRecord
+          }),
+        }
+      }
+      if (Array.isArray(record.rewards)) {
+        return {
+          ...record,
+          rewards: record.rewards.map((reward) => {
+            if (!reward || typeof reward !== "object" || Array.isArray(reward)) return reward
+            const rewardRecord = reward as Record<string, unknown>
+            const rawId = String(rewardRecord.item_definition_id ?? "").trim()
+            if (rawId.startsWith("__REF:")) {
+              const code = rawId.slice("__REF:".length).trim()
+              const resolved = codeToItem.get(code)
+              return resolved
+                ? { ...rewardRecord, item_definition_id: resolved.id, item_definition_name: resolved.name, item_definition_code: resolved.item_code }
+                : rewardRecord
+            }
+            return rewardRecord
+          }),
+        }
+      }
+      if (typeof record.item_definition_id === "string" && record.item_definition_id.trim().startsWith("__REF:")) {
+        const code = record.item_definition_id.trim().slice("__REF:".length).trim()
+        const resolved = codeToItem.get(code)
+        return resolved
+          ? {
+              ...record,
+              item_definition_id: resolved.id,
+              item_definition_name: resolved.name,
+              item_definition_code: resolved.item_code,
+            }
+          : record
+      }
+      if (record.conditions) {
+        return {
+          ...record,
+          conditions: replaceRefs(record.conditions) as Record<string, unknown>,
+        }
+      }
+      return record
+    }
+
+    return {
+      draft: replaceRefs(questDefinition) as CreateQuestDefinitionRequest,
+      resolvedItemDefs: [...codeToItem.values()],
+    }
+  }, [gameId])
+
+  const openCreate = useCallback(async (initialValues?: Partial<CreateQuestDefinitionRequest>, turnContext?: {
+    turnId: string
+    responseIdx: number
+    questDefinitionIdx: number
+    convId: string
+    gameId: string
+  } | null) => {
+    const nextForm: CreateQuestDefinitionRequest = {
+      ...DEFAULT_FORM,
+      ...(initialValues ?? {}),
+      name: typeof initialValues?.name === "string" ? initialValues.name : DEFAULT_FORM.name,
+      code_name: typeof initialValues?.code_name === "string" ? initialValues.code_name : DEFAULT_FORM.code_name,
+      description: typeof initialValues?.description === "string" ? initialValues.description : DEFAULT_FORM.description,
+      quest_type: (initialValues?.quest_type as QuestType) ?? DEFAULT_FORM.quest_type,
+      conditions: (initialValues?.conditions ?? DEFAULT_FORM.conditions) as QuestConditionGroup,
+      is_active: typeof initialValues?.is_active === "boolean" ? initialValues.is_active : DEFAULT_FORM.is_active,
+      sort_order: typeof initialValues?.sort_order === "number" ? initialValues.sort_order : DEFAULT_FORM.sort_order,
+      rewards: Array.isArray(initialValues?.rewards) ? (initialValues.rewards as QuestReward[]) : DEFAULT_FORM.rewards,
+      metadata: initialValues?.metadata && typeof initialValues.metadata === "object" && !Array.isArray(initialValues.metadata)
+        ? initialValues.metadata as Record<string, unknown>
+        : initialValues?.metadata,
+    }
+    if (!nextForm.code_name?.trim() && nextForm.name.trim()) {
+      nextForm.code_name = toSlugUnderscore(nextForm.name)
+    }
+    const prepared = await resolveQuestDraftForCreate(nextForm)
+    setForm(prepared.draft)
+    setCreateQuestResolvedItemDefs(prepared.resolvedItemDefs)
+    setAutoSlug(!(typeof prepared.draft.code_name === "string" && prepared.draft.code_name.trim()))
+    setCreateQuestConvContext(turnContext ?? null)
     setCreateOpen(true)
+  }, [resolveQuestDraftForCreate])
+
+  const closeCreate = useCallback(() => {
+    setCreateOpen(false)
+    setCreateQuestConvContext(null)
+    setCreateQuestResolvedItemDefs([])
+  }, [])
+
+  useEscapeLayer(createOpen, closeCreate, 1)
+
+  // Consume pending LLM quest drafts when the sheet opens from conversation routing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!gameId) return
+
+    function consumePendingQuestDraft() {
+      const pendingRaw = safeGetItem(lsPendingQuestCreate(gameId))
+      if (!pendingRaw) return
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
+          ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
+          : (detail as Partial<CreateQuestDefinitionRequest>)
+        openCreate(draft, {
+          turnId: typeof detail.turnId === "string" ? detail.turnId : "",
+          responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          questDefinitionIdx: typeof detail.questDefinitionIdx === "number" ? detail.questDefinitionIdx : Number(detail.questDefinitionIdx ?? 0),
+          convId: typeof detail.convId === "string" ? detail.convId : "",
+          gameId: typeof detail.gameId === "string" ? detail.gameId : gameId,
+        })
+        safeRemoveItem(lsPendingQuestCreate(gameId))
+      } catch {
+        safeRemoveItem(lsPendingQuestCreate(gameId))
+      }
+    }
+
+    function handleOpenCreateQuestDefinition(e: Event) {
+      const detail = (e as CustomEvent<Record<string, unknown>>).detail
+      if (!detail) return
+      const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
+        ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
+        : (detail as Partial<CreateQuestDefinitionRequest>)
+      openCreate(draft, {
+        turnId: typeof detail.turnId === "string" ? detail.turnId : "",
+        responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        questDefinitionIdx: typeof detail.questDefinitionIdx === "number" ? detail.questDefinitionIdx : Number(detail.questDefinitionIdx ?? 0),
+        convId: typeof detail.convId === "string" ? detail.convId : "",
+        gameId: typeof detail.gameId === "string" ? detail.gameId : gameId,
+      })
+    }
+
+    window.addEventListener('ss:open-create-quest-definition', handleOpenCreateQuestDefinition as EventListener)
+    if (searchParams.get("create") === "1") {
+      consumePendingQuestDraft()
+    }
+    return () => {
+      window.removeEventListener('ss:open-create-quest-definition', handleOpenCreateQuestDefinition as EventListener)
+    }
+  }, [gameId, searchParams])
+
+  useEffect(() => {
+    if (!gameId) return
+
+    function handleOpenEditQuestDefinition(e: Event) {
+      const detail = (e as CustomEvent<Record<string, unknown>>).detail
+      if (!detail) return
+      const existingQuestId = typeof detail.existingQuestId === "string" ? detail.existingQuestId : ""
+      const draft = (detail.questDefinition && typeof detail.questDefinition === "object" && !Array.isArray(detail.questDefinition))
+        ? detail.questDefinition as Partial<CreateQuestDefinitionRequest>
+        : (detail as Partial<CreateQuestDefinitionRequest>)
+      const turnContext = {
+        turnId: typeof detail.turnId === "string" ? detail.turnId : "",
+        responseIdx: typeof detail.responseIdx === "number" ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        questDefinitionIdx: typeof detail.questDefinitionIdx === "number" ? detail.questDefinitionIdx : Number(detail.questDefinitionIdx ?? 0),
+        convId: typeof detail.convId === "string" ? detail.convId : "",
+        gameId: typeof detail.gameId === "string" ? detail.gameId : gameId,
+      }
+      const q = quests.find((qd) => qd.id === existingQuestId)
+      if (q) {
+        openEdit(q, draft, turnContext)
+        return
+      }
+      const pending = {
+        existingQuestId,
+        questDefinition: draft,
+        ...turnContext,
+      }
+      safeSetItem(lsPendingQuestEdit(gameId), JSON.stringify(pending))
+      const sp = new URLSearchParams(searchParams.toString())
+      sp.set("editQuestId", existingQuestId)
+      sp.delete("tab")
+      router.replace(`/games/${gameId}/quests?${sp.toString()}`, { scroll: false })
+    }
+
+    window.addEventListener('ss:open-edit-quest-definition', handleOpenEditQuestDefinition as EventListener)
+    return () => {
+      window.removeEventListener('ss:open-edit-quest-definition', handleOpenEditQuestDefinition as EventListener)
+    }
+  }, [gameId, openEdit, quests, router, searchParams])
+
+  const resolveQuestDefinitionDraft = async (
+    questDefinition: CreateQuestDefinitionRequest,
+  ): Promise<CreateQuestDefinitionRequest> => {
+    if (!gameId) return questDefinition
+
+    const refs = new Set<string>()
+    const walk = (value: unknown): void => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return
+      const record = value as Record<string, unknown>
+      if (Array.isArray(record.clauses)) record.clauses.forEach(walk)
+      if (Array.isArray(record.items)) {
+        for (const item of record.items) {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+          const rawId = String((item as Record<string, unknown>).item_definition_id ?? '').trim()
+          if (rawId.startsWith('__REF:')) refs.add(rawId.slice('__REF:'.length).trim())
+        }
+      }
+      if (Array.isArray(record.rewards)) {
+        for (const reward of record.rewards) {
+          if (!reward || typeof reward !== 'object' || Array.isArray(reward)) continue
+          const rawId = String((reward as Record<string, unknown>).item_definition_id ?? '').trim()
+          if (rawId.startsWith('__REF:')) refs.add(rawId.slice('__REF:'.length).trim())
+        }
+      }
+      if (record.conditions) walk(record.conditions)
+    }
+    walk(questDefinition)
+
+    if (refs.size === 0) return questDefinition
+
+    const codeToId: Record<string, string> = {}
+    const lookupResults = await Promise.allSettled(
+      [...refs].map(async (code) => {
+        if (!code) return
+        const res = await listItemDefinitions({ gameId }, { item_code: code, limit: 1 })
+        const item = (res.items ?? []).find((candidate) => candidate.item_code === code) ?? null
+        if (!item) {
+          throw new Error(`Could not find item definition with item_code "${code}".`)
+        }
+        codeToId[code] = item.id
+      })
+    )
+    const failedLookup = lookupResults.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failedLookup) {
+      throw (failedLookup.reason instanceof Error ? failedLookup.reason : new Error(String(failedLookup.reason)))
+    }
+
+    const replaceRefs = (value: unknown): unknown => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+      const record = value as Record<string, unknown>
+      if (Array.isArray(record.clauses)) {
+        return {
+          ...record,
+          clauses: record.clauses.map((clause) => replaceRefs(clause)),
+        }
+      }
+      if (Array.isArray(record.items)) {
+        return {
+          ...record,
+          items: record.items.map((item) => {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+            const itemRecord = item as Record<string, unknown>
+            const rawId = String(itemRecord.item_definition_id ?? '').trim()
+            if (rawId.startsWith('__REF:')) {
+              const code = rawId.slice('__REF:'.length).trim()
+              const resolved = codeToId[code]
+              if (!resolved) throw new Error(`Could not find item definition with item_code "${code}".`)
+              return { ...itemRecord, item_definition_id: resolved }
+            }
+            return itemRecord
+          }),
+        }
+      }
+      if (Array.isArray(record.rewards)) {
+        return {
+          ...record,
+          rewards: record.rewards.map((reward) => {
+            if (!reward || typeof reward !== 'object' || Array.isArray(reward)) return reward
+            const rewardRecord = reward as Record<string, unknown>
+            const rawId = String(rewardRecord.item_definition_id ?? '').trim()
+            if (rawId.startsWith('__REF:')) {
+              const code = rawId.slice('__REF:'.length).trim()
+              const resolved = codeToId[code]
+              if (!resolved) throw new Error(`Could not find item definition with item_code "${code}".`)
+              return { ...rewardRecord, item_definition_id: resolved }
+            }
+            return rewardRecord
+          }),
+        }
+      }
+      if (record.conditions) {
+        return {
+          ...record,
+          conditions: replaceRefs(record.conditions) as Record<string, unknown>,
+        }
+      }
+      return record
+    }
+
+    return replaceRefs(questDefinition) as CreateQuestDefinitionRequest
   }
 
   const handleCreate = async () => {
@@ -876,13 +1473,29 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     }
     setSaving(true)
     try {
+      const resolvedForm = await resolveQuestDefinitionDraft(form)
       const payload: CreateQuestDefinitionRequest = {
-        ...form,
+        ...stripQuestUiFields(resolvedForm),
         code_name: codeName,
       }
-      await createQuestDefinition(game.studio_id, gameId, payload)
+      const created = await createQuestDefinition(game.studio_id, gameId, payload)
       toast({ title: t('quest.questCreated'), description: form.name })
       setCreateOpen(false)
+      if (createQuestConvContext) {
+        window.dispatchEvent(new CustomEvent('ss:quest-created', {
+          detail: {
+            questId: created.id,
+            questName: created.name,
+            questCodeName: created.code_name ?? codeName,
+            turnId: createQuestConvContext.turnId,
+            responseIdx: createQuestConvContext.responseIdx,
+            questDefinitionIdx: createQuestConvContext.questDefinitionIdx,
+            convId: createQuestConvContext.convId,
+            gameId: createQuestConvContext.gameId,
+          },
+        }))
+        setCreateQuestConvContext(null)
+      }
       await loadQuests(offset)
       getGame(gameId).then(onGameUpdate).catch(() => {})
     } catch (e) {
@@ -898,6 +1511,8 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
 
   const closeEdit = useCallback(() => {
     setEditQuest(null)
+    setEditQuestConvContext(null)
+    setEditQuestResolvedItemDefs([])
     const sp = new URLSearchParams(searchParams.toString())
     sp.delete("editQuestId")
     const qs = sp.toString()
@@ -914,11 +1529,23 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
     setSaving(true)
     try {
       const patch: UpdateQuestDefinitionRequest = {
-        ...form,
+        ...stripQuestUiFields(form),
         code_name: codeName,
       }
-      await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
+      const updated = await updateQuestDefinition(game.studio_id, gameId, editQuest.id, patch)
       toast({ title: t('quest.questUpdated'), description: form.name })
+      window.dispatchEvent(new CustomEvent('ss:quest-created', {
+        detail: {
+          questId: updated.id,
+          questName: updated.name,
+          questCodeName: updated.code_name ?? codeName,
+          turnId: editQuestConvContext?.turnId,
+          responseIdx: editQuestConvContext?.responseIdx,
+          questDefinitionIdx: editQuestConvContext?.questDefinitionIdx,
+          convId: editQuestConvContext?.convId,
+          gameId,
+        },
+      }))
       closeEdit()
       await loadQuests(offset)
     } catch (e) {
@@ -1073,6 +1700,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         conditions={form.conditions ?? DEFAULT_CONDITIONS}
         onChange={(c) => setForm((f) => ({ ...f, conditions: c }))}
         gameId={gameId}
+        prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}
       />
 
 
@@ -1081,6 +1709,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
         rewards={form.rewards ?? []}
         onChange={(rewards) => setForm((f) => ({ ...f, rewards }))}
         gameId={gameId}
+        prefetchedItemDefs={editQuest ? editQuestResolvedItemDefs : createQuestResolvedItemDefs}
       />
     </div>
   )
@@ -1110,8 +1739,18 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
               placeholder={t('quest.searchByNameDesc')}
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
-              className="h-8 pl-8 text-sm"
+              className="h-8 pl-8 pr-8 text-sm"
             />
+            {filterSearch.trim() && (
+              <button
+                type="button"
+                aria-label={t('common.clear')}
+                onClick={() => setFilterSearch("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="h-8 w-[140px] text-xs">
@@ -1158,7 +1797,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
-          <Button size="sm" className="h-8" onClick={openCreate} disabled={loading || !game}>
+          <Button size="sm" className="h-8" onClick={() => openCreate()} disabled={loading || !game}>
             <Plus className="h-4 w-4 mr-1" />
             {t('quest.newQuest')}
           </Button>
@@ -1193,7 +1832,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
                 <>
                   <ScrollText className="h-10 w-10 opacity-30" />
                   <p>{t('quest.noQuestDefs')}</p>
-                  <Button onClick={openCreate} variant="outline">
+                  <Button onClick={() => openCreate()} variant="outline">
                     <Plus className="h-4 w-4 mr-1" /> {t('quest.createFirstQuest')}
                   </Button>
                 </>
@@ -1486,7 +2125,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
       </Card>
 
       {/* Create Sheet */}
-      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+      <Sheet open={createOpen} onOpenChange={(open) => { if (open) setCreateOpen(true); else closeCreate() }}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('quest.createQuestDef')}</SheetTitle>
@@ -1503,7 +2142,7 @@ function DefinitionsTab({ game, editQuestId, onGameUpdate }: { game: Game | null
             </div>
             <div className="flex items-center gap-2">
               <SheetClose asChild>
-                <Button variant="outline" disabled={saving}>{t('common.cancel')}</Button>
+                <Button variant="outline" disabled={saving} onClick={() => setCreateQuestConvContext(null)}>{t('common.cancel')}</Button>
               </SheetClose>
               <Button onClick={handleCreate} disabled={saving || !form.name.trim() || !(form.code_name ?? "").trim() || (form.conditions?.clauses ?? []).some((c) => isConditionLeaf(c) && !c.clause_id.trim())}>
                 {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}

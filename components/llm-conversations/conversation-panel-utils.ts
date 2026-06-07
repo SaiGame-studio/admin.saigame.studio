@@ -21,11 +21,16 @@ export const lsContainerNames = (convId: string) => `ss_conv_container_names_${c
 export const lsEntityPoolLinks = (convId: string) => `ss_conv_entity_pool_links_${convId}`
 export const lsEntityPoolNames = (convId: string) => `ss_conv_entity_pool_names_${convId}`
 export const lsEntityPoolKeys = (convId: string) => `ss_conv_entity_pool_keys_${convId}`
+export const lsQuestLinks = (convId: string) => `ss_conv_quest_links_${convId}`
+export const lsQuestNames = (convId: string) => `ss_conv_quest_names_${convId}`
+export const lsQuestCodes = (convId: string) => `ss_conv_quest_codes_${convId}`
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`
 export const lsPendingCraftingRecipeEdit = (gameId: string) => `ss_pending_crafting_recipe_edit_${gameId}`
 export const lsPendingEntityPoolEdit = (gameId: string) => `ss_pending_entity_pool_edit_${gameId}`
+export const lsPendingQuestCreate = (gameId: string) => `ss_pending_quest_create_${gameId}`
+export const lsPendingQuestEdit = (gameId: string) => `ss_pending_quest_edit_${gameId}`
 
 // ---------------------------------------------------------------------------
 // Panel dimensions
@@ -195,6 +200,7 @@ export type ResponseSegment =
   | { type: 'equipmentSlot'; text: string; equipmentSlot: Record<string, unknown>; equipmentSlotIdx: number }
   | { type: 'craftingRecipe'; text: string; craftingRecipe: Record<string, unknown>; craftingRecipeIdx: number }
   | { type: 'entityPool'; text: string; entityPool: Record<string, unknown>; entityPoolIdx: number }
+  | { type: 'questDefinition'; text: string; questDefinition: Record<string, unknown>; questDefinitionIdx: number }
 
 export function splitItemResponseSegments(text: string): ResponseSegment[] {
   const looksLikeItem = (obj: Record<string, unknown>) =>
@@ -408,6 +414,83 @@ export function splitEntityPoolResponseSegments(text: string): ResponseSegment[]
       text: text.slice(boundary.start, boundary.end),
       entityPool: boundary.entityPool,
       entityPoolIdx: entityPoolIdx++,
+    })
+    lastEnd = boundary.end
+  }
+
+  if (lastEnd < text.length) {
+    const remaining = text.slice(lastEnd)
+    if (remaining.trim()) segments.push({ type: 'text', text: remaining })
+  }
+
+  return segments
+}
+
+export function splitQuestDefinitionResponseSegments(text: string): ResponseSegment[] {
+  const looksLikeQuestDefinition = (obj: Record<string, unknown>) =>
+    typeof obj.name === 'string' &&
+    typeof obj.quest_type === 'string' &&
+    obj.conditions && typeof obj.conditions === 'object' && !Array.isArray(obj.conditions)
+
+  const boundaries: Array<{ start: number; end: number; questDefinition: Record<string, unknown> }> = []
+
+  const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/g
+  let m: RegExpExecArray | null
+  while ((m = fenceRegex.exec(text)) !== null) {
+    try {
+      const content = m[1].trim()
+      let parsed: unknown
+      try { parsed = JSON.parse(content) } catch { /* ignore */ }
+      if (!parsed) {
+        const objMatch = content.match(/\{[\s\S]*\}/)
+        if (objMatch) try { parsed = JSON.parse(objMatch[0]) } catch { /* ignore */ }
+      }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && looksLikeQuestDefinition(parsed as Record<string, unknown>)) {
+        boundaries.push({ start: m.index, end: m.index + m[0].length, questDefinition: parsed as Record<string, unknown> })
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (boundaries.length === 0) {
+    let depth = 0, start = -1, inString = false, escape = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (escape) { escape = false; continue }
+      if (ch === '\\' && inString) { escape = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') { if (depth === 0) start = i; depth++ }
+      else if (ch === '}') {
+        depth--
+        if (depth === 0 && start !== -1) {
+          try {
+            const obj = JSON.parse(text.slice(start, i + 1)) as Record<string, unknown>
+            if (looksLikeQuestDefinition(obj)) boundaries.push({ start, end: i + 1, questDefinition: obj })
+          } catch { /* ignore */ }
+          start = -1
+        }
+      }
+    }
+  }
+
+  if (boundaries.length === 0) return [{ type: 'text', text }]
+
+  boundaries.sort((a, b) => a.start - b.start)
+
+  const segments: ResponseSegment[] = []
+  let lastEnd = 0
+  let questDefinitionIdx = 0
+
+  for (const boundary of boundaries) {
+    if (boundary.start > lastEnd) {
+      const textBefore = text.slice(lastEnd, boundary.start)
+      if (textBefore.trim()) segments.push({ type: 'text', text: textBefore })
+    }
+    segments.push({
+      type: 'questDefinition',
+      text: text.slice(boundary.start, boundary.end),
+      questDefinition: boundary.questDefinition,
+      questDefinitionIdx: questDefinitionIdx++,
     })
     lastEnd = boundary.end
   }

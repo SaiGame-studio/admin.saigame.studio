@@ -1,6 +1,6 @@
 'use client'
 
-import { Archive, BookOpen, Dices, Hammer, Layers, Link2, Loader2, PackagePlus, Skull, X } from 'lucide-react'
+import { Archive, BookOpen, Dices, Hammer, Layers, Link2, Loader2, PackagePlus, ScrollText, Skull, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { ConversationContentLink } from '@/types/llm-conversation'
 
@@ -17,6 +17,7 @@ interface ConversationLinkedContentProps {
   craftingRecipeNames: Record<string, string>
   entityPoolNames: Record<string, string>
   entityPoolKeys: Record<string, string>
+  questDefinitionNames: Record<string, string>
   onUnlink: (linkId: string, contentType: string, contentId: string) => void
   t: (key: string) => string
 }
@@ -34,6 +35,7 @@ export function ConversationLinkedContent({
   craftingRecipeNames,
   entityPoolNames,
   entityPoolKeys,
+  questDefinitionNames,
   onUnlink,
   t,
 }: ConversationLinkedContentProps) {
@@ -46,6 +48,7 @@ export function ConversationLinkedContent({
   const gachaPackLinks = linkedContent.filter(l => l.content_type === 'gacha_pack')
   const craftingRecipeLinks = linkedContent.filter(l => l.content_type === 'crafting_recipe')
   const entityPoolLinks = linkedContent.filter(l => l.content_type === 'entity_pool')
+  const questDefinitionLinks = linkedContent.filter(l => l.content_type === 'quest_definition')
 
   function renderBadge(link: ConversationContentLink, refNum: string) {
     const isItem = link.content_type === 'item_definition'
@@ -54,6 +57,7 @@ export function ConversationLinkedContent({
     const isGachaPack = link.content_type === 'gacha_pack'
     const isCraftingRecipe = link.content_type === 'crafting_recipe'
     const isEntityPool = link.content_type === 'entity_pool'
+    const isQuestDefinition = link.content_type === 'quest_definition'
     const poolKey = isEntityPool ? entityPoolKeys[link.content_id] : ''
     const href = isItem
       ? `/games/${gameId}/items/${link.content_id}`
@@ -67,6 +71,8 @@ export function ConversationLinkedContent({
             ? `/games/${gameId}/items?tab=crafting&expanded=${link.content_id}`
             : isEntityPool
               ? `/games/${gameId}/entities?tab=pools&poolExpanded=${link.content_id}${poolKey ? `&poolKey=${encodeURIComponent(poolKey)}` : ''}`
+              : isQuestDefinition
+                ? `/games/${gameId}/quests?q=${encodeURIComponent(link.content_id)}&expandQuest=${link.content_id}`
             : `/games/${gameId}/lore?lore_id=${link.content_id}`
     const displayName = itemDefinitionNames[link.content_id]
       ?? entityDefinitionNames[link.content_id]
@@ -75,6 +81,7 @@ export function ConversationLinkedContent({
       ?? gachaPackNames[link.content_id]
       ?? craftingRecipeNames[link.content_id]
       ?? entityPoolNames[link.content_id]
+      ?? questDefinitionNames[link.content_id]
       ?? (t(`llmConversation.contentType.${link.content_type}`) || link.content_type)
     const badgeClass = isItem
       ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
@@ -88,8 +95,10 @@ export function ConversationLinkedContent({
             ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-500'
             : isEntityPool
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+              : isQuestDefinition
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
             : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-    const TypeIcon = isItem ? PackagePlus : isEntity ? Skull : isContainer ? Archive : isGachaPack ? Dices : isCraftingRecipe ? Hammer : isEntityPool ? Layers : BookOpen
+    const TypeIcon = isItem ? PackagePlus : isEntity ? Skull : isContainer ? Archive : isGachaPack ? Dices : isCraftingRecipe ? Hammer : isEntityPool ? Layers : isQuestDefinition ? ScrollText : BookOpen
     return (
       <span
         key={link.id}
@@ -224,6 +233,19 @@ export function ConversationLinkedContent({
             </div>
             <div id="conv-panel-linked-content-crafting-recipes-list" className="grid grid-cols-3 gap-1">
               {craftingRecipeLinks.map((link, idx) => renderBadge(link, `#${itemLinks.length + entityLinks.length + loreLinks.length + containerLinks.length + gachaPackLinks.length + idx + 1}`))}
+            </div>
+          </div>
+        )}
+        {questDefinitionLinks.length > 0 && (
+          <div id="conv-panel-linked-content-quest-defs-group">
+            <div id="conv-panel-linked-content-quest-defs-label" className="flex items-center gap-1 mb-0.5">
+              <ScrollText className="h-2.5 w-2.5 text-amber-400" />
+              <span id="conv-panel-linked-content-quest-defs-heading" className="text-[9px] font-semibold text-amber-400/70 uppercase tracking-wider">
+                {t('llmConversation.contentType.quest_definition')}
+              </span>
+            </div>
+            <div id="conv-panel-linked-content-quest-defs-list" className="grid grid-cols-3 gap-1">
+              {questDefinitionLinks.map((link, idx) => renderBadge(link, `#${itemLinks.length + entityLinks.length + loreLinks.length + containerLinks.length + gachaPackLinks.length + craftingRecipeLinks.length + idx + 1}`))}
             </div>
           </div>
         )}

@@ -23,6 +23,8 @@ export type QuestType =
 export interface ItemRequirement {
   item_definition_id: string
   quantity: number
+  item_definition_name?: string
+  item_definition_code?: string
 }
 
 /** A single trackable requirement (leaf node in the condition tree) */
@@ -31,6 +33,10 @@ export interface QuestConditionLeaf {
   type: string
   /** Required for counter types: login */
   target?: number
+  /** Optional direct item ref used by some drafts */
+  item_definition_id?: string
+  item_definition_name?: string
+  item_definition_code?: string
   /** Required for collect_and_keep / collect_and_submit / not_have_item */
   items?: ItemRequirement[]
   /** Required for gacha_opened — specifies pack + required open count */
@@ -58,6 +64,8 @@ export type RewardType = 'item'
 export interface QuestReward {
   reward_type: RewardType
   item_definition_id?: string
+  item_definition_name?: string
+  item_definition_code?: string
   quantity_min?: number
   quantity_max?: number
 }

@@ -12,6 +12,7 @@ import type {
   RequestType,
   ConversationContentLink,
 } from '@/types/llm-conversation'
+import type { QuestDefinition } from '@/lib/quest-api'
 
 const base = (gameId: string) => `/api/v1/games/${gameId}/llm/conversations`
 
@@ -253,6 +254,49 @@ export interface EntityPoolCreatingPlanningResponse {
   }
 }
 
+export interface QuestDefinitionPlanningAction {
+  type: string
+  entity_type?: string
+  goal?: string
+  goals?: string[]
+  item_code?: string
+  item_definition_ids?: string[]
+  depends_on?: number[]
+}
+
+export interface QuestDefinitionPlanningResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: {
+    language?: string
+    summary?: string
+    requires_item_generation?: boolean
+    actions?: QuestDefinitionPlanningAction[]
+    clarification?: string
+  }
+}
+
+export interface QuestDefinitionGenerationResponse {
+  request_id: string
+  conversation_id: string
+  detected_request_type: string
+  status: string
+  prompt_version?: string
+  content?: QuestDefinition
+}
+
+export interface QuestDefinitionGenerationRequestOptions {
+  language?: string
+  entityType?: string
+  goals?: string[]
+  history?: DetectIntentHistoryEntry[]
+  requestHistory?: Array<{ request_type: string; response_text: string }>
+  generatedItems?: unknown[]
+}
+
 export interface GeneratorItemCreatingPlanningAction {
   type: string
   entity_type?: string
@@ -344,11 +388,13 @@ function normalizeDetectedIntents(payload: Record<string, unknown>): DetectedInt
     item_generation: 1,
     item_modify: 1,
     generator_item_creating: 1,
+    quest_definition_generation: 1,
     container_creating_planning: 2,
     gacha_pack_creating_planning: 2,
     crafting_recipe_creating_planning: 2,
     generator_item_creating_planning: 2,
     entity_pool_creating_planning: 2,
+    quest_definition_generation_planning: 2,
     entity_pool_creating: 3,
     crafting_recipe_creating: 3,
   }
@@ -585,6 +631,59 @@ export async function requestEntityPoolCreatingPlanning(
   if (options?.history?.length) body.history = options.history
 
   return api.post(`${base(gameId)}/${conversationId}/requests/entity-pool-creating-planning`, body)
+}
+
+export async function requestQuestDefinitionGenerationPlanning(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: {
+    language?: string
+    entityType?: string
+    goals?: string[]
+    history?: DetectIntentHistoryEntry[]
+    requestHistory?: Array<{ request_type: string; response_text: string }>
+  },
+): Promise<QuestDefinitionPlanningResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+  if (options?.requestHistory?.length) body.request_history = options.requestHistory
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/quest-definition-generation-planning`, body)
+}
+
+export async function requestQuestDefinitionGeneration(
+  gameId: string,
+  conversationId: string,
+  userPrompt: string,
+  contextIds: ConversationContextIds,
+  options?: QuestDefinitionGenerationRequestOptions,
+): Promise<QuestDefinitionGenerationResponse> {
+  const body: Record<string, unknown> = {
+    user_prompt: userPrompt,
+    lore_entry_ids: contextIds.lore_entry_ids,
+    item_definition_ids: contextIds.item_definition_ids,
+    container_definition_ids: contextIds.container_definition_ids,
+    entity_definition_ids: contextIds.entity_definition_ids,
+  }
+  if (options?.language) body.language = options.language
+  if (options?.entityType) body.entity_type = options.entityType
+  if (options?.goals?.length) body.goals = options.goals
+  if (options?.history?.length) body.history = options.history
+  if (options?.requestHistory?.length) body.request_history = options.requestHistory
+  if (options?.generatedItems?.length) body.generated_items = options.generatedItems
+
+  return api.post(`${base(gameId)}/${conversationId}/requests/quest-definition-generation`, body)
 }
 
 function requestPathForType(requestType: string): string {
