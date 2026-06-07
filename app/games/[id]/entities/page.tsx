@@ -5,7 +5,7 @@ import { toSlugUnderscore } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
-  Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft,
+  Plus, RefreshCw, Trash2, Pencil, Save, Loader2, Search, X, Skull, ArrowLeft, Bot,
   ChevronRight, ChevronDown, Wand2, Hammer, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -62,8 +62,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/lib/i18n/use-translation"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 import { getGame } from "@/lib/game-api"
 import { ApiError } from "@/lib/api-client"
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils"
 import { CopyButton } from "@/components/CopyButton"
 import { GameNavButtons } from "@/components/GameNavButtons"
 import {
@@ -95,6 +97,8 @@ import {
   ENTITY_RARITY_COLORS,
 } from "@/types/entity-definition"
 import type { Game } from "@/types/game"
+import { lsPendingEntityDefinitionCreate, lsEntityLinks, lsEntityNames, lsActiveConv } from "@/components/llm-conversations/conversation-panel-utils"
+import { createConversation, linkConversationContent } from "@/lib/llm-conversation-api"
 
 import { EntityPoolTab } from "./EntityPoolTab"
 
@@ -177,6 +181,30 @@ function entityToForm(e: EntityDefinition): FormState {
     stats: e.stats ? JSON.stringify(e.stats, null, 2) : "",
     abilities: e.abilities ? JSON.stringify(e.abilities, null, 2) : "",
     metadata: e.metadata ? JSON.stringify(e.metadata, null, 2) : "",
+  }
+}
+
+function draftToForm(draft: Record<string, unknown>): FormState {
+  const metadata = draft.metadata && typeof draft.metadata === 'object' && !Array.isArray(draft.metadata)
+    ? (draft.metadata as Record<string, unknown>)
+    : undefined
+  const stats = draft.stats && typeof draft.stats === 'object' && !Array.isArray(draft.stats)
+    ? draft.stats as Record<string, unknown>
+    : undefined
+  const abilities = Array.isArray(draft.abilities) ? draft.abilities : undefined
+  return {
+    entity_key: typeof draft.entity_key === 'string' ? draft.entity_key : "",
+    entity_type: typeof draft.entity_type === 'string' ? draft.entity_type as EntityType : "enemy",
+    name: typeof draft.name === 'string' ? draft.name : "",
+    description: typeof draft.description === 'string'
+      ? draft.description
+      : typeof metadata?.description === 'string'
+        ? String(metadata.description)
+        : "",
+    rarity: typeof draft.rarity === 'string' ? draft.rarity as EntityRarity : "common",
+    stats: stats ? JSON.stringify(stats, null, 2) : "",
+    abilities: abilities ? JSON.stringify(abilities, null, 2) : "",
+    metadata: metadata ? JSON.stringify(metadata, null, 2) : "",
   }
 }
 
@@ -987,6 +1015,8 @@ export default function EntitiesPage() {
   const { t } = useTranslation()
 
   const [activeTab, setActiveTab] = useState("entities")
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
+  const [convActiveId, setConvActiveId] = useState<string | null>(null)
 
   // initialize tab from URL params
   useEffect(() => {
@@ -995,6 +1025,63 @@ export default function EntitiesPage() {
       setActiveTab(tab)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    function readConvState() {
+      setConvPanelOpen(safeGetItem('ss_conv_panel_open') === 'true')
+      setConvActiveId(safeGetItem(lsActiveConv(gameId)) ?? null)
+    }
+    readConvState()
+    const handler = () => readConvState()
+    window.addEventListener('storage', handler)
+    window.addEventListener('ss:conv-state-changed', handler)
+    return () => {
+      window.removeEventListener('storage', handler)
+      window.removeEventListener('ss:conv-state-changed', handler)
+    }
+  }, [gameId])
+
+  useEffect(() => {
+    if (!gameId) return
+
+    function consumePendingEntityDraft() {
+      const pendingRaw = safeGetItem(lsPendingEntityDefinitionCreate(gameId))
+      if (!pendingRaw) return
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        safeRemoveItem(lsPendingEntityDefinitionCreate(gameId))
+        openCreateWithForm(draftToForm(detail), {
+          turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+          responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          entityDefinitionIdx: typeof detail.entityDefinitionIdx === 'number' ? detail.entityDefinitionIdx : Number(detail.entityDefinitionIdx ?? 0),
+          convId: typeof detail.convId === 'string' ? detail.convId : '',
+        })
+      } catch {
+        safeRemoveItem(lsPendingEntityDefinitionCreate(gameId))
+      }
+    }
+
+    function handleOpenCreateEntityDefinition(e: Event) {
+      const detail = (e as CustomEvent).detail as Record<string, unknown> | undefined
+      if (!detail) return
+      openCreateWithForm(draftToForm(detail), {
+        turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+        responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        entityDefinitionIdx: typeof detail.entityDefinitionIdx === 'number' ? detail.entityDefinitionIdx : Number(detail.entityDefinitionIdx ?? 0),
+        convId: typeof detail.convId === 'string' ? detail.convId : '',
+      })
+    }
+
+    window.addEventListener('ss:open-create-entity-definition', handleOpenCreateEntityDefinition as EventListener)
+
+    if (searchParams.get("tab") === "entities" && searchParams.get("create") === "1") {
+      consumePendingEntityDraft()
+    }
+
+    return () => {
+      window.removeEventListener('ss:open-create-entity-definition', handleOpenCreateEntityDefinition as EventListener)
+    }
+  }, [gameId, searchParams])
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -1018,11 +1105,11 @@ export default function EntitiesPage() {
 
   // Sync search from URL params (e.g. navigating from pool tab link)
   useEffect(() => {
+    const urlExpanded = searchParams.get("expanded") ?? ""
     const urlSearch = searchParams.get("search") ?? ""
-    if (urlSearch && urlSearch !== searchQuery) {
-      setSearchInput(urlSearch)
-      setSearchQuery(urlSearch)
-    }
+    const nextSearch = urlExpanded || urlSearch
+    setSearchInput((prev) => (prev === nextSearch ? prev : nextSearch))
+    setSearchQuery((prev) => (prev === nextSearch ? prev : nextSearch))
   }, [searchParams])
 
   // ── create sheet state ───────────────────────────────────────────────────────
@@ -1031,8 +1118,18 @@ export default function EntitiesPage() {
   const [saving, setSaving] = useState(false)
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({})
   const [autoSlug, setAutoSlug] = useState(true)
+  const [createEntityConvContext, setCreateEntityConvContext] = useState<{
+    turnId: string
+    responseIdx: number
+    entityDefinitionIdx: number
+    convId: string
+  } | undefined>(undefined)
+  const [linkingEntityId, setLinkingEntityId] = useState<string | null>(null)
 
   // ── delete dialog ────────────────────────────────────────────────────────────
+  // Keep the create/edit sheet above the conversation panel in the Escape stack.
+  useEscapeLayer(sheetOpen, () => setSheetOpen(false), 1)
+
   const [deleteTarget, setDeleteTarget] = useState<EntityDefinition | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -1043,16 +1140,16 @@ export default function EntitiesPage() {
   const [detailCache, setDetailCache] = useState<Record<string, EntityDefinition | "loading" | "error">>({}
   )
 
-  // On mount: if URL already has ?expanded=..., kick off its detail fetch
+  // Keep expanded row in sync with URL changes so linked-content navigation opens the row directly.
   useEffect(() => {
     const id = searchParams.get("expanded")
-    if (!id) return
+    setExpandedId(id)
+    if (!id || detailCache[id] === 'loading' || (detailCache[id] && detailCache[id] !== 'error')) return
     setDetailCache((prev) => ({ ...prev, [id]: "loading" }))
     getEntityDefinition(gameId, id)
       .then((detail) => setDetailCache((prev) => ({ ...prev, [id]: detail })))
       .catch(() => setDetailCache((prev) => ({ ...prev, [id]: "error" })))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [gameId, searchParams, detailCache])
 
   function toggleExpand(entity: EntityDefinition) {
     const next = expandedId === entity.id ? null : entity.id
@@ -1128,11 +1225,38 @@ export default function EntitiesPage() {
   function clearSearch() {
     setSearchInput("")
     setSearchQuery("")
+    setExpandedId(null)
+    const newParams = new URLSearchParams(searchParams.toString())
+    newParams.delete("search")
+    newParams.delete("expanded")
+    const qs = newParams.toString()
+    router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
   }
 
   // ── form helpers ─────────────────────────────────────────────────────────────
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function openCreateWithForm(
+    nextForm?: FormState,
+    context?: {
+      turnId: string
+      responseIdx: number
+      entityDefinitionIdx: number
+      convId: string
+    },
+  ) {
+    setForm(nextForm ?? emptyForm())
+    setJsonErrors({})
+    setAutoSlug(!(nextForm?.entity_key?.trim()))
+    setCreateEntityConvContext(context)
+    const sp = new URLSearchParams(searchParams.toString())
+    sp.set("tab", "entities")
+    sp.set("create", "1")
+    sp.delete("editFromLLM")
+    router.replace(`${window.location.pathname}?${sp.toString()}`)
+    setSheetOpen(true)
   }
 
   function validateJsonField(key: string, value: string): boolean {
@@ -1151,10 +1275,36 @@ export default function EntitiesPage() {
   }
 
   function openCreate() {
-    setForm(emptyForm())
-    setJsonErrors({})
-    setAutoSlug(true)
-    setSheetOpen(true)
+    openCreateWithForm()
+  }
+
+  async function handleLinkEntityToConversation(entity: EntityDefinition) {
+    setLinkingEntityId(entity.id)
+    try {
+      let convId: string | null = safeGetItem(lsActiveConv(gameId))
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Entity: ${entity.name}`,
+          goal: t('entity.linkToConvGoal').replace('{name}', entity.name),
+        })
+        convId = newConv.ID
+      }
+      safeSetItem(lsActiveConv(gameId), convId)
+      await linkConversationContent(gameId, convId, 'entity_definition', entity.id)
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+        detail: { convId, gameId, contentType: 'entity_definition', contentId: entity.id, contentName: entity.name },
+      }))
+      toast({ title: t('entity.linkToConvSuccess'), description: entity.name })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('entity.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingEntityId(null)
+    }
   }
 
   async function handleSave() {
@@ -1189,6 +1339,49 @@ export default function EntitiesPage() {
       }
       const created = await createEntityDefinition(gameId, body)
       setEntities((prev) => [...prev, created])
+      if (createEntityConvContext?.convId && createEntityConvContext.turnId && createEntityConvContext.responseIdx != null && createEntityConvContext.entityDefinitionIdx != null) {
+        const entityKey = `${createEntityConvContext.turnId}:${createEntityConvContext.responseIdx}:${createEntityConvContext.entityDefinitionIdx}`
+        const convId = createEntityConvContext.convId
+        const existingRaw = safeGetItem(lsEntityLinks(convId))
+        let mapped: Record<string, string> = {}
+        if (existingRaw) {
+          try {
+            mapped = JSON.parse(existingRaw) as Record<string, string>
+          } catch {
+            mapped = {}
+          }
+        }
+        const updated = { ...mapped, [entityKey]: created.id }
+        safeSetItem(lsEntityLinks(convId), JSON.stringify(updated))
+        let namesMap: Record<string, string> = {}
+        const existingNamesRaw = safeGetItem(lsEntityNames(convId))
+        if (existingNamesRaw) {
+          try {
+            namesMap = JSON.parse(existingNamesRaw) as Record<string, string>
+          } catch {
+            namesMap = {}
+          }
+        }
+        safeSetItem(lsEntityNames(convId), JSON.stringify({ ...namesMap, [created.id]: created.name }))
+        void linkConversationContent(gameId, convId, 'entity_definition', created.id)
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('ss:entity-created', {
+              detail: {
+                entityId: created.id,
+                entityName: created.name,
+                turnId: createEntityConvContext.turnId,
+                responseIdx: createEntityConvContext.responseIdx,
+                entityDefinitionIdx: createEntityConvContext.entityDefinitionIdx,
+                convId,
+                gameId,
+              },
+            }))
+            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+              detail: { convId, gameId, contentType: 'entity_definition', contentId: created.id, contentName: created.name },
+            }))
+          })
+          .catch(() => { /* best-effort */ })
+      }
       toast({ title: t('common.added'), description: t('entity.entityCreated').replace('{name}', created.name) })
       setSheetOpen(false)
       // Refresh game data to update usage count
@@ -1294,9 +1487,9 @@ export default function EntitiesPage() {
         <TabsContent value="entities" className="space-y-4">
           <TooltipProvider>
             {/* Entities Tab Toolbar */}
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-                <div className="relative flex-1">
+            <div className="mb-4 flex items-center justify-end gap-2">
+              <div className="ml-auto flex items-center justify-end gap-2">
+                <div className="relative w-[400px] shrink-0">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t('entity.searchPlaceholder')}
@@ -1316,7 +1509,7 @@ export default function EntitiesPage() {
                   )}
                 </div>
                 <Select value={typeFilter || "all"} onValueChange={(v) => setTypeFilter(v === "all" ? "all" : v as EntityType)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] shrink-0">
                     <SelectValue placeholder={t('entity.allTypes')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -1340,6 +1533,7 @@ export default function EntitiesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {convPanelOpen && convActiveId && <TableHead className="w-[56px]"></TableHead>}
                     <TableHead className="w-[50px]"></TableHead>
                     <TableHead>{t('entity.thName')}</TableHead>
                     <TableHead className="w-[200px]">{t('entity.thKey')}</TableHead>
@@ -1353,12 +1547,12 @@ export default function EntitiesPage() {
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell>
+                        <TableCell colSpan={convPanelOpen && convActiveId ? 8 : 7}><Skeleton className="h-12 w-full" /></TableCell>
                       </TableRow>
                     ))
                   ) : entities.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={convPanelOpen && convActiveId ? 8 : 7} className="h-32 text-center text-muted-foreground">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Skull className="h-8 w-8 opacity-20" />
                           <p>{searchQuery ? t('entity.noEntitiesFound') : t('entity.createFirstEntity')}</p>
@@ -1377,6 +1571,28 @@ export default function EntitiesPage() {
                               className={`group cursor-pointer hover:bg-muted/50 ${isExpanded ? "bg-muted/30" : ""}`}
                               onClick={() => toggleExpand(entity)}
                             >
+                              {convPanelOpen && convActiveId && (
+                                <TableCell>
+                                  <Button
+                                    id={`entity-row-${entity.id}-link-conv-btn`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                                    disabled={linkingEntityId === entity.id}
+                                    title={t('entity.linkToConv')}
+                                    onClick={(e) => { e.stopPropagation(); void handleLinkEntityToConversation(entity) }}
+                                  >
+                                    {linkingEntityId === entity.id
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : (
+                                        <span id={`entity-row-${entity.id}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                                          <Bot className="h-3.5 w-3.5" />
+                                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                                        </span>
+                                      )}
+                                  </Button>
+                                </TableCell>
+                              )}
                               <TableCell>
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                               </TableCell>
@@ -1455,7 +1671,18 @@ export default function EntitiesPage() {
 
 
       {/* Create / Edit Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open)
+          if (!open) {
+            const sp = new URLSearchParams(searchParams.toString())
+            sp.delete("create")
+            sp.delete("editFromLLM")
+            router.replace(`${window.location.pathname}?${sp.toString()}`)
+          }
+        }}
+      >
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('entity.createTitle')}</SheetTitle>

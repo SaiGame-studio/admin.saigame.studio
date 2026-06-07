@@ -56,25 +56,40 @@ import {
   lsCraftingRecipeLinks,
   lsLoreTitles,
   lsItemNames,
+  lsEntityLinks,
+  lsEntityNames,
   lsContainerNames,
   lsGachaPackNames,
   lsEquipmentSlotNames,
   lsCraftingRecipeNames,
+  lsEntityPoolLinks,
+  lsEntityPoolNames,
+  lsEntityPoolKeys,
+  lsQuestLinks,
+  lsQuestNames,
+  lsQuestCodes,
   lsPendingCraftingRecipeCreate,
   lsPendingCraftingRecipeEdit,
   lsPendingGachaCreate,
   lsPendingGachaEdit,
   lsPendingEquipmentSlotCreate,
   lsPendingEquipmentSlotEdit,
+  lsPendingEntityDefinitionCreate,
+  lsPendingEntityPoolCreate,
+  lsPendingEntityPoolEdit,
+  lsPendingQuestCreate,
+  lsPendingQuestEdit,
   lsTagApplied,
   lsItemTagCreated,
   parseLoreResponse,
   parseGeneratedItemsResponse,
+  parseGeneratedEntityDefinitionsResponse,
   parseGeneratedPresetsResponse,
   parseGeneratedContainersResponse,
   parseGeneratedGachaPacksResponse,
   parseGeneratedEquipmentSlotsResponse,
   parseGeneratedCraftingRecipesResponse,
+  parseGeneratedEntityPoolsResponse,
   extractGameId,
 } from './conversation-panel-utils'
 import { ConversationSidebar } from './ConversationSidebar'
@@ -87,11 +102,15 @@ import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
 import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
+import { listEntityDefinitions, getEntityDefinition, getEntityPool, listEntityPools, createEntityPool, createEntityPoolEntry, deleteEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
+import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
 import type { CraftingRecipe } from '@/types/crafting'
+import { listQuestDefinitions } from '@/lib/quest-api'
+import type { QuestDefinition } from '@/lib/quest-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
 
@@ -183,16 +202,54 @@ export function LLMConversationPanel() {
 
   // Item definition draft review
   const [savedItemDefinitionIds, setSavedItemDefinitionIds] = useState<Record<string, string>>({})
+  // Entity definition saved IDs (keyed as "turnId:responseIdx:entityDefinitionIdx")
+  const [savedEntityDefinitionIds, setSavedEntityDefinitionIds] = useState<Record<string, string>>({})
   // Preset definition saved IDs (keyed as "turnId:responseIdx:presetIdx")
   const [savedPresetDefinitionIds, setSavedPresetDefinitionIds] = useState<Record<string, string>>({})
   // Container definition saved IDs (keyed as "turnId:responseIdx:containerIdx")
   const [savedContainerDefinitionIds, setSavedContainerDefinitionIds] = useState<Record<string, string>>({})
+  // Quest definition saved IDs (keyed as "turnId:responseIdx:questDefinitionIdx")
+  const [savedQuestDefinitionIds, setSavedQuestDefinitionIds] = useState<Record<string, string>>({})
   const [itemDefReviewOpen, setItemDefReviewOpen] = useState(false)
   const [itemDefReviewItem, setItemDefReviewItem] = useState<Record<string, unknown> | null>(null)
   const [itemDefReviewTurnId, setItemDefReviewTurnId] = useState<string | null>(null)
   const [itemDefReviewResponseIdx, setItemDefReviewResponseIdx] = useState(0)
   const [itemDefReviewItemIdx, setItemDefReviewItemIdx] = useState(0)
   const [itemInitialValues, setItemInitialValues] = useState<CreateItemInitialValues | null>(null)
+  const [entityDefinitionNames, setEntityDefinitionNames] = useState<Record<string, string>>({})
+  const [entityDefinitionConflictOpen, setEntityDefinitionConflictOpen] = useState(false)
+  const [entityDefinitionConflictExisting, setEntityDefinitionConflictExisting] = useState<EntityDefinition | null>(null)
+  const [entityDefinitionConflictReviewOpen, setEntityDefinitionConflictReviewOpen] = useState(false)
+  const [entityDefinitionConflictReviewData, setEntityDefinitionConflictReviewData] = useState<UpdateEntityDefinitionRequest | null>(null)
+  const [entityDefinitionConflictPending, setEntityDefinitionConflictPending] = useState<{
+    entityDefinition: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    entityDefinitionIdx: number
+  } | null>(null)
+  const [isApplyingEntityDefinitionConflict, setIsApplyingEntityDefinitionConflict] = useState(false)
+  const [entityPoolConflictOpen, setEntityPoolConflictOpen] = useState(false)
+  const [entityPoolConflictExisting, setEntityPoolConflictExisting] = useState<EntityPool | null>(null)
+  const [entityPoolConflictReviewOpen, setEntityPoolConflictReviewOpen] = useState(false)
+  const [entityPoolConflictReviewData, setEntityPoolConflictReviewData] = useState<Record<string, unknown> | null>(null)
+  const [entityPoolConflictPending, setEntityPoolConflictPending] = useState<{
+    entityPool: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    entityPoolIdx: number
+  } | null>(null)
+  const [isApplyingEntityPoolConflict, setIsApplyingEntityPoolConflict] = useState(false)
+  const [questDefinitionNames, setQuestDefinitionNames] = useState<Record<string, string>>({})
+  const [questDefinitionCodes, setQuestDefinitionCodes] = useState<Record<string, string>>({})
+  const [questCodeConflictOpen, setQuestCodeConflictOpen] = useState(false)
+  const [questCodeConflictExisting, setQuestCodeConflictExisting] = useState<QuestDefinition | null>(null)
+  const [questCodeConflictPending, setQuestCodeConflictPending] = useState<{
+    questDefinition: Record<string, unknown>
+    turnId: string
+    responseIdx: number
+    questDefinitionIdx: number
+  } | null>(null)
+  const [newQuestCodeInput, setNewQuestCodeInput] = useState('')
 
   // Tag suggestion — tracks which individual tags have been applied per response
   const [appliedTagsPerResponse, setAppliedTagsPerResponse] = useState<Record<string, Record<string, true>>>({})
@@ -224,6 +281,8 @@ export function LLMConversationPanel() {
 
   // Tracks the last completed item_generation response parsed as array
   const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
+  // Tracks the last completed entity_definition_generation response parsed as array
+  const [convGeneratedEntityDefinitions, setConvGeneratedEntityDefinitions] = useState<unknown[]>([])
   // Tracks the last completed preset_generation response parsed as array
   const [convGeneratedPresets, setConvGeneratedPresets] = useState<unknown[]>([])
   // Tracks the last completed container_generation response parsed as array
@@ -234,6 +293,8 @@ export function LLMConversationPanel() {
   const [convGeneratedEquipmentSlots, setConvGeneratedEquipmentSlots] = useState<unknown[]>([])
   // Tracks the last completed crafting_recipe_creating response parsed as array
   const [convGeneratedCraftingRecipes, setConvGeneratedCraftingRecipes] = useState<unknown[]>([])
+  // Tracks the last completed entity_pool_creating response parsed as array
+  const [convGeneratedEntityPools, setConvGeneratedEntityPools] = useState<unknown[]>([])
 
   // Linked content for the active conversation
   const [linkedContent, setLinkedContent] = useState<ConversationContentLink[]>([])
@@ -251,6 +312,11 @@ export function LLMConversationPanel() {
   // Crafting recipe saved IDs (keyed as "turnId:responseIdx:craftingRecipeIdx")
   const [savedCraftingRecipeIds, setSavedCraftingRecipeIds] = useState<Record<string, string>>({})
   const [craftingRecipeNames, setCraftingRecipeNames] = useState<Record<string, string>>({})
+  // Entity pool saved IDs (keyed as "turnId:responseIdx:entityPoolIdx")
+  const [savedEntityPoolIds, setSavedEntityPoolIds] = useState<Record<string, string>>({})
+  const [entityPoolNames, setEntityPoolNames] = useState<Record<string, string>>({})
+  const [entityPoolKeys, setEntityPoolKeys] = useState<Record<string, string>>({})
+  const [entityDefinitionKeyToId, setEntityDefinitionKeyToId] = useState<Record<string, string>>({})
 
   // Crafting recipe key conflict dialog (shown when recipe_key already exists in backend)
   const [craftingRecipeConflictOpen, setCraftingRecipeConflictOpen] = useState(false)
@@ -369,6 +435,23 @@ export function LLMConversationPanel() {
     setConvGeneratedItems(lastGeneratedItems)
   }, [chatHistory])
 
+  // Keep the last completed entity_definition_generation response parsed as entity definitions array
+  useEffect(() => {
+    let lastGeneratedEntityDefinitions: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'entity_definition_generation' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedEntityDefinitionsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedEntityDefinitions = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedEntityDefinitions(lastGeneratedEntityDefinitions)
+  }, [chatHistory])
+
   // Keep the last completed preset_generation response parsed as presets array
   useEffect(() => {
     let lastGeneratedPresets: unknown[] = []
@@ -454,16 +537,39 @@ export function LLMConversationPanel() {
     setConvGeneratedCraftingRecipes(lastGeneratedCraftingRecipes)
   }, [chatHistory])
 
+  // Keep the last completed entity_pool_creating response parsed as pools array
+  useEffect(() => {
+    let lastGeneratedEntityPools: unknown[] = []
+    for (const turn of chatHistory) {
+      if (!turn.responses) continue
+      for (const response of turn.responses) {
+        if (response.intentType === 'entity_pool_creating' && response.done && !response.error && response.responseText) {
+          const parsed = parseGeneratedEntityPoolsResponse(response.responseText)
+          if (parsed.length > 0) {
+            lastGeneratedEntityPools = parsed
+          }
+        }
+      }
+    }
+    setConvGeneratedEntityPools(lastGeneratedEntityPools)
+  }, [chatHistory])
+
   // Reset applied tag keys when switching conversations.
   useEffect(() => {
     setConvGeneratedItems([])
+    setConvGeneratedEntityDefinitions([])
     setConvGeneratedPresets([])
     setConvGeneratedContainers([])
     setConvGeneratedGachaPacks([])
     setConvGeneratedEquipmentSlots([])
     setConvGeneratedCraftingRecipes([])
+    setConvGeneratedEntityPools([])
     setAppliedTagsPerResponse({})
     setCreatedItemTagsPerResponse({})
+    setEntityDefinitionNames({})
+    setSavedEntityPoolIds({})
+    setEntityPoolNames({})
+    setEntityDefinitionKeyToId({})
   }, [activeConvId])
 
   // Persist lore entry titles to localStorage whenever they change (survives F5)
@@ -477,6 +583,12 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(itemDefinitionNames).length === 0) return
     safeSetItem(lsItemNames(activeConvId), JSON.stringify(itemDefinitionNames))
   }, [itemDefinitionNames, activeConvId])
+
+  // Persist entity definition names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(entityDefinitionNames).length === 0) return
+    safeSetItem(lsEntityNames(activeConvId), JSON.stringify(entityDefinitionNames))
+  }, [entityDefinitionNames, activeConvId])
 
   // Persist container definition names to localStorage whenever they change (survives F5)
   useEffect(() => {
@@ -501,6 +613,18 @@ export function LLMConversationPanel() {
     if (!activeConvId || Object.keys(craftingRecipeNames).length === 0) return
     safeSetItem(lsCraftingRecipeNames(activeConvId), JSON.stringify(craftingRecipeNames))
   }, [craftingRecipeNames, activeConvId])
+
+  // Persist entity pool names to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(entityPoolNames).length === 0) return
+    safeSetItem(lsEntityPoolNames(activeConvId), JSON.stringify(entityPoolNames))
+  }, [entityPoolNames, activeConvId])
+
+  // Persist entity pool keys to localStorage whenever they change (survives F5)
+  useEffect(() => {
+    if (!activeConvId || Object.keys(entityPoolKeys).length === 0) return
+    safeSetItem(lsEntityPoolKeys(activeConvId), JSON.stringify(entityPoolKeys))
+  }, [entityPoolKeys, activeConvId])
 
   // ---------------------------------------------------------------------------
   // Load conversations when game changes or panel opens
@@ -544,20 +668,33 @@ export function LLMConversationPanel() {
   // Load active conversation when activeConvId changes
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    setEntityDefinitionConflictOpen(false)
+    setEntityDefinitionConflictExisting(null)
+    setEntityDefinitionConflictReviewOpen(false)
+    setEntityDefinitionConflictReviewData(null)
+    setEntityDefinitionConflictPending(null)
+    setIsApplyingEntityDefinitionConflict(false)
     if (!gameId || !activeConvId) {
       setActiveConv(null)
       setLinkedContent([])
       setLoreEntryTitles({})
       setItemDefinitionNames({})
+      setEntityDefinitionNames({})
+      setEntityPoolNames({})
+      setEntityPoolKeys({})
+      setQuestDefinitionNames({})
+      setQuestDefinitionCodes({})
       setContainerDefinitionNames({})
       setGachaPackNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
       setSavedLoreIds({})
       setSavedItemDefinitionIds({})
+      setSavedEntityDefinitionIds({})
       setSavedPresetDefinitionIds({})
       setSavedContainerDefinitionIds({})
       setSavedGachaPackIds({})
+      setSavedEntityPoolIds({})
       if (gameId) {
         safeRemoveItem(lsActiveConv(gameId))
         window.dispatchEvent(new Event('ss:conv-state-changed'))
@@ -585,6 +722,9 @@ export function LLMConversationPanel() {
     // Restore saved item definition IDs from localStorage
     const rawItemLinks = safeGetItem(lsItemLinks(activeConvId))
     setSavedItemDefinitionIds(rawItemLinks ? JSON.parse(rawItemLinks) : {})
+    // Restore saved entity definition IDs from localStorage
+    const rawEntityLinks = safeGetItem(lsEntityLinks(activeConvId))
+    setSavedEntityDefinitionIds(rawEntityLinks ? JSON.parse(rawEntityLinks) : {})
     // Restore saved preset definition IDs from localStorage
     const rawPresetLinks = safeGetItem(lsPresetLinks(activeConvId))
     setSavedPresetDefinitionIds(rawPresetLinks ? JSON.parse(rawPresetLinks) : {})
@@ -600,11 +740,19 @@ export function LLMConversationPanel() {
     // Restore saved crafting recipe IDs from localStorage
     const rawCraftingRecipeLinks = safeGetItem(lsCraftingRecipeLinks(activeConvId))
     setSavedCraftingRecipeIds(rawCraftingRecipeLinks ? JSON.parse(rawCraftingRecipeLinks) : {})
+    // Restore saved entity pool IDs from localStorage
+    const rawEntityPoolLinks = safeGetItem(lsEntityPoolLinks(activeConvId))
+    setSavedEntityPoolIds(rawEntityPoolLinks ? JSON.parse(rawEntityPoolLinks) : {})
+    // Restore cached entity pool keys from localStorage
+    const rawEntityPoolKeys = safeGetItem(lsEntityPoolKeys(activeConvId))
+    if (rawEntityPoolKeys) { try { setEntityPoolKeys(JSON.parse(rawEntityPoolKeys)) } catch { setEntityPoolKeys({}) } }
     // Restore cached lore titles and item names from localStorage
     const rawLoreTitles = safeGetItem(lsLoreTitles(activeConvId))
     if (rawLoreTitles) { try { setLoreEntryTitles(JSON.parse(rawLoreTitles)) } catch { setLoreEntryTitles({}) } }
     const rawItemNames = safeGetItem(lsItemNames(activeConvId))
     if (rawItemNames) { try { setItemDefinitionNames(JSON.parse(rawItemNames)) } catch { setItemDefinitionNames({}) } }
+    const rawEntityNames = safeGetItem(lsEntityNames(activeConvId))
+    if (rawEntityNames) { try { setEntityDefinitionNames(JSON.parse(rawEntityNames)) } catch { setEntityDefinitionNames({}) } }
     const rawContainerNames = safeGetItem(lsContainerNames(activeConvId))
     if (rawContainerNames) { try { setContainerDefinitionNames(JSON.parse(rawContainerNames)) } catch { setContainerDefinitionNames({}) } }
     const rawGachaPackNames = safeGetItem(lsGachaPackNames(activeConvId))
@@ -613,6 +761,14 @@ export function LLMConversationPanel() {
     if (rawEquipmentSlotNames) { try { setEquipmentSlotNames(JSON.parse(rawEquipmentSlotNames)) } catch { setEquipmentSlotNames({}) } }
     const rawCraftingRecipeNames = safeGetItem(lsCraftingRecipeNames(activeConvId))
     if (rawCraftingRecipeNames) { try { setCraftingRecipeNames(JSON.parse(rawCraftingRecipeNames)) } catch { setCraftingRecipeNames({}) } }
+    const rawEntityPoolNames = safeGetItem(lsEntityPoolNames(activeConvId))
+    if (rawEntityPoolNames) { try { setEntityPoolNames(JSON.parse(rawEntityPoolNames)) } catch { setEntityPoolNames({}) } }
+    const rawQuestLinks = safeGetItem(lsQuestLinks(activeConvId))
+    if (rawQuestLinks) { try { setSavedQuestDefinitionIds(JSON.parse(rawQuestLinks)) } catch { setSavedQuestDefinitionIds({}) } }
+    const rawQuestNames = safeGetItem(lsQuestNames(activeConvId))
+    if (rawQuestNames) { try { setQuestDefinitionNames(JSON.parse(rawQuestNames)) } catch { setQuestDefinitionNames({}) } }
+    const rawQuestCodes = safeGetItem(lsQuestCodes(activeConvId))
+    if (rawQuestCodes) { try { setQuestDefinitionCodes(JSON.parse(rawQuestCodes)) } catch { setQuestDefinitionCodes({}) } }
     // Restore applied game tags and created item tags from localStorage
     const rawTagApplied = safeGetItem(lsTagApplied(activeConvId))
     setAppliedTagsPerResponse(rawTagApplied ? JSON.parse(rawTagApplied) : {})
@@ -645,6 +801,22 @@ export function LLMConversationPanel() {
         // Cache the name immediately so it's available when linkedContent renders
         if (detail.contentType === 'item_definition') {
           setItemDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'entity_definition') {
+          setEntityDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'entity_pool') {
+          setEntityPoolNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+          if (detail.convId) {
+            const rawEntityPoolLinks = safeGetItem(lsEntityPoolLinks(detail.convId))
+            if (rawEntityPoolLinks) {
+              try {
+                setSavedEntityPoolIds(JSON.parse(rawEntityPoolLinks))
+              } catch {
+                setSavedEntityPoolIds({})
+              }
+            } else {
+              setSavedEntityPoolIds({})
+            }
+          }
         } else if (detail.contentType === 'lore_entry' || detail.contentType === 'lore') {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'container_definition') {
@@ -653,6 +825,8 @@ export function LLMConversationPanel() {
           setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'crafting_recipe') {
           setCraftingRecipeNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'quest_definition') {
+          setQuestDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         }
         // Inject a synthetic link entry so it shows with its name right away,
         // before loadLinkedContent returns. The API call replaces it with the real entry.
@@ -675,6 +849,41 @@ export function LLMConversationPanel() {
     return () => window.removeEventListener('ss:conv-content-linked', handleContentLinked)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId])
+
+  // Catch successful entity creation triggered from the entity page, map turn context → entity ID
+  useEffect(() => {
+    function handleEntityCreated(e: Event) {
+      const detail = (e as CustomEvent<{ entityId: string; entityName?: string; turnId: string; responseIdx: number; entityDefinitionIdx: number; convId?: string; gameId?: string }>).detail
+      if (!gameId) return
+      if (detail.gameId && detail.gameId !== gameId) return
+      const convId = detail.convId ?? activeConvId
+      if (!convId) return
+      const entityKey = `${detail.turnId}:${detail.responseIdx}:${detail.entityDefinitionIdx}`
+      setSavedEntityDefinitionIds(prev => {
+        const updated = { ...prev, [entityKey]: detail.entityId }
+        safeSetItem(lsEntityLinks(convId), JSON.stringify(updated))
+        return updated
+      })
+      if (detail.entityName) {
+        setEntityDefinitionNames(prev => ({ ...prev, [detail.entityId]: detail.entityName! }))
+        const existingRaw = safeGetItem(lsEntityNames(convId))
+        let existingNames: Record<string, string> = {}
+        if (existingRaw) {
+          try {
+            existingNames = JSON.parse(existingRaw) as Record<string, string>
+          } catch {
+            existingNames = {}
+          }
+        }
+        safeSetItem(lsEntityNames(convId), JSON.stringify({ ...existingNames, [detail.entityId]: detail.entityName }))
+      }
+      void linkConversationContent(gameId, convId, 'entity_definition', detail.entityId)
+        .then(() => void loadLinkedContent(gameId, convId))
+        .catch(() => { /* best-effort */ })
+    }
+    window.addEventListener('ss:entity-created', handleEntityCreated)
+    return () => window.removeEventListener('ss:entity-created', handleEntityCreated)
+  }, [activeConvId, gameId])
 
   // Catch successful container creation triggered from the panel, map turn context → container ID
   useEffect(() => {
@@ -798,6 +1007,44 @@ export function LLMConversationPanel() {
     return () => window.removeEventListener('ss:crafting-recipe-created', handleCraftingRecipeCreated)
   }, [activeConvId, gameId])
 
+  // Catch successful quest creation triggered from the quest page, map turn context → quest ID
+  useEffect(() => {
+    function handleQuestCreated(e: Event) {
+      const detail = (e as CustomEvent<{ questId: string; questName?: string; questCodeName?: string; turnId?: string; responseIdx?: number; questDefinitionIdx?: number; convId?: string; gameId?: string }>).detail
+      if (!gameId) return
+      if (detail.gameId && detail.gameId !== gameId) return
+      const convId = detail.convId ?? activeConvId
+      if (!convId) return
+      if (detail.turnId !== undefined && detail.responseIdx !== undefined && detail.questDefinitionIdx !== undefined) {
+        const questKey = `${detail.turnId}:${detail.responseIdx}:${detail.questDefinitionIdx}`
+        setSavedQuestDefinitionIds(prev => {
+          const updated = { ...prev, [questKey]: detail.questId }
+          safeSetItem(lsQuestLinks(convId), JSON.stringify(updated))
+          return updated
+        })
+      }
+      if (detail.questName) {
+        setQuestDefinitionNames(prev => {
+          const next = { ...prev, [detail.questId]: detail.questName! }
+          safeSetItem(lsQuestNames(convId), JSON.stringify(next))
+          return next
+        })
+      }
+      if (detail.questCodeName) {
+        setQuestDefinitionCodes(prev => {
+          const next = { ...prev, [detail.questId]: detail.questCodeName! }
+          safeSetItem(lsQuestCodes(convId), JSON.stringify(next))
+          return next
+        })
+      }
+      void linkConversationContent(gameId, convId, 'quest_definition', detail.questId)
+        .then(() => void loadLinkedContent(gameId, convId))
+        .catch(() => { /* best-effort */ })
+    }
+    window.addEventListener('ss:quest-created', handleQuestCreated)
+    return () => window.removeEventListener('ss:quest-created', handleQuestCreated)
+  }, [activeConvId, gameId])
+
   // ---------------------------------------------------------------------------
   // API calls
   // ---------------------------------------------------------------------------
@@ -877,17 +1124,25 @@ export function LLMConversationPanel() {
       // React batch → a single render that already has names, no "Item" flash.
       const loreLinks = items.filter(l => l.content_type === 'lore' || l.content_type === 'lore_entry')
       const itemLinks = items.filter(l => l.content_type === 'item_definition')
+      const entityLinks = items.filter(l => l.content_type === 'entity_definition')
+      const entityPoolLinks = items.filter(l => l.content_type === 'entity_pool')
       const containerLinks = items.filter(l => l.content_type === 'container_definition')
       const gachaPackLinks = items.filter(l => l.content_type === 'gacha_pack')
       const craftingRecipeLinks = items.filter(l => l.content_type === 'crafting_recipe')
 
-      const [loreResults, itemResults, containerResults, gachaPackResults, craftingRecipeResults] = await Promise.all([
+      const [loreResults, itemResults, entityResults, entityPoolResults, containerResults, gachaPackResults, craftingRecipeResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
         itemLinks.length > 0
           ? Promise.allSettled(itemLinks.map(l => getItemDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ item: { name: string } }>[]),
+        entityLinks.length > 0
+          ? Promise.allSettled(entityLinks.map(l => getEntityDefinition(gId, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<EntityDefinition>[]),
+        entityPoolLinks.length > 0
+          ? Promise.allSettled(entityPoolLinks.map(l => getEntityPool(gId, l.content_id)))
+          : Promise.resolve([] as PromiseSettledResult<{ name: string; pool_key: string }>[]),
         containerLinks.length > 0
           ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
@@ -912,6 +1167,29 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') names[l.content_id] = result.value.item.name
       })
 
+      const entityNames: Record<string, string> = {}
+      entityLinks.forEach((l, i) => {
+        const result = entityResults[i]
+        if (result?.status === 'fulfilled') entityNames[l.content_id] = result.value.name
+      })
+
+      const entityPoolNameMap: Record<string, string> = {}
+      const entityPoolKeyMap: Record<string, string> = {}
+      const entityKeyMap: Record<string, string> = {}
+      entityPoolLinks.forEach((l, i) => {
+        const result = entityPoolResults[i]
+        if (result?.status === 'fulfilled') {
+          entityPoolNameMap[l.content_id] = result.value.name
+          entityPoolKeyMap[l.content_id] = result.value.pool_key
+        }
+      })
+      entityLinks.forEach((l, i) => {
+        const result = entityResults[i]
+        if (result?.status === 'fulfilled' && result.value.entity_key) {
+          entityKeyMap[result.value.entity_key] = l.content_id
+        }
+      })
+
       const containerNames: Record<string, string> = {}
       containerLinks.forEach((l, i) => {
         const result = containerResults[i]
@@ -933,6 +1211,10 @@ export function LLMConversationPanel() {
       // All setters fire synchronously → one React render with everything ready
       if (Object.keys(titles).length > 0) setLoreEntryTitles(prev => ({ ...prev, ...titles }))
       if (Object.keys(names).length > 0) setItemDefinitionNames(prev => ({ ...prev, ...names }))
+      if (Object.keys(entityNames).length > 0) setEntityDefinitionNames(prev => ({ ...prev, ...entityNames }))
+      if (Object.keys(entityKeyMap).length > 0) setEntityDefinitionKeyToId(prev => ({ ...prev, ...entityKeyMap }))
+      if (Object.keys(entityPoolNameMap).length > 0) setEntityPoolNames(prev => ({ ...prev, ...entityPoolNameMap }))
+      if (Object.keys(entityPoolKeyMap).length > 0) setEntityPoolKeys(prev => ({ ...prev, ...entityPoolKeyMap }))
       if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
       if (Object.keys(gachaPackNameMap).length > 0) setGachaPackNames(prev => ({ ...prev, ...gachaPackNameMap }))
       if (Object.keys(craftingRecipeNameMap).length > 0) setCraftingRecipeNames(prev => ({ ...prev, ...craftingRecipeNameMap }))
@@ -979,6 +1261,9 @@ export function LLMConversationPanel() {
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
       .map(l => l.content_id)
+    const retryLinkedEntityIds = linkedContent
+      .filter(l => l.content_type === 'entity_definition')
+      .map(l => l.content_id)
     const retryLinkedContainerIds = linkedContent
       .filter(l => l.content_type === 'container_definition')
       .map(l => l.content_id)
@@ -1022,12 +1307,15 @@ export function LLMConversationPanel() {
       retryHistoryContext.length > 0 ? retryHistoryContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
       convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
+      convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined,
+      convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined,
     )
   }
 
@@ -1046,6 +1334,9 @@ export function LLMConversationPanel() {
       .map(l => l.content_id)
     const linkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
+    const linkedEntityIds = linkedContent
+      .filter(l => l.content_type === 'entity_definition')
       .map(l => l.content_id)
     const linkedContainerIds = linkedContent
       .filter(l => l.content_type === 'container_definition')
@@ -1098,12 +1389,15 @@ export function LLMConversationPanel() {
       historyContext.length > 0 ? historyContext : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       linkedItemIds.length > 0 ? linkedItemIds : undefined,
+      linkedEntityIds.length > 0 ? linkedEntityIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       linkedContainerIds.length > 0 ? linkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
       convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
+      convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined,
+      convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined,
     )
   }
   async function handleSaveTitle() {
@@ -1175,6 +1469,8 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(deleteTarget.ID))
       safeRemoveItem(lsLoreTitles(deleteTarget.ID))
       safeRemoveItem(lsItemNames(deleteTarget.ID))
+      safeRemoveItem(lsEntityNames(deleteTarget.ID))
+      safeRemoveItem(lsEntityLinks(deleteTarget.ID))
       safeRemoveItem(lsContainerNames(deleteTarget.ID))
       safeRemoveItem(lsGachaPackLinks(deleteTarget.ID))
       safeRemoveItem(lsGachaPackNames(deleteTarget.ID))
@@ -1182,6 +1478,9 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsEquipmentSlotNames(deleteTarget.ID))
       safeRemoveItem(lsCraftingRecipeLinks(deleteTarget.ID))
       safeRemoveItem(lsCraftingRecipeNames(deleteTarget.ID))
+      safeRemoveItem(lsQuestLinks(deleteTarget.ID))
+      safeRemoveItem(lsQuestNames(deleteTarget.ID))
+      safeRemoveItem(lsQuestCodes(deleteTarget.ID))
       safeRemoveItem(lsTagApplied(deleteTarget.ID))
       safeRemoveItem(lsItemTagCreated(deleteTarget.ID))
       const remainingActive = activeConvs.filter((c) => c.ID !== deleteTarget.ID)
@@ -1211,12 +1510,17 @@ export function LLMConversationPanel() {
       safeRemoveItem(lsLoreLinks(conv.ID))
       safeRemoveItem(lsLoreTitles(conv.ID))
       safeRemoveItem(lsItemNames(conv.ID))
+      safeRemoveItem(lsEntityNames(conv.ID))
+      safeRemoveItem(lsEntityLinks(conv.ID))
       safeRemoveItem(lsGachaPackLinks(conv.ID))
       safeRemoveItem(lsGachaPackNames(conv.ID))
       safeRemoveItem(lsEquipmentSlotLinks(conv.ID))
       safeRemoveItem(lsEquipmentSlotNames(conv.ID))
       safeRemoveItem(lsTagApplied(conv.ID))
       safeRemoveItem(lsItemTagCreated(conv.ID))
+      safeRemoveItem(lsQuestLinks(conv.ID))
+      safeRemoveItem(lsQuestNames(conv.ID))
+      safeRemoveItem(lsQuestCodes(conv.ID))
       setArchivedConvs((prev) => prev.filter((c) => c.ID !== conv.ID))
       if (activeConvId === conv.ID) {
         safeRemoveItem(lsActiveConv(gameId))
@@ -1262,6 +1566,7 @@ export function LLMConversationPanel() {
     responseIdx: number,
     intentType: string,
     userMessage: string,
+    planningAction?: Record<string, unknown>,
   ) {
     if (!gameId || !activeConvId) return
     const generatedItemsForRequest = convGeneratedItems.length > 0
@@ -1272,6 +1577,9 @@ export function LLMConversationPanel() {
       .map(l => l.content_id)
     const retryLinkedItemIds = linkedContent
       .filter(l => l.content_type === 'item_definition')
+      .map(l => l.content_id)
+    const retryLinkedEntityIds = linkedContent
+      .filter(l => l.content_type === 'entity_definition')
       .map(l => l.content_id)
     const retryLinkedContainerIds = linkedContent
       .filter(l => l.content_type === 'container_definition')
@@ -1289,16 +1597,20 @@ export function LLMConversationPanel() {
       intentType,
       userMessage,
       t('llmConversation.errorSend'),
+      planningAction,
       responseRequestHistory.length > 0 ? responseRequestHistory : undefined,
       generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined,
       retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined,
       retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined,
+      retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined,
       convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined,
       convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined,
       retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined,
       convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined,
       convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined,
       convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined,
+      convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined,
+      convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined,
     )
   }
 
@@ -1988,6 +2300,548 @@ export function LLMConversationPanel() {
     }
   }
 
+  function buildEntityDefinitionDraft(
+    entityDefinition: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    entityDefinitionIdx: number,
+  ) {
+    const rawMetadata = entityDefinition.metadata
+    const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
+      ? { ...(rawMetadata as Record<string, unknown>) }
+      : undefined
+    const description =
+      typeof entityDefinition.description === 'string' ? entityDefinition.description.trim()
+      : typeof metadata?.description === 'string' ? String(metadata.description).trim()
+      : ''
+    if (metadata) {
+      metadata.description = description || metadata.description
+    }
+
+    return {
+      entityDefinition,
+      entity_key: typeof entityDefinition.entity_key === 'string' ? entityDefinition.entity_key.trim() : '',
+      entity_type: typeof entityDefinition.entity_type === 'string' && entityDefinition.entity_type.trim()
+        ? entityDefinition.entity_type.trim()
+        : 'other',
+      name: typeof entityDefinition.name === 'string' ? entityDefinition.name.trim() : '',
+      description,
+      rarity: typeof entityDefinition.rarity === 'string' ? entityDefinition.rarity.trim() : '',
+      icon_url: typeof entityDefinition.icon_url === 'string' ? entityDefinition.icon_url.trim() : '',
+      stats: entityDefinition.stats && typeof entityDefinition.stats === 'object' && !Array.isArray(entityDefinition.stats)
+        ? entityDefinition.stats as Record<string, unknown>
+        : undefined,
+      abilities: Array.isArray(entityDefinition.abilities) ? entityDefinition.abilities : undefined,
+      metadata,
+      is_active: typeof entityDefinition.is_active === 'boolean' ? entityDefinition.is_active : true,
+      turnId,
+      responseIdx,
+      entityDefinitionIdx,
+      convId: activeConvId,
+      gameId,
+    }
+  }
+
+  function fireOpenCreateEntityDefinition(
+    draft: ReturnType<typeof buildEntityDefinitionDraft>,
+  ) {
+    if (!gameId) return
+    const isOnEntitiesPage = pathname === `/games/${gameId}/entities`
+    if (isOnEntitiesPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-create-entity-definition', { detail: draft }))
+    } else {
+      safeSetItem(lsPendingEntityDefinitionCreate(gameId), JSON.stringify(draft))
+      router.push(`/games/${gameId}/entities?tab=entities&create=1`)
+    }
+  }
+
+  async function handleSaveEntityDefinition(
+    entityDefinition: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    entityDefinitionIdx: number,
+  ) {
+    if (!gameId) return
+
+    const draft = buildEntityDefinitionDraft(entityDefinition, turnId, responseIdx, entityDefinitionIdx)
+    const entityKey = draft.entity_key
+
+    if (entityKey) {
+      try {
+        const results = await listEntityDefinitions(gameId, { search: entityKey })
+        const existing = (results ?? []).find((candidate) => candidate.entity_key === entityKey) ?? null
+        if (existing) {
+          setEntityDefinitionConflictExisting(existing)
+          setEntityDefinitionConflictPending({ entityDefinition, turnId, responseIdx, entityDefinitionIdx })
+          setEntityDefinitionConflictReviewData(buildEntityDefinitionUpdatePayload(existing, entityDefinition))
+          setEntityDefinitionConflictOpen(true)
+          return
+        }
+      } catch {
+        // fall through to create flow on lookup errors
+      }
+    }
+
+    fireOpenCreateEntityDefinition(draft)
+  }
+
+  function buildEntityDefinitionUpdatePayload(
+    existing: EntityDefinition,
+    entityDefinition: Record<string, unknown>,
+  ): UpdateEntityDefinitionRequest {
+    const rawMetadata = entityDefinition.metadata
+    const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
+      ? { ...(existing.metadata ?? {}), ...(rawMetadata as Record<string, unknown>) }
+      : (existing.metadata ? { ...existing.metadata } : undefined)
+    const description =
+      typeof entityDefinition.description === 'string' ? entityDefinition.description.trim()
+      : typeof metadata?.description === 'string' ? String(metadata.description).trim()
+      : existing.description
+    if (metadata) {
+      metadata.description = description || metadata.description
+    }
+
+    const stats = entityDefinition.stats && typeof entityDefinition.stats === 'object' && !Array.isArray(entityDefinition.stats)
+      ? entityDefinition.stats as Record<string, unknown>
+      : existing.stats
+    const abilities = Array.isArray(entityDefinition.abilities)
+      ? entityDefinition.abilities as EntityDefinition['abilities']
+      : existing.abilities
+
+    return {
+      entity_type: typeof entityDefinition.entity_type === 'string' && entityDefinition.entity_type.trim()
+        ? entityDefinition.entity_type.trim() as EntityDefinition['entity_type']
+        : existing.entity_type,
+      name: typeof entityDefinition.name === 'string' && entityDefinition.name.trim()
+        ? entityDefinition.name.trim()
+        : existing.name,
+      description: description ? description : undefined,
+      icon_url: typeof entityDefinition.icon_url === 'string' && entityDefinition.icon_url.trim()
+        ? entityDefinition.icon_url.trim()
+        : existing.icon_url,
+      rarity: typeof entityDefinition.rarity === 'string' && entityDefinition.rarity.trim()
+        ? entityDefinition.rarity.trim() as EntityDefinition['rarity']
+        : existing.rarity,
+      stats,
+      abilities,
+      metadata: metadata && Object.keys(metadata).length > 0 ? metadata : undefined,
+    }
+  }
+
+  function openEntityDefinitionConflictReview() {
+    if (!entityDefinitionConflictExisting || !entityDefinitionConflictPending) return
+    setEntityDefinitionConflictReviewData(
+      buildEntityDefinitionUpdatePayload(entityDefinitionConflictExisting, entityDefinitionConflictPending.entityDefinition),
+    )
+    setEntityDefinitionConflictReviewOpen(true)
+  }
+
+  async function handleEntityDefinitionConflictUpdate(reviewData?: UpdateEntityDefinitionRequest) {
+    if (!entityDefinitionConflictExisting || !entityDefinitionConflictPending || !gameId || !activeConvId) return
+    const { entityDefinition, turnId, responseIdx, entityDefinitionIdx } = entityDefinitionConflictPending
+    setIsApplyingEntityDefinitionConflict(true)
+    try {
+      const payload = reviewData ?? buildEntityDefinitionUpdatePayload(entityDefinitionConflictExisting, entityDefinition)
+      const updated = await updateEntityDefinition(gameId, entityDefinitionConflictExisting.id, payload)
+      const entityKey = `${turnId}:${responseIdx}:${entityDefinitionIdx}`
+      setSavedEntityDefinitionIds(prev => {
+        const next = { ...prev, [entityKey]: updated.id }
+        safeSetItem(lsEntityLinks(activeConvId), JSON.stringify(next))
+        return next
+      })
+      setEntityDefinitionNames(prev => ({ ...prev, [updated.id]: updated.name }))
+      const existingNamesRaw = safeGetItem(lsEntityNames(activeConvId))
+      let existingNames: Record<string, string> = {}
+      if (existingNamesRaw) {
+        try {
+          existingNames = JSON.parse(existingNamesRaw) as Record<string, string>
+        } catch {
+          existingNames = {}
+        }
+      }
+      safeSetItem(lsEntityNames(activeConvId), JSON.stringify({ ...existingNames, [updated.id]: updated.name }))
+      void linkConversationContent(gameId, activeConvId, 'entity_definition', updated.id)
+        .then(() => void loadLinkedContent(gameId, activeConvId))
+        .catch(() => { /* best-effort */ })
+      setEntityDefinitionConflictOpen(false)
+      setEntityDefinitionConflictReviewOpen(false)
+      setEntityDefinitionConflictPending(null)
+      setEntityDefinitionConflictExisting(null)
+      setEntityDefinitionConflictReviewData(null)
+      toast({ title: t('llmConversation.entityDefinitionSaved'), description: updated.name })
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityDefinition'), description: err?.message })
+    } finally {
+      setIsApplyingEntityDefinitionConflict(false)
+    }
+  }
+
+  function handleEntityDefinitionConflictSaveNew(newEntityKey: string) {
+    if (!entityDefinitionConflictPending) return
+    const nextKey = newEntityKey.trim()
+    if (!nextKey) return
+    const { entityDefinition, turnId, responseIdx, entityDefinitionIdx } = entityDefinitionConflictPending
+    setEntityDefinitionConflictOpen(false)
+    setEntityDefinitionConflictExisting(null)
+    setEntityDefinitionConflictPending(null)
+    setEntityDefinitionConflictReviewOpen(false)
+    setEntityDefinitionConflictReviewData(null)
+    fireOpenCreateEntityDefinition({
+      ...buildEntityDefinitionDraft(entityDefinition, turnId, responseIdx, entityDefinitionIdx),
+      entity_key: nextKey,
+    })
+  }
+
+  function buildEntityPoolDraft(
+    entityPool: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    entityPoolIdx: number,
+  ) {
+    const rawMetadata = entityPool.metadata
+    const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
+      ? { ...(rawMetadata as Record<string, unknown>) }
+      : undefined
+    const description =
+      typeof entityPool.description === 'string' ? entityPool.description.trim()
+      : typeof metadata?.description === 'string' ? String(metadata.description).trim()
+      : ''
+    const entries = Array.isArray(entityPool.entries)
+      ? entityPool.entries.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)).map((entry) => {
+        const record = entry as Record<string, unknown>
+        return {
+          entity_definition_id: typeof record.entity_definition_id === 'string' ? record.entity_definition_id.trim() : '',
+          weight: typeof record.weight === 'number'
+            ? record.weight
+            : (typeof record.weight === 'string' ? Number(record.weight) : NaN),
+        }
+      })
+      : []
+    return {
+      entityPool,
+      pool_key: typeof entityPool.pool_key === 'string' ? entityPool.pool_key.trim() : '',
+      name: typeof entityPool.name === 'string' ? entityPool.name.trim() : '',
+      description,
+      is_active: typeof entityPool.is_active === 'boolean' ? entityPool.is_active : true,
+      metadata,
+      entries,
+      turnId,
+      responseIdx,
+      entityPoolIdx,
+    }
+  }
+
+  async function resolveEntityPoolEntityDefinitionMap(): Promise<Record<string, string>> {
+    const keyToId = { ...entityDefinitionKeyToId }
+    const linkedEntityIds = linkedContent
+      .filter((link) => link.content_type === 'entity_definition')
+      .map((link) => link.content_id)
+    const missingIds = linkedEntityIds.filter((id) => !Object.values(keyToId).includes(id))
+    if (missingIds.length === 0) return keyToId
+    const results = await Promise.allSettled(missingIds.map((id) => getEntityDefinition(gameId!, id)))
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled' && result.value.entity_key) {
+        keyToId[result.value.entity_key] = missingIds[idx]
+      }
+    })
+    return keyToId
+  }
+
+  async function fireOpenCreateEntityPool(
+    draft: Record<string, unknown>,
+    context: { turnId: string; responseIdx: number; entityPoolIdx: number },
+  ) {
+    if (!gameId || !activeConvId) return
+    const resolvedDraft = await resolveEntityPoolDraftForCreate(draft)
+    const payload = {
+      ...resolvedDraft,
+      turnId: context.turnId,
+      responseIdx: context.responseIdx,
+      entityPoolIdx: context.entityPoolIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingEntityPoolCreate(gameId), JSON.stringify(payload))
+    window.dispatchEvent(new CustomEvent('ss:open-create-entity-pool', { detail: payload }))
+    router.push(`/games/${gameId}/entities?tab=pools&create=1`)
+  }
+
+  async function fireOpenEditEntityPool(
+    existingPoolId: string,
+    draft: Record<string, unknown>,
+    context: { turnId: string; responseIdx: number; entityPoolIdx: number },
+  ) {
+    if (!gameId || !activeConvId) return
+    const resolvedDraft = await resolveEntityPoolDraftForCreate(draft)
+    const payload = {
+      ...resolvedDraft,
+      existingPoolId,
+      turnId: context.turnId,
+      responseIdx: context.responseIdx,
+      entityPoolIdx: context.entityPoolIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    safeSetItem(lsPendingEntityPoolEdit(gameId), JSON.stringify(payload))
+    window.dispatchEvent(new CustomEvent('ss:open-edit-entity-pool', { detail: payload }))
+    router.push(`/games/${gameId}/entities?tab=pools&editPool=${existingPoolId}`)
+  }
+
+  async function resolveEntityPoolDraftForCreate(entityPool: Record<string, unknown>) {
+    const entries = Array.isArray(entityPool.entries) ? entityPool.entries : []
+    const resolvedEntries: Record<string, unknown>[] = []
+
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+      const record = entry as Record<string, unknown>
+      const rawId = String(record.entity_definition_id ?? '').trim()
+
+      if (!rawId.startsWith('__REF:')) {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+          entity_definition_name: typeof record.entity_definition_name === 'string'
+            ? record.entity_definition_name
+            : (typeof record.entity_name === 'string' ? record.entity_name : rawId),
+          entity_definition_key: typeof record.entity_definition_key === 'string'
+            ? record.entity_definition_key
+            : (typeof record.entity_key === 'string' ? record.entity_key : rawId),
+        })
+        continue
+      }
+
+      const entityKey = rawId.slice('__REF:'.length).trim()
+      if (!entityKey) {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+        })
+        continue
+      }
+
+      try {
+        const results = await listEntityDefinitions(gameId!, { search: entityKey })
+        const entity = (results ?? []).find((candidate) => candidate.entity_key === entityKey) ?? null
+        if (!entity) throw new Error(`Entity "${entityKey}" not found.`)
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: entity.id,
+          entity_definition_name: entity.name,
+          entity_definition_key: entity.entity_key,
+        })
+      } catch {
+        resolvedEntries.push({
+          ...record,
+          entity_definition_id: rawId,
+          entity_definition_name: typeof record.entity_definition_name === 'string'
+            ? record.entity_definition_name
+            : entityKey,
+          entity_definition_key: typeof record.entity_definition_key === 'string'
+            ? record.entity_definition_key
+            : entityKey,
+        })
+      }
+    }
+
+    return {
+      ...entityPool,
+      entries: resolvedEntries,
+    }
+  }
+
+  async function handleSaveEntityPool(
+    entityPool: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    entityPoolIdx: number,
+  ) {
+    if (!gameId || !activeConvId) return
+
+    const draft = buildEntityPoolDraft(entityPool, turnId, responseIdx, entityPoolIdx)
+    const isValidPoolKey = /^[a-z][a-z0-9_]{0,63}$/.test(draft.pool_key)
+    if (!draft.pool_key || !isValidPoolKey || !draft.name || !draft.description || draft.entries.length === 0) {
+      toast({ title: t('llmConversation.errorSaveEntityPool'), variant: 'destructive' })
+      return
+    }
+
+    try {
+      const pools = await listEntityPools(gameId)
+      const existing = pools.find((candidate) => candidate.pool_key === draft.pool_key) ?? null
+      if (existing) {
+        setEntityPoolConflictExisting(existing)
+        setEntityPoolConflictPending({ entityPool, turnId, responseIdx, entityPoolIdx })
+        setEntityPoolConflictReviewOpen(false)
+        setEntityPoolConflictOpen(true)
+        return
+      }
+      await fireOpenCreateEntityPool(draft, { turnId, responseIdx, entityPoolIdx })
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityPool'), description: err?.message })
+    }
+  }
+
+  async function handleEntityPoolConflictUpdate(reviewData?: Record<string, unknown>) {
+    if (!entityPoolConflictExisting || !entityPoolConflictPending || !gameId || !activeConvId) return
+    setIsApplyingEntityPoolConflict(true)
+    try {
+      const { entityPool, turnId, responseIdx, entityPoolIdx } = entityPoolConflictPending
+      const draftSource = reviewData ?? entityPool
+      await fireOpenEditEntityPool(
+        entityPoolConflictExisting.id,
+        draftSource,
+        { turnId, responseIdx, entityPoolIdx },
+      )
+      setEntityPoolConflictOpen(false)
+      setEntityPoolConflictReviewOpen(false)
+      setEntityPoolConflictExisting(null)
+      setEntityPoolConflictPending(null)
+      setEntityPoolConflictReviewData(null)
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityPool'), description: err?.message })
+    } finally {
+      setIsApplyingEntityPoolConflict(false)
+    }
+  }
+
+  function handleEntityPoolConflictSaveNew(newPoolKey: string) {
+    if (!entityPoolConflictPending || !gameId || !activeConvId) return
+    const nextKey = newPoolKey.trim()
+    if (!nextKey || !/^[a-z][a-z0-9_]{0,63}$/.test(nextKey)) {
+      toast({ title: t('llmConversation.errorSaveEntityPool'), variant: 'destructive' })
+      return
+    }
+
+    const { entityPool, turnId, responseIdx, entityPoolIdx } = entityPoolConflictPending
+    void (async () => {
+      setIsApplyingEntityPoolConflict(true)
+      try {
+        const draft = buildEntityPoolDraft(entityPool, turnId, responseIdx, entityPoolIdx)
+        await fireOpenCreateEntityPool({ ...draft, pool_key: nextKey }, { turnId, responseIdx, entityPoolIdx })
+        setEntityPoolConflictOpen(false)
+        setEntityPoolConflictReviewOpen(false)
+        setEntityPoolConflictExisting(null)
+        setEntityPoolConflictPending(null)
+        setEntityPoolConflictReviewData(null)
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: t('llmConversation.errorSaveEntityPool'), description: err?.message })
+      } finally {
+        setIsApplyingEntityPoolConflict(false)
+      }
+    })()
+  }
+
+  function openQuestDefinitionCreate(
+    questDefinition: Record<string, unknown>,
+    turnId?: string,
+    responseIdx?: number,
+    questDefinitionIdx?: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      questDefinition,
+      turnId,
+      responseIdx,
+      questDefinitionIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    const isOnQuestsPage = pathname === `/games/${gameId}/quests`
+    if (isOnQuestsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-create-quest-definition', { detail: pending }))
+    } else {
+      safeSetItem(lsPendingQuestCreate(gameId), JSON.stringify(pending))
+      router.push(`/games/${gameId}/quests?create=1`)
+    }
+  }
+
+  function openQuestDefinitionEdit(
+    existingQuestId: string,
+    questDefinition: Record<string, unknown>,
+    turnId?: string,
+    responseIdx?: number,
+    questDefinitionIdx?: number,
+  ) {
+    if (!gameId || !activeConvId) return
+    const pending = {
+      existingQuestId,
+      questDefinition,
+      turnId,
+      responseIdx,
+      questDefinitionIdx,
+      convId: activeConvId,
+      gameId,
+    }
+    const isOnQuestsPage = pathname === `/games/${gameId}/quests`
+    if (isOnQuestsPage) {
+      window.dispatchEvent(new CustomEvent('ss:open-edit-quest-definition', { detail: pending }))
+    } else {
+      safeSetItem(lsPendingQuestEdit(gameId), JSON.stringify(pending))
+      router.push(`/games/${gameId}/quests?editQuestId=${existingQuestId}`)
+    }
+  }
+
+  async function handleSaveQuestDefinition(
+    questDefinition: Record<string, unknown>,
+    turnId: string,
+    responseIdx: number,
+    questDefinitionIdx: number,
+  ) {
+    if (!gameId) return
+    const codeName = typeof questDefinition.code_name === 'string' ? questDefinition.code_name.trim() : ''
+    if (codeName) {
+      try {
+        const game = await getGame(gameId)
+        const res = await listQuestDefinitions(game.studio_id, gameId, { limit: 1000 })
+        const existing = (res.quests ?? []).find((quest) => (quest.code_name ?? '').trim() === codeName) ?? null
+        if (existing) {
+          setQuestCodeConflictExisting(existing)
+          setQuestCodeConflictPending({ questDefinition, turnId, responseIdx, questDefinitionIdx })
+          setNewQuestCodeInput(`${existing.code_name ?? codeName}_2`)
+          setQuestCodeConflictOpen(true)
+          return
+        }
+      } catch {
+        // Fall through to create flow if lookup fails.
+      }
+    }
+    openQuestDefinitionCreate(questDefinition, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  function handleQuestCodeConflictUpdate() {
+    if (!questCodeConflictExisting || !questCodeConflictPending) return
+    const { questDefinition, turnId, responseIdx, questDefinitionIdx } = questCodeConflictPending
+    setQuestCodeConflictOpen(false)
+    setQuestCodeConflictExisting(null)
+    setQuestCodeConflictPending(null)
+    openQuestDefinitionEdit(questCodeConflictExisting.id, questDefinition, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  function handleQuestCodeConflictSaveNew(newCodeName: string) {
+    if (!questCodeConflictPending) return
+    const nextCode = newCodeName.trim()
+    if (!nextCode) {
+      toast({ title: t('common.error'), variant: 'destructive' })
+      return
+    }
+    const { questDefinition, turnId, responseIdx, questDefinitionIdx } = questCodeConflictPending
+    setQuestCodeConflictOpen(false)
+    setQuestCodeConflictExisting(null)
+    setQuestCodeConflictPending(null)
+    openQuestDefinitionCreate({ ...questDefinition, code_name: nextCode }, turnId, responseIdx, questDefinitionIdx)
+  }
+
+  useEffect(() => {
+    if (questCodeConflictOpen && questCodeConflictExisting?.code_name) {
+      setNewQuestCodeInput(`${questCodeConflictExisting.code_name}_2`)
+    } else if (!questCodeConflictOpen) {
+      setNewQuestCodeInput('')
+    }
+  }, [questCodeConflictOpen, questCodeConflictExisting?.code_name])
+
+  const questCodeConflictDescription = questCodeConflictExisting
+    ? t('llmConversation.questCodeConflictDesc').replace('{code}', questCodeConflictExisting.code_name ?? '')
+    : ''
+
   async function handleOpenItemDefinitionReview(
     item: Record<string, unknown>,
     turnId: string,
@@ -2171,10 +3025,10 @@ export function LLMConversationPanel() {
   }
 
   /** User chose to update the existing item with SSE data then navigate to it */
-  async function handleItemCodeConflictUpdate() {
+  async function handleItemCodeConflictUpdate(reviewData?: Record<string, unknown>) {
     if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
     const existing = itemCodeConflictExisting
-    const patch = buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
+    const patch = reviewData ?? buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
     setIsApplyingConflict(true)
     try {
       await updateItemDefinition({ gameId }, existing.id, patch)
@@ -2333,22 +3187,30 @@ export function LLMConversationPanel() {
                   savedLoreIds={savedLoreIds}
                   loreEntryTitles={loreEntryTitles}
                   savedItemDefinitionIds={savedItemDefinitionIds}
+                  savedEntityDefinitionIds={savedEntityDefinitionIds}
                   savedPresetDefinitionIds={savedPresetDefinitionIds}
                   savedContainerDefinitionIds={savedContainerDefinitionIds}
                   savedGachaPackIds={savedGachaPackIds}
                   savedEquipmentSlotIds={savedEquipmentSlotIds}
                   savedCraftingRecipeIds={savedCraftingRecipeIds}
+                  savedEntityPoolIds={savedEntityPoolIds}
+                  savedQuestDefinitionIds={savedQuestDefinitionIds}
                   craftingRecipeNames={craftingRecipeNames}
+                  entityPoolNames={entityPoolNames}
+                  questDefinitionNames={questDefinitionNames}
                   premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null}
                   onRetry={handleRetry}
                   onRetryResponse={handleRetryResponse}
                   onOpenLoreReview={handleOpenLoreReview}
                   onSaveItemDefinition={handleOpenItemDefinitionReview}
+                  onSaveEntityDefinition={handleSaveEntityDefinition}
                   onSavePresetDefinition={handleSavePresetDefinition}
                   onSaveContainerDefinition={handleSaveContainerDefinition}
                   onSaveGachaPack={handleSaveGachaPack}
                   onSaveEquipmentSlot={fireOpenCreateEquipmentSlot}
                   onSaveCraftingRecipe={handleSaveCraftingRecipe}
+                  onSaveEntityPool={handleSaveEntityPool}
+                  onSaveQuestDefinition={handleSaveQuestDefinition}
                   onBuyTokens={handleBuyTokens}
                   onApplyTagSuggestion={handleApplyTagSuggestion}
                   onRemoveGameTag={handleRemoveGameTag}
@@ -2369,8 +3231,12 @@ export function LLMConversationPanel() {
                 unlinkingId={unlinkingId}
                 loreEntryTitles={loreEntryTitles}
                 itemDefinitionNames={itemDefinitionNames}
+                entityDefinitionNames={entityDefinitionNames}
                 containerDefinitionNames={containerDefinitionNames}
                 gachaPackNames={gachaPackNames}
+                entityPoolNames={entityPoolNames}
+                entityPoolKeys={entityPoolKeys}
+                questDefinitionNames={questDefinitionNames}
                 craftingRecipeNames={craftingRecipeNames}
                 onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId) }}
                 t={t}
@@ -2524,6 +3390,80 @@ export function LLMConversationPanel() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={questCodeConflictOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuestCodeConflictOpen(false)
+            setQuestCodeConflictExisting(null)
+            setQuestCodeConflictPending(null)
+          }
+        }}
+      >
+        <DialogContent id="quest-code-conflict-dialog-root">
+          <DialogHeader id="quest-code-conflict-dialog-header">
+            <DialogTitle id="quest-code-conflict-dialog-title">{t('llmConversation.questCodeConflictTitle')}</DialogTitle>
+            <DialogDescription id="quest-code-conflict-dialog-desc">
+              {questCodeConflictDescription}
+            </DialogDescription>
+          </DialogHeader>
+
+          {questCodeConflictExisting && (
+            <Link
+              id="quest-code-conflict-existing-link"
+              href={`/games/${gameId}/quests?editQuestId=${questCodeConflictExisting.id}&noconvpanel=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Hammer id="quest-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span id="quest-code-conflict-existing-link-name" className="flex-1 truncate">{questCodeConflictExisting.name}</span>
+              <code id="quest-code-conflict-existing-link-code" className="text-xs bg-muted-foreground/20 px-1 rounded">{questCodeConflictExisting.code_name ?? ''}</code>
+              <ExternalLink id="quest-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+
+          <Button
+            id="quest-code-conflict-update-btn"
+            type="button"
+            onClick={handleQuestCodeConflictUpdate}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+            disabled={!questCodeConflictExisting || !questCodeConflictPending}
+          >
+            <Hammer id="quest-code-conflict-update-icon" className="h-4 w-4" />
+            {t('llmConversation.questCodeConflictUpdate')}
+          </Button>
+
+          <div id="quest-code-conflict-divider" className="relative flex items-center gap-2">
+            <div id="quest-code-conflict-divider-left" className="flex-1 border-t border-border" />
+            <span id="quest-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
+            <div id="quest-code-conflict-divider-right" className="flex-1 border-t border-border" />
+          </div>
+
+          <div id="quest-code-conflict-save-new-section" className="space-y-2">
+            <Label id="quest-code-conflict-new-code-label" htmlFor="quest-code-conflict-new-code-input" className="text-xs text-muted-foreground">
+              {t('llmConversation.questCodeConflictNewCodeLabel')}
+            </Label>
+            <Input
+              id="quest-code-conflict-new-code-input"
+              value={newQuestCodeInput}
+              onChange={(e) => setNewQuestCodeInput(e.target.value)}
+              className="font-mono"
+            />
+            <Button
+              id="quest-code-conflict-save-new-btn"
+              type="button"
+              onClick={() => handleQuestCodeConflictSaveNew(newQuestCodeInput)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black"
+              disabled={!questCodeConflictPending}
+            >
+              <PackagePlus id="quest-code-conflict-save-new-icon" className="h-4 w-4" />
+              {t('llmConversation.questCodeConflictSaveNew')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ConversationDialogs
         detailOpen={detailOpen}
         setDetailOpen={setDetailOpen}
@@ -2548,6 +3488,26 @@ export function LLMConversationPanel() {
         setItemDefReviewOpen={setItemDefReviewOpen}
         itemInitialValues={itemInitialValues}
         onItemDefCreated={handleItemDefCreated}
+        entityDefinitionConflictOpen={entityDefinitionConflictOpen}
+        setEntityDefinitionConflictOpen={setEntityDefinitionConflictOpen}
+        entityDefinitionConflictExisting={entityDefinitionConflictExisting}
+        entityDefinitionConflictReviewOpen={entityDefinitionConflictReviewOpen}
+        setEntityDefinitionConflictReviewOpen={setEntityDefinitionConflictReviewOpen}
+        entityDefinitionConflictReviewData={entityDefinitionConflictReviewData}
+        isApplyingEntityDefinitionConflict={isApplyingEntityDefinitionConflict}
+        onEntityDefinitionConflictUpdate={handleEntityDefinitionConflictUpdate}
+        onEntityDefinitionConflictReview={openEntityDefinitionConflictReview}
+        onEntityDefinitionConflictSaveNew={handleEntityDefinitionConflictSaveNew}
+        entityPoolConflictOpen={entityPoolConflictOpen}
+        setEntityPoolConflictOpen={setEntityPoolConflictOpen}
+        entityPoolConflictExisting={entityPoolConflictExisting}
+        entityPoolConflictReviewOpen={entityPoolConflictReviewOpen}
+        setEntityPoolConflictReviewOpen={setEntityPoolConflictReviewOpen}
+        entityPoolConflictReviewData={entityPoolConflictReviewData}
+        isApplyingEntityPoolConflict={isApplyingEntityPoolConflict}
+        onEntityPoolConflictUpdate={handleEntityPoolConflictUpdate}
+        onEntityPoolConflictReview={() => handleEntityPoolConflictUpdate()}
+        onEntityPoolConflictSaveNew={handleEntityPoolConflictSaveNew}
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}

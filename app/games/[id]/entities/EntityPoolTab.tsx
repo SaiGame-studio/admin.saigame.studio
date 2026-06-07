@@ -16,18 +16,25 @@ import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
+import { useEscapeLayer } from "@/hooks/use-escape-manager"
 import { useTranslation } from "@/lib/i18n/use-translation"
 import { listEntityPools, getEntityPool, updateEntityPool, createEntityPool, deleteEntityPool, createEntityPoolEntry, updateEntityPoolEntry, deleteEntityPoolEntry, listEntityDefinitions } from "@/lib/entity-definition-api"
 import { listGachaPacks } from "@/lib/inventory-api"
 import type { GachaPack } from "@/types/inventory"
 import { ApiError } from "@/lib/api-client"
+import { safeGetItem, safeRemoveItem, safeSetItem } from "@/lib/storage-utils"
+import { linkConversationContent } from "@/lib/llm-conversation-api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import type { EntityPool, EntityPoolEntry, EntityRarity, EntityDefinition } from "@/types/entity-definition"
 import { ENTITY_RARITY_COLORS, ENTITY_TYPE_LABELS } from "@/types/entity-definition"
 import { CopyButton } from "@/components/CopyButton"
+import { lsEntityPoolLinks, lsEntityPoolNames, lsPendingEntityPoolCreate } from "@/components/llm-conversations/conversation-panel-utils"
+import { lsPendingEntityPoolEdit } from "@/components/llm-conversations/conversation-panel-utils"
+import { getEntityDefinitionByKey } from "@/lib/entity-definition-api"
 
 // Backend limits — entity_pool.go:23-30
 const MAX_POOLS_PER_GAME = 1000
@@ -37,6 +44,24 @@ const MAX_POOL_DESC_LENGTH = 500
 const MIN_ENTRY_WEIGHT = 0
 const MAX_ENTRY_WEIGHT = 10000
 const DEFAULT_ENTRY_WEIGHT = 100
+const MAX_POOL_CREATE_ENTRIES = 20
+
+type CreatePoolEntryRow = {
+  id: string
+  existingEntryId?: string
+  entity_definition_id: string
+  entity_definition_name: string
+  entity_definition_key: string
+  weight: string
+}
+
+type CreatePoolFormState = {
+  pool_key: string
+  name: string
+  description: string
+  is_active: boolean
+  metadata: Record<string, unknown>
+}
 
 export function EntityPoolTab({ gameId }: { gameId: string }) {
   const { t } = useTranslation()
@@ -60,15 +85,431 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   const [pools, setPools] = useState<EntityPool[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("poolKey") ?? "")
   const [createOpen, setCreateOpen] = useState(false)
-  const [createForm, setCreateForm] = useState({ pool_key: "", name: "", description: "" })
+  const [editOpen, setEditOpen] = useState(false)
+  const [sheetMode, setSheetMode] = useState<"create" | "edit">("create")
+  const [editingPoolId, setEditingPoolId] = useState<string | null>(null)
+  const [createForm, setCreateForm] = useState<CreatePoolFormState>({
+    pool_key: "",
+    name: "",
+    description: "",
+    is_active: true,
+    metadata: {},
+  })
+  const [createEntries, setCreateEntries] = useState<CreatePoolEntryRow[]>([])
+  const [editForm, setEditForm] = useState<CreatePoolFormState>(emptyCreateForm())
+  const [editEntries, setEditEntries] = useState<CreatePoolEntryRow[]>([])
   const [creating, setCreating] = useState(false)
   const [autoSlug, setAutoSlug] = useState(true)
+  const [createMetaKey, setCreateMetaKey] = useState<string | "__new__" | null>(null)
+  const [createMetaFieldKey, setCreateMetaFieldKey] = useState("")
+  const [createMetaFieldValue, setCreateMetaFieldValue] = useState("")
+  const [editMetaKey, setEditMetaKey] = useState<string | "__new__" | null>(null)
+  const [editMetaFieldKey, setEditMetaFieldKey] = useState("")
+  const [editMetaFieldValue, setEditMetaFieldValue] = useState("")
+  const [createEntityConvContext, setCreateEntityConvContext] = useState<{
+    turnId: string
+    responseIdx: number
+    entityPoolIdx: number
+    convId: string
+  } | undefined>(undefined)
   const [deleteTarget, setDeleteTarget] = useState<EntityPool | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  useEscapeLayer(createOpen, () => setCreateOpen(false), 1)
+  useEscapeLayer(editOpen, () => setEditOpen(false), 1)
+
   const genSlug = (name: string) => toSlugUnderscore(name)
+
+  function newEntryRow(partial?: Partial<CreatePoolEntryRow>): CreatePoolEntryRow {
+    return {
+      id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `entry_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      existingEntryId: partial?.existingEntryId,
+      entity_definition_id: partial?.entity_definition_id ?? "",
+      entity_definition_name: partial?.entity_definition_name ?? "",
+      entity_definition_key: partial?.entity_definition_key ?? "",
+      weight: partial?.weight ?? String(DEFAULT_ENTRY_WEIGHT),
+    }
+  }
+
+  function emptyCreateForm(): CreatePoolFormState {
+    return {
+      pool_key: "",
+      name: "",
+      description: "",
+      is_active: true,
+      metadata: {},
+    }
+  }
+
+  function sanitizeJsonValue(value: unknown, seen = new WeakSet<object>()): unknown {
+    if (value === null) return null
+    const valueType = typeof value
+    if (valueType === "string" || valueType === "number" || valueType === "boolean") return value
+    if (valueType === "bigint") return Number(value)
+    if (valueType === "undefined" || valueType === "function" || valueType === "symbol") return undefined
+    if (value instanceof Date) return value.toISOString()
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeJsonValue(item, seen)).filter((item) => item !== undefined)
+    }
+    if (valueType !== "object") return undefined
+    const obj = value as Record<string, unknown>
+    if (seen.has(obj)) return undefined
+    const proto = Object.getPrototypeOf(obj)
+    if (proto !== Object.prototype && proto !== null) {
+      return undefined
+    }
+    seen.add(obj)
+    const next: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(obj)) {
+      const sanitized = sanitizeJsonValue(item, seen)
+      if (sanitized !== undefined) {
+        next[key] = sanitized
+      }
+    }
+    seen.delete(obj)
+    return next
+  }
+
+  function sanitizeJsonObject(value: unknown): Record<string, unknown> {
+    const sanitized = sanitizeJsonValue(value)
+    return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+      ? sanitized as Record<string, unknown>
+      : {}
+  }
+
+  function resetPoolSheet() {
+    setCreateOpen(false)
+    setEditOpen(false)
+    setSheetMode("create")
+    setEditingPoolId(null)
+    setCreateForm(emptyCreateForm())
+    setEditForm(emptyCreateForm())
+    cancelCreateMetaEdit()
+    cancelEditMetaEdit()
+    setCreateEntries([])
+    setEditEntries([])
+    setCreateEntityConvContext(undefined)
+  }
+
+  function startCreateMetaEdit(key: string, currentValue: unknown) {
+    setCreateMetaKey(key)
+    setCreateMetaFieldKey(key)
+    setCreateMetaFieldValue(String(currentValue ?? ""))
+  }
+
+  function startCreateAddMeta() {
+    setCreateMetaKey("__new__")
+    setCreateMetaFieldKey("")
+    setCreateMetaFieldValue("")
+  }
+
+  function cancelCreateMetaEdit() {
+    setCreateMetaKey(null)
+    setCreateMetaFieldKey("")
+    setCreateMetaFieldValue("")
+  }
+
+  function startEditMetaEdit(key: string, currentValue: unknown) {
+    setEditMetaKey(key)
+    setEditMetaFieldKey(key)
+    setEditMetaFieldValue(String(currentValue ?? ""))
+  }
+
+  function startEditAddMeta() {
+    setEditMetaKey("__new__")
+    setEditMetaFieldKey("")
+    setEditMetaFieldValue("")
+  }
+
+  function cancelEditMetaEdit() {
+    setEditMetaKey(null)
+    setEditMetaFieldKey("")
+    setEditMetaFieldValue("")
+  }
+
+  function saveEditMeta() {
+    const key = editMetaFieldKey.trim()
+    if (!key) return
+    const raw = editMetaFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    setEditForm((prev) => {
+      const next = { ...(prev.metadata ?? {}) }
+      if (editMetaKey !== "__new__" && editMetaKey && editMetaKey !== key) {
+        delete next[editMetaKey]
+      }
+      next[key] = val
+      return { ...prev, metadata: next }
+    })
+    cancelEditMetaEdit()
+  }
+
+  function deleteEditMeta(key: string) {
+    setEditForm((prev) => {
+      const next = { ...(prev.metadata ?? {}) }
+      delete next[key]
+      return { ...prev, metadata: next }
+    })
+    if (editMetaKey === key) cancelEditMetaEdit()
+  }
+
+  function saveCreateMeta() {
+    const key = createMetaFieldKey.trim()
+    if (!key) return
+    const raw = createMetaFieldValue
+    const num = Number(raw)
+    const val = raw.trim() !== "" && !isNaN(num) ? num : raw
+    setCreateForm((prev) => {
+      const next = { ...(prev.metadata ?? {}) }
+      if (createMetaKey !== "__new__" && createMetaKey && createMetaKey !== key) {
+        delete next[createMetaKey]
+      }
+      next[key] = val
+      return { ...prev, metadata: next }
+    })
+    cancelCreateMetaEdit()
+  }
+
+  function deleteCreateMeta(key: string) {
+    setCreateForm((prev) => {
+      const next = { ...(prev.metadata ?? {}) }
+      delete next[key]
+      return { ...prev, metadata: next }
+    })
+    if (createMetaKey === key) cancelCreateMetaEdit()
+  }
+
+  function updateEditEntry(id: string, patch: Partial<CreatePoolEntryRow>) {
+    setEditEntries(prev => prev.map(row => row.id === id ? { ...row, ...patch } : row))
+  }
+
+  function addEditEntry() {
+    setEditEntries(prev => {
+      if (prev.length >= MAX_POOL_CREATE_ENTRIES) return prev
+      return [...prev, newEntryRow()]
+    })
+  }
+
+  function removeEditEntry(id: string) {
+    setEditEntries(prev => prev.filter(row => row.id !== id))
+  }
+
+  function poolEntryToRow(entry: EntityPoolEntry): CreatePoolEntryRow {
+    return newEntryRow({
+      existingEntryId: entry.id,
+      entity_definition_id: entry.entity_definition_id,
+      entity_definition_name: entry.entity_name,
+      entity_definition_key: entry.entity_key,
+      weight: String(entry.weight),
+    })
+  }
+
+  function draftMetadataFromSource(source?: Record<string, unknown>) {
+    const rawMetadata = source?.metadata
+    const sanitized = sanitizeJsonObject(rawMetadata)
+    if (Object.keys(sanitized).length > 0) return sanitized
+    if (typeof rawMetadata === "string") {
+      try {
+        const parsed = JSON.parse(rawMetadata)
+        return sanitizeJsonObject(parsed)
+      } catch {
+        return {}
+      }
+    }
+    return {}
+  }
+
+  async function resolveCreateEntryDraft(entry: Record<string, unknown>) {
+    const rawId = typeof entry.entity_definition_id === 'string' ? entry.entity_definition_id.trim() : ""
+    const rawKey = typeof entry.entity_definition_key === 'string'
+      ? entry.entity_definition_key.trim()
+      : (typeof entry.entity_key === 'string' ? entry.entity_key.trim() : "")
+    const rawName = typeof entry.entity_definition_name === 'string'
+      ? entry.entity_definition_name
+      : (typeof entry.entity_name === 'string' ? entry.entity_name : rawKey || rawId)
+
+    const candidateKey =
+      rawId.startsWith("__REF:") ? rawId.slice("__REF:".length).trim()
+      : rawKey || rawId
+
+    if (candidateKey) {
+      try {
+        const searchKey = candidateKey.trim()
+        const results = await listEntityDefinitions(gameId, { search: searchKey })
+        const loweredKey = searchKey.toLowerCase()
+        const entity = (results ?? []).find((candidate) => candidate.entity_key?.toLowerCase() === loweredKey) ?? null
+        if (entity) {
+          return newEntryRow({
+            entity_definition_id: entity.id,
+            entity_definition_name: entity.name,
+            entity_definition_key: entity.entity_key,
+            weight: typeof entry.weight === 'number'
+              ? String(entry.weight)
+              : (typeof entry.weight === 'string' ? entry.weight : String(DEFAULT_ENTRY_WEIGHT)),
+          })
+        }
+      } catch {
+        // fall back to raw draft below
+      }
+    }
+
+    return newEntryRow({
+      entity_definition_id: rawId,
+      entity_definition_name: rawName,
+      entity_definition_key: rawKey || rawId,
+      weight: typeof entry.weight === 'number'
+        ? String(entry.weight)
+        : (typeof entry.weight === 'string' ? entry.weight : String(DEFAULT_ENTRY_WEIGHT)),
+    })
+  }
+
+  async function openCreateWithForm(
+    draft?: Record<string, unknown>,
+    context?: {
+      turnId: string
+      responseIdx: number
+      entityPoolIdx: number
+      convId: string
+    },
+  ) {
+    const rawMetadata = draft?.metadata
+    const metadata = rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)
+      ? sanitizeJsonObject(rawMetadata)
+      : (typeof rawMetadata === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(rawMetadata)
+              return sanitizeJsonObject(parsed)
+            } catch {
+              return undefined
+            }
+          })()
+        : undefined)
+    const description =
+      typeof draft?.description === 'string' ? draft.description
+      : ""
+    const nextForm = draft
+      ? {
+        pool_key: typeof draft.pool_key === 'string' ? draft.pool_key : "",
+        name: typeof draft.name === 'string' ? draft.name : "",
+      description,
+      is_active: typeof draft.is_active === 'boolean' ? draft.is_active : true,
+      metadata: metadata ?? {},
+      }
+      : emptyCreateForm()
+    const nextEntries = draft && Array.isArray(draft.entries)
+      ? await Promise.all(
+        draft.entries
+          .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+          .slice(0, MAX_POOL_CREATE_ENTRIES)
+          .map((entry) => resolveCreateEntryDraft(entry as Record<string, unknown>)),
+      )
+      : []
+    setSheetMode("create")
+    setEditingPoolId(null)
+    setCreateForm(nextForm)
+    cancelCreateMetaEdit()
+    setCreateEntries(nextEntries.length > 0 ? nextEntries : [newEntryRow()])
+    setAutoSlug(!(nextForm.pool_key?.trim()))
+    setCreateEntityConvContext(context)
+    setCreateOpen(true)
+    setEditOpen(false)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "pools")
+    params.set("create", "1")
+    params.delete("editPool")
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  async function openEditWithForm(
+    poolId: string,
+    draft?: Record<string, unknown>,
+    context?: {
+      turnId: string
+      responseIdx: number
+      entityPoolIdx: number
+      convId: string
+    },
+  ) {
+    const existingPool = pools.find((p) => p.id === poolId) ?? await getEntityPool(gameId, poolId)
+    const existingEntryIdsByDefinitionId = new Map<string, string>()
+    for (const entry of existingPool.entries ?? []) {
+      const key = String(entry.entity_definition_id ?? '').trim()
+      if (key && !existingEntryIdsByDefinitionId.has(key)) {
+        existingEntryIdsByDefinitionId.set(key, entry.id)
+      }
+    }
+    const sourceMetadata = draftMetadataFromSource(draft)
+    const fallbackMetadata = existingPool.metadata ?? {}
+    const metadata = Object.keys(sourceMetadata).length > 0 ? sourceMetadata : fallbackMetadata
+    const description =
+      typeof draft?.description === 'string' ? draft.description
+      : typeof existingPool.description === 'string' ? existingPool.description
+      : ""
+    const nextForm = {
+      pool_key: existingPool.pool_key,
+      name: typeof draft?.name === 'string' && draft.name.trim() ? draft.name : existingPool.name,
+      description,
+      is_active: typeof draft?.is_active === 'boolean' ? draft.is_active : existingPool.is_active,
+      metadata,
+    }
+    const nextEntries = Array.isArray(draft?.entries) && draft.entries.length > 0
+      ? await Promise.all(
+          draft.entries
+            .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry))
+            .slice(0, MAX_POOL_CREATE_ENTRIES)
+            .map(async (entry) => {
+              const row = await resolveCreateEntryDraft(entry as Record<string, unknown>)
+              const existingEntryId = existingEntryIdsByDefinitionId.get(row.entity_definition_id.trim())
+              return existingEntryId ? { ...row, existingEntryId } : row
+            }),
+        )
+      : ((existingPool.entries ?? []).slice(0, MAX_POOL_CREATE_ENTRIES).map((entry) => poolEntryToRow(entry)))
+    setSheetMode("edit")
+    setEditingPoolId(poolId)
+    setEditForm(nextForm)
+    cancelEditMetaEdit()
+    setEditEntries(nextEntries.length > 0 ? nextEntries : [newEntryRow()])
+    setAutoSlug(false)
+    setCreateEntityConvContext(context)
+    setCreateOpen(false)
+    setEditOpen(true)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "pools")
+    params.set("editPool", poolId)
+    params.delete("create")
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  async function resolveEntityDefinitionId(rawId: string) {
+    const trimmed = rawId.trim()
+    if (!trimmed) throw new Error("Entity definition ID is required.")
+    if (trimmed.startsWith("__REF:")) {
+      const entityKey = trimmed.slice("__REF:".length)
+      const entity = await getEntityDefinitionByKey(gameId, entityKey)
+      return entity.id
+    }
+    return trimmed
+  }
+
+  function addCreateEntry() {
+    setCreateEntries(prev => {
+      if (prev.length >= MAX_POOL_CREATE_ENTRIES) return prev
+      return [...prev, newEntryRow()]
+    })
+  }
+
+  function updateCreateEntry(id: string, patch: Partial<CreatePoolEntryRow>) {
+    setCreateEntries(prev => prev.map(row => row.id === id ? { ...row, ...patch } : row))
+  }
+
+  function removeCreateEntry(id: string) {
+    setCreateEntries(prev => prev.filter(row => row.id !== id))
+  }
 
   const loadPools = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -87,6 +528,99 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
   useEffect(() => {
     loadPools()
   }, [loadPools])
+
+  useEffect(() => {
+    const urlPoolKey = searchParams.get("poolKey") ?? ""
+    setSearchQuery((prev) => (prev === urlPoolKey ? prev : urlPoolKey))
+  }, [searchParams])
+
+  useEffect(() => {
+    function consumePendingEntityPoolDraft() {
+      const pendingRaw = safeGetItem(lsPendingEntityPoolCreate(gameId))
+      if (!pendingRaw) return
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        safeRemoveItem(lsPendingEntityPoolCreate(gameId))
+        void openCreateWithForm(detail, {
+          turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+          responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          entityPoolIdx: typeof detail.entityPoolIdx === 'number' ? detail.entityPoolIdx : Number(detail.entityPoolIdx ?? 0),
+          convId: typeof detail.convId === 'string' ? detail.convId : '',
+        })
+      } catch {
+        safeRemoveItem(lsPendingEntityPoolCreate(gameId))
+      }
+    }
+
+    function handleOpenCreateEntityPool(e: Event) {
+      const detail = (e as CustomEvent).detail as Record<string, unknown> | undefined
+      if (!detail) return
+      void openCreateWithForm(detail, {
+        turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+        responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        entityPoolIdx: typeof detail.entityPoolIdx === 'number' ? detail.entityPoolIdx : Number(detail.entityPoolIdx ?? 0),
+        convId: typeof detail.convId === 'string' ? detail.convId : '',
+      })
+    }
+
+    window.addEventListener('ss:open-create-entity-pool', handleOpenCreateEntityPool as EventListener)
+
+    if (searchParams.get("tab") === "pools" && searchParams.get("create") === "1") {
+      consumePendingEntityPoolDraft()
+    }
+
+    return () => {
+      window.removeEventListener('ss:open-create-entity-pool', handleOpenCreateEntityPool as EventListener)
+    }
+  }, [gameId, searchParams])
+
+  useEffect(() => {
+    function consumePendingEntityPoolEdit() {
+      const pendingRaw = safeGetItem(lsPendingEntityPoolEdit(gameId))
+      if (!pendingRaw) return
+      try {
+        const detail = JSON.parse(pendingRaw) as Record<string, unknown>
+        safeRemoveItem(lsPendingEntityPoolEdit(gameId))
+        const poolId = typeof detail.existingPoolId === 'string'
+          ? detail.existingPoolId
+          : (typeof detail.poolId === 'string' ? detail.poolId : '')
+        if (!poolId) return
+        void openEditWithForm(poolId, detail, {
+          turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+          responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+          entityPoolIdx: typeof detail.entityPoolIdx === 'number' ? detail.entityPoolIdx : Number(detail.entityPoolIdx ?? 0),
+          convId: typeof detail.convId === 'string' ? detail.convId : '',
+        })
+      } catch {
+        safeRemoveItem(lsPendingEntityPoolEdit(gameId))
+      }
+    }
+
+    function handleOpenEditEntityPool(e: Event) {
+      const detail = (e as CustomEvent).detail as Record<string, unknown> | undefined
+      if (!detail) return
+      const poolId = typeof detail.existingPoolId === 'string'
+        ? detail.existingPoolId
+        : (typeof detail.poolId === 'string' ? detail.poolId : '')
+      if (!poolId) return
+      void openEditWithForm(poolId, detail, {
+        turnId: typeof detail.turnId === 'string' ? detail.turnId : '',
+        responseIdx: typeof detail.responseIdx === 'number' ? detail.responseIdx : Number(detail.responseIdx ?? 0),
+        entityPoolIdx: typeof detail.entityPoolIdx === 'number' ? detail.entityPoolIdx : Number(detail.entityPoolIdx ?? 0),
+        convId: typeof detail.convId === 'string' ? detail.convId : '',
+      })
+    }
+
+    window.addEventListener('ss:open-edit-entity-pool', handleOpenEditEntityPool as EventListener)
+
+    if (searchParams.get("tab") === "pools" && searchParams.get("editPool")) {
+      consumePendingEntityPoolEdit()
+    }
+
+    return () => {
+      window.removeEventListener('ss:open-edit-entity-pool', handleOpenEditEntityPool as EventListener)
+    }
+  }, [gameId, searchParams, pools])
 
   const filteredPools = pools.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -132,17 +666,166 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
 
   const handleCreatePool = async () => {
     if (!createForm.pool_key.trim() || !createForm.name.trim()) return
+    if (createEntries.length === 0) {
+      toast({ title: t('common.validation'), description: t('entity.fixJsonErrors'), variant: "destructive" })
+      return
+    }
     setCreating(true)
     try {
-      const created = await createEntityPool(gameId, {
+      let created = await createEntityPool(gameId, {
         pool_key: createForm.pool_key.trim(),
         name: createForm.name.trim(),
         description: createForm.description.trim() || undefined,
       })
+      const sanitizedMetadata = sanitizeJsonObject(createForm.metadata)
+      if (Object.keys(sanitizedMetadata).length > 0 || createForm.is_active === false) {
+        created = await updateEntityPool(gameId, created.id, {
+          ...(Object.keys(sanitizedMetadata).length > 0 ? { metadata: sanitizedMetadata } : {}),
+          ...(createForm.is_active === false ? { is_active: false } : {}),
+        })
+      }
+      for (const entry of createEntries) {
+        const entity_definition_id = await resolveEntityDefinitionId(entry.entity_definition_id)
+        if (!entity_definition_id) {
+          throw new Error(t('entity.fixJsonErrors'))
+        }
+        const weight = Number(entry.weight)
+        if (!Number.isFinite(weight) || weight < MIN_ENTRY_WEIGHT || weight > MAX_ENTRY_WEIGHT) {
+          throw new Error(t('entity.fixJsonErrors'))
+        }
+        await createEntityPoolEntry(gameId, created.id, { entity_definition_id, weight })
+      }
       setPools(prev => [created, ...prev])
-      toast({ title: t('common.added'), description: `Pool "${created.name}" created` })
-      setCreateOpen(false)
-      setCreateForm({ pool_key: "", name: "", description: "" })
+      if (createEntityConvContext?.convId && createEntityConvContext.turnId && createEntityConvContext.responseIdx != null && createEntityConvContext.entityPoolIdx != null) {
+        const poolKey = `${createEntityConvContext.turnId}:${createEntityConvContext.responseIdx}:${createEntityConvContext.entityPoolIdx}`
+        const convId = createEntityConvContext.convId
+        const existingRaw = safeGetItem(lsEntityPoolLinks(convId))
+        let mapped: Record<string, string> = {}
+        if (existingRaw) {
+          try {
+            mapped = JSON.parse(existingRaw) as Record<string, string>
+          } catch {
+            mapped = {}
+          }
+        }
+        safeSetItem(lsEntityPoolLinks(convId), JSON.stringify({ ...mapped, [poolKey]: created.id }))
+        const existingNamesRaw = safeGetItem(lsEntityPoolNames(convId))
+        let namesMap: Record<string, string> = {}
+        if (existingNamesRaw) {
+          try {
+            namesMap = JSON.parse(existingNamesRaw) as Record<string, string>
+          } catch {
+            namesMap = {}
+          }
+        }
+        safeSetItem(lsEntityPoolNames(convId), JSON.stringify({ ...namesMap, [created.id]: created.name }))
+        void linkConversationContent(gameId, convId, 'entity_pool', created.id)
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('ss:conv-external-created', {
+              detail: { convId, gameId },
+            }))
+            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+              detail: { convId, gameId, contentType: 'entity_pool', contentId: created.id, contentName: created.name },
+            }))
+          })
+          .catch(() => { /* best-effort */ })
+      }
+      toast({ title: t('common.added'), description: t('entity.poolCreated').replace('{name}', created.name) })
+      resetPoolSheet()
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('entity.failedSave')
+      toast({ title: t('common.error'), description: msg, variant: "destructive" })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleEditPool = async () => {
+    if (!editingPoolId) return
+    if (!editForm.pool_key.trim() || !editForm.name.trim()) return
+    if (editEntries.length === 0) {
+      toast({ title: t('common.validation'), description: t('entity.fixJsonErrors'), variant: "destructive" })
+      return
+    }
+    setCreating(true)
+    try {
+      const existingPool = await getEntityPool(gameId, editingPoolId)
+      const existingEntries = Array.isArray(existingPool.entries) ? existingPool.entries : []
+      const pendingDeletes = new Set(existingEntries.map((entry) => entry.id))
+
+      await updateEntityPool(gameId, editingPoolId, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() || undefined,
+        ...(Object.keys(sanitizeJsonObject(editForm.metadata)).length > 0 ? { metadata: editForm.metadata } : {}),
+        ...(editForm.is_active === false ? { is_active: false } : { is_active: true }),
+      })
+
+      for (const entry of editEntries) {
+        const entity_definition_id = await resolveEntityDefinitionId(entry.entity_definition_id)
+        if (!entity_definition_id) {
+          throw new Error(t('entity.fixJsonErrors'))
+        }
+        const weight = Number(entry.weight)
+        if (!Number.isFinite(weight) || weight < MIN_ENTRY_WEIGHT || weight > MAX_ENTRY_WEIGHT) {
+          throw new Error(t('entity.fixJsonErrors'))
+        }
+        if (entry.existingEntryId) {
+          const existingEntry = existingEntries.find((row) => row.id === entry.existingEntryId)
+          if (existingEntry) {
+            if (existingEntry.entity_definition_id === entity_definition_id) {
+              pendingDeletes.delete(existingEntry.id)
+              await updateEntityPoolEntry(gameId, editingPoolId, existingEntry.id, { weight })
+              continue
+            }
+            pendingDeletes.delete(existingEntry.id)
+            await deleteEntityPoolEntry(gameId, editingPoolId, existingEntry.id)
+          }
+        }
+        await createEntityPoolEntry(gameId, editingPoolId, { entity_definition_id, weight })
+      }
+
+      for (const entryId of pendingDeletes) {
+        await deleteEntityPoolEntry(gameId, editingPoolId, entryId)
+      }
+
+      const refreshed = await getEntityPool(gameId, editingPoolId)
+      setPools(prev => prev.map(pool => pool.id === editingPoolId ? refreshed : pool))
+      if (createEntityConvContext?.convId && createEntityConvContext.turnId && createEntityConvContext.responseIdx != null && createEntityConvContext.entityPoolIdx != null) {
+        const poolKey = `${createEntityConvContext.turnId}:${createEntityConvContext.responseIdx}:${createEntityConvContext.entityPoolIdx}`
+        const convId = createEntityConvContext.convId
+        const existingRaw = safeGetItem(lsEntityPoolLinks(convId))
+        let mapped: Record<string, string> = {}
+        if (existingRaw) {
+          try {
+            mapped = JSON.parse(existingRaw) as Record<string, string>
+          } catch {
+            mapped = {}
+          }
+        }
+        safeSetItem(lsEntityPoolLinks(convId), JSON.stringify({ ...mapped, [poolKey]: refreshed.id }))
+        const existingNamesRaw = safeGetItem(lsEntityPoolNames(convId))
+        let namesMap: Record<string, string> = {}
+        if (existingNamesRaw) {
+          try {
+            namesMap = JSON.parse(existingNamesRaw) as Record<string, string>
+          } catch {
+            namesMap = {}
+          }
+        }
+        safeSetItem(lsEntityPoolNames(convId), JSON.stringify({ ...namesMap, [refreshed.id]: refreshed.name }))
+        void linkConversationContent(gameId, convId, 'entity_pool', refreshed.id)
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('ss:conv-external-created', {
+              detail: { convId, gameId },
+            }))
+            window.dispatchEvent(new CustomEvent('ss:conv-content-linked', {
+              detail: { convId, gameId, contentType: 'entity_pool', contentId: refreshed.id, contentName: refreshed.name },
+            }))
+          })
+          .catch(() => { /* best-effort */ })
+      }
+      toast({ title: t('common.saved'), description: t('entity.poolUpdated').replace('{name}', refreshed.name) })
+      resetPoolSheet()
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : t('entity.failedSave')
       toast({ title: t('common.error'), description: msg, variant: "destructive" })
@@ -185,7 +868,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
           <Button
             size="sm"
             className="h-9 gap-2"
-            onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}
+            onClick={() => openCreateWithForm()}
             disabled={pools.length >= MAX_POOLS_PER_GAME}
             title={pools.length >= MAX_POOLS_PER_GAME ? t('entity.poolLimitReached').replace('{max}', String(MAX_POOLS_PER_GAME)) : undefined}
           >
@@ -206,7 +889,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
               <Skull className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p className="font-semibold text-lg">{t('entity.noPoolsFound')}</p>
               <p className="text-sm mt-2 max-w-xs mx-auto opacity-70">{t('entity.createFirstPool')}</p>
-              <Button variant="outline" size="sm" className="mt-6" onClick={() => { setCreateForm({ pool_key: "", name: "", description: "" }); setAutoSlug(true); setCreateOpen(true) }}>
+              <Button variant="outline" size="sm" className="mt-6" onClick={() => openCreateWithForm()}>
                 <Plus className="h-4 w-4 mr-2" /> {t('entity.newPool')}
               </Button>
             </div>
@@ -283,13 +966,19 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
       </Card>
 
       {/* Create Pool Sheet */}
-      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-        <SheetContent>
+      <Sheet open={createOpen} onOpenChange={(open) => { if (!open) resetPoolSheet(); else setCreateOpen(true) }}>
+        <SheetContent
+          className="flex h-full flex-col overflow-hidden"
+          style={{ width: "700px", maxWidth: "90vw" }}
+        >
           <SheetHeader>
-            <SheetTitle>{t('entity.newPool')}</SheetTitle>
-            <SheetDescription>{t('entity.createFirstPool')}</SheetDescription>
+            <SheetTitle>{sheetMode === "edit" ? t('entity.editPool') : t('entity.newPool')}</SheetTitle>
+            <SheetDescription>
+              {sheetMode === "edit" ? t('entity.poolKeyReadonly') : t('entity.poolEntriesHint')}
+            </SheetDescription>
           </SheetHeader>
-          <div className="space-y-4 py-4">
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t('entity.poolName')} <span className="text-destructive">*</span></Label>
               <Input
@@ -320,7 +1009,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                     setAutoSlug(false)
                     setCreateForm(f => ({ ...f, pool_key: e.target.value }))
                   }}
-                  disabled={creating}
+                  disabled={creating || sheetMode === "edit"}
                   className="font-mono"
                 />
                 <Button
@@ -329,6 +1018,7 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                   size="icon"
                   className="shrink-0"
                   title={autoSlug ? t('entity.autoSlugOn') : t('entity.autoSlugOff')}
+                  disabled={creating || sheetMode === "edit"}
                   onClick={() => {
                     const next = !autoSlug
                     setAutoSlug(next)
@@ -355,14 +1045,293 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
                 {createForm.description.length}/{MAX_POOL_DESC_LENGTH}
               </p>
             </div>
-          </div>
+            <div className="flex items-center justify-between gap-3 rounded-md border border-muted/40 bg-muted/20 px-3 py-2">
+              <div className="space-y-0.5">
+                <Label className="text-sm">{t('entity.thActive')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('entity.poolEntriesHint')}
+                </p>
+              </div>
+              <Switch
+                checked={createForm.is_active}
+                onCheckedChange={(checked) => setCreateForm((f) => ({ ...f, is_active: checked }))}
+                disabled={creating}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('entity.fieldMetadata')}</Label>
+              <div className="space-y-0.5">
+                {Object.entries(createForm.metadata ?? {}).map(([k, v]) => (
+                  <div key={k} className="group/meta">
+                    {createMetaKey === k ? (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <Input value={createMetaFieldKey} onChange={(e) => setCreateMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={creating} />
+                        <span className="text-muted-foreground text-xs">:</span>
+                        <Input value={createMetaFieldValue} onChange={(e) => setCreateMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={creating} />
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveCreateMeta} disabled={creating}>
+                          <Save className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelCreateMetaEdit} disabled={creating}><X className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50">
+                        <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                        <span className="text-xs text-muted-foreground">:</span>
+                        <span className="text-xs font-mono flex-1">{String(v)}</span>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={() => deleteCreateMeta(k)} disabled={creating}><X className="w-3 h-3" /></Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {createMetaKey === "__new__" ? (
+                  <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                    <Input value={createMetaFieldKey} onChange={(e) => setCreateMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={creating} autoFocus />
+                    <span className="text-muted-foreground text-xs">:</span>
+                    <Input value={createMetaFieldValue} onChange={(e) => setCreateMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={creating} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveCreateMeta} disabled={creating}>
+                      <Save className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelCreateMetaEdit} disabled={creating}><X className="w-3.5 h-3.5" /></Button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={startCreateAddMeta} disabled={creating || createMetaKey !== null}>
+                    <Plus className="w-3 h-3" /> {t('entity.addField')}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>{t('entity.poolEntries')}</Label>
+                <span className="text-xs text-muted-foreground">
+                  {createEntries.length}/{MAX_POOL_CREATE_ENTRIES}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('entity.poolEntriesHint')}
+              </p>
+              <div className="space-y-3">
+                {createEntries.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                    {t('entity.noEntriesInPool')}
+                  </div>
+                ) : (
+                  createEntries.map((row, idx) => (
+                    <CreatePoolEntryRow
+                      key={row.id}
+                      gameId={gameId}
+                      row={row}
+                      index={idx}
+                      disabled={creating}
+                      canRemove={createEntries.length > 1}
+                      onChange={(patch) => updateCreateEntry(row.id, patch)}
+                      onRemove={() => removeCreateEntry(row.id)}
+                    />
+                  ))
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={addCreateEntry}
+                disabled={creating || createEntries.length >= MAX_POOL_CREATE_ENTRIES}
+                title={createEntries.length >= MAX_POOL_CREATE_ENTRIES ? t('entity.entriesLimitReached').replace('{max}', String(MAX_POOL_CREATE_ENTRIES)) : undefined}
+              >
+                <Plus className="h-4 w-4" />
+                {t('entity.addEntry')}
+              </Button>
+            </div>
+            </div>
+          </ScrollArea>
           <SheetFooter>
             <SheetClose asChild>
               <Button variant="outline" disabled={creating}>{t('common.cancel')}</Button>
             </SheetClose>
-            <Button onClick={handleCreatePool} disabled={creating || !createForm.pool_key.trim() || !createForm.name.trim()}>
-              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t('common.save')}
+              <Button
+                onClick={handleCreatePool}
+                disabled={
+                  creating
+                  || !createForm.pool_key.trim()
+                  || !createForm.name.trim()
+                  || createEntries.length === 0
+                  || createEntries.some((entry) => !entry.entity_definition_id.trim() || !entry.weight.trim())
+                }
+              >
+                {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Create New
+              </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Pool Sheet */}
+      <Sheet open={editOpen} onOpenChange={(open) => { if (!open) resetPoolSheet(); else setEditOpen(true) }}>
+        <SheetContent
+          className="flex h-full flex-col overflow-hidden"
+          style={{ width: "700px", maxWidth: "90vw" }}
+        >
+          <SheetHeader>
+            <SheetTitle>{t('entity.editPool')}</SheetTitle>
+            <SheetDescription>{t('entity.poolKeyReadonly')}</SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>{t('entity.poolName')} <span className="text-destructive">*</span></Label>
+                <Input
+                  placeholder={t('entity.poolNamePlaceholder')}
+                  value={editForm.name}
+                  maxLength={MAX_POOL_NAME_LENGTH}
+                  onChange={(e) => {
+                    const v = e.target.value.slice(0, MAX_POOL_NAME_LENGTH)
+                    setEditForm(f => ({ ...f, name: v }))
+                  }}
+                  disabled={creating}
+                />
+                <p className={`text-xs text-right ${editForm.name.length >= MAX_POOL_NAME_LENGTH ? "text-destructive" : "text-muted-foreground"}`}>
+                  {editForm.name.length}/{MAX_POOL_NAME_LENGTH}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('entity.poolKey')} <span className="text-destructive">*</span></Label>
+                <Input
+                  placeholder={t('entity.poolKeyPlaceholder')}
+                  value={editForm.pool_key}
+                  disabled
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('entity.fieldDescription')}</Label>
+                <Textarea
+                  placeholder={t('entity.optionalDesc')}
+                  value={editForm.description}
+                  maxLength={MAX_POOL_DESC_LENGTH}
+                  onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value.slice(0, MAX_POOL_DESC_LENGTH) }))}
+                  disabled={creating}
+                  rows={3}
+                />
+                <p className={`text-xs text-right ${editForm.description.length >= MAX_POOL_DESC_LENGTH ? "text-destructive" : "text-muted-foreground"}`}>
+                  {editForm.description.length}/{MAX_POOL_DESC_LENGTH}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-muted/40 bg-muted/20 px-3 py-2">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">{t('entity.thActive')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('entity.poolEntriesHint')}
+                  </p>
+                </div>
+                <Switch
+                  checked={editForm.is_active}
+                  onCheckedChange={(checked) => setEditForm((f) => ({ ...f, is_active: checked }))}
+                  disabled={creating}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('entity.fieldMetadata')}</Label>
+                <div className="space-y-0.5">
+                  {Object.entries(editForm.metadata ?? {}).map(([k, v]) => (
+                    <div key={k} className="group/meta">
+                      {editMetaKey === k ? (
+                        <div className="flex items-center gap-1.5 py-0.5">
+                          <Input value={editMetaFieldKey} onChange={(e) => setEditMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={creating} />
+                          <span className="text-muted-foreground text-xs">:</span>
+                          <Input value={editMetaFieldValue} onChange={(e) => setEditMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={creating} />
+                          <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveEditMeta} disabled={creating}>
+                            <Save className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMetaEdit} disabled={creating}><X className="w-3.5 h-3.5" /></Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-muted/50">
+                          <span className="text-xs font-mono text-muted-foreground w-32 truncate shrink-0">{k}</span>
+                          <span className="text-xs text-muted-foreground">:</span>
+                          <span className="text-xs font-mono flex-1">{String(v)}</span>
+                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 opacity-0 group-hover/meta:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={() => deleteEditMeta(k)} disabled={creating}><X className="w-3 h-3" /></Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {editMetaKey === "__new__" ? (
+                    <div className="flex items-center gap-1.5 py-0.5 mt-1">
+                      <Input value={editMetaFieldKey} onChange={(e) => setEditMetaFieldKey(e.target.value)} placeholder={t('entity.metaKeyPlaceholder')} className="h-7 text-xs w-32 font-mono" disabled={creating} autoFocus />
+                      <span className="text-muted-foreground text-xs">:</span>
+                      <Input value={editMetaFieldValue} onChange={(e) => setEditMetaFieldValue(e.target.value)} placeholder={t('entity.metaValuePlaceholder')} className="h-7 text-xs flex-1 font-mono" disabled={creating} />
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={saveEditMeta} disabled={creating}>
+                        <Save className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={cancelEditMetaEdit} disabled={creating}><X className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 mt-1" onClick={startEditAddMeta} disabled={creating || editMetaKey !== null}>
+                      <Plus className="w-3 h-3" /> {t('entity.addField')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>{t('entity.poolEntries')}</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {editEntries.length}/{MAX_POOL_CREATE_ENTRIES}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('entity.poolEntriesHint')}
+                </p>
+                <div className="space-y-3">
+                  {editEntries.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                      {t('entity.noEntriesInPool')}
+                    </div>
+                  ) : (
+                    editEntries.map((row, idx) => (
+                      <CreatePoolEntryRow
+                        key={row.id}
+                        gameId={gameId}
+                        row={row}
+                        index={idx}
+                        disabled={creating}
+                        canRemove={editEntries.length > 1}
+                        onChange={(patch) => updateEditEntry(row.id, patch)}
+                        onRemove={() => removeEditEntry(row.id)}
+                      />
+                    ))
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={addEditEntry}
+                  disabled={creating || editEntries.length >= MAX_POOL_CREATE_ENTRIES}
+                  title={editEntries.length >= MAX_POOL_CREATE_ENTRIES ? t('entity.entriesLimitReached').replace('{max}', String(MAX_POOL_CREATE_ENTRIES)) : undefined}
+                >
+                  <Plus className="h-4 w-4" />
+                  {t('entity.addEntry')}
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button variant="outline" disabled={creating}>{t('common.cancel')}</Button>
+            </SheetClose>
+            <Button
+              onClick={handleEditPool}
+              disabled={
+                creating
+                || !editForm.name.trim()
+                || editEntries.length === 0
+                || editEntries.some((entry) => !entry.entity_definition_id.trim() || !entry.weight.trim())
+              }
+              >
+                {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Update
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -401,6 +1370,134 @@ export function EntityPoolTab({ gameId }: { gameId: string }) {
 }
 
 // ─── Inline edit expanded content ──────────────────────────────────────────────
+
+function CreatePoolEntryRow({
+  gameId,
+  row,
+  index,
+  disabled,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  gameId: string
+  row: CreatePoolEntryRow
+  index: number
+  disabled: boolean
+  canRemove: boolean
+  onChange: (patch: Partial<CreatePoolEntryRow>) => void
+  onRemove: () => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [searchInput, setSearchInput] = useState("")
+  const [searchResults, setSearchResults] = useState<EntityDefinition[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setSearchLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const results = await listEntityDefinitions(gameId, { search: searchInput.trim() })
+        if (!cancelled) setSearchResults(results.slice(0, 30))
+      } catch {
+        if (!cancelled) setSearchResults([])
+      } finally {
+        if (!cancelled) setSearchLoading(false)
+      }
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [gameId, open, searchInput])
+
+  const selectedLabel = row.entity_definition_name?.trim() || row.entity_definition_id || ""
+
+  return (
+    <div className="rounded-md border border-muted/40 bg-background/60 p-2">
+      <div className="flex items-center gap-2">
+        <Popover open={open} onOpenChange={setOpen} modal>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="flex-1 min-w-0 justify-between font-normal h-8 px-2 text-xs"
+              disabled={disabled}
+            >
+              {selectedLabel ? (
+                <span className="truncate text-left">{selectedLabel}</span>
+              ) : (
+                <span className="text-muted-foreground truncate text-left">{t('entity.searchEntityPlaceholder')}</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" style={{ zIndex: 9999 }}>
+            <Command shouldFilter={false}>
+              <CommandInput
+                placeholder={t('entity.searchEntityDropdown')}
+                value={searchInput}
+                onValueChange={setSearchInput}
+              />
+              <CommandList>
+                {searchLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <CommandEmpty>{t('entity.noEntityFound')}</CommandEmpty>
+                    <CommandGroup>
+                      {searchResults.map((def) => (
+                        <CommandItem
+                          key={def.id}
+                          value={def.id}
+                          onSelect={() => {
+                            onChange({
+                              entity_definition_id: def.id,
+                              entity_definition_name: def.name,
+                              entity_definition_key: def.entity_key,
+                            })
+                            setOpen(false)
+                          }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${row.entity_definition_id === def.id ? "opacity-100" : "opacity-0"}`} />
+                          <span className="flex-1 truncate">{def.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground font-mono">{def.entity_key}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <Input
+          type="number"
+          min={MIN_ENTRY_WEIGHT}
+          max={MAX_ENTRY_WEIGHT}
+          value={row.weight}
+          onChange={(e) => onChange({ weight: e.target.value })}
+          className="h-8 w-24 text-xs font-mono"
+          disabled={disabled}
+        />
+        {canRemove ? (
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRemove} disabled={disabled}>
+            <X className="h-4 w-4" />
+          </Button>
+        ) : (
+          <div className="h-8 w-8 shrink-0" />
+        )}
+      </div>
+    </div>
+  )
+}
 
 function RarityBadge({ rarity }: { rarity?: EntityRarity }) {
   if (!rarity) return <span className="text-muted-foreground text-xs">—</span>
