@@ -101,10 +101,10 @@ import { ConversationDialogs } from './ConversationDialogs'
 import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
-import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
+import { CreateItemDefinitionDialog, type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
 import { listEntityDefinitions, getEntityDefinition, getEntityPool, listEntityPools, createEntityPool, createEntityPoolEntry, deleteEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
 import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
+import { listItemDefinitions, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
@@ -262,9 +262,7 @@ export function LLMConversationPanel() {
   const [itemCodeConflictTurnId, setItemCodeConflictTurnId] = useState<string | null>(null)
   const [itemCodeConflictResponseIdx, setItemCodeConflictResponseIdx] = useState(0)
   const [itemCodeConflictItemIdx, setItemCodeConflictItemIdx] = useState(0)
-  const [itemCodeConflictReviewOpen, setItemCodeConflictReviewOpen] = useState(false)
-  const [itemCodeConflictReviewData, setItemCodeConflictReviewData] = useState<Record<string, unknown> | null>(null)
-  const [isApplyingConflict, setIsApplyingConflict] = useState(false)
+  const [itemCodeConflictEditOpen, setItemCodeConflictEditOpen] = useState(false)
 
   // Preset code conflict dialog (shown when code_name already exists in backend)
   const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
@@ -2917,6 +2915,12 @@ export function LLMConversationPanel() {
       grid_width: item.grid_width != null ? String(item.grid_width) : '1',
       grid_height: item.grid_height != null ? String(item.grid_height) : '1',
       stats, description,
+      metadata_entries: Object.entries(item.metadata ?? {})
+        .filter(([key]) => !['description', 'generator_config', 'gacha_pack_ids', 'gacha_pack_id', 'linked_container_definition_id', 'craft_recipe_input_ids', 'craft_recipe_output_ids'].includes(key))
+        .map(([key, value]) => ({
+          key,
+          value: typeof value === 'string' ? value : JSON.stringify(value),
+        })),
       client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
       allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
       gen_output_pool,
@@ -2937,8 +2941,7 @@ export function LLMConversationPanel() {
           setItemCodeConflictTurnId(turnId)
           setItemCodeConflictResponseIdx(responseIdx)
           setItemCodeConflictItemIdx(itemIdx)
-          setItemCodeConflictReviewOpen(false)
-          setItemCodeConflictReviewData(null)
+          setItemCodeConflictEditOpen(false)
           setItemCodeConflictOpen(true)
           return
         }
@@ -2955,104 +2958,25 @@ export function LLMConversationPanel() {
     setItemDefReviewOpen(true)
   }
 
-  function buildItemConflictUpdatePayload(
-    existing: ItemDefinition,
-    values: CreateItemInitialValues,
-  ): Record<string, unknown> {
-    const base_stats: Record<string, number> = {}
-    values.stats?.forEach(({ key, value }) => {
-      if (key.trim()) base_stats[key.trim()] = Number(value) || 0
-    })
-
-    const metadata: Record<string, unknown> = { ...(existing.metadata ?? {}) }
-    if (values.description?.trim()) {
-      metadata.description = values.description.trim()
-    }
-
-    if (values.category === 'generator') {
-      const output_pool = (values.gen_output_pool ?? [])
-        .filter((p) => p.item_definition_id.trim())
-        .map((p) => ({
-          item_definition_id: p.item_definition_id.trim(),
-          drop_rate: Number(p.drop_rate) || 1,
-          quantity_min: Number(p.quantity_min) || 1,
-          quantity_max: Number(p.quantity_max) || 1,
-          collect_cap: Number(p.collect_cap) || 5,
-          initial_output: Number(p.initial_output) || 0,
-        }))
-      const generatorConfig: Record<string, unknown> = {
-        production_interval_seconds: Number(values.gen_interval_seconds) || 3600,
-        tick_capacity: Number(values.gen_tick_capacity) || 24,
-        collect_destination: values.gen_collect_destination ?? 'mailbox',
-        output_pool,
-      }
-      metadata.generator_config = generatorConfig
-    } else {
-      delete metadata.generator_config
-    }
-
-    const payload: Record<string, unknown> = {
-      name: values.name?.trim() || existing.name,
-      item_code: values.item_code?.trim() || existing.item_code,
-      category: values.category ?? existing.category,
-      rarity: values.rarity ?? existing.rarity,
-      is_stackable: values.is_stackable ?? existing.is_stackable,
-      grid_width: values.grid_width != null ? Number(values.grid_width) || 1 : existing.grid_width,
-      grid_height: values.grid_height != null ? Number(values.grid_height) || 1 : existing.grid_height,
-      base_stats,
-      metadata,
-      client_writable: values.client_writable ?? existing.client_writable,
-      allow_client_update_qty: values.allow_client_update_qty ?? existing.allow_client_update_qty,
-    }
-
-    if (values.is_stackable === false) {
-      payload.max_stack_size = null
-    } else if (values.max_stack_size != null && values.max_stack_size !== '') {
-      payload.max_stack_size = Number(values.max_stack_size) || null
-    } else {
-      payload.max_stack_size = existing.max_stack_size
-    }
-
-    return payload
-  }
-
-  function openItemCodeConflictReview() {
-    if (!itemCodeConflictExisting || !itemCodeConflictInitialValues) return
-    setItemCodeConflictReviewData(
-      buildItemConflictUpdatePayload(itemCodeConflictExisting, itemCodeConflictInitialValues),
-    )
-    setItemCodeConflictReviewOpen(true)
-  }
-
-  /** User chose to update the existing item with SSE data then navigate to it */
-  async function handleItemCodeConflictUpdate(reviewData?: Record<string, unknown>) {
+  /** User chose to update the existing item by opening the item editor panel */
+  function handleItemCodeConflictUpdate() {
     if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
-    const existing = itemCodeConflictExisting
-    const patch = reviewData ?? buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
-    setIsApplyingConflict(true)
-    try {
-      await updateItemDefinition({ gameId }, existing.id, patch)
-      setItemCodeConflictReviewOpen(false)
-      setItemCodeConflictOpen(false)
-      // Link the updated item to the active conversation
-      if (activeConvId) {
-        // Track in savedItemDefinitionIds so UI marks item as handled
-        if (itemCodeConflictTurnId !== null) {
-          const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
-          const updated = { ...savedItemDefinitionIds, [itemKey]: existing.id }
-          setSavedItemDefinitionIds(updated)
-          safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
-        }
-        linkConversationContent(gameId, activeConvId, 'item_definition', existing.id)
-          .then(() => loadLinkedContent(gameId, activeConvId))
-          .catch(() => {/* silent — linking is best-effort */})
-      }
-      toast({ title: t('llmConversation.sseUpdateApplied'), description: existing.name })
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: t('llmConversation.sseUpdateFailed'), description: err?.message })
-    } finally {
-      setIsApplyingConflict(false)
+    setItemCodeConflictOpen(false)
+    setItemCodeConflictEditOpen(true)
+  }
+
+  function handleItemCodeConflictEditApplied(itemId: string) {
+    setItemCodeConflictEditOpen(false)
+    if (!activeConvId) return
+    if (itemCodeConflictTurnId !== null) {
+      const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
+      const updated = { ...savedItemDefinitionIds, [itemKey]: itemId }
+      setSavedItemDefinitionIds(updated)
+      safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
     }
+    linkConversationContent(gameId, activeConvId, 'item_definition', itemId)
+      .then(() => loadLinkedContent(gameId, activeConvId))
+      .catch(() => {/* silent — linking is best-effort */})
   }
 
   /** User chose to save as a new item (optionally with a different item_code) */
@@ -3511,12 +3435,7 @@ export function LLMConversationPanel() {
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}
-        itemCodeConflictReviewOpen={itemCodeConflictReviewOpen}
-        setItemCodeConflictReviewOpen={setItemCodeConflictReviewOpen}
-        itemCodeConflictReviewData={itemCodeConflictReviewData}
-        isApplyingConflict={isApplyingConflict}
         onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
-        onItemCodeConflictReview={openItemCodeConflictReview}
         onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
         presetCodeConflictOpen={presetCodeConflictOpen}
         setPresetCodeConflictOpen={setPresetCodeConflictOpen}
@@ -3544,6 +3463,19 @@ export function LLMConversationPanel() {
         onEquipmentSlotKeyConflictCreateNew={handleEquipmentSlotKeyConflictCreateNew}
         t={t}
       />
+      {itemCodeConflictExisting && itemCodeConflictInitialValues && (
+        <CreateItemDefinitionDialog
+          open={itemCodeConflictEditOpen}
+          gameId={gameId}
+          mode="edit"
+          itemId={itemCodeConflictExisting.id}
+          initialValues={itemCodeConflictInitialValues}
+          onCreated={() => {}}
+          onUpdated={handleItemCodeConflictEditApplied}
+          onClose={() => setItemCodeConflictEditOpen(false)}
+          initialCategory={itemCodeConflictInitialValues.category}
+        />
+      )}
     </>
   )
 }

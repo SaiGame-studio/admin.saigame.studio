@@ -41,6 +41,15 @@ export function ConversationLinkedContent({
 }: ConversationLinkedContentProps) {
   const router = useRouter()
 
+  function openItemDetail(itemId: string) {
+    const payload = { itemId, nonce: Date.now() }
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('ss:item-detail-reload', JSON.stringify(payload))
+      window.dispatchEvent(new CustomEvent('ss:item-detail-reload', { detail: payload }))
+    }
+    router.push(`/games/${gameId}/items/${itemId}`)
+  }
+
   const itemLinks = linkedContent.filter(l => l.content_type === 'item_definition')
   const entityLinks = linkedContent.filter(l => l.content_type === 'entity_definition')
   const loreLinks = linkedContent.filter(l => l.content_type === 'lore_entry' || l.content_type === 'lore')
@@ -114,7 +123,14 @@ export function ConversationLinkedContent({
           id={`conv-panel-linked-item-name-${link.id}`}
           type="button"
           className="font-medium hover:underline hover:text-foreground transition-colors truncate flex-1 min-w-0 text-left"
-          onClick={(e) => { e.stopPropagation(); router.push(href) }}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (isItem) {
+              openItemDetail(link.content_id)
+              return
+            }
+            router.push(href)
+          }}
         >
           <span id={`conv-panel-linked-item-type-${link.id}`} className="truncate block">
             {displayName}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, ScrollText, Sparkles, Tag, Trash2, X, Plus, Shield } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
@@ -290,6 +291,7 @@ export function ConversationChatHistory({
   createdItemTagsPerResponse,
   t,
 }: ConversationChatHistoryProps) {
+  const router = useRouter()
   const { resolvedTheme } = useTheme()
   const scrollRef = useRef<HTMLDivElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -300,6 +302,15 @@ export function ConversationChatHistory({
 
   function isRetryDisabledForTokenQuotaError(): boolean {
     return typeof premiumTokensRemaining === 'number' && premiumTokensRemaining <= 0
+  }
+
+  function openItemDetail(itemId: string) {
+    const payload = { itemId, nonce: Date.now() }
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('ss:item-detail-reload', JSON.stringify(payload))
+      window.dispatchEvent(new CustomEvent('ss:item-detail-reload', { detail: payload }))
+    }
+    router.push(`/games/${gameId}/items/${itemId}`)
   }
 
   // Restore scroll position when switching to a different conversation
@@ -558,15 +569,16 @@ export function ConversationChatHistory({
                                     const savedItemId = savedItemDefinitionIds[itemKey]
                                     const itemName = typeof seg.item.name === 'string' ? seg.item.name : `Item ${seg.itemIdx + 1}`
                                     return savedItemId ? (
-                                      <Link
+                                      <button
                                         id={`conv-panel-item-link-${turn.id}-${idx}-${seg.itemIdx}`}
-                                        href={`/games/${gameId}/items/${savedItemId}`}
+                                        type="button"
+                                        onClick={() => openItemDetail(savedItemId)}
                                         className="self-start inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
                                         title={itemName}
                                       >
                                         <Package className="h-3 w-3 shrink-0" />
                                         <span id={`conv-panel-item-link-label-${turn.id}-${idx}-${seg.itemIdx}`} className="truncate">{itemName}</span>
-                                      </Link>
+                                      </button>
                                     ) : (
                                       <button
                                         id={`conv-panel-save-item-btn-${turn.id}-${idx}-${seg.itemIdx}`}
