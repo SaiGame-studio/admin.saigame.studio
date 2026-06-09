@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Bot, BookOpen, Boxes, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, ScrollText, Sparkles, Tag, Trash2, X, Plus, Shield } from 'lucide-react'
+import { Bot, BookOpen, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, ScrollText, Sparkles, Tag, Trash2, X, Plus, Shield } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
@@ -149,8 +149,8 @@ function TagSuggestionResult({
                 className={[
                   'group flex items-center gap-0.5 px-1.5 py-0.5 border-r transition-colors cursor-pointer',
                   isGameApplied
-                    ? 'text-green-600 hover:text-red-500 hover:bg-red-500/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                    ? 'text-sky-600 hover:text-red-500 hover:bg-sky-500/10'
+                    : 'text-sky-600 hover:text-sky-700 hover:bg-sky-500/10',
                   isStreaming ? 'opacity-40 cursor-not-allowed' : '',
                 ].filter(Boolean).join(' ')}
               >
@@ -160,7 +160,7 @@ function TagSuggestionResult({
                     <Trash2 id={`conv-panel-tag-chip-game-trash-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5 hidden group-hover:block" />
                   </>
                 ) : (
-                  <Tag id={`conv-panel-tag-chip-game-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
+                  <Gamepad2 id={`conv-panel-tag-chip-game-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
                 )}
               </button>
               {/* Create / Delete item definition tag (toggle) */}
@@ -176,8 +176,8 @@ function TagSuggestionResult({
                 className={[
                   'group flex items-center gap-0.5 px-1.5 py-0.5 transition-colors cursor-pointer',
                   isItemCreated
-                    ? 'text-green-600 hover:text-red-500 hover:bg-red-500/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                    ? 'text-amber-600 hover:text-red-500 hover:bg-amber-500/10'
+                    : 'text-amber-600 hover:text-amber-700 hover:bg-amber-500/10',
                   isStreaming ? 'opacity-40 cursor-not-allowed' : '',
                 ].filter(Boolean).join(' ')}
               >
@@ -187,7 +187,7 @@ function TagSuggestionResult({
                     <Trash2 id={`conv-panel-tag-chip-item-trash-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5 hidden group-hover:block" />
                   </>
                 ) : (
-                  <Boxes id={`conv-panel-tag-chip-item-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
+                  <Tag id={`conv-panel-tag-chip-item-icon-${turnId}-${responseIdx}-${tag}`} className="h-2.5 w-2.5" />
                 )}
               </button>
             </div>
@@ -217,17 +217,17 @@ function TagSuggestionResult({
         <Link
           id={`conv-panel-tag-suggestion-link-game-${turnId}-${responseIdx}`}
           href={`/games/${gameId}`}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-[11px] text-sky-700 transition-colors hover:bg-sky-500/20 hover:text-sky-800"
         >
-          <Gamepad2 className="h-3 w-3" />
+          <Gamepad2 className="h-3 w-3 text-sky-600" />
           {t('llmConversation.tagSuggestionViewGameDetail')}
         </Link>
         <Link
           id={`conv-panel-tag-suggestion-link-item-tags-${turnId}-${responseIdx}`}
           href={`/games/${gameId}/items?tab=tags`}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 transition-colors hover:bg-amber-500/20 hover:text-amber-800"
         >
-          <Tag className="h-3 w-3" />
+          <Tag className="h-3 w-3 text-amber-600" />
           {t('llmConversation.tagSuggestionViewItemTags')}
         </Link>
       </div>

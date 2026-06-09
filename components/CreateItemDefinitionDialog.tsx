@@ -21,6 +21,7 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
 import { useToast } from '@/hooks/use-toast'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import { useTranslation } from '@/lib/i18n/use-translation'
 import {
   listItemDefinitions,
@@ -224,6 +225,12 @@ export function CreateItemDefinitionDialog({
   const [genItemsLoading, setGenItemsLoading] = useState(false)
   const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({})
   const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({})
+
+  // Keep the item editor above the conversation panel in the global Escape stack.
+  useEscapeLayer(open, () => {
+    resetForm()
+    onClose()
+  }, 1)
 
   // Fetch categories/rarities if not provided as props
   const [localCategories, setLocalCategories] = useState<ItemCategory[]>([])
