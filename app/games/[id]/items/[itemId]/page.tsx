@@ -155,6 +155,7 @@ export default function ItemDefinitionDetailPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const { id: gameId, itemId } = params
+  const [reloadSeq, setReloadSeq] = useState(0)
 
   // SSE prefill data from URL param (opened from ConversationPanel when item_code already exists)
   const [ssePrefillData, setSsePrefillData] = useState<CreateItemInitialValues | null>(null)
@@ -249,10 +250,39 @@ export default function ItemDefinitionDetailPage() {
     window.addEventListener('storage', handler)
     window.addEventListener('ss:conv-state-changed', handler)
     return () => {
-      window.removeEventListener('storage', handler)
-      window.removeEventListener('ss:conv-state-changed', handler)
+    window.removeEventListener('storage', handler)
+    window.removeEventListener('ss:conv-state-changed', handler)
     }
   }, [gameId])
+
+  useEffect(() => {
+    function consumePendingReload() {
+      try {
+        const raw = window.sessionStorage.getItem('ss:item-detail-reload')
+        if (!raw) return
+        const payload = JSON.parse(raw) as { itemId?: string }
+        if (payload?.itemId === itemId) {
+          window.sessionStorage.removeItem('ss:item-detail-reload')
+          setReloadSeq((n) => n + 1)
+        }
+      } catch {
+        // ignore malformed payloads
+      }
+    }
+
+    function onItemDetailReload(event: Event) {
+      const detail = (event as CustomEvent<{ itemId?: string }>).detail
+      if (detail?.itemId === itemId) {
+        setReloadSeq((n) => n + 1)
+      }
+    }
+
+    consumePendingReload()
+    window.addEventListener('ss:item-detail-reload', onItemDetailReload as EventListener)
+    return () => {
+      window.removeEventListener('ss:item-detail-reload', onItemDetailReload as EventListener)
+    }
+  }, [itemId])
 
   useEffect(() => {
     if (!gameId || !itemId) return
@@ -267,7 +297,7 @@ export default function ItemDefinitionDetailPage() {
       })
       .catch(() => {})
       .finally(() => setTagsLoading(false))
-  }, [gameId, itemId])
+  }, [gameId, itemId, reloadSeq, searchParams])
 
   async function handleAddTag(tag: ItemTag) {
     if (tagActionLoading) return
@@ -349,6 +379,25 @@ export default function ItemDefinitionDetailPage() {
     async function load() {
       try {
         setLoading(true)
+        setError(null)
+        setItem(null)
+        setGameName("")
+        setEditingField(null)
+        setEditingStats(false)
+        setEditingMeta(false)
+        setEditingGenConfig(false)
+        setTagPickerOpen(false)
+        setTagPickerSearch("")
+        setTagActionLoading(null)
+        setGachaPackInfo({})
+        setCraftRecipeInfo({})
+        setLinkedContainerInfo(null)
+        setGenPoolNames({})
+        setGenPoolLoading(false)
+        setItemTagsList([])
+        setAllTags([])
+        setSsePrefillData(null)
+        setSseSheetOpen(false)
         const game = await getGame(gameId)
         setGameName(game.name)
         const data = await getItemDefinition({ gameId }, itemId)

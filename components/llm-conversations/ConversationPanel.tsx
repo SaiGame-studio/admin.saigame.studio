@@ -101,10 +101,10 @@ import { ConversationDialogs } from './ConversationDialogs'
 import type { LoreDraftForm } from './ConversationDialogs'
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api'
 import type { LoreEntry } from '@/types/lore'
-import { type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
+import { CreateItemDefinitionDialog, type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
 import { listEntityDefinitions, getEntityDefinition, getEntityPool, listEntityPools, createEntityPool, createEntityPoolEntry, deleteEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
 import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
-import { listItemDefinitions, updateItemDefinition, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
+import { listItemDefinitions, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
@@ -262,16 +262,14 @@ export function LLMConversationPanel() {
   const [itemCodeConflictTurnId, setItemCodeConflictTurnId] = useState<string | null>(null)
   const [itemCodeConflictResponseIdx, setItemCodeConflictResponseIdx] = useState(0)
   const [itemCodeConflictItemIdx, setItemCodeConflictItemIdx] = useState(0)
-  const [itemCodeConflictReviewOpen, setItemCodeConflictReviewOpen] = useState(false)
-  const [itemCodeConflictReviewData, setItemCodeConflictReviewData] = useState<Record<string, unknown> | null>(null)
-  const [isApplyingConflict, setIsApplyingConflict] = useState(false)
+  const [itemCodeConflictEditOpen, setItemCodeConflictEditOpen] = useState(false)
 
   // Preset code conflict dialog (shown when code_name already exists in backend)
   const [presetCodeConflictOpen, setPresetCodeConflictOpen] = useState(false)
   const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
   const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
   const [presetConflictTurnContext, setPresetConflictTurnContext] = useState<{ turnId: string; responseIdx: number; presetIdx: number } | null>(null)
-  const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
+  const isApplyingPresetConflict = false
 
   // Container name conflict dialog (shown when name already exists in backend)
   const [containerNameConflictOpen, setContainerNameConflictOpen] = useState(false)
@@ -303,6 +301,7 @@ export function LLMConversationPanel() {
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
   const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
   const [containerDefinitionNames, setContainerDefinitionNames] = useState<Record<string, string>>({})
+  const [presetDefinitionNames, setPresetDefinitionNames] = useState<Record<string, string>>({})
   // Gacha pack saved IDs (keyed as "turnId:responseIdx:gachaPackIdx")
   const [savedGachaPackIds, setSavedGachaPackIds] = useState<Record<string, string>>({})
   const [gachaPackNames, setGachaPackNames] = useState<Record<string, string>>({})
@@ -685,6 +684,7 @@ export function LLMConversationPanel() {
       setQuestDefinitionNames({})
       setQuestDefinitionCodes({})
       setContainerDefinitionNames({})
+      setPresetDefinitionNames({})
       setGachaPackNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
@@ -731,6 +731,7 @@ export function LLMConversationPanel() {
     // Restore saved container definition IDs from localStorage
     const rawContainerLinks = safeGetItem(lsContainerLinks(activeConvId))
     setSavedContainerDefinitionIds(rawContainerLinks ? JSON.parse(rawContainerLinks) : {})
+    setPresetDefinitionNames({})
     // Restore saved gacha pack IDs from localStorage
     const rawGachaPackLinks = safeGetItem(lsGachaPackLinks(activeConvId))
     setSavedGachaPackIds(rawGachaPackLinks ? JSON.parse(rawGachaPackLinks) : {})
@@ -821,6 +822,8 @@ export function LLMConversationPanel() {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'container_definition') {
           setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'preset_definition') {
+          setPresetDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'gacha_pack') {
           setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'crafting_recipe') {
@@ -1127,10 +1130,11 @@ export function LLMConversationPanel() {
       const entityLinks = items.filter(l => l.content_type === 'entity_definition')
       const entityPoolLinks = items.filter(l => l.content_type === 'entity_pool')
       const containerLinks = items.filter(l => l.content_type === 'container_definition')
+      const presetLinks = items.filter(l => l.content_type === 'preset_definition')
       const gachaPackLinks = items.filter(l => l.content_type === 'gacha_pack')
       const craftingRecipeLinks = items.filter(l => l.content_type === 'crafting_recipe')
 
-      const [loreResults, itemResults, entityResults, entityPoolResults, containerResults, gachaPackResults, craftingRecipeResults] = await Promise.all([
+      const [loreResults, itemResults, entityResults, entityPoolResults, containerResults, presetResult, gachaPackResults, craftingRecipeResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
@@ -1146,6 +1150,9 @@ export function LLMConversationPanel() {
         containerLinks.length > 0
           ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
+        presetLinks.length > 0
+          ? listPresetDefinitions({ gameId: gId })
+          : Promise.resolve({ definitions: [] as PresetDefinition[] }),
         gachaPackLinks.length > 0
           ? Promise.allSettled(gachaPackLinks.map(l => getGachaPack({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ pack: { name: string } }>[]),
@@ -1196,6 +1203,14 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
       })
 
+      const presetNames: Record<string, string> = {}
+      if (presetLinks.length > 0) {
+        presetLinks.forEach((l) => {
+          const found = presetResult.definitions?.find((d) => d.id === l.content_id)
+          if (found) presetNames[l.content_id] = found.name
+        })
+      }
+
       const gachaPackNameMap: Record<string, string> = {}
       gachaPackLinks.forEach((l, i) => {
         const result = gachaPackResults[i]
@@ -1216,6 +1231,7 @@ export function LLMConversationPanel() {
       if (Object.keys(entityPoolNameMap).length > 0) setEntityPoolNames(prev => ({ ...prev, ...entityPoolNameMap }))
       if (Object.keys(entityPoolKeyMap).length > 0) setEntityPoolKeys(prev => ({ ...prev, ...entityPoolKeyMap }))
       if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
+      if (Object.keys(presetNames).length > 0) setPresetDefinitionNames(prev => ({ ...prev, ...presetNames }))
       if (Object.keys(gachaPackNameMap).length > 0) setGachaPackNames(prev => ({ ...prev, ...gachaPackNameMap }))
       if (Object.keys(craftingRecipeNameMap).length > 0) setCraftingRecipeNames(prev => ({ ...prev, ...craftingRecipeNameMap }))
       setLinkedContent(items)
@@ -1659,39 +1675,18 @@ export function LLMConversationPanel() {
     router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
-  async function handlePresetCodeConflictUpdate() {
-    if (!presetCodeConflictExisting || !gameId || !activeConvId) return
-    const preset = presetCodeConflictPendingPreset ?? {}
-    setIsApplyingPresetConflict(true)
-    try {
-      const patch: Record<string, unknown> = {}
-      if (typeof preset.name === 'string' && preset.name.trim()) patch.name = preset.name.trim()
-      if (typeof preset.max_slots === 'number') patch.max_slots = preset.max_slots
-      if (typeof preset.metadata === 'object' && preset.metadata !== null) patch.metadata = preset.metadata
-      if (Object.keys(patch).length > 0) {
-        await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
-      }
-      setPresetCodeConflictOpen(false)
-      // Update savedPresetDefinitionIds if we have turn context
-      if (presetConflictTurnContext) {
-        const { turnId, responseIdx, presetIdx } = presetConflictTurnContext
-        const presetKey = `${turnId}:${responseIdx}:${presetIdx}`
-        setSavedPresetDefinitionIds(prev => {
-          const updated = { ...prev, [presetKey]: presetCodeConflictExisting!.id }
-          safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
-          return updated
-        })
-        void linkConversationContent(gameId, activeConvId, 'preset_definition', presetCodeConflictExisting.id)
-          .then(() => void loadLinkedContent(gameId, activeConvId!))
-          .catch(() => { /* silently ignore */ })
-        setPresetConflictTurnContext(null)
-      }
-      router.push(`/games/${gameId}/items?tab=preset&q=${presetCodeConflictExisting.id}`)
-    } catch {
-      toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
-    } finally {
-      setIsApplyingPresetConflict(false)
-    }
+  function handlePresetCodeConflictUpdate() {
+    if (!presetCodeConflictExisting || !gameId) return
+    const presetId = presetCodeConflictExisting.id
+    setPresetCodeConflictOpen(false)
+    setPresetCodeConflictPendingPreset(null)
+    setPresetConflictTurnContext(null)
+    const params = new URLSearchParams({
+      tab: 'preset',
+      id: presetId,
+      editPreset: presetId,
+    })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
   function handlePresetCodeConflictSaveNew(newCodeName: string) {
@@ -2917,6 +2912,12 @@ export function LLMConversationPanel() {
       grid_width: item.grid_width != null ? String(item.grid_width) : '1',
       grid_height: item.grid_height != null ? String(item.grid_height) : '1',
       stats, description,
+      metadata_entries: Object.entries(item.metadata ?? {})
+        .filter(([key]) => !['description', 'generator_config', 'gacha_pack_ids', 'gacha_pack_id', 'linked_container_definition_id', 'craft_recipe_input_ids', 'craft_recipe_output_ids'].includes(key))
+        .map(([key, value]) => ({
+          key,
+          value: typeof value === 'string' ? value : JSON.stringify(value),
+        })),
       client_writable: typeof item.client_writable === 'boolean' ? item.client_writable : false,
       allow_client_update_qty: typeof item.allow_client_update_qty === 'boolean' ? item.allow_client_update_qty : false,
       gen_output_pool,
@@ -2937,8 +2938,7 @@ export function LLMConversationPanel() {
           setItemCodeConflictTurnId(turnId)
           setItemCodeConflictResponseIdx(responseIdx)
           setItemCodeConflictItemIdx(itemIdx)
-          setItemCodeConflictReviewOpen(false)
-          setItemCodeConflictReviewData(null)
+          setItemCodeConflictEditOpen(false)
           setItemCodeConflictOpen(true)
           return
         }
@@ -2955,104 +2955,25 @@ export function LLMConversationPanel() {
     setItemDefReviewOpen(true)
   }
 
-  function buildItemConflictUpdatePayload(
-    existing: ItemDefinition,
-    values: CreateItemInitialValues,
-  ): Record<string, unknown> {
-    const base_stats: Record<string, number> = {}
-    values.stats?.forEach(({ key, value }) => {
-      if (key.trim()) base_stats[key.trim()] = Number(value) || 0
-    })
-
-    const metadata: Record<string, unknown> = { ...(existing.metadata ?? {}) }
-    if (values.description?.trim()) {
-      metadata.description = values.description.trim()
-    }
-
-    if (values.category === 'generator') {
-      const output_pool = (values.gen_output_pool ?? [])
-        .filter((p) => p.item_definition_id.trim())
-        .map((p) => ({
-          item_definition_id: p.item_definition_id.trim(),
-          drop_rate: Number(p.drop_rate) || 1,
-          quantity_min: Number(p.quantity_min) || 1,
-          quantity_max: Number(p.quantity_max) || 1,
-          collect_cap: Number(p.collect_cap) || 5,
-          initial_output: Number(p.initial_output) || 0,
-        }))
-      const generatorConfig: Record<string, unknown> = {
-        production_interval_seconds: Number(values.gen_interval_seconds) || 3600,
-        tick_capacity: Number(values.gen_tick_capacity) || 24,
-        collect_destination: values.gen_collect_destination ?? 'mailbox',
-        output_pool,
-      }
-      metadata.generator_config = generatorConfig
-    } else {
-      delete metadata.generator_config
-    }
-
-    const payload: Record<string, unknown> = {
-      name: values.name?.trim() || existing.name,
-      item_code: values.item_code?.trim() || existing.item_code,
-      category: values.category ?? existing.category,
-      rarity: values.rarity ?? existing.rarity,
-      is_stackable: values.is_stackable ?? existing.is_stackable,
-      grid_width: values.grid_width != null ? Number(values.grid_width) || 1 : existing.grid_width,
-      grid_height: values.grid_height != null ? Number(values.grid_height) || 1 : existing.grid_height,
-      base_stats,
-      metadata,
-      client_writable: values.client_writable ?? existing.client_writable,
-      allow_client_update_qty: values.allow_client_update_qty ?? existing.allow_client_update_qty,
-    }
-
-    if (values.is_stackable === false) {
-      payload.max_stack_size = null
-    } else if (values.max_stack_size != null && values.max_stack_size !== '') {
-      payload.max_stack_size = Number(values.max_stack_size) || null
-    } else {
-      payload.max_stack_size = existing.max_stack_size
-    }
-
-    return payload
-  }
-
-  function openItemCodeConflictReview() {
-    if (!itemCodeConflictExisting || !itemCodeConflictInitialValues) return
-    setItemCodeConflictReviewData(
-      buildItemConflictUpdatePayload(itemCodeConflictExisting, itemCodeConflictInitialValues),
-    )
-    setItemCodeConflictReviewOpen(true)
-  }
-
-  /** User chose to update the existing item with SSE data then navigate to it */
-  async function handleItemCodeConflictUpdate(reviewData?: Record<string, unknown>) {
+  /** User chose to update the existing item by opening the item editor panel */
+  function handleItemCodeConflictUpdate() {
     if (!itemCodeConflictExisting || !itemCodeConflictInitialValues || !gameId) return
-    const existing = itemCodeConflictExisting
-    const patch = reviewData ?? buildItemConflictUpdatePayload(existing, itemCodeConflictInitialValues)
-    setIsApplyingConflict(true)
-    try {
-      await updateItemDefinition({ gameId }, existing.id, patch)
-      setItemCodeConflictReviewOpen(false)
-      setItemCodeConflictOpen(false)
-      // Link the updated item to the active conversation
-      if (activeConvId) {
-        // Track in savedItemDefinitionIds so UI marks item as handled
-        if (itemCodeConflictTurnId !== null) {
-          const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
-          const updated = { ...savedItemDefinitionIds, [itemKey]: existing.id }
-          setSavedItemDefinitionIds(updated)
-          safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
-        }
-        linkConversationContent(gameId, activeConvId, 'item_definition', existing.id)
-          .then(() => loadLinkedContent(gameId, activeConvId))
-          .catch(() => {/* silent — linking is best-effort */})
-      }
-      toast({ title: t('llmConversation.sseUpdateApplied'), description: existing.name })
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: t('llmConversation.sseUpdateFailed'), description: err?.message })
-    } finally {
-      setIsApplyingConflict(false)
+    setItemCodeConflictOpen(false)
+    setItemCodeConflictEditOpen(true)
+  }
+
+  function handleItemCodeConflictEditApplied(itemId: string) {
+    setItemCodeConflictEditOpen(false)
+    if (!activeConvId) return
+    if (itemCodeConflictTurnId !== null) {
+      const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
+      const updated = { ...savedItemDefinitionIds, [itemKey]: itemId }
+      setSavedItemDefinitionIds(updated)
+      safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
     }
+    linkConversationContent(gameId, activeConvId, 'item_definition', itemId)
+      .then(() => loadLinkedContent(gameId, activeConvId))
+      .catch(() => {/* silent — linking is best-effort */})
   }
 
   /** User chose to save as a new item (optionally with a different item_code) */
@@ -3233,6 +3154,7 @@ export function LLMConversationPanel() {
                 itemDefinitionNames={itemDefinitionNames}
                 entityDefinitionNames={entityDefinitionNames}
                 containerDefinitionNames={containerDefinitionNames}
+                presetDefinitionNames={presetDefinitionNames}
                 gachaPackNames={gachaPackNames}
                 entityPoolNames={entityPoolNames}
                 entityPoolKeys={entityPoolKeys}
@@ -3511,12 +3433,7 @@ export function LLMConversationPanel() {
         itemCodeConflictOpen={itemCodeConflictOpen}
         setItemCodeConflictOpen={setItemCodeConflictOpen}
         itemCodeConflictExisting={itemCodeConflictExisting}
-        itemCodeConflictReviewOpen={itemCodeConflictReviewOpen}
-        setItemCodeConflictReviewOpen={setItemCodeConflictReviewOpen}
-        itemCodeConflictReviewData={itemCodeConflictReviewData}
-        isApplyingConflict={isApplyingConflict}
         onItemCodeConflictUpdate={handleItemCodeConflictUpdate}
-        onItemCodeConflictReview={openItemCodeConflictReview}
         onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew}
         presetCodeConflictOpen={presetCodeConflictOpen}
         setPresetCodeConflictOpen={setPresetCodeConflictOpen}
@@ -3544,6 +3461,19 @@ export function LLMConversationPanel() {
         onEquipmentSlotKeyConflictCreateNew={handleEquipmentSlotKeyConflictCreateNew}
         t={t}
       />
+      {itemCodeConflictExisting && itemCodeConflictInitialValues && (
+        <CreateItemDefinitionDialog
+          open={itemCodeConflictEditOpen}
+          gameId={gameId}
+          mode="edit"
+          itemId={itemCodeConflictExisting.id}
+          initialValues={itemCodeConflictInitialValues}
+          onCreated={() => {}}
+          onUpdated={handleItemCodeConflictEditApplied}
+          onClose={() => setItemCodeConflictEditOpen(false)}
+          initialCategory={itemCodeConflictInitialValues.category}
+        />
+      )}
     </>
   )
 }

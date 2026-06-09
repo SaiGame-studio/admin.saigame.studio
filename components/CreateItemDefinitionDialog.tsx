@@ -21,10 +21,12 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
 import { useToast } from '@/hooks/use-toast'
+import { useEscapeLayer } from '@/hooks/use-escape-manager'
 import { useTranslation } from '@/lib/i18n/use-translation'
 import {
   listItemDefinitions,
   createItemDefinition,
+  updateItemDefinition,
   fetchItemCategories,
   fetchItemRarities,
 } from '@/lib/inventory-api'
@@ -62,6 +64,8 @@ export interface CreateItemInitialValues {
   stats?: KVEntry[]
   /** goes into metadata.description */
   description?: string
+  /** editable metadata key-value rows */
+  metadata_entries?: KVEntry[]
   client_writable?: boolean
   allow_client_update_qty?: boolean
   /** generator config — only used when category === 'generator' */
@@ -70,6 +74,8 @@ export interface CreateItemInitialValues {
   gen_tick_capacity?: string
   gen_collect_destination?: 'mailbox' | 'inventory'
 }
+
+type ItemDefinitionDialogMode = 'create' | 'edit'
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -165,6 +171,9 @@ export function CreateItemDefinitionDialog({
   studioId,
   onCreated,
   onClose,
+  mode = 'create',
+  itemId,
+  onUpdated,
   categories: categoriesProp,
   rarities: raritiesProp,
   initialCategory,
@@ -175,6 +184,9 @@ export function CreateItemDefinitionDialog({
   studioId?: string
   onCreated: (itemId: string) => void
   onClose: () => void
+  mode?: ItemDefinitionDialogMode
+  itemId?: string
+  onUpdated?: (itemId: string) => void
   categories?: ItemCategory[]
   rarities?: ItemRarity[]
   initialCategory?: ItemCategory
@@ -184,6 +196,7 @@ export function CreateItemDefinitionDialog({
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const scrollBodyRef = useRef<HTMLDivElement>(null)
+  const isEditMode = mode === 'edit'
 
   const [name, setName] = useState('')
   const [itemCode, setItemCode] = useState('')
@@ -212,6 +225,12 @@ export function CreateItemDefinitionDialog({
   const [genItemsLoading, setGenItemsLoading] = useState(false)
   const [genPoolOpen, setGenPoolOpen] = useState<Record<number, boolean>>({})
   const [genPoolSearch, setGenPoolSearch] = useState<Record<number, string>>({})
+
+  // Keep the item editor above the conversation panel in the global Escape stack.
+  useEscapeLayer(open, () => {
+    resetForm()
+    onClose()
+  }, 1)
 
   // Fetch categories/rarities if not provided as props
   const [localCategories, setLocalCategories] = useState<ItemCategory[]>([])
@@ -249,7 +268,11 @@ export function CreateItemDefinitionDialog({
       if (v.grid_width !== undefined) setGridW(v.grid_width)
       if (v.grid_height !== undefined) setGridH(v.grid_height)
       if (v.stats) setStats(v.stats)
-      if (v.description) setMeta([{ key: 'description', value: v.description }])
+      const metadataEntries = [...(v.metadata_entries ?? [])]
+      if (v.description && !metadataEntries.some((entry) => entry.key === 'description')) {
+        metadataEntries.unshift({ key: 'description', value: v.description })
+      }
+      if (metadataEntries.length > 0) setMeta(metadataEntries)
       if (v.client_writable !== undefined) setClientWritable(v.client_writable)
       if (v.allow_client_update_qty !== undefined) setAllowClientUpdateQty(v.allow_client_update_qty)
       if (v.gen_output_pool && v.gen_output_pool.length > 0) setGenOutputPool(v.gen_output_pool)
@@ -358,6 +381,9 @@ export function CreateItemDefinitionDialog({
     }
     setLoading(true)
     try {
+      if (isEditMode && !itemId) {
+        throw new Error('Missing item id for edit mode')
+      }
       const base_stats: Record<string, number> = {}
       stats.forEach(({ key, value }) => {
         if (key.trim()) base_stats[key.trim()] = Number(value) || 0
@@ -396,6 +422,7 @@ export function CreateItemDefinitionDialog({
         category,
         rarity,
         is_stackable: isStackable,
+        max_stack_size: isStackable ? (maxStack === '' ? null : Number(maxStack)) : null,
         grid_width: Number(gridW) || 1,
         grid_height: Number(gridH) || 1,
         base_stats,
@@ -403,14 +430,20 @@ export function CreateItemDefinitionDialog({
         client_writable: clientWritable,
         allow_client_update_qty: allowClientUpdateQty,
       }
-      if (isStackable) {
-        body.max_stack_size = maxStack === '' ? null : Number(maxStack)
-      }
 
-      const result = await createItemDefinition({ studioId, gameId }, body)
-      toast({ title: t('items.itemCreated'), description: `"${name}" added to catalogue.` })
+      const result = isEditMode
+        ? await updateItemDefinition({ studioId, gameId }, itemId ?? '', body)
+        : await createItemDefinition({ studioId, gameId }, body)
+      toast({
+        title: isEditMode ? t('items.itemUpdated') : t('items.itemCreated'),
+        description: `"${name}" ${isEditMode ? 'updated' : 'added to catalogue'}.`,
+      })
       resetForm()
-      onCreated(result.item.id)
+      if (isEditMode) {
+        onUpdated?.(result.item.id)
+      } else {
+        onCreated(result.item.id)
+      }
       onClose()
     } catch (err: unknown) {
       const e = err as { status?: number; message?: string }
@@ -418,12 +451,14 @@ export function CreateItemDefinitionDialog({
         toast({
           variant: 'destructive',
           title: t('items.permissionDenied'),
-          description: 'You do not have permission to create items for this game.',
+          description: isEditMode
+            ? 'You do not have permission to update items for this game.'
+            : 'You do not have permission to create items for this game.',
         })
       } else {
         toast({
           variant: 'destructive',
-          title: t('items.failedToCreateItem'),
+          title: isEditMode ? t('items.failedToUpdateItem') : t('items.failedToCreateItem'),
           description: e?.message ?? 'Unknown error',
         })
       }
@@ -441,7 +476,7 @@ export function CreateItemDefinitionDialog({
     >
       <SheetContent id="create-item-def-sheet" side="right" className="sm:max-w-[560px] flex flex-col p-0">
         <SheetHeader id="create-item-def-sheet-header" className="px-6 pt-6 pb-4 border-b shrink-0">
-          <SheetTitle>{t('items.newItemDefinition')}</SheetTitle>
+          <SheetTitle>{isEditMode ? 'Edit Item Definition' : t('items.newItemDefinition')}</SheetTitle>
         </SheetHeader>
 
         <div id="create-item-def-body" className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -469,7 +504,8 @@ export function CreateItemDefinitionDialog({
                 id="create-item-def-code-input"
                 placeholder="e.g. iron_sword"
                 value={itemCode}
-                onChange={(e) => { setAutoSlug(false); setItemCode(e.target.value) }}
+                readOnly={isEditMode}
+                onChange={(e) => { if (!isEditMode) { setAutoSlug(false); setItemCode(e.target.value) } }}
                 className="font-mono"
               />
               <Button
@@ -478,6 +514,7 @@ export function CreateItemDefinitionDialog({
                 variant={autoSlug ? 'default' : 'outline'}
                 size="icon"
                 className="shrink-0"
+                disabled={isEditMode}
                 title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')}
                 onClick={() => { setAutoSlug(true); setItemCode(toSlugUnderscore(name)) }}
               >
@@ -892,7 +929,9 @@ export function CreateItemDefinitionDialog({
         <div id="create-item-def-footer" className="shrink-0 border-t px-6 py-4 flex justify-end gap-2">
           <Button id="create-item-def-cancel-btn" variant="outline" disabled={loading} onClick={() => { resetForm(); onClose() }}>{t('common.cancel')}</Button>
           <Button id="create-item-def-submit-btn" onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t('items.creating')}</> : t('items.createItem')}
+            {loading
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{isEditMode ? t('common.saving') : t('items.creating')}</>
+              : isEditMode ? t('common.update') : t('items.createItem')}
           </Button>
         </div>
       </SheetContent>
