@@ -611,6 +611,7 @@ function EditContainerDefinitionDialog({
 }) {
   const { toast } = useToast()
   const { t } = useTranslation()
+  useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(definition.name)
   const [gridCols, setGridCols] = useState(String(definition.grid_cols))
@@ -1618,6 +1619,7 @@ export default function GameItemsPage() {
   const [convActiveId, setConvActiveId] = useState<string | null>(null)
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null)
   const [linkingContainerId, setLinkingContainerId] = useState<string | null>(null)
+  const [linkingPresetId, setLinkingPresetId] = useState<string | null>(null)
 
   useEffect(() => {
     function readPanelState() {
@@ -1810,6 +1812,18 @@ export default function GameItemsPage() {
         } catch { /* ignore malformed data */ }
       }
     }
+    // auto-open preset edit sheet from URL params
+    if (tab === "preset" && searchParams.get("editPreset")) {
+      const presetEditId = searchParams.get("editPreset")
+      const target = presetDefs.find((def) => def.id === presetEditId)
+      if (target) {
+        setEditingPreset(target)
+        const newParams = new URLSearchParams(searchParams.toString())
+        newParams.delete("editPreset")
+        const nextQuery = newParams.toString()
+        router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+      }
+    }
     // auto-open gacha create sheet from LLM (data stored in localStorage)
     if (tab === "gacha" && searchParams.get("create") === "1") {
       const pendingRaw = safeGetItem(`ss_pending_gacha_create_${gameId}`)
@@ -1955,7 +1969,7 @@ export default function GameItemsPage() {
         })()
       }
     }
-  }, [searchParams, gameId])
+  }, [searchParams, gameId, presetDefs, router])
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -2169,7 +2183,36 @@ export default function GameItemsPage() {
     }
   }
 
-  // ─── Containers ──────────────────────────────────────────────────────────────
+  // Content linking helpers
+  // Link a preset definition to the active (or a newly created) conversation
+  async function handleLinkPresetToConversation(def: PresetDefinition) {
+    setLinkingPresetId(def.id)
+    try {
+      let convId: string | null = convActiveId
+      if (!convId) {
+        const newConv = await createConversation(gameId, {
+          title: `Preset: ${def.name}`,
+          goal: t('items.linkToConvGoal').replace('{name}', def.name),
+        })
+        convId = newConv.ID
+      }
+      safeSetItem(`ss_conv_active_${gameId}`, convId)
+      setConvActiveId(convId)
+      await linkConversationContent(gameId, convId, 'preset_definition', def.id)
+      window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'preset_definition', contentId: def.id, contentName: def.name } }))
+      toast({ title: t('items.linkToConvSuccess'), description: def.name })
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: t('items.linkToConvFailed'),
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setLinkingPresetId(null)
+    }
+  }
+
   const fetchContainerDefs = useCallback(async () => {
     setContainerLoading(true)
     setContainerError(null)
@@ -4384,6 +4427,7 @@ export default function GameItemsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {convPanelOpen && <TableHead className="text-center w-12" />}
                       <TableHead>{t('items.name')}</TableHead>
                       <TableHead>{t('items.codeName')}</TableHead>
                       <TableHead>{t('items.presetType')}</TableHead>
@@ -4395,6 +4439,36 @@ export default function GameItemsPage() {
                   <TableBody>
                     {filteredPresetDefs.map((def) => (
                       <TableRow key={def.id} className="hover:bg-muted/40">
+                        {convPanelOpen && (
+                          <TableCell id={`presets-row-${def.id}-link-conv-cell`} className="text-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    id={`presets-row-${def.id}-link-conv-btn`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-blue-500"
+                                    disabled={linkingPresetId === def.id}
+                                    onClick={() => handleLinkPresetToConversation(def)}
+                                  >
+                                    {linkingPresetId === def.id
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : (
+                                        <span id={`presets-row-${def.id}-link-conv-icon`} className="inline-flex items-center gap-[1px]">
+                                          <Bot className="h-3.5 w-3.5" />
+                                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                                        </span>
+                                      )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent id={`presets-row-${def.id}-link-conv-tooltip`} side="top">
+                                  {t('items.linkToConv')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                        )}
                         <TableCell className="font-medium">
                           {def.name}
                           <div
@@ -5411,6 +5485,7 @@ function EditPresetDefinitionSheet({
 }) {
   const { toast } = useToast()
   const { t } = useTranslation()
+  useEscapeLayer(open, onClose, 1)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(definition.name)
   const [maxSlots, setMaxSlots] = useState(String(definition.max_slots))
@@ -5418,6 +5493,14 @@ function EditPresetDefinitionSheet({
     Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!open) return
+    setName(definition.name)
+    setMaxSlots(String(definition.max_slots))
+    setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
+    setErrors({})
+  }, [open, definition])
 
   function validate(): boolean {
     const e: Record<string, string> = {}
@@ -5461,11 +5544,21 @@ function EditPresetDefinitionSheet({
           <SheetTitle>{t('items.editPresetDefinition')}</SheetTitle>
           <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
         </SheetHeader>
-        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
+        <div className="space-y-4 py-2 pr-2.5 flex-1 overflow-y-auto">
           <div className="space-y-1">
             <Label htmlFor="epd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
             <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)} />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="epd-code-name">{t('items.codeName')}</Label>
+            <Input
+              id="epd-code-name"
+              value={definition.code_name ?? ""}
+              readOnly
+              className="font-mono opacity-70"
+            />
+            <p className="text-xs text-muted-foreground">{t('items.codeName')} is readonly.</p>
           </div>
           <div className="space-y-1">
             <Label>{t('items.presetType')}</Label>

@@ -3720,7 +3720,7 @@
     itemCodeConflictReviewBack: "æˆ»ã‚‹",
     presetCodeConflictTitle: "ãƒ—ãƒªã‚»ãƒƒãƒˆã‚³ãƒ¼ãƒ‰ãŒæ—¢ã«å­˜åœ¨ã—ã¾ã™",
     presetCodeConflictDesc: "ã‚³ãƒ¼ãƒ‰\"{code}\"ã®ãƒ—ãƒªã‚»ãƒƒãƒˆãŒæ—¢ã«å­˜åœ¨ã—ã¾ã™ã€‚ã©ã†ã—ã¾ã™ã‹ï¼Ÿ",
-    presetCodeConflictUpdate: "æ—¢å­˜ãƒ—ãƒªã‚»ãƒƒãƒˆã‚’æ›´æ–°",
+    presetCodeConflictUpdate: "æ—¢å­˜ãƒ—ãƒªã‚»ãƒƒãƒˆã‚’ç·¨é›†",
     presetCodeConflictSaveNew: "æ–°ã—ã„ãƒ—ãƒªã‚»ãƒƒãƒˆã¨ã—ã¦ä¿å­˜",
     presetCodeConflictNewCodeLabel: "æ–°ã—ã„ãƒ—ãƒªã‚»ãƒƒãƒˆã‚³ãƒ¼ãƒ‰",
     presetCodeConflictUpdating: "æ›´æ–°ä¸­...",

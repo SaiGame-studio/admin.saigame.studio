@@ -3795,7 +3795,7 @@ export const en = {
     itemCodeConflictReviewBack: "Back",
     presetCodeConflictTitle: "Preset Code Already Exists",
     presetCodeConflictDesc: "A preset with code \"{code}\" already exists. What would you like to do?",
-    presetCodeConflictUpdate: "Update Existing Preset",
+    presetCodeConflictUpdate: "Edit Existing Preset",
     presetCodeConflictSaveNew: "Save as New Preset",
     presetCodeConflictNewCodeLabel: "New Preset Code",
     presetCodeConflictUpdating: "Updating...",

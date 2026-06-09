@@ -269,7 +269,7 @@ export function LLMConversationPanel() {
   const [presetCodeConflictExisting, setPresetCodeConflictExisting] = useState<PresetDefinition | null>(null)
   const [presetCodeConflictPendingPreset, setPresetCodeConflictPendingPreset] = useState<Record<string, unknown> | null>(null)
   const [presetConflictTurnContext, setPresetConflictTurnContext] = useState<{ turnId: string; responseIdx: number; presetIdx: number } | null>(null)
-  const [isApplyingPresetConflict, setIsApplyingPresetConflict] = useState(false)
+  const isApplyingPresetConflict = false
 
   // Container name conflict dialog (shown when name already exists in backend)
   const [containerNameConflictOpen, setContainerNameConflictOpen] = useState(false)
@@ -301,6 +301,7 @@ export function LLMConversationPanel() {
   const [loreEntryTitles, setLoreEntryTitles] = useState<Record<string, string>>({})
   const [itemDefinitionNames, setItemDefinitionNames] = useState<Record<string, string>>({})
   const [containerDefinitionNames, setContainerDefinitionNames] = useState<Record<string, string>>({})
+  const [presetDefinitionNames, setPresetDefinitionNames] = useState<Record<string, string>>({})
   // Gacha pack saved IDs (keyed as "turnId:responseIdx:gachaPackIdx")
   const [savedGachaPackIds, setSavedGachaPackIds] = useState<Record<string, string>>({})
   const [gachaPackNames, setGachaPackNames] = useState<Record<string, string>>({})
@@ -683,6 +684,7 @@ export function LLMConversationPanel() {
       setQuestDefinitionNames({})
       setQuestDefinitionCodes({})
       setContainerDefinitionNames({})
+      setPresetDefinitionNames({})
       setGachaPackNames({})
       chatHistoryConvIdRef.current = null
       clearHistory()
@@ -729,6 +731,7 @@ export function LLMConversationPanel() {
     // Restore saved container definition IDs from localStorage
     const rawContainerLinks = safeGetItem(lsContainerLinks(activeConvId))
     setSavedContainerDefinitionIds(rawContainerLinks ? JSON.parse(rawContainerLinks) : {})
+    setPresetDefinitionNames({})
     // Restore saved gacha pack IDs from localStorage
     const rawGachaPackLinks = safeGetItem(lsGachaPackLinks(activeConvId))
     setSavedGachaPackIds(rawGachaPackLinks ? JSON.parse(rawGachaPackLinks) : {})
@@ -819,6 +822,8 @@ export function LLMConversationPanel() {
           setLoreEntryTitles(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'container_definition') {
           setContainerDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
+        } else if (detail.contentType === 'preset_definition') {
+          setPresetDefinitionNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'gacha_pack') {
           setGachaPackNames(prev => ({ ...prev, [detail.contentId!]: detail.contentName! }))
         } else if (detail.contentType === 'crafting_recipe') {
@@ -1125,10 +1130,11 @@ export function LLMConversationPanel() {
       const entityLinks = items.filter(l => l.content_type === 'entity_definition')
       const entityPoolLinks = items.filter(l => l.content_type === 'entity_pool')
       const containerLinks = items.filter(l => l.content_type === 'container_definition')
+      const presetLinks = items.filter(l => l.content_type === 'preset_definition')
       const gachaPackLinks = items.filter(l => l.content_type === 'gacha_pack')
       const craftingRecipeLinks = items.filter(l => l.content_type === 'crafting_recipe')
 
-      const [loreResults, itemResults, entityResults, entityPoolResults, containerResults, gachaPackResults, craftingRecipeResults] = await Promise.all([
+      const [loreResults, itemResults, entityResults, entityPoolResults, containerResults, presetResult, gachaPackResults, craftingRecipeResults] = await Promise.all([
         loreLinks.length > 0
           ? Promise.allSettled(loreLinks.map(l => getLoreEntry(gId, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ Title: string }>[]),
@@ -1144,6 +1150,9 @@ export function LLMConversationPanel() {
         containerLinks.length > 0
           ? Promise.allSettled(containerLinks.map(l => getContainerDefinition({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ container_definition: { name: string } }>[]),
+        presetLinks.length > 0
+          ? listPresetDefinitions({ gameId: gId })
+          : Promise.resolve({ definitions: [] as PresetDefinition[] }),
         gachaPackLinks.length > 0
           ? Promise.allSettled(gachaPackLinks.map(l => getGachaPack({ gameId: gId }, l.content_id)))
           : Promise.resolve([] as PromiseSettledResult<{ pack: { name: string } }>[]),
@@ -1194,6 +1203,14 @@ export function LLMConversationPanel() {
         if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
       })
 
+      const presetNames: Record<string, string> = {}
+      if (presetLinks.length > 0) {
+        presetLinks.forEach((l) => {
+          const found = presetResult.definitions?.find((d) => d.id === l.content_id)
+          if (found) presetNames[l.content_id] = found.name
+        })
+      }
+
       const gachaPackNameMap: Record<string, string> = {}
       gachaPackLinks.forEach((l, i) => {
         const result = gachaPackResults[i]
@@ -1214,6 +1231,7 @@ export function LLMConversationPanel() {
       if (Object.keys(entityPoolNameMap).length > 0) setEntityPoolNames(prev => ({ ...prev, ...entityPoolNameMap }))
       if (Object.keys(entityPoolKeyMap).length > 0) setEntityPoolKeys(prev => ({ ...prev, ...entityPoolKeyMap }))
       if (Object.keys(containerNames).length > 0) setContainerDefinitionNames(prev => ({ ...prev, ...containerNames }))
+      if (Object.keys(presetNames).length > 0) setPresetDefinitionNames(prev => ({ ...prev, ...presetNames }))
       if (Object.keys(gachaPackNameMap).length > 0) setGachaPackNames(prev => ({ ...prev, ...gachaPackNameMap }))
       if (Object.keys(craftingRecipeNameMap).length > 0) setCraftingRecipeNames(prev => ({ ...prev, ...craftingRecipeNameMap }))
       setLinkedContent(items)
@@ -1657,39 +1675,18 @@ export function LLMConversationPanel() {
     router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
-  async function handlePresetCodeConflictUpdate() {
-    if (!presetCodeConflictExisting || !gameId || !activeConvId) return
-    const preset = presetCodeConflictPendingPreset ?? {}
-    setIsApplyingPresetConflict(true)
-    try {
-      const patch: Record<string, unknown> = {}
-      if (typeof preset.name === 'string' && preset.name.trim()) patch.name = preset.name.trim()
-      if (typeof preset.max_slots === 'number') patch.max_slots = preset.max_slots
-      if (typeof preset.metadata === 'object' && preset.metadata !== null) patch.metadata = preset.metadata
-      if (Object.keys(patch).length > 0) {
-        await updatePresetDefinition({ gameId }, presetCodeConflictExisting.id, patch)
-      }
-      setPresetCodeConflictOpen(false)
-      // Update savedPresetDefinitionIds if we have turn context
-      if (presetConflictTurnContext) {
-        const { turnId, responseIdx, presetIdx } = presetConflictTurnContext
-        const presetKey = `${turnId}:${responseIdx}:${presetIdx}`
-        setSavedPresetDefinitionIds(prev => {
-          const updated = { ...prev, [presetKey]: presetCodeConflictExisting!.id }
-          safeSetItem(lsPresetLinks(activeConvId!), JSON.stringify(updated))
-          return updated
-        })
-        void linkConversationContent(gameId, activeConvId, 'preset_definition', presetCodeConflictExisting.id)
-          .then(() => void loadLinkedContent(gameId, activeConvId!))
-          .catch(() => { /* silently ignore */ })
-        setPresetConflictTurnContext(null)
-      }
-      router.push(`/games/${gameId}/items?tab=preset&q=${presetCodeConflictExisting.id}`)
-    } catch {
-      toast({ title: t('llmConversation.errorSavePresetDefinition'), variant: 'destructive' })
-    } finally {
-      setIsApplyingPresetConflict(false)
-    }
+  function handlePresetCodeConflictUpdate() {
+    if (!presetCodeConflictExisting || !gameId) return
+    const presetId = presetCodeConflictExisting.id
+    setPresetCodeConflictOpen(false)
+    setPresetCodeConflictPendingPreset(null)
+    setPresetConflictTurnContext(null)
+    const params = new URLSearchParams({
+      tab: 'preset',
+      id: presetId,
+      editPreset: presetId,
+    })
+    router.push(`/games/${gameId}/items?${params.toString()}`)
   }
 
   function handlePresetCodeConflictSaveNew(newCodeName: string) {
@@ -3157,6 +3154,7 @@ export function LLMConversationPanel() {
                 itemDefinitionNames={itemDefinitionNames}
                 entityDefinitionNames={entityDefinitionNames}
                 containerDefinitionNames={containerDefinitionNames}
+                presetDefinitionNames={presetDefinitionNames}
                 gachaPackNames={gachaPackNames}
                 entityPoolNames={entityPoolNames}
                 entityPoolKeys={entityPoolKeys}

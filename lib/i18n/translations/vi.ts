@@ -3735,7 +3735,7 @@
     itemCodeConflictReviewBack: "Quay láº¡i",
     presetCodeConflictTitle: "MÃ£ Preset ÄÃ£ Tá»“n Táº¡i",
     presetCodeConflictDesc: "Preset cÃ³ mÃ£ \"{code}\" Ä‘Ã£ tá»“n táº¡i. Báº¡n muá»‘n lÃ m gÃ¬?",
-    presetCodeConflictUpdate: "Cáº­p Nháº­t Preset Hiá»‡n CÃ³",
+    presetCodeConflictUpdate: "Chá»‰nh Sá»­a Preset Hiá»‡n CÃ³",
     presetCodeConflictSaveNew: "LÆ°u LÃ  Preset Má»›i",
     presetCodeConflictNewCodeLabel: "MÃ£ Preset Má»›i",
     presetCodeConflictUpdating: "Äang cáº­p nháº­t...",
