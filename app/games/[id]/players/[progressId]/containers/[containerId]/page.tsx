@@ -68,7 +68,10 @@ function GridView({ container, items, gameId, onRefresh, loading }: { container:
       {/* Info bar */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{container.definition?.name || "Container"}</span>
+          <span className="font-medium text-foreground">
+            {container.definition?.name || "Container"}
+            {container.definition?.code_name ? ` (${container.definition?.code_name})` : ""}
+          </span>
           <span>{cols} × {rows} grid</span>
           <span>{items.length} item{items.length !== 1 ? "s" : ""} placed</span>
           <span>{cols * rows - totalUsed} cells free</span>
@@ -426,7 +429,10 @@ export default function ContainerItemsPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem>
-                  <span>{container?.definition?.name || <span className="font-mono text-xs">{containerId.slice(0, 8)}…</span>}</span>
+                  <span>
+                    {container?.definition?.name || <span className="font-mono text-xs">{containerId.slice(0, 8)}…</span>}
+                    {container?.definition?.code_name ? ` (${container?.definition?.code_name})` : ""}
+                  </span>
                 </BreadcrumbItem>
               </>
             ) : (
@@ -448,6 +454,7 @@ export default function ContainerItemsPage({
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold truncate">
               {container?.definition?.name || "Container Items"}
+              {container?.definition?.code_name ? ` (${container?.definition?.code_name})` : ""}
             </h1>
             <p className="text-sm text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
               {containerId}

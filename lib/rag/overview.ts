@@ -31,7 +31,7 @@ A web-based admin platform for game studios to create and manage game content (i
 | Lore creation | lore_creating | LoreEntry records |
 | Lore analysis | lore_analyzing | Analysis / insights |
 | Lore update | lore_updating | Updated lore entries |
-| Container creation | container_creating | ItemContainerDefinition |
+| Container creation | container_creating | ItemContainerDefinition (requires code_name) |
 | Gacha pack creation | gacha_pack_creating | GachaPack definition |
 | Preset generation | preset_generation | PresetDefinition |
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useState, useRef, useCallback } from "react"
-import { toSlug, toSlugUnderscore } from "@/lib/utils"
+import { toSlug, toSlugUnderscore, toSafeCodeName } from "@/lib/utils"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, Search, RefreshCw, Package, Eye, Copy, Check, ExternalLink, Hammer, Trash2, Pencil, Dices, Save, X, ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown, Loader2, Wand2, ZoomIn, ZoomOut, Info, Tag, Lock, Archive, Zap, Shield, LayoutTemplate, AlertTriangle, Bot } from "lucide-react"
@@ -355,7 +355,7 @@ function CreateContainerDefinitionDialog({
   gameId: string
   allItems: ItemDefinition[]
   containerTypeOptions: ContainerTypeOption[]
-  initialValues?: { name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string }
+  initialValues?: { name?: string; code_name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string; linked_item_definition_name?: string; linked_item_definition_code?: string; metadata?: Record<string, unknown> }
   onCreated: (id: string) => void
   onClose: () => void
 }) {
@@ -364,11 +364,14 @@ function CreateContainerDefinitionDialog({
   useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState("")
+  const [codeName, setCodeName] = useState("")
   const [containerType, setContainerType] = useState<ContainerType>("chest")
   const [gridCols, setGridCols] = useState("9")
   const [gridRows, setGridRows] = useState("3")
   const [isPortable, setIsPortable] = useState(false)
   const [linkedItemId, setLinkedItemId] = useState("")
+  const [linkedItemNameFallback, setLinkedItemNameFallback] = useState("")
+  const [linkedItemCodeFallback, setLinkedItemCodeFallback] = useState("")
   const [linkedItemOpen, setLinkedItemOpen] = useState(false)
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
   const [meta, setMeta] = useState<KVEntry[]>([])
@@ -376,7 +379,11 @@ function CreateContainerDefinitionDialog({
 
   useEffect(() => {
     if (open && initialValues) {
+      setLinkedItemNameFallback("")
+      setLinkedItemCodeFallback("")
       if (initialValues.name) setName(initialValues.name)
+      if (initialValues.code_name) setCodeName(initialValues.code_name)
+      else if (initialValues.name) setCodeName(toSafeCodeName(initialValues.name))
       if (initialValues.container_type) setContainerType(initialValues.container_type as ContainerType)
       if (initialValues.grid_cols) setGridCols(String(initialValues.grid_cols))
       if (initialValues.grid_rows) setGridRows(String(initialValues.grid_rows))
@@ -391,16 +398,22 @@ function CreateContainerDefinitionDialog({
           if (match) setLinkedItemId(match.id)
         }
       }
+      if (initialValues.linked_item_definition_name) setLinkedItemNameFallback(initialValues.linked_item_definition_name)
+      if (initialValues.linked_item_definition_code) setLinkedItemCodeFallback(initialValues.linked_item_definition_code)
+      setMeta(Object.entries(initialValues.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
     }
   }, [open, initialValues, allItems])
 
   function resetForm() {
     setName("")
+    setCodeName("")
     setContainerType("chest")
     setGridCols("9")
     setGridRows("3")
     setIsPortable(false)
     setLinkedItemId("")
+    setLinkedItemNameFallback("")
+    setLinkedItemCodeFallback("")
     setMeta([])
     setErrors({})
   }
@@ -408,6 +421,8 @@ function CreateContainerDefinitionDialog({
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
+    if (!codeName.trim()) e.codeName = t('items.codeNameRequired')
+    else if (!/^[a-z][a-z0-9_]{0,63}$/.test(codeName.trim())) e.codeName = t('items.codeNameInvalid')
     const cols = Number(gridCols)
     const rows = Number(gridRows)
     if (!cols || cols < 1 || cols > 54) e.gridCols = t('items.colsMustBe')
@@ -415,6 +430,10 @@ function CreateContainerDefinitionDialog({
     setErrors(e)
     return Object.keys(e).length === 0
   }
+
+  const selectedLinkedItem = allItems.find((i) => i.id === linkedItemId)
+  const linkedItemDisplayName = selectedLinkedItem?.name ?? linkedItemNameFallback
+  const linkedItemDisplayCode = selectedLinkedItem?.item_code ?? linkedItemCodeFallback
 
   async function handleSubmit() {
     if (!validate()) return
@@ -424,6 +443,7 @@ function CreateContainerDefinitionDialog({
       meta.forEach(({ key, value }) => { if (key.trim()) metadata[key.trim()] = value })
       const body: CreateContainerDefinitionRequest = {
         name: name.trim(),
+        code_name: codeName.trim(),
         container_type: containerType,
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
@@ -456,10 +476,30 @@ function CreateContainerDefinitionDialog({
         <div className="space-y-4 py-2 flex-1 overflow-y-auto">
           <div className="space-y-1">
             <Label htmlFor="cd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="cd-name" placeholder="e.g. Standard Chest" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="cd-name"
+              placeholder="e.g. Standard Chest"
+              value={name}
+              onChange={(e) => {
+                const next = e.target.value
+                setName(next)
+                if (!codeName.trim()) setCodeName(toSafeCodeName(next))
+              }}
+            />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="cd-code-name">{t('items.codeName')} <span className="text-destructive">*</span></Label>
+          <Input
+            id="cd-code-name"
+            placeholder={t('items.codeNamePlaceholder')}
+            value={codeName}
+            onChange={(e) => setCodeName(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{t('items.codeNameHint')}</p>
+          {errors.codeName && <p className="text-xs text-destructive">{errors.codeName}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>{t('items.containerType')} <span className="text-destructive">*</span></Label>
               <Select value={containerType} onValueChange={(v) => setContainerType(v as ContainerType)}>
@@ -503,10 +543,10 @@ function CreateContainerDefinitionDialog({
                   >
                     {linkedItemId ? (
                       <span className="truncate">
-                        {allItems.find((i) => i.id === linkedItemId)?.name ?? linkedItemId.slice(0, 8) + "…"}
-                        {allItems.find((i) => i.id === linkedItemId)?.item_code && (
+                        {linkedItemDisplayName ?? linkedItemId.slice(0, 8) + "…"}
+                        {linkedItemDisplayCode && (
                           <span className="ml-1 text-xs text-muted-foreground font-mono">
-                            ({allItems.find((i) => i.id === linkedItemId)!.item_code})
+                            ({linkedItemDisplayCode})
                           </span>
                         )}
                       </span>
@@ -614,6 +654,7 @@ function EditContainerDefinitionDialog({
   useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(definition.name)
+  const [codeName, setCodeName] = useState(definition.code_name ?? "")
   const [gridCols, setGridCols] = useState(String(definition.grid_cols))
   const [gridRows, setGridRows] = useState(String(definition.grid_rows))
   const [linkedItemId, setLinkedItemId] = useState(definition.linked_item_definition_id ?? "")
@@ -627,6 +668,7 @@ function EditContainerDefinitionDialog({
 
   useEffect(() => {
     setName(definition.name)
+    setCodeName(definition.code_name ?? "")
     setGridCols(String(definition.grid_cols))
     setGridRows(String(definition.grid_rows))
     setLinkedItemId(definition.linked_item_definition_id ?? "")
@@ -639,6 +681,8 @@ function EditContainerDefinitionDialog({
   function validate(): boolean {
     const e: Record<string, string> = {}
     if (!name.trim() || name.trim().length < 2) e.name = t('items.nameMustBe2Chars')
+    if (!codeName.trim()) e.codeName = t('items.codeNameRequired')
+    else if (!/^[a-z][a-z0-9_]{0,63}$/.test(codeName.trim())) e.codeName = t('items.codeNameInvalid')
     const cols = Number(gridCols)
     const rows = Number(gridRows)
     if (!cols || cols < 1 || cols > 54) e.gridCols = t('items.colsMustBe')
@@ -656,6 +700,7 @@ function EditContainerDefinitionDialog({
       const origLinked = definition.linked_item_definition_id ?? ""
       const body: UpdateContainerDefinitionRequest = {
         name: name.trim(),
+        code_name: codeName.trim(),
         grid_cols: Number(gridCols),
         grid_rows: Number(gridRows),
         instanced_per_item: instancedPerItem,
@@ -695,8 +740,22 @@ function EditContainerDefinitionDialog({
           </div>
           <div className="space-y-1">
             <Label htmlFor="ed-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="ed-name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="ed-name"
+              value={name}
+              onChange={(e) => {
+                const next = e.target.value
+                setName(next)
+                if (!codeName.trim()) setCodeName(toSafeCodeName(next))
+              }}
+            />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ed-code-name">{t('items.codeName')} <span className="text-destructive">*</span></Label>
+            <Input id="ed-code-name" value={codeName} onChange={(e) => setCodeName(e.target.value)} />
+            <p className="text-xs text-muted-foreground">{t('items.codeNameHint')}</p>
+            {errors.codeName && <p className="text-xs text-destructive">{errors.codeName}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -1537,7 +1596,7 @@ export default function GameItemsPage() {
   const [containerError, setContainerError] = useState<string | null>(null)
   const [containerOffset, setContainerOffset] = useState(0)
   const [showCreateContainer, setShowCreateContainer] = useState(false)
-  const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{ name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string } | undefined>(undefined)
+  const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{ name?: string; code_name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string; linked_item_definition_name?: string; linked_item_definition_code?: string; metadata?: Record<string, unknown> } | undefined>(undefined)
   const [createContainerConvContext, setCreateContainerConvContext] = useState<{ turnId: string; responseIdx: number; containerIdx: number } | undefined>(undefined)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
@@ -1635,11 +1694,15 @@ export default function GameItemsPage() {
       const detail = (e as CustomEvent).detail ?? {}
       setCreateContainerInitialValues({
         name: detail.name,
+        code_name: detail.code_name ?? (typeof detail.name === 'string' ? toSafeCodeName(detail.name) : undefined),
         container_type: detail.container_type,
         grid_cols: detail.grid_cols,
         grid_rows: detail.grid_rows,
         is_portable: detail.is_portable,
         linked_item_definition_id: detail.linked_item_definition_id,
+        linked_item_definition_name: detail.linked_item_definition_name,
+        linked_item_definition_code: detail.linked_item_definition_code,
+        metadata: detail.metadata,
       })
       if (detail.turnId !== undefined) {
         setCreateContainerConvContext({ turnId: detail.turnId, responseIdx: detail.responseIdx, containerIdx: detail.containerIdx })
@@ -2159,10 +2222,11 @@ export default function GameItemsPage() {
     setLinkingContainerId(def.id)
     try {
       let convId: string | null = convActiveId
+      const containerLabel = def.code_name ? `${def.name} (${def.code_name})` : def.name
       if (!convId) {
         const newConv = await createConversation(gameId, {
-          title: `Container: ${def.name}`,
-          goal: t('items.linkToConvGoal').replace('{name}', def.name),
+          title: `Container: ${containerLabel}`,
+          goal: t('items.linkToConvGoal').replace('{name}', containerLabel),
         })
         convId = newConv.ID
       }
@@ -2170,8 +2234,8 @@ export default function GameItemsPage() {
       setConvActiveId(convId)
       await linkConversationContent(gameId, convId, 'container_definition', def.id)
       window.dispatchEvent(new CustomEvent('ss:conv-external-created', { detail: { convId, gameId } }))
-      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'container_definition', contentId: def.id, contentName: def.name } }))
-      toast({ title: t('items.linkToConvSuccess'), description: def.name })
+      window.dispatchEvent(new CustomEvent('ss:conv-content-linked', { detail: { convId, gameId, contentType: 'container_definition', contentId: def.id, contentName: containerLabel } }))
+      toast({ title: t('items.linkToConvSuccess'), description: containerLabel })
     } catch (err: unknown) {
       toast({
         variant: 'destructive',
@@ -2267,7 +2331,7 @@ export default function GameItemsPage() {
   const containerTotalPages = Math.ceil(containerTotal / CONTAINER_LIMIT)
   const containerCurrentPage = Math.floor(containerOffset / CONTAINER_LIMIT) + 1
 
-  // client-side filter by name or id
+  // client-side filter by name, code name, or id
   const filteredGachaPacks = gachaSearchDebounced
     ? gachaPacks.filter((p) => {
         const q = gachaSearchDebounced.toLowerCase()
@@ -2283,6 +2347,7 @@ export default function GameItemsPage() {
     ? containerDefs.filter(
         (d) =>
           d.name.toLowerCase().includes(containerSearchDebounced.toLowerCase()) ||
+          (d.code_name ?? "").toLowerCase().includes(containerSearchDebounced.toLowerCase()) ||
           d.id.toLowerCase().includes(containerSearchDebounced.toLowerCase()),
       )
     : containerDefs
@@ -2355,6 +2420,14 @@ export default function GameItemsPage() {
     if (field === 'name') {
       if (!editValue.trim()) { toast({ variant: "destructive", title: t('items.nameRequired') }); return }
       patch.name = editValue.trim()
+    }
+    if (field === 'code_name') {
+      if (!editValue.trim()) { toast({ variant: "destructive", title: t('items.codeNameRequired') }); return }
+      if (!/^[a-z][a-z0-9_]{0,63}$/.test(editValue.trim())) {
+        toast({ variant: "destructive", title: t('items.saveFailed'), description: t('items.codeNameInvalid') })
+        return
+      }
+      patch.code_name = editValue.trim()
     }
     if (field === 'linked_item_id') patch.linked_item_definition_id = editValue
     if (field === 'grid') {
@@ -3405,7 +3478,7 @@ export default function GameItemsPage() {
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder={t('items.searchByNameOrId')}
+                  placeholder={t('items.searchByNameOrCode')}
                   value={containerSearch}
                   onChange={(e) => setContainerSearch(e.target.value)}
                   className="pl-8 h-8 w-56 text-sm"
@@ -3459,6 +3532,7 @@ export default function GameItemsPage() {
                     <TableRow>
                       {convPanelOpen && <TableHead id="containers-table-header-link-conv" className="text-center w-10" />}
                       <TableHead>{t('items.name')}</TableHead>
+                      <TableHead>{t('items.codeName')}</TableHead>
                       <TableHead>{t('items.type')}</TableHead>
                       <TableHead>{t('items.grid')}</TableHead>
                       <TableHead>{t('items.portable')}</TableHead>
@@ -3519,6 +3593,16 @@ export default function GameItemsPage() {
                               </div>
                             </TableCell>
                             <TableCell>
+                              {def.code_name ? (
+                                <div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={def.code_name}>
+                                  <span className="truncate max-w-[180px]">{def.code_name}</span>
+                                  <CopyButton text={def.code_name} />
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <ContainerTypeBadge type={def.container_type} />
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
@@ -3568,7 +3652,7 @@ export default function GameItemsPage() {
 
                           {isExpanded && (
                             <TableRow className="bg-muted/30 hover:bg-muted/30">
-                              <TableCell colSpan={convPanelOpen ? 7 : 6} className="p-0">
+                              <TableCell colSpan={convPanelOpen ? 8 : 7} className="p-0">
                                 <div className="px-10 py-4 space-y-4 border-l-2 border-primary/20 bg-primary/5 group/expand">
                                   {isLoadingDetail ? (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -3613,6 +3697,42 @@ export default function GameItemsPage() {
                                                   variant="ghost"
                                                   className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity"
                                                   onClick={() => { setEditingField({ id: def.id, field: 'name' }); setEditValue(def.name) }}
+                                                >
+                                                  <Pencil className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{t('items.codeName')}</p>
+                                          <div className="flex items-center gap-1.5">
+                                            {editingField?.id === def.id && editingField?.field === 'code_name' ? (
+                                              <div className="flex items-center gap-1 min-w-0 flex-1">
+                                                <Input
+                                                  value={editValue}
+                                                  onChange={(e) => setEditValue(e.target.value)}
+                                                  className="h-7 text-xs flex-1 font-mono"
+                                                  autoFocus
+                                                />
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={handleSaveInlineEdit}>
+                                                  <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingField(null)}>
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center gap-1.5 group/edit min-w-0">
+                                                <span className={`text-sm font-mono truncate ${def.code_name ? "text-foreground" : "text-muted-foreground italic"}`}>
+                                                  {def.code_name ?? "—"}
+                                                </span>
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity"
+                                                  onClick={() => { setEditingField({ id: def.id, field: 'code_name' }); setEditValue(def.code_name ?? "") }}
                                                 >
                                                   <Pencil className="h-3 w-3" />
                                                 </Button>
@@ -4562,7 +4682,7 @@ export default function GameItemsPage() {
           loadGameInfo()
           if (createContainerConvContext) {
             const { turnId, responseIdx, containerIdx } = createContainerConvContext
-            window.dispatchEvent(new CustomEvent('ss:container-created', { detail: { containerId: id, containerName: createContainerInitialValues?.name, turnId, responseIdx, containerIdx } }))
+            window.dispatchEvent(new CustomEvent('ss:container-created', { detail: { containerId: id, containerName: createContainerInitialValues?.name, containerCodeName: createContainerInitialValues?.code_name, turnId, responseIdx, containerIdx } }))
           }
         }}
         onClose={() => { setShowCreateContainer(false); setCreateContainerInitialValues(undefined); setCreateContainerConvContext(undefined) }}

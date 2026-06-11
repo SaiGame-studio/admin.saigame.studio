@@ -113,6 +113,15 @@ import { listQuestDefinitions } from '@/lib/quest-api'
 import type { QuestDefinition } from '@/lib/quest-api'
 import { updateGame, getGame } from '@/lib/game-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
+import { toSafeCodeName } from '@/lib/utils'
+
+function formatContainerLabel(container?: Pick<ContainerDefinition, 'name' | 'code_name'> | null): string {
+  if (!container) return ''
+  const name = typeof container.name === 'string' ? container.name.trim() : ''
+  const codeName = typeof container.code_name === 'string' ? container.code_name.trim() : ''
+  if (name && codeName) return `${name} (${codeName})`
+  return name || codeName
+}
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -891,7 +900,7 @@ export function LLMConversationPanel() {
   // Catch successful container creation triggered from the panel, map turn context → container ID
   useEffect(() => {
     function handleContainerCreated(e: Event) {
-      const detail = (e as CustomEvent<{ containerId: string; containerName?: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
+      const detail = (e as CustomEvent<{ containerId: string; containerName?: string; containerCodeName?: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
       if (!activeConvId || !gameId) return
       const containerKey = `${detail.turnId}:${detail.responseIdx}:${detail.containerIdx}`
       setSavedContainerDefinitionIds(prev => {
@@ -904,8 +913,8 @@ export function LLMConversationPanel() {
         .then(() => void loadLinkedContent(gameId, activeConvId!))
         .catch(() => { /* silently ignore */ })
       // Cache the container name immediately if provided
-      if (detail.containerName) {
-        setContainerDefinitionNames(prev => ({ ...prev, [detail.containerId]: detail.containerName! }))
+      if (detail.containerName || detail.containerCodeName) {
+        setContainerDefinitionNames(prev => ({ ...prev, [detail.containerId]: formatContainerLabel({ name: detail.containerName ?? '', code_name: detail.containerCodeName ?? '' }) }))
       }
     }
     window.addEventListener('ss:container-created', handleContainerCreated)
@@ -1200,7 +1209,7 @@ export function LLMConversationPanel() {
       const containerNames: Record<string, string> = {}
       containerLinks.forEach((l, i) => {
         const result = containerResults[i]
-        if (result?.status === 'fulfilled') containerNames[l.content_id] = result.value.container_definition.name
+        if (result?.status === 'fulfilled') containerNames[l.content_id] = formatContainerLabel(result.value.container_definition)
       })
 
       const presetNames: Record<string, string> = {}
@@ -1716,15 +1725,19 @@ export function LLMConversationPanel() {
       return
     }
     const name = typeof resolvedContainer.name === 'string' ? resolvedContainer.name.trim() : ''
-    if (name) {
+    const codeNameRaw = typeof resolvedContainer.code_name === 'string' ? resolvedContainer.code_name.trim() : ''
+    const codeName = codeNameRaw && /^[a-z][a-z0-9_]{0,63}$/.test(codeNameRaw)
+      ? codeNameRaw
+      : (name ? toSafeCodeName(name) : codeNameRaw)
+    if (codeName) {
       try {
-        const res = await listContainerDefinitions({ gameId }, { q: name, limit: 1 })
+        const res = await listContainerDefinitions({ gameId }, { q: codeName, code_name: codeName, limit: 20 })
         const existing = (res.container_definitions ?? []).find(
-          d => d.name.trim() === name
+          d => d.code_name?.trim() === codeName || (!d.code_name && d.name.trim() === name)
         ) ?? null
         if (existing) {
           setContainerNameConflictExisting(existing)
-          setContainerNameConflictPending({ container: resolvedContainer, turnId, responseIdx, containerIdx })
+          setContainerNameConflictPending({ container: { ...resolvedContainer, code_name: codeName }, turnId, responseIdx, containerIdx })
           setContainerNameConflictOpen(true)
           return
         }
@@ -1732,7 +1745,7 @@ export function LLMConversationPanel() {
         // fall through to create
       }
     }
-    fireOpenCreateContainer(resolvedContainer, undefined, turnId, responseIdx, containerIdx)
+    fireOpenCreateContainer({ ...resolvedContainer, code_name: codeName }, undefined, turnId, responseIdx, containerIdx)
   }
 
   async function resolveContainerLinkedItemRef(container: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1756,25 +1769,35 @@ export function LLMConversationPanel() {
     return {
       ...container,
       linked_item_definition_id: item.id,
+      linked_item_definition_name: item.name,
+      linked_item_definition_code: item.item_code,
     }
   }
 
   function fireOpenCreateContainer(
     container: Record<string, unknown>,
-    overrideName?: string,
+    overrideCodeName?: string,
     turnId?: string,
     responseIdx?: number,
     containerIdx?: number,
   ) {
-    const name = overrideName ?? (typeof container.name === 'string' ? container.name : '')
+    const name = typeof container.name === 'string' ? container.name : ''
+    const baseCodeName = typeof container.code_name === 'string' ? container.code_name.trim() : ''
+    const codeName = (overrideCodeName ?? '').trim() || baseCodeName || (name ? toSafeCodeName(name) : '')
     window.dispatchEvent(new CustomEvent('ss:open-create-container', {
       detail: {
         name,
+        code_name: codeName,
         container_type: typeof container.container_type === 'string' ? container.container_type : undefined,
         grid_cols: typeof container.grid_cols === 'number' ? container.grid_cols : undefined,
         grid_rows: typeof container.grid_rows === 'number' ? container.grid_rows : undefined,
         is_portable: typeof container.is_portable === 'boolean' ? container.is_portable : undefined,
         linked_item_definition_id: typeof container.linked_item_definition_id === 'string' ? container.linked_item_definition_id : undefined,
+        linked_item_definition_name: typeof container.linked_item_definition_name === 'string' ? container.linked_item_definition_name : undefined,
+        linked_item_definition_code: typeof container.linked_item_definition_code === 'string' ? container.linked_item_definition_code : undefined,
+        metadata: container.metadata && typeof container.metadata === 'object' && !Array.isArray(container.metadata)
+          ? container.metadata
+          : undefined,
         turnId,
         responseIdx,
         containerIdx,
@@ -1789,6 +1812,7 @@ export function LLMConversationPanel() {
     try {
       const patch: Record<string, unknown> = {}
       if (typeof container.name === 'string' && container.name.trim()) patch.name = container.name.trim()
+      if (typeof container.code_name === 'string' && container.code_name.trim()) patch.code_name = container.code_name.trim()
       if (typeof container.grid_cols === 'number') patch.grid_cols = container.grid_cols
       if (typeof container.grid_rows === 'number') patch.grid_rows = container.grid_rows
       if (typeof container.linked_item_definition_id === 'string' && container.linked_item_definition_id)
@@ -1814,7 +1838,7 @@ export function LLMConversationPanel() {
     if (!containerNameConflictPending) return
     const { container, turnId, responseIdx, containerIdx } = containerNameConflictPending
     setContainerNameConflictOpen(false)
-    fireOpenCreateContainer(container, newName, turnId, responseIdx, containerIdx)
+    fireOpenCreateContainer({ ...container, code_name: newName }, newName, turnId, responseIdx, containerIdx)
   }
 
   // ---------------------------------------------------------------------------

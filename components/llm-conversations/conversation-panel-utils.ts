@@ -641,7 +641,7 @@ export function parseGeneratedContainersResponse(text: string): unknown[] {
   if (!trimmed) return []
 
   const looksLikeContainer = (obj: Record<string, unknown>) =>
-    typeof obj.name === 'string' && typeof obj.container_type === 'string' &&
+    typeof obj.name === 'string' && typeof obj.code_name === 'string' && typeof obj.container_type === 'string' &&
     (typeof obj.grid_cols === 'number' || typeof obj.grid_rows === 'number')
 
   const tryParse = (input: string): unknown[] | null => {
@@ -688,7 +688,7 @@ export function parseGeneratedContainersResponse(text: string): unknown[] {
 
 export function splitContainerResponseSegments(text: string): ResponseSegment[] {
   const looksLikeContainer = (obj: Record<string, unknown>) =>
-    typeof obj.name === 'string' && typeof obj.container_type === 'string' &&
+    typeof obj.name === 'string' && typeof obj.code_name === 'string' && typeof obj.container_type === 'string' &&
     (typeof obj.grid_cols === 'number' || typeof obj.grid_rows === 'number')
 
   const boundaries: Array<{ start: number; end: number; container: Record<string, unknown> }> = []

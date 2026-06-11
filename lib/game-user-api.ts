@@ -269,6 +269,7 @@ export interface PlayerContainerDefinition {
   id: string
   game_id: string
   name: string
+  code_name?: string
   container_type: string
   grid_cols: number
   grid_rows: number
