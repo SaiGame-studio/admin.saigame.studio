@@ -405,16 +405,51 @@ export interface SGemPackage {
   price_currency: string
   prices: Record<string, number>
   is_active: boolean
-  sort_order: number
-  metadata: Record<string, unknown>
   available_from: string | null
   available_until: string | null
+  sort_order: number
+  metadata: Record<string, unknown>
+  deleted_at: string | null
   created_at: string
   updated_at: string
 }
 
 export interface SPackagesResult {
   packages: SPackage[]
+}
+
+export interface SGemPackagesResult {
+  packages: SGemPackage[]
+}
+
+export interface CreateSGemPackageBody {
+  package_key: string
+  name: string
+  description: string
+  sgem_amount: number
+  price_amount: number
+  price_currency: string
+  prices?: Record<string, number>
+  is_active: boolean
+  available_from?: string | null
+  available_until?: string | null
+  sort_order: number
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateSGemPackageBody {
+  package_key?: string
+  name?: string
+  description?: string
+  sgem_amount?: number
+  price_amount?: number
+  price_currency?: string
+  prices?: Record<string, number>
+  is_active?: boolean
+  available_from?: string | null
+  available_until?: string | null
+  sort_order?: number
+  metadata?: Record<string, unknown>
 }
 
 export interface CreateSPackageBody {
@@ -462,6 +497,26 @@ export async function updateSPackage(id: string, body: UpdateSPackageBody): Prom
 
 export async function deleteSPackage(id: string): Promise<void> {
   return api.delete(`/api/v1/superadmin/payment/packages/${id}`)
+}
+
+export async function listSGemPackagesAdmin(): Promise<SGemPackagesResult> {
+  return api.get("/api/v1/superadmin/payment/sgem-packages")
+}
+
+export async function getSGemPackageAdmin(id: string): Promise<SGemPackage> {
+  return api.get(`/api/v1/superadmin/payment/sgem-packages/${id}`)
+}
+
+export async function createSGemPackage(body: CreateSGemPackageBody): Promise<SGemPackage> {
+  return api.post("/api/v1/superadmin/payment/sgem-packages", body)
+}
+
+export async function updateSGemPackage(id: string, body: UpdateSGemPackageBody): Promise<SGemPackage> {
+  return api.patch(`/api/v1/superadmin/payment/sgem-packages/${id}`, body)
+}
+
+export async function deleteSGemPackage(id: string): Promise<void> {
+  return api.delete(`/api/v1/superadmin/payment/sgem-packages/${id}`)
 }
 
 export async function getSGemPackage(id: string): Promise<SGemPackage> {

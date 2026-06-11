@@ -67,6 +67,10 @@ import {
   createSPackage,
   updateSPackage,
   deleteSPackage,
+  createSGemPackage,
+  updateSGemPackage,
+  deleteSGemPackage,
+  listSGemPackagesAdmin,
   listAdminTransactions,
   manuallyCreditTransaction,
   type AdminTransaction,
@@ -117,7 +121,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getUserTimezone } from "@/lib/utils/date-utils"
+import { formatISODate, fromUserDatetime, getUserTimezone, toUserDatetime } from "@/lib/utils/date-utils"
 
 const LIMIT = 20
 
@@ -647,6 +651,7 @@ function PaymentMethodsTab() {
   const [editTarget, setEditTarget] = useState<PaymentMethodConfig | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
   const [reordering, setReordering] = useState(false)
+  const canReorder = true
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1226,6 +1231,799 @@ function PackagesTab() {
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// sGem Package Form Sheet (Create / Edit)
+// ---------------------------------------------------------------------------
+interface SGemPackageSheetProps {
+  pkg: SGemPackage | null
+  open: boolean
+  onClose: () => void
+  onSaved: (pkg: SGemPackage) => void
+}
+
+function SGemPackageSheet({ pkg, open, onClose, onSaved }: SGemPackageSheetProps) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const isEdit = !!pkg
+
+  const [packageKey, setPackageKey] = useState("")
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [sgemAmount, setSgemAmount] = useState("")
+  const [priceAmount, setPriceAmount] = useState("")
+  const [priceCurrency, setPriceCurrency] = useState("USD")
+  const [pricesJson, setPricesJson] = useState("{}")
+  const [pricesError, setPricesError] = useState("")
+  const [isActive, setIsActive] = useState(true)
+  const [availableFrom, setAvailableFrom] = useState("")
+  const [availableUntil, setAvailableUntil] = useState("")
+  const [sortOrder, setSortOrder] = useState("0")
+  const [metadataJson, setMetadataJson] = useState("{}")
+  const [metadataError, setMetadataError] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  function isPositiveInteger(value: string) {
+    const parsed = Number.parseInt(value, 10)
+    return Number.isInteger(parsed) && parsed > 0
+  }
+
+  useEffect(() => {
+    if (!open) return
+    if (pkg) {
+      setPackageKey(pkg.package_key)
+      setName(pkg.name)
+      setDescription(pkg.description)
+      setSgemAmount(String(pkg.sgem_amount))
+      setPriceAmount(String(pkg.price_amount))
+      setPriceCurrency(pkg.price_currency || "USD")
+      setPricesJson(JSON.stringify(pkg.prices ?? {}, null, 2))
+      setPricesError("")
+      setIsActive(pkg.is_active)
+      setAvailableFrom(toUserDatetime(pkg.available_from))
+      setAvailableUntil(toUserDatetime(pkg.available_until))
+      setSortOrder(String(pkg.sort_order))
+      setMetadataJson(JSON.stringify(pkg.metadata ?? {}, null, 2))
+      setMetadataError("")
+    } else {
+      setPackageKey("")
+      setName("")
+      setDescription("")
+      setSgemAmount("")
+      setPriceAmount("")
+      setPriceCurrency("USD")
+      setPricesJson("{}")
+      setPricesError("")
+      setIsActive(true)
+      setAvailableFrom("")
+      setAvailableUntil("")
+      setSortOrder("0")
+      setMetadataJson("{}")
+      setMetadataError("")
+    }
+  }, [open, pkg])
+
+  function validateJson(value: string, mode: "prices" | "metadata") {
+    try {
+      const parsed = JSON.parse(value)
+      if (mode === "prices") {
+        if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+          setPricesError(t("adminSGemPackages.pricesInvalid"))
+          return false
+        }
+        for (const amount of Object.values(parsed as Record<string, unknown>)) {
+          const num = Number.parseInt(String(amount), 10)
+          if (!Number.isInteger(num) || num <= 0) {
+            setPricesError(t("adminSGemPackages.pricesInvalid"))
+            return false
+          }
+        }
+        setPricesError("")
+      } else {
+        if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+          setMetadataError(t("adminSGemPackages.metadataInvalid"))
+          return false
+        }
+        setMetadataError("")
+      }
+      return true
+    } catch {
+      if (mode === "prices") setPricesError(t("adminSGemPackages.pricesInvalid"))
+      else setMetadataError(t("adminSGemPackages.metadataInvalid"))
+      return false
+    }
+  }
+
+  async function handleSave() {
+    if (!name.trim() || (!isEdit && !packageKey.trim()) || !isPositiveInteger(sgemAmount) || !isPositiveInteger(priceAmount) || !priceCurrency.trim()) {
+      return
+    }
+
+    let parsedPrices: Record<string, number> = {}
+    let parsedMetadata: Record<string, unknown> = {}
+    try {
+      parsedPrices = JSON.parse(pricesJson)
+      parsedMetadata = JSON.parse(metadataJson)
+      if (parsedPrices == null || typeof parsedPrices !== "object" || Array.isArray(parsedPrices)) {
+        setPricesError(t("adminSGemPackages.pricesInvalid"))
+        return
+      }
+      if (parsedMetadata == null || typeof parsedMetadata !== "object" || Array.isArray(parsedMetadata)) {
+        setMetadataError(t("adminSGemPackages.metadataInvalid"))
+        return
+      }
+      for (const amount of Object.values(parsedPrices)) {
+        const num = Number.parseInt(String(amount), 10)
+        if (!Number.isInteger(num) || num <= 0) {
+          setPricesError(t("adminSGemPackages.pricesInvalid"))
+          return
+        }
+      }
+    } catch {
+      setPricesError(t("adminSGemPackages.pricesInvalid"))
+      setMetadataError(t("adminSGemPackages.metadataInvalid"))
+      return
+    }
+
+    setSaving(true)
+    try {
+      const body = {
+        ...(isEdit ? {} : { package_key: packageKey.trim() }),
+        name: name.trim(),
+        description: description.trim(),
+        sgem_amount: Number.parseInt(sgemAmount, 10) || 0,
+        price_amount: Number.parseInt(priceAmount, 10) || 0,
+        price_currency: priceCurrency.trim().toUpperCase(),
+        prices: parsedPrices,
+        is_active: isActive,
+        available_from: availableFrom ? fromUserDatetime(availableFrom) : null,
+        available_until: availableUntil ? fromUserDatetime(availableUntil) : null,
+        sort_order: Number.parseInt(sortOrder, 10) || 0,
+        metadata: parsedMetadata,
+      }
+      const saved = isEdit && pkg
+        ? await updateSGemPackage(pkg.id, body)
+        : await createSGemPackage(body as Parameters<typeof createSGemPackage>[0])
+      toast({ title: t("adminSGemPackages.saveSuccess") })
+      onSaved(saved)
+      onClose()
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminSGemPackages.saveFailed"), description: err?.data?.error ?? err?.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isFormValid = !!(
+    name.trim() &&
+    (isEdit || packageKey.trim()) &&
+    isPositiveInteger(sgemAmount) &&
+    isPositiveInteger(priceAmount) &&
+    priceCurrency.trim() &&
+    !pricesError &&
+    !metadataError
+  )
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>{isEdit ? t("adminSGemPackages.editTitle") : t("adminSGemPackages.createTitle")}</SheetTitle>
+          {isEdit && <SheetDescription className="font-mono text-xs">{pkg?.package_key}</SheetDescription>}
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-key">
+                {t("adminSGemPackages.fieldPackageKey")} <span className="text-destructive">{t("common.required")}</span>
+              </Label>
+              <Input
+                id="sgem-pkg-key"
+                value={packageKey}
+                onChange={(e) => setPackageKey(e.target.value)}
+                disabled={saving}
+                placeholder={t("adminSGemPackages.fieldPackageKeyHint")}
+                className="font-mono"
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sgem-pkg-name">
+              {t("adminSGemPackages.fieldName")} <span className="text-destructive">{t("common.required")}</span>
+            </Label>
+            <Input id="sgem-pkg-name" value={name} onChange={(e) => setName(e.target.value)} disabled={saving} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sgem-pkg-desc">{t("adminSGemPackages.fieldDescription")}</Label>
+            <Textarea
+              id="sgem-pkg-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={saving}
+              rows={2}
+              className="resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-sgem">
+                {t("adminSGemPackages.fieldSGemAmount")} <span className="text-destructive">{t("common.required")}</span>
+              </Label>
+              <Input id="sgem-pkg-sgem" type="number" min={1} value={sgemAmount} onChange={(e) => setSgemAmount(e.target.value)} disabled={saving} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-price">
+                {t("adminSGemPackages.fieldPriceAmount")} <span className="text-destructive">{t("common.required")}</span>
+              </Label>
+              <Input id="sgem-pkg-price" type="number" min={1} value={priceAmount} onChange={(e) => setPriceAmount(e.target.value)} disabled={saving} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-currency">
+                {t("adminSGemPackages.fieldPriceCurrency")} <span className="text-destructive">{t("common.required")}</span>
+              </Label>
+              <Input
+                id="sgem-pkg-currency"
+                value={priceCurrency}
+                onChange={(e) => setPriceCurrency(e.target.value.toUpperCase())}
+                disabled={saving}
+                placeholder="USD"
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-sort">{t("adminSGemPackages.fieldSortOrder")}</Label>
+              <Input id="sgem-pkg-sort" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} disabled={saving} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sgem-pkg-prices">{t("adminSGemPackages.fieldPrices")}</Label>
+            <Textarea
+              id="sgem-pkg-prices"
+              value={pricesJson}
+              onChange={(e) => {
+                setPricesJson(e.target.value)
+                validateJson(e.target.value, "prices")
+              }}
+              disabled={saving}
+              rows={4}
+              spellCheck={false}
+              className="font-mono text-xs resize-none"
+            />
+            {pricesError && <p className="text-xs text-destructive">{pricesError}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-available-from">{t("adminSGemPackages.fieldAvailableFrom")}</Label>
+              <Input
+                id="sgem-pkg-available-from"
+                type="datetime-local"
+                value={availableFrom}
+                onChange={(e) => setAvailableFrom(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sgem-pkg-available-until">{t("adminSGemPackages.fieldAvailableUntil")}</Label>
+              <Input
+                id="sgem-pkg-available-until"
+                type="datetime-local"
+                value={availableUntil}
+                onChange={(e) => setAvailableUntil(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-muted/40 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">{t("adminSGemPackages.fieldIsActive")}</p>
+                <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldIsActiveDesc")}</p>
+              </div>
+              <Switch checked={isActive} onCheckedChange={setIsActive} disabled={saving} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sgem-pkg-meta">{t("adminSGemPackages.fieldMetadata")}</Label>
+            <Textarea
+              id="sgem-pkg-meta"
+              value={metadataJson}
+              onChange={(e) => {
+                setMetadataJson(e.target.value)
+                validateJson(e.target.value, "metadata")
+              }}
+              disabled={saving}
+              rows={4}
+              spellCheck={false}
+              className="font-mono text-xs resize-none"
+            />
+            {metadataError && <p className="text-xs text-destructive">{metadataError}</p>}
+          </div>
+        </div>
+
+        <SheetFooter className="border-t px-6 py-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
+          <Button onClick={handleSave} disabled={saving || !isFormValid}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("common.save")}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// sGem Package Detail Sheet
+// ---------------------------------------------------------------------------
+interface SGemPackageDetailSheetProps {
+  pkg: SGemPackage | null
+  open: boolean
+  onClose: () => void
+}
+
+function SGemPackageDetailSheet({ pkg, open, onClose }: SGemPackageDetailSheetProps) {
+  const { t } = useTranslation()
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>{t("adminSGemPackages.viewTitle")}</SheetTitle>
+          <SheetDescription className="font-mono text-xs">{pkg?.package_key}</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {pkg ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldPackageKey")}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-sm break-all">{pkg.package_key}</p>
+                    <CopyButton text={pkg.package_key} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">ID</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-sm break-all">{pkg.id}</p>
+                    <CopyButton text={pkg.id} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldName")}</p>
+                  <p className="text-sm font-medium">{pkg.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldDescription")}</p>
+                  <p className="text-sm text-muted-foreground">{pkg.description || "—"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldSGemAmount")}</p>
+                  <p className="text-sm font-semibold">{pkg.sgem_amount.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldPriceAmount")}</p>
+                  <p className="text-sm font-semibold font-mono">{pkg.price_amount.toLocaleString()} {pkg.price_currency}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldAvailableFrom")}</p>
+                  <p className="text-sm">{formatISODate(pkg.available_from)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldAvailableUntil")}</p>
+                  <p className="text-sm">{formatISODate(pkg.available_until)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldSortOrder")}</p>
+                  <p className="text-sm">{pkg.sort_order}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("adminSGemPackages.fieldIsActive")}</p>
+                  <p className="text-sm">{pkg.is_active ? t("common.active") : t("common.inactive")}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t("adminSGemPackages.fieldPrices")}</p>
+                <Textarea readOnly value={JSON.stringify(pkg.prices ?? {}, null, 2)} rows={6} className="font-mono text-xs" />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t("adminSGemPackages.fieldMetadata")}</p>
+                <Textarea readOnly value={JSON.stringify(pkg.metadata ?? {}, null, 2)} rows={6} className="font-mono text-xs" />
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("adminSGemPackages.noPackages")}</p>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Sortable sGem Package Row
+// ---------------------------------------------------------------------------
+interface SortableSGemPackageRowProps {
+  pkg: SGemPackage
+  togglingId: string | null
+  canDrag: boolean
+  onToggle: (pkg: SGemPackage, nextChecked: boolean) => void
+  onEdit: (pkg: SGemPackage) => void
+  onView: (pkg: SGemPackage) => void
+  onDelete: (pkg: SGemPackage) => void
+}
+
+function SortableSGemPackageRow({ pkg, togglingId, canDrag, onToggle, onEdit, onView, onDelete }: SortableSGemPackageRowProps) {
+  const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pkg.id, disabled: !canDrag })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={!pkg.is_active ? "opacity-60" : ""}>
+      <TableCell className="w-12">
+        <button
+          type="button"
+          {...(canDrag ? attributes : {})}
+          {...(canDrag ? listeners : {})}
+          disabled={!canDrag}
+          className={`touch-none transition-colors ${canDrag ? "cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground" : "cursor-not-allowed text-muted-foreground/30"}`}
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      </TableCell>
+      <TableCell className="font-mono text-xs">{pkg.package_key}</TableCell>
+      <TableCell>
+        <div>
+          <p className="font-medium text-sm">{pkg.name}</p>
+          {pkg.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{pkg.description}</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-sm font-semibold">{pkg.sgem_amount.toLocaleString()}</TableCell>
+      <TableCell className="text-sm font-mono">{pkg.price_amount.toLocaleString()} {pkg.price_currency}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          {togglingId === pkg.id ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Switch
+              checked={pkg.is_active}
+              onCheckedChange={(checked) => onToggle(pkg, checked)}
+              aria-label={pkg.is_active ? t("common.active") : t("common.inactive")}
+            />
+          )}
+          <span className="text-xs text-muted-foreground">
+            {pkg.is_active ? t("common.active") : t("common.inactive")}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">{formatISODate(pkg.updated_at)}</TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView(pkg)}>
+            <Search className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(pkg)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => onDelete(pkg)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// sGem Packages tab
+// ---------------------------------------------------------------------------
+function SGemPackagesTab() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [packages, setPackages] = useState<SGemPackage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<SGemPackage | null>(null)
+  const [viewTarget, setViewTarget] = useState<SGemPackage | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SGemPackage | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  const canDrag = search.trim() === ""
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await listSGemPackagesAdmin()
+      setPackages(
+        (res.packages ?? [])
+          .filter((pkg) => !pkg.deleted_at)
+          .sort((a, b) => a.sort_order - b.sort_order)
+      )
+    } catch {
+      toast({ variant: "destructive", title: t("adminSGemPackages.loadFailed") })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast, t])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const filtered = packages.filter((pkg) => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      pkg.package_key.toLowerCase().includes(q) ||
+      pkg.name.toLowerCase().includes(q)
+    )
+  })
+
+  function openCreate() {
+    setEditTarget(null)
+    setSheetOpen(true)
+  }
+
+  function openEdit(pkg: SGemPackage) {
+    setEditTarget(pkg)
+    setSheetOpen(true)
+  }
+
+  function handleSaved(saved: SGemPackage) {
+    setPackages((prev) => {
+      const idx = prev.findIndex((p) => p.id === saved.id)
+      const next = idx >= 0 ? prev.map((item) => (item.id === saved.id ? saved : item)) : [...prev, saved]
+      return next
+        .filter((pkg) => !pkg.deleted_at)
+        .sort((a, b) => a.sort_order - b.sort_order)
+    })
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteSGemPackage(deleteTarget.id)
+      toast({ title: t("adminSGemPackages.deleteSuccess") })
+      setPackages((prev) => prev.filter((p) => p.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminSGemPackages.deleteFailed"), description: err?.data?.error ?? err?.message })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleToggle(pkg: SGemPackage) {
+    setTogglingId(pkg.id)
+    try {
+      const updated = await updateSGemPackage(pkg.id, { is_active: !pkg.is_active })
+      setPackages((prev) => prev.map((item) => item.id === updated.id ? updated : item))
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminSGemPackages.saveFailed"), description: err?.data?.error ?? err?.message })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    if (!canDrag) return
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = packages.findIndex((pkg) => pkg.id === active.id)
+    const newIndex = packages.findIndex((pkg) => pkg.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(packages, oldIndex, newIndex)
+    const updated = reordered.map((pkg, i) => ({ ...pkg, sort_order: i + 1 }))
+    setPackages(updated)
+
+    setReordering(true)
+    try {
+      const changed = updated.filter((pkg, i) => packages[i]?.id !== pkg.id || packages.find((o) => o.id === pkg.id)?.sort_order !== pkg.sort_order)
+      await Promise.all(
+        changed.map((pkg) => updateSGemPackage(pkg.id, { sort_order: pkg.sort_order }))
+      )
+      toast({ title: t("adminSGemPackages.sortOrderUpdated") })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminSGemPackages.sortOrderFailed"), description: err?.data?.error ?? err?.message })
+      load()
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {t("adminSGemPackages.totalPackages").replace("{n}", String(filtered.length))}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("adminSGemPackages.searchPlaceholder")}
+              className="pl-8 w-[280px]"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            {t("adminSGemPackages.refresh")}
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("adminSGemPackages.btnCreate")}
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {reordering && (
+            <p className="px-4 pt-3 text-xs text-muted-foreground">
+              <Loader2 className="mr-2 inline h-3 w-3 animate-spin" />
+              {t("adminSGemPackages.sortOrderUpdating")}
+            </p>
+          )}
+          {loading ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12" />
+                  <TableHead>{t("adminSGemPackages.colPackageKey")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colName")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colSGem")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colPrice")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colStatus")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colUpdatedAt")}</TableHead>
+                  <TableHead className="text-right">{t("adminSGemPackages.colActions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : filtered.length === 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12" />
+                  <TableHead>{t("adminSGemPackages.colPackageKey")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colName")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colSGem")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colPrice")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colStatus")}</TableHead>
+                  <TableHead>{t("adminSGemPackages.colUpdatedAt")}</TableHead>
+                  <TableHead className="text-right">{t("adminSGemPackages.colActions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                    {t("adminSGemPackages.noPackages")}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12" />
+                    <TableHead>{t("adminSGemPackages.colPackageKey")}</TableHead>
+                    <TableHead>{t("adminSGemPackages.colName")}</TableHead>
+                    <TableHead>{t("adminSGemPackages.colSGem")}</TableHead>
+                    <TableHead>{t("adminSGemPackages.colPrice")}</TableHead>
+                    <TableHead>{t("adminSGemPackages.colStatus")}</TableHead>
+                    <TableHead>{t("adminSGemPackages.colUpdatedAt")}</TableHead>
+                    <TableHead className="text-right">{t("adminSGemPackages.colActions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <SortableContext items={filtered.map((pkg) => pkg.id)} strategy={verticalListSortingStrategy}>
+                    {filtered.map((pkg) => (
+                      <SortableSGemPackageRow
+                        key={pkg.id}
+                        pkg={pkg}
+                        togglingId={togglingId}
+                        canDrag={canDrag}
+                        onToggle={handleToggle}
+                        onEdit={openEdit}
+                        onView={setViewTarget}
+                        onDelete={setDeleteTarget}
+                      />
+                    ))}
+                  </SortableContext>
+                </TableBody>
+              </Table>
+            </DndContext>
+          )}
+        </CardContent>
+      </Card>
+
+      <SGemPackageSheet
+        pkg={editTarget}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={handleSaved}
+      />
+
+      <SGemPackageDetailSheet
+        pkg={viewTarget}
+        open={!!viewTarget}
+        onClose={() => setViewTarget(null)}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("adminSGemPackages.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("adminSGemPackages.deleteDesc").replace("{key}", deleteTarget?.package_key ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2334,7 +3132,7 @@ export default function GiftCodesPage() {
   const capabilities = useCapabilities()
   const { t } = useTranslation()
 
-  const VALID_TABS = ["payments", "packages", "token-packages", "gift-codes", "topup", "transactions"] as const
+  const VALID_TABS = ["payments", "packages", "sgem-packages", "token-packages", "gift-codes", "topup", "transactions"] as const
   type TabValue = typeof VALID_TABS[number]
   const rawTab = searchParams.get("tab")
   const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments"
@@ -2381,6 +3179,10 @@ export default function GiftCodesPage() {
               <Package className="h-4 w-4" />
               {t('adminPackages.tab')}
             </TabsTrigger>
+            <TabsTrigger value="sgem-packages" className="gap-2">
+              <BadgeDollarSign className="h-4 w-4" />
+              {t('adminSGemPackages.tab')}
+            </TabsTrigger>
             <TabsTrigger value="token-packages" className="gap-2">
               <Package className="h-4 w-4" />
               {t('adminTokenPackages.tab')}
@@ -2403,6 +3205,9 @@ export default function GiftCodesPage() {
           </TabsContent>
           <TabsContent value="packages" className="mt-4">
             <PackagesTab />
+          </TabsContent>
+          <TabsContent value="sgem-packages" className="mt-4">
+            <SGemPackagesTab />
           </TabsContent>
           <TabsContent value="token-packages" className="mt-4">
             <TokenPackagesTab />
