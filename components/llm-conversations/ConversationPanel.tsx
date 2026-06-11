@@ -104,7 +104,7 @@ import type { LoreEntry } from '@/types/lore'
 import { CreateItemDefinitionDialog, type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog'
 import { listEntityDefinitions, getEntityDefinition, getEntityPool, listEntityPools, createEntityPool, createEntityPoolEntry, deleteEntityPoolEntry, updateEntityDefinition, updateEntityPool } from '@/lib/entity-definition-api'
 import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
-import { listItemDefinitions, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, updateContainerDefinition, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
+import { listItemDefinitions, getItemDefinition, createItemTag, deleteItemTag, listPresetDefinitions, updatePresetDefinition, listContainerDefinitions, getContainerDefinition, listGachaPacks, getGachaPack, listEquipmentSlots } from '@/lib/inventory-api'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { getCraftingRecipe, getCraftingRecipeByKey } from '@/lib/crafting-api'
@@ -284,7 +284,6 @@ export function LLMConversationPanel() {
   const [containerNameConflictOpen, setContainerNameConflictOpen] = useState(false)
   const [containerNameConflictExisting, setContainerNameConflictExisting] = useState<ContainerDefinition | null>(null)
   const [containerNameConflictPending, setContainerNameConflictPending] = useState<{ container: Record<string, unknown>; turnId: string; responseIdx: number; containerIdx: number } | null>(null)
-  const [isApplyingContainerConflict, setIsApplyingContainerConflict] = useState(false)
 
   // Tracks the last completed item_generation response parsed as array
   const [convGeneratedItems, setConvGeneratedItems] = useState<unknown[]>([])
@@ -919,6 +918,28 @@ export function LLMConversationPanel() {
     }
     window.addEventListener('ss:container-created', handleContainerCreated)
     return () => window.removeEventListener('ss:container-created', handleContainerCreated)
+  }, [activeConvId, gameId])
+
+  // Catch successful container updates triggered from the items panel, map turn context â†’ container ID
+  useEffect(() => {
+    function handleContainerUpdated(e: Event) {
+      const detail = (e as CustomEvent<{ containerId: string; containerName?: string; containerCodeName?: string; turnId: string; responseIdx: number; containerIdx: number }>).detail
+      if (!activeConvId || !gameId) return
+      const containerKey = `${detail.turnId}:${detail.responseIdx}:${detail.containerIdx}`
+      setSavedContainerDefinitionIds(prev => {
+        const updated = { ...prev, [containerKey]: detail.containerId }
+        safeSetItem(lsContainerLinks(activeConvId!), JSON.stringify(updated))
+        return updated
+      })
+      void linkConversationContent(gameId, activeConvId, 'container_definition', detail.containerId)
+        .then(() => void loadLinkedContent(gameId, activeConvId!))
+        .catch(() => { /* silently ignore */ })
+      if (detail.containerName || detail.containerCodeName) {
+        setContainerDefinitionNames(prev => ({ ...prev, [detail.containerId]: formatContainerLabel({ name: detail.containerName ?? '', code_name: detail.containerCodeName ?? '' }) }))
+      }
+    }
+    window.addEventListener('ss:container-updated', handleContainerUpdated)
+    return () => window.removeEventListener('ss:container-updated', handleContainerUpdated)
   }, [activeConvId, gameId])
 
   // Catch successful preset creation triggered from the panel, map turn context → preset ID
@@ -1731,7 +1752,7 @@ export function LLMConversationPanel() {
       : (name ? toSafeCodeName(name) : codeNameRaw)
     if (codeName) {
       try {
-        const res = await listContainerDefinitions({ gameId }, { q: codeName, code_name: codeName, limit: 20 })
+        const res = await listContainerDefinitions({ gameId }, { code_name: codeName, limit: 20 })
         const existing = (res.container_definitions ?? []).find(
           d => d.code_name?.trim() === codeName || (!d.code_name && d.name.trim() === name)
         ) ?? null
@@ -1805,33 +1826,38 @@ export function LLMConversationPanel() {
     }))
   }
 
-  async function handleContainerNameConflictUpdate() {
-    if (!containerNameConflictExisting || !gameId || !activeConvId || !containerNameConflictPending) return
-    const { container, turnId, responseIdx, containerIdx } = containerNameConflictPending
-    setIsApplyingContainerConflict(true)
-    try {
-      const patch: Record<string, unknown> = {}
-      if (typeof container.name === 'string' && container.name.trim()) patch.name = container.name.trim()
-      if (typeof container.code_name === 'string' && container.code_name.trim()) patch.code_name = container.code_name.trim()
-      if (typeof container.grid_cols === 'number') patch.grid_cols = container.grid_cols
-      if (typeof container.grid_rows === 'number') patch.grid_rows = container.grid_rows
-      if (typeof container.linked_item_definition_id === 'string' && container.linked_item_definition_id)
-        patch.linked_item_definition_id = container.linked_item_definition_id
-      if (container.metadata && typeof container.metadata === 'object' && !Array.isArray(container.metadata))
-        patch.metadata = container.metadata
-      if (Object.keys(patch).length > 0)
-        await updateContainerDefinition({ gameId }, containerNameConflictExisting.id, patch as any)
-      const containerKey = `${turnId}:${responseIdx}:${containerIdx}`
-      const updated = { ...savedContainerDefinitionIds, [containerKey]: containerNameConflictExisting.id }
-      setSavedContainerDefinitionIds(updated)
-      safeSetItem(lsContainerLinks(activeConvId), JSON.stringify(updated))
-      setContainerNameConflictOpen(false)
-      toast({ title: t('llmConversation.containerDefSaved') })
-    } catch {
-      toast({ title: t('llmConversation.errorSaveContainerDefinition'), variant: 'destructive' })
-    } finally {
-      setIsApplyingContainerConflict(false)
+  function handleContainerNameConflictUpdate() {
+    if (!containerNameConflictExisting) return
+    const containerId = containerNameConflictExisting.id
+    const itemsPath = `/games/${gameId}/items`
+    const pendingKey = `ss_pending_container_edit_${gameId}`
+    const pendingDraft = containerNameConflictPending?.container
+    setContainerNameConflictOpen(false)
+    setContainerNameConflictExisting(null)
+    setContainerNameConflictPending(null)
+    if (pathname === itemsPath) {
+      safeRemoveItem(pendingKey)
+      window.dispatchEvent(new CustomEvent('ss:open-edit-container', {
+        detail: {
+          containerId,
+          definition: containerNameConflictExisting,
+          container: pendingDraft,
+          turnId: containerNameConflictPending?.turnId,
+          responseIdx: containerNameConflictPending?.responseIdx,
+          containerIdx: containerNameConflictPending?.containerIdx,
+        },
+      }))
+      return
     }
+    if (pendingDraft) {
+      safeSetItem(pendingKey, JSON.stringify(pendingDraft))
+    } else {
+      safeRemoveItem(pendingKey)
+    }
+    const next = new URLSearchParams()
+    next.set('tab', 'containers')
+    next.set('editContainer', containerId)
+    router.push(`${itemsPath}?${next.toString()}`)
   }
 
   function handleContainerNameConflictCreateNew(newName: string) {
@@ -2988,15 +3014,17 @@ export function LLMConversationPanel() {
 
   function handleItemCodeConflictEditApplied(itemId: string) {
     setItemCodeConflictEditOpen(false)
-    if (!activeConvId) return
+    if (!activeConvId || !gameId) return
+    const convId = activeConvId as string
+    const gId = gameId as string
     if (itemCodeConflictTurnId !== null) {
       const itemKey = `${itemCodeConflictTurnId}:${itemCodeConflictResponseIdx}:${itemCodeConflictItemIdx}`
       const updated = { ...savedItemDefinitionIds, [itemKey]: itemId }
       setSavedItemDefinitionIds(updated)
-      safeSetItem(lsItemLinks(activeConvId), JSON.stringify(updated))
+      safeSetItem(lsItemLinks(convId), JSON.stringify(updated))
     }
-    linkConversationContent(gameId, activeConvId, 'item_definition', itemId)
-      .then(() => loadLinkedContent(gameId, activeConvId))
+    linkConversationContent(gId, convId, 'item_definition', itemId)
+      .then(() => loadLinkedContent(gId, convId))
       .catch(() => {/* silent — linking is best-effort */})
   }
 
@@ -3468,7 +3496,6 @@ export function LLMConversationPanel() {
         containerNameConflictOpen={containerNameConflictOpen}
         setContainerNameConflictOpen={setContainerNameConflictOpen}
         containerNameConflictExisting={containerNameConflictExisting}
-        isApplyingContainerConflict={isApplyingContainerConflict}
         onContainerNameConflictUpdate={handleContainerNameConflictUpdate}
         onContainerNameConflictCreateNew={handleContainerNameConflictCreateNew}
         gachaPackCodeConflictOpen={gachaPackCodeConflictOpen}

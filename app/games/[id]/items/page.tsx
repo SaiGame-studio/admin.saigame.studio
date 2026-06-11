@@ -342,6 +342,41 @@ function ContainerTypeBadge({ type }: { type: ContainerType }) {
   )
 }
 
+type ContainerDraftValues = {
+  name?: string
+  code_name?: string
+  container_type?: string
+  grid_cols?: number
+  grid_rows?: number
+  is_portable?: boolean
+  instanced_per_item?: boolean
+  linked_item_definition_id?: string
+  linked_item_definition_name?: string
+  linked_item_definition_code?: string
+  metadata?: Record<string, unknown>
+}
+
+function normalizeContainerDraftValues(draft: Record<string, unknown> | null | undefined): ContainerDraftValues | undefined {
+  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) return undefined
+  const record = draft as Record<string, unknown>
+  const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+    ? record.metadata as Record<string, unknown>
+    : undefined
+  return {
+    name: typeof record.name === 'string' ? record.name : undefined,
+    code_name: typeof record.code_name === 'string' ? record.code_name : undefined,
+    container_type: typeof record.container_type === 'string' ? record.container_type : undefined,
+    grid_cols: typeof record.grid_cols === 'number' ? record.grid_cols : undefined,
+    grid_rows: typeof record.grid_rows === 'number' ? record.grid_rows : undefined,
+    is_portable: typeof record.is_portable === 'boolean' ? record.is_portable : undefined,
+    instanced_per_item: typeof record.instanced_per_item === 'boolean' ? record.instanced_per_item : undefined,
+    linked_item_definition_id: typeof record.linked_item_definition_id === 'string' ? record.linked_item_definition_id : undefined,
+    linked_item_definition_name: typeof record.linked_item_definition_name === 'string' ? record.linked_item_definition_name : undefined,
+    linked_item_definition_code: typeof record.linked_item_definition_code === 'string' ? record.linked_item_definition_code : undefined,
+    metadata,
+  }
+}
+
 function CreateContainerDefinitionDialog({
   open,
   gameId,
@@ -638,6 +673,7 @@ function EditContainerDefinitionDialog({
   open,
   gameId,
   definition,
+  initialValues,
   allItems,
   onUpdated,
   onClose,
@@ -645,38 +681,39 @@ function EditContainerDefinitionDialog({
   open: boolean
   gameId: string
   definition: ContainerDefinition
+  initialValues?: ContainerDraftValues
   allItems: ItemDefinition[]
-  onUpdated: () => void
+  onUpdated: (updated: ContainerDefinition) => void
   onClose: () => void
 }) {
   const { toast } = useToast()
   const { t } = useTranslation()
   useEscapeLayer(open, onClose)
   const [loading, setLoading] = useState(false)
-  const [name, setName] = useState(definition.name)
-  const [codeName, setCodeName] = useState(definition.code_name ?? "")
-  const [gridCols, setGridCols] = useState(String(definition.grid_cols))
-  const [gridRows, setGridRows] = useState(String(definition.grid_rows))
-  const [linkedItemId, setLinkedItemId] = useState(definition.linked_item_definition_id ?? "")
+  const [name, setName] = useState(initialValues?.name ?? definition.name)
+  const [codeName, setCodeName] = useState(initialValues?.code_name ?? definition.code_name ?? "")
+  const [gridCols, setGridCols] = useState(String(initialValues?.grid_cols ?? definition.grid_cols))
+  const [gridRows, setGridRows] = useState(String(initialValues?.grid_rows ?? definition.grid_rows))
+  const [linkedItemId, setLinkedItemId] = useState(initialValues?.linked_item_definition_id ?? definition.linked_item_definition_id ?? "")
   const [linkedItemOpen, setLinkedItemOpen] = useState(false)
   const [linkedItemSearch, setLinkedItemSearch] = useState("")
-  const [instancedPerItem, setInstancedPerItem] = useState(definition.instanced_per_item ?? false)
+  const [instancedPerItem, setInstancedPerItem] = useState(initialValues?.instanced_per_item ?? initialValues?.is_portable ?? definition.instanced_per_item ?? false)
   const [meta, setMeta] = useState<KVEntry[]>(
-    Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
+    Object.entries(initialValues?.metadata ?? definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) }))
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    setName(definition.name)
-    setCodeName(definition.code_name ?? "")
-    setGridCols(String(definition.grid_cols))
-    setGridRows(String(definition.grid_rows))
-    setLinkedItemId(definition.linked_item_definition_id ?? "")
+    setName(initialValues?.name ?? definition.name)
+    setCodeName(initialValues?.code_name ?? definition.code_name ?? "")
+    setGridCols(String(initialValues?.grid_cols ?? definition.grid_cols))
+    setGridRows(String(initialValues?.grid_rows ?? definition.grid_rows))
+    setLinkedItemId(initialValues?.linked_item_definition_id ?? definition.linked_item_definition_id ?? "")
     setLinkedItemSearch("")
-    setInstancedPerItem(definition.instanced_per_item ?? false)
-    setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
+    setInstancedPerItem(initialValues?.instanced_per_item ?? initialValues?.is_portable ?? definition.instanced_per_item ?? false)
+    setMeta(Object.entries(initialValues?.metadata ?? definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })))
     setErrors({})
-  }, [definition])
+  }, [definition, initialValues])
 
   function validate(): boolean {
     const e: Record<string, string> = {}
@@ -711,9 +748,9 @@ function EditContainerDefinitionDialog({
         // "" means unlink, UUID means set new link
         body.linked_item_definition_id = linkedItemId
       }
-      await updateContainerDefinition({ gameId }, definition.id, body)
+      const { container_definition: updated } = await updateContainerDefinition({ gameId }, definition.id, body)
       toast({ title: t('items.containerUpdated') })
-      onUpdated()
+      onUpdated(updated)
       onClose()
     } catch (err: any) {
       if (err?.status === 409) {
@@ -753,7 +790,7 @@ function EditContainerDefinitionDialog({
           </div>
           <div className="space-y-1">
             <Label htmlFor="ed-code-name">{t('items.codeName')} <span className="text-destructive">*</span></Label>
-            <Input id="ed-code-name" value={codeName} onChange={(e) => setCodeName(e.target.value)} />
+            <Input id="ed-code-name" value={codeName} readOnly />
             <p className="text-xs text-muted-foreground">{t('items.codeNameHint')}</p>
             {errors.codeName && <p className="text-xs text-destructive">{errors.codeName}</p>}
           </div>
@@ -1598,6 +1635,9 @@ export default function GameItemsPage() {
   const [showCreateContainer, setShowCreateContainer] = useState(false)
   const [createContainerInitialValues, setCreateContainerInitialValues] = useState<{ name?: string; code_name?: string; container_type?: string; grid_cols?: number; grid_rows?: number; is_portable?: boolean; linked_item_definition_id?: string; linked_item_definition_name?: string; linked_item_definition_code?: string; metadata?: Record<string, unknown> } | undefined>(undefined)
   const [createContainerConvContext, setCreateContainerConvContext] = useState<{ turnId: string; responseIdx: number; containerIdx: number } | undefined>(undefined)
+  const [editingContainer, setEditingContainer] = useState<ContainerDefinition | null>(null)
+  const [editingContainerDraft, setEditingContainerDraft] = useState<ContainerDraftValues | undefined>(undefined)
+  const [editingContainerConvContext, setEditingContainerConvContext] = useState<{ turnId: string; responseIdx: number; containerIdx: number } | undefined>(undefined)
   const [deletingContainer, setDeletingContainer] = useState<ContainerDefinition | null>(null)
   const [deleteContainerLoading, setDeleteContainerLoading] = useState(false)
   const [containerSearch, setContainerSearch] = useState("")
@@ -1714,6 +1754,40 @@ export default function GameItemsPage() {
     }
     window.addEventListener('ss:open-create-container', handleOpenCreateContainer)
 
+    async function handleOpenEditContainer(e: Event) {
+      const detail = (e as CustomEvent).detail ?? {}
+      const containerId = typeof detail.containerId === 'string' ? detail.containerId : ''
+      const providedDefinition = detail.definition && typeof detail.definition === 'object'
+        ? detail.definition as ContainerDefinition
+        : null
+      const providedDraft = normalizeContainerDraftValues(detail.container ?? detail.initialValues ?? null)
+      const context =
+        detail.turnId !== undefined
+          ? { turnId: detail.turnId, responseIdx: detail.responseIdx, containerIdx: detail.containerIdx }
+          : undefined
+      setActiveTab('containers')
+      setShowCreateContainer(false)
+      setEditingContainerConvContext(context)
+      setEditingContainerDraft(providedDraft)
+      setEditingContainer(null)
+      const matched = providedDefinition ?? containerDefs.find((def) => def.id === containerId) ?? null
+      if (matched) {
+        setEditingContainer(matched)
+        return
+      }
+      if (!containerId) {
+        toast({ title: t('items.failedToLoadContainerDefinition'), variant: 'destructive' })
+        return
+      }
+      try {
+        const res = await getContainerDefinition({ gameId }, containerId)
+        setEditingContainer(res.container_definition)
+      } catch {
+        toast({ title: t('items.failedToLoadContainerDefinition'), variant: 'destructive' })
+      }
+    }
+    window.addEventListener('ss:open-edit-container', handleOpenEditContainer)
+
     async function handleOpenCreateGachaPack(e: Event) {
       const detail = (e as CustomEvent).detail ?? {}
       const rawPool = Array.isArray(detail.item_pool) && detail.item_pool.length > 0
@@ -1828,10 +1902,11 @@ export default function GameItemsPage() {
       window.removeEventListener('storage', handler)
       window.removeEventListener('ss:conv-state-changed', handler)
       window.removeEventListener('ss:open-create-container', handleOpenCreateContainer)
+      window.removeEventListener('ss:open-edit-container', handleOpenEditContainer)
       window.removeEventListener('ss:open-create-gacha-pack', handleOpenCreateGachaPack)
       window.removeEventListener('ss:open-edit-gacha-pack', handleOpenEditGachaPack)
     }
-  }, [gameId])
+  }, [gameId, containerDefs, toast, t])
 
   // initialize tab from URL params
   useEffect(() => {
@@ -1852,6 +1927,46 @@ export default function GameItemsPage() {
     // initialize container search from URL `id` param
     const containerId = searchParams.get("id")
     if (containerId && tab === "containers") setContainerSearch(containerId)
+    if (tab === "containers" && searchParams.get("editContainer")) {
+      const editContainerId = searchParams.get("editContainer")
+      if (editContainerId) {
+        const pendingKey = `ss_pending_container_edit_${gameId}`
+        const pendingRaw = safeGetItem(pendingKey)
+        let pendingDraft: ContainerDraftValues | undefined
+        if (pendingRaw) {
+          try {
+            pendingDraft = normalizeContainerDraftValues(JSON.parse(pendingRaw))
+          } catch {
+            pendingDraft = undefined
+          } finally {
+            safeRemoveItem(pendingKey)
+          }
+        }
+        const target = containerDefs.find((def) => def.id === editContainerId)
+        if (target) {
+          setEditingContainerDraft(pendingDraft)
+          setEditingContainer(target)
+          const newParams = new URLSearchParams(searchParams.toString())
+          newParams.delete("editContainer")
+          const nextQuery = newParams.toString()
+          router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+        } else {
+          void (async () => {
+            try {
+              const res = await getContainerDefinition({ gameId }, editContainerId)
+              setEditingContainerDraft(pendingDraft)
+              setEditingContainer(res.container_definition)
+              const newParams = new URLSearchParams(searchParams.toString())
+              newParams.delete("editContainer")
+              const nextQuery = newParams.toString()
+              router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+            } catch {
+              toast({ title: t('items.failedToLoadContainerDefinition'), variant: 'destructive' })
+            }
+          })()
+        }
+      }
+    }
     // auto-open create preset sheet from URL params
     if (tab === "preset" && searchParams.get("create") === "1") {
       const iv: { name?: string; preset_type?: string; code_name?: string; max_slots?: number } = {}
@@ -2032,7 +2147,7 @@ export default function GameItemsPage() {
         })()
       }
     }
-  }, [searchParams, gameId, presetDefs, router])
+  }, [searchParams, gameId, presetDefs, containerDefs, router, toast, t])
 
   // update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -4687,6 +4802,42 @@ export default function GameItemsPage() {
         }}
         onClose={() => { setShowCreateContainer(false); setCreateContainerInitialValues(undefined); setCreateContainerConvContext(undefined) }}
       />
+
+      {editingContainer && (
+        <EditContainerDefinitionDialog
+          open={!!editingContainer}
+          gameId={gameId}
+          definition={editingContainer}
+          initialValues={editingContainerDraft}
+          allItems={containerAllItems}
+          onUpdated={(updated) => {
+            fetchContainerDefs()
+            loadGameInfo()
+            if (editingContainerConvContext) {
+              const { turnId, responseIdx, containerIdx } = editingContainerConvContext
+              window.dispatchEvent(new CustomEvent('ss:container-updated', {
+                detail: {
+                  containerId: updated.id,
+                  containerName: updated.name,
+                  containerCodeName: updated.code_name,
+                  turnId,
+                  responseIdx,
+                  containerIdx,
+                },
+              }))
+            }
+          }}
+          onClose={() => {
+            setEditingContainer(null)
+            setEditingContainerDraft(undefined)
+            setEditingContainerConvContext(undefined)
+            const newParams = new URLSearchParams(searchParams.toString())
+            newParams.delete("editContainer")
+            const nextQuery = newParams.toString()
+            router.replace(nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname, { scroll: false })
+          }}
+        />
+      )}
 
 
       {/* Delete Container Definition Confirmation */}
