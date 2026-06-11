@@ -173,6 +173,7 @@ export interface ContainerDefinition {
   id: string
   game_id: string
   name: string
+  code_name?: string
   container_type: ContainerType
   grid_cols: number
   grid_rows: number
@@ -187,6 +188,7 @@ export interface ContainerDefinition {
 
 export interface CreateContainerDefinitionRequest {
   name: string
+  code_name: string
   container_type: ContainerType
   grid_cols: number
   grid_rows: number
@@ -197,6 +199,7 @@ export interface CreateContainerDefinitionRequest {
 
 export interface UpdateContainerDefinitionRequest {
   name?: string
+  code_name?: string
   grid_cols?: number
   grid_rows?: number
   instanced_per_item?: boolean

@@ -220,6 +220,7 @@ export interface ListContainerDefsParams {
   offset?: number
   container_type?: ContainerType
   q?: string
+  code_name?: string
 }
 
 /** GET /api/v1/games/:gameId/container-definitions */
@@ -232,6 +233,7 @@ export async function listContainerDefinitions(
   if (params.offset       != null) qs.set('offset',         String(params.offset))
   if (params.container_type)       qs.set('container_type', params.container_type)
   if (params.q)                    qs.set('q',              params.q)
+  if (params.code_name)            qs.set('code_name',      params.code_name)
   const query = qs.toString()
   return api.get(`/api/v1/games/${ctx.gameId}/container-definitions${query ? `?${query}` : ''}`)
 }

@@ -56,9 +56,14 @@ import {
   updatePaymentMethod,
   type SPackage,
   type SGemPackage,
+  type LLMTokenPackage,
   listSPackages,
   getSPackage,
   getSGemPackage,
+  listLLMTokenPackages,
+  getLLMTokenPackage,
+  createLLMTokenPackage,
+  updateLLMTokenPackage,
   createSPackage,
   updateSPackage,
   deleteSPackage,
@@ -680,6 +685,7 @@ function PaymentMethodsTab() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!canReorder) return
     const { active, over } = event
     if (!over || active.id === over.id) return
 
@@ -1224,6 +1230,477 @@ function PackagesTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// LLM Token Packages Sheet
+// ---------------------------------------------------------------------------
+interface EditLLMTokenPackageSheetProps {
+  pkg: LLMTokenPackage | null
+  mode: "create" | "edit"
+  open: boolean
+  onClose: () => void
+  onSaved: (updated: LLMTokenPackage) => void
+}
+
+function EditLLMTokenPackageSheet({ pkg, mode, open, onClose, onSaved }: EditLLMTokenPackageSheetProps) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [packageKey, setPackageKey] = useState("")
+  const [tokens, setTokens] = useState("")
+  const [sgemCost, setSgemCost] = useState("")
+  const [isActive, setIsActive] = useState(true)
+  const [sortOrder, setSortOrder] = useState("")
+  const [formError, setFormError] = useState("")
+  const [costError, setCostError] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!pkg) {
+      setPackageKey("")
+      setTokens("")
+      setSgemCost("")
+      setIsActive(true)
+      setSortOrder("")
+      setFormError("")
+      setCostError("")
+      return
+    }
+    setPackageKey(pkg.package_key)
+    setTokens(String(pkg.tokens))
+    setSgemCost(String(pkg.sgem_cost))
+    setIsActive(pkg.is_active)
+    setSortOrder(String(pkg.sort_order))
+    setFormError("")
+    setCostError("")
+  }, [pkg, open])
+
+  function validateCost(value: string) {
+    const parsed = Number.parseInt(value, 10)
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      setCostError(t("adminTokenPackages.invalidCost"))
+      return false
+    }
+    setCostError("")
+    return true
+  }
+
+  function validateForm() {
+    if (!packageKey.trim()) {
+      setFormError(t("adminTokenPackages.invalidPackageKey"))
+      return false
+    }
+    const parsedTokens = Number.parseInt(tokens, 10)
+    if (!Number.isInteger(parsedTokens) || parsedTokens <= 0) {
+      setFormError(t("adminTokenPackages.invalidTokens"))
+      return false
+    }
+    const parsedSort = Number.parseInt(sortOrder, 10)
+    if (!Number.isInteger(parsedSort)) {
+      setFormError(t("adminTokenPackages.invalidSortOrder"))
+      return false
+    }
+    if (!validateCost(sgemCost)) return false
+    setFormError("")
+    return true
+  }
+
+  async function handleSave() {
+    if (!validateForm()) return
+    setSaving(true)
+    try {
+      const payload = {
+        package_key: packageKey.trim(),
+        tokens: Number.parseInt(tokens, 10),
+        sgem_cost: Number.parseInt(sgemCost, 10),
+        is_active: isActive,
+        sort_order: Number.parseInt(sortOrder, 10),
+      }
+      const updated = mode === "create"
+        ? await createLLMTokenPackage(payload)
+        : await updateLLMTokenPackage(pkg!.id, payload)
+      toast({ title: mode === "create" ? t("adminTokenPackages.createSuccess") : t("adminTokenPackages.saveSuccess") })
+      onSaved(updated)
+      onClose()
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: mode === "create" ? t("adminTokenPackages.createFailed") : t("adminTokenPackages.saveFailed"),
+        description: err?.data?.error ?? err?.message,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>{mode === "create" ? t("adminTokenPackages.createTitle") : t("adminTokenPackages.editTitle")}</SheetTitle>
+          <SheetDescription className="font-mono text-xs">{pkg?.package_key ?? ""}</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="token-pkg-key">{t("adminTokenPackages.fieldPackageKey")}</Label>
+            <Input
+              id="token-pkg-key"
+              value={packageKey}
+              onChange={(e) => setPackageKey(e.target.value)}
+              disabled={saving}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="token-pkg-tokens">{t("adminTokenPackages.fieldTokens")}</Label>
+              <Input
+                id="token-pkg-tokens"
+                type="number"
+                min={1}
+                value={tokens}
+                onChange={(e) => setTokens(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="token-pkg-active">{t("adminTokenPackages.fieldIsActive")}</Label>
+              <div className="flex h-10 items-center rounded-md border px-3">
+                <Switch checked={isActive} onCheckedChange={setIsActive} disabled={saving} />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="token-pkg-sort">{t("adminTokenPackages.fieldSortOrder")}</Label>
+              <Input
+                id="token-pkg-sort"
+                type="number"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="token-pkg-updated">{t("adminTokenPackages.fieldUpdatedAt")}</Label>
+              <Input id="token-pkg-updated" value={pkg ? formatDt(pkg.updated_at) : ""} disabled readOnly />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="token-pkg-cost">{t("adminTokenPackages.fieldSGemCost")}</Label>
+            <Input
+              id="token-pkg-cost"
+              type="number"
+              min={1}
+              value={sgemCost}
+              onChange={(e) => {
+                setSgemCost(e.target.value)
+                validateCost(e.target.value)
+              }}
+              disabled={saving}
+              placeholder="50"
+            />
+            {costError && <p className="text-xs text-destructive">{costError}</p>}
+            {formError && !costError && <p className="text-xs text-destructive">{formError}</p>}
+          </div>
+        </div>
+
+        <SheetFooter className="border-t px-6 py-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("common.save")}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Sortable Token Package Row
+// ---------------------------------------------------------------------------
+interface SortableTokenPackageRowProps {
+  pkg: LLMTokenPackage
+  togglingId: string | null
+  canDrag: boolean
+  onToggle: (pkg: LLMTokenPackage, nextChecked: boolean) => void
+  onEdit: (pkg: LLMTokenPackage) => void
+}
+
+function SortableTokenPackageRow({ pkg, togglingId, canDrag, onToggle, onEdit }: SortableTokenPackageRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pkg.id, disabled: !canDrag })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className={pkg.is_active ? "" : "opacity-60"}>
+      <TableCell className="w-12">
+        <button
+          type="button"
+          {...(canDrag ? attributes : {})}
+          {...(canDrag ? listeners : {})}
+          disabled={!canDrag}
+          className={`touch-none transition-colors ${canDrag ? "cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground" : "cursor-not-allowed text-muted-foreground/30"}`}
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      </TableCell>
+      <TableCell>
+        <div className="space-y-0.5">
+          <p className="font-medium text-sm">{pkg.package_key}</p>
+          <p className="text-xs text-muted-foreground font-mono break-all">{pkg.id}</p>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm font-medium">{pkg.tokens.toLocaleString()}</TableCell>
+      <TableCell className="text-sm font-semibold">{pkg.sgem_cost.toLocaleString()}</TableCell>
+      <TableCell>
+        <div className="flex items-center justify-start">
+          <Switch
+            checked={pkg.is_active}
+            disabled={togglingId === pkg.id}
+            onCheckedChange={(checked) => onToggle(pkg, checked)}
+            aria-label={pkg.is_active ? "Active" : "Inactive"}
+          />
+        </div>
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">{formatDt(pkg.updated_at)}</TableCell>
+      <TableCell className="text-right">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(pkg)} disabled={togglingId === pkg.id}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// LLM Token Packages tab
+// ---------------------------------------------------------------------------
+function TokenPackagesTab() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const [packages, setPackages] = useState<LLMTokenPackage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<LLMTokenPackage | null>(null)
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
+
+  const isCreateMode = sheetOpen && !editTarget
+  const canReorder = search.trim() === ""
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await listLLMTokenPackages()
+      setPackages((res.packages ?? []).sort((a, b) => a.sort_order - b.sort_order))
+    } catch {
+      toast({ variant: "destructive", title: t("adminTokenPackages.loadFailed") })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => { load() }, [load])
+
+  const filtered = packages.filter((pkg) => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      pkg.package_key.toLowerCase().includes(q) ||
+      String(pkg.tokens).includes(q) ||
+      String(pkg.sgem_cost).includes(q) ||
+      pkg.id.toLowerCase().includes(q)
+    )
+  })
+
+  async function openEdit(pkg: LLMTokenPackage) {
+    setLoadingDetailId(pkg.id)
+    try {
+      const detail = await getLLMTokenPackage(pkg.id)
+      setEditTarget(detail)
+      setSheetOpen(true)
+    } catch {
+      toast({ variant: "destructive", title: t("adminTokenPackages.loadFailed") })
+    } finally {
+      setLoadingDetailId(null)
+    }
+  }
+
+  function handleSaved(updated: LLMTokenPackage) {
+    setPackages((prev) => {
+      const idx = prev.findIndex((pkg) => pkg.id === updated.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = updated
+        return next.sort((a, b) => a.sort_order - b.sort_order)
+      }
+      return [...prev, updated].sort((a, b) => a.sort_order - b.sort_order)
+    })
+  }
+
+  async function handleToggle(pkg: LLMTokenPackage, nextChecked: boolean) {
+    setTogglingId(pkg.id)
+    try {
+      const updated = await updateLLMTokenPackage(pkg.id, { is_active: nextChecked })
+      setPackages((prev) => prev.map((item) => item.id === updated.id ? updated : item).sort((a, b) => a.sort_order - b.sort_order))
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminTokenPackages.saveFailed"), description: err?.data?.error ?? err?.message })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = packages.findIndex((pkg) => pkg.id === active.id)
+    const newIndex = packages.findIndex((pkg) => pkg.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(packages, oldIndex, newIndex)
+    const updated = reordered.map((pkg, i) => ({ ...pkg, sort_order: i + 1 }))
+    setPackages(updated)
+
+    setReordering(true)
+    try {
+      const changed = updated.filter((pkg, i) => packages[i]?.id !== pkg.id || packages.find((o) => o.id === pkg.id)?.sort_order !== pkg.sort_order)
+      await Promise.all(
+        changed.map((pkg) =>
+          updateLLMTokenPackage(pkg.id, {
+            sort_order: pkg.sort_order,
+            package_key: pkg.package_key,
+            tokens: pkg.tokens,
+            sgem_cost: pkg.sgem_cost,
+            is_active: pkg.is_active,
+          })
+        )
+      )
+      toast({ title: t("adminTokenPackages.sortOrderUpdated") })
+    } catch (err: any) {
+      toast({ variant: "destructive", title: t("adminTokenPackages.sortOrderFailed"), description: err?.data?.error ?? err?.message })
+      load()
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {t("adminTokenPackages.totalPackages").replace("{n}", String(packages.length))}
+        </p>
+        <div className="flex w-full items-center gap-2 md:w-auto md:flex-1 md:justify-end">
+          <div className="relative w-full max-w-sm md:flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder={t("adminTokenPackages.searchPlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={load}
+            disabled={loading || reordering}
+            aria-label={t("adminTokenPackages.refresh")}
+            title={t("adminTokenPackages.refresh")}
+            className="shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button
+            onClick={() => { setEditTarget(null); setSheetOpen(true) }}
+            className="shrink-0"
+            disabled={reordering}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t("adminTokenPackages.btnCreate")}
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12" />
+                  <TableHead>{t("adminTokenPackages.colPackageKey")}</TableHead>
+                  <TableHead>{t("adminTokenPackages.colTokens")}</TableHead>
+                  <TableHead>{t("adminTokenPackages.colSGemCost")}</TableHead>
+                  <TableHead>{t("adminTokenPackages.colStatus")}</TableHead>
+                  <TableHead>{t("adminTokenPackages.colUpdatedAt")}</TableHead>
+                  <TableHead className="text-right">{t("adminTokenPackages.colActions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                      {t("adminTokenPackages.noPackages")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <SortableContext items={filtered.map((pkg) => pkg.id)} strategy={verticalListSortingStrategy}>
+                    {filtered.map((pkg) => (
+                      <SortableTokenPackageRow
+                        key={pkg.id}
+                        pkg={pkg}
+                        togglingId={togglingId}
+                        canDrag={canReorder}
+                        onToggle={handleToggle}
+                        onEdit={openEdit}
+                      />
+                    ))}
+                  </SortableContext>
+                )}
+              </TableBody>
+            </Table>
+          </DndContext>
+        </CardContent>
+      </Card>
+
+      <EditLLMTokenPackageSheet
+        pkg={editTarget}
+        mode={isCreateMode ? "create" : "edit"}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={handleSaved}
+      />
     </div>
   )
 }
@@ -1857,7 +2334,7 @@ export default function GiftCodesPage() {
   const capabilities = useCapabilities()
   const { t } = useTranslation()
 
-  const VALID_TABS = ["payments", "packages", "gift-codes", "topup", "transactions"] as const
+  const VALID_TABS = ["payments", "packages", "token-packages", "gift-codes", "topup", "transactions"] as const
   type TabValue = typeof VALID_TABS[number]
   const rawTab = searchParams.get("tab")
   const activeTab: TabValue = VALID_TABS.includes(rawTab as TabValue) ? (rawTab as TabValue) : "payments"
@@ -1904,6 +2381,10 @@ export default function GiftCodesPage() {
               <Package className="h-4 w-4" />
               {t('adminPackages.tab')}
             </TabsTrigger>
+            <TabsTrigger value="token-packages" className="gap-2">
+              <Package className="h-4 w-4" />
+              {t('adminTokenPackages.tab')}
+            </TabsTrigger>
             <TabsTrigger value="gift-codes" className="gap-2">
               <Gift className="h-4 w-4" />
               {t('adminGiftCodes.tabGiftCodes')}
@@ -1922,6 +2403,9 @@ export default function GiftCodesPage() {
           </TabsContent>
           <TabsContent value="packages" className="mt-4">
             <PackagesTab />
+          </TabsContent>
+          <TabsContent value="token-packages" className="mt-4">
+            <TokenPackagesTab />
           </TabsContent>
           <TabsContent value="gift-codes" className="mt-4">
             <GiftCodesTab />

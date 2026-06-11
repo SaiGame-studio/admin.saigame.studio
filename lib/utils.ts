@@ -20,3 +20,10 @@ export function toSlugUnderscore(text: string): string {
 export function toSlugUpperCase(text: string): string {
   return trSlugify(text, { separator: "_" }).toUpperCase()
 }
+
+/** Build a safe lowercase snake_case code name that always starts with a letter. */
+export function toSafeCodeName(text: string, fallbackPrefix = "container"): string {
+  const slug = toSlugUnderscore(text).toLowerCase().replace(/_+/g, "_").replace(/^_+|_+$/g, "")
+  if (!slug) return ""
+  return /^[a-z]/.test(slug) ? slug : `${fallbackPrefix}_${slug}`
+}

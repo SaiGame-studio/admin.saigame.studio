@@ -1,6 +1,5 @@
 import type React from "react"
 import "@/app/globals.css"
-import { Inter } from "next/font/google"
 import type { Metadata } from "next"
 import Script from "next/script"
 
@@ -14,8 +13,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { GoogleAuthProvider } from "@/components/google-auth-provider"
 import { PageTitleUpdater } from "@/components/page-title-updater"
 import { LLMConversationPanel } from "@/components/llm-conversations/ConversationPanel"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
@@ -72,7 +69,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={inter.className}>
+      <body>
         <ThemeProvider 
           attribute="class" 
           defaultTheme="system" 

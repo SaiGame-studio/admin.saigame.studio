@@ -667,6 +667,8 @@ export function ConversationChatHistory({
                                     const containerKey = `${turn.id}:${idx}:${seg.containerIdx}`
                                     const savedContainerId = savedContainerDefinitionIds[containerKey]
                                     const containerName = typeof seg.container.name === 'string' ? seg.container.name : `Container ${seg.containerIdx + 1}`
+                                    const containerCodeName = typeof seg.container.code_name === 'string' ? seg.container.code_name : ''
+                                    const containerLabel = containerCodeName ? `${containerName} (${containerCodeName})` : containerName
                                     const gridCols = typeof seg.container.grid_cols === 'number' ? seg.container.grid_cols : ''
                                     const gridRows = typeof seg.container.grid_rows === 'number' ? seg.container.grid_rows : ''
                                     const sizeLabel = gridCols && gridRows ? ` (${gridCols}×${gridRows})` : ''
@@ -675,10 +677,10 @@ export function ConversationChatHistory({
                                         id={`conv-panel-container-link-${turn.id}-${idx}-${seg.containerIdx}`}
                                         href={`/games/${gameId}/items?tab=containers&q=${savedContainerId}`}
                                         className="self-start inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]"
-                                        title={containerName}
+                                        title={containerLabel}
                                       >
                                         <Archive className="h-3 w-3 shrink-0" />
-                                        <span id={`conv-panel-container-link-label-${turn.id}-${idx}-${seg.containerIdx}`} className="truncate">{t('llmConversation.viewContainerDefinition')}: {containerName}</span>
+                                        <span id={`conv-panel-container-link-label-${turn.id}-${idx}-${seg.containerIdx}`} className="truncate">{t('llmConversation.viewContainerDefinition')}: {containerLabel}</span>
                                       </Link>
                                     ) : (
                                       <button
@@ -687,7 +689,7 @@ export function ConversationChatHistory({
                                         className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]"
                                       >
                                         <Archive className="h-3 w-3" />
-                                        <span id={`conv-panel-save-container-btn-label-${turn.id}-${idx}-${seg.containerIdx}`}>{t('llmConversation.saveAsContainerDefinition')}: {containerName}{sizeLabel}</span>
+                                        <span id={`conv-panel-save-container-btn-label-${turn.id}-${idx}-${seg.containerIdx}`}>{t('llmConversation.saveAsContainerDefinition')}: {containerLabel}{sizeLabel}</span>
                                       </button>
                                     )
                                   })()}

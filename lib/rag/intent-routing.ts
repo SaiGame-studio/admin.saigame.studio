@@ -33,7 +33,7 @@ This means from a single prompt like "Create lore for the Iron Kingdom and gener
 | \`lore_creating\` | Create new lore entries (characters, locations, factions, etc.) |
 | \`lore_analyzing\` | Analyze or summarize provided lore |
 | \`lore_updating\` | Update existing lore entries |
-| \`container_creating\` | Create container definitions (chest, bag, inventory, etc.) |
+| \`container_creating\` | Create container definitions with required code_name (chest, bag, inventory, etc.) |
 | \`gacha_pack_creating\` | Create gacha pack definitions |
 | \`preset_generation\` | Create preset definitions (deck, party, loadout, etc.) |
 

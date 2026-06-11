@@ -12,13 +12,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { CreateItemDefinitionDialog, type CreateItemInitialValues } from '@/components/CreateItemDefinitionDialog'
 import { listLoreEntries } from '@/lib/lore-api'
-import { listItemDefinitions, listPresetDefinitions } from '@/lib/inventory-api'
+import { listItemDefinitions, listPresetDefinitions, listContainerDefinitions } from '@/lib/inventory-api'
 import { listEntityDefinitions } from '@/lib/entity-definition-api'
 import type { LoreEntry } from '@/types/lore'
 import type { EntityDefinition, EntityPool, UpdateEntityDefinitionRequest } from '@/types/entity-definition'
 import type { ItemDefinition, ContainerDefinition, GachaPack, EquipmentSlot } from '@/types/inventory'
 import type { PresetDefinition } from '@/lib/inventory-api'
 import { useEscapeLayer } from '@/hooks/use-escape-manager'
+import { toSafeCodeName } from '@/lib/utils'
 import {
   Select,
   SelectContent,
@@ -122,7 +123,6 @@ interface ConversationDialogsProps {
   containerNameConflictOpen: boolean
   setContainerNameConflictOpen: (v: boolean) => void
   containerNameConflictExisting: ContainerDefinition | null
-  isApplyingContainerConflict: boolean
   onContainerNameConflictUpdate: () => void
   onContainerNameConflictCreateNew: (newName: string) => void
   // Gacha pack code conflict dialog
@@ -231,7 +231,6 @@ export function ConversationDialogs({
   containerNameConflictOpen,
   setContainerNameConflictOpen,
   containerNameConflictExisting,
-  isApplyingContainerConflict,
   onContainerNameConflictUpdate,
   onContainerNameConflictCreateNew,
   gachaPackCodeConflictOpen,
@@ -285,6 +284,9 @@ export function ConversationDialogs({
 
   // ── Container name conflict dialog state ──
   const [newContainerNameInput, setNewContainerNameInput] = useState('')
+  const [newContainerNameDuplicate, setNewContainerNameDuplicate] = useState<ContainerDefinition | null>(null)
+  const [isCheckingNewContainerName, setIsCheckingNewContainerName] = useState(false)
+  const newContainerNameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Gacha pack code conflict dialog state ──
   const [newGachaPackCodeInput, setNewGachaPackCodeInput] = useState('')
@@ -335,12 +337,37 @@ export function ConversationDialogs({
   }, [presetCodeConflictOpen, presetCodeConflictExisting?.code_name])
 
   useEffect(() => {
-    if (containerNameConflictOpen && containerNameConflictExisting?.name) {
-      setNewContainerNameInput(`${containerNameConflictExisting.name} 2`)
+    const seed = toSafeCodeName(containerNameConflictExisting?.code_name ?? containerNameConflictExisting?.name ?? '')
+    if (containerNameConflictOpen && seed) {
+      setNewContainerNameInput(`${seed}_2`)
     } else if (!containerNameConflictOpen) {
       setNewContainerNameInput('')
+      setNewContainerNameDuplicate(null)
     }
-  }, [containerNameConflictOpen, containerNameConflictExisting?.name])
+  }, [containerNameConflictOpen, containerNameConflictExisting?.code_name, containerNameConflictExisting?.name])
+
+  useEffect(() => {
+    if (newContainerNameDebounceRef.current) clearTimeout(newContainerNameDebounceRef.current)
+    const name = newContainerNameInput.trim()
+    if (!name || !containerNameConflictOpen) {
+      setNewContainerNameDuplicate(null)
+      setIsCheckingNewContainerName(false)
+      return
+    }
+    setIsCheckingNewContainerName(true)
+    newContainerNameDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await listContainerDefinitions({ gameId }, { code_name: name, limit: 20 })
+        const found = (res.container_definitions ?? []).find((d) => d.code_name?.trim() === name || (!d.code_name && d.name.trim() === name)) ?? null
+        setNewContainerNameDuplicate(found)
+      } catch {
+        setNewContainerNameDuplicate(null)
+      } finally {
+        setIsCheckingNewContainerName(false)
+      }
+    }, 400)
+    return () => { if (newContainerNameDebounceRef.current) clearTimeout(newContainerNameDebounceRef.current) }
+  }, [newContainerNameInput, containerNameConflictOpen, gameId, containerNameConflictExisting?.id])
 
   useEffect(() => {
     if (gachaPackCodeConflictOpen && gachaPackCodeConflictExisting?.code_name) {
@@ -444,7 +471,8 @@ export function ConversationDialogs({
     if (!isApplyingPresetConflict) { setPresetCodeConflictOpen(false); setNewPresetCodeInput('') }
   })
   useEscapeLayer(containerNameConflictOpen, () => {
-    if (!isApplyingContainerConflict) { setContainerNameConflictOpen(false); setNewContainerNameInput('') }
+    setContainerNameConflictOpen(false)
+    setNewContainerNameInput('')
   })
   useEscapeLayer(gachaPackCodeConflictOpen, () => {
     if (!isApplyingGachaPackConflict) { setGachaPackCodeConflictOpen(false); setNewGachaPackCodeInput('') }
@@ -1298,7 +1326,7 @@ export function ConversationDialogs({
 
       <Dialog
         open={containerNameConflictOpen}
-        onOpenChange={(o) => { if (!o && !isApplyingContainerConflict) { setContainerNameConflictOpen(false); setNewContainerNameInput('') } }}
+        onOpenChange={(o) => { if (!o) { setContainerNameConflictOpen(false); setNewContainerNameInput(''); setNewContainerNameDuplicate(null) } }}
       >
         <DialogContent id="container-name-conflict-dialog-root">
           <DialogHeader id="container-name-conflict-dialog-header">
@@ -1306,18 +1334,18 @@ export function ConversationDialogs({
           </DialogHeader>
           <div id="container-name-conflict-dialog-body" className="space-y-3">
             <p id="container-name-conflict-dialog-desc-text" className="text-sm text-muted-foreground">
-              {t('llmConversation.containerNameConflictDesc').replace('{name}', containerNameConflictExisting?.name ?? '')}
+              {t('llmConversation.containerNameConflictDesc').replace('{name}', containerNameConflictExisting ? `${containerNameConflictExisting.name}${containerNameConflictExisting.code_name ? ` (${containerNameConflictExisting.code_name})` : ''}` : '')}
             </p>
             {containerNameConflictExisting && (
               <a
                 id="container-name-conflict-existing-link"
-                href={`/games/${gameId}/items?tab=containers&q=${containerNameConflictExisting.id}`}
+                href={`/games/${gameId}/items?tab=containers&q=${encodeURIComponent(containerNameConflictExisting.code_name ?? containerNameConflictExisting.name)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 <Archive id="container-name-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span id="container-name-conflict-existing-link-name" className="flex-1 truncate">{containerNameConflictExisting.name}</span>
+                <span id="container-name-conflict-existing-link-name" className="flex-1 truncate">{containerNameConflictExisting.name}{containerNameConflictExisting.code_name ? ` (${containerNameConflictExisting.code_name})` : ''}</span>
                 <ExternalLink id="container-name-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               </a>
             )}
@@ -1326,14 +1354,11 @@ export function ConversationDialogs({
           <button
             id="container-name-conflict-update-btn"
             type="button"
-            disabled={isApplyingContainerConflict}
             onClick={onContainerNameConflictUpdate}
             className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
-            {isApplyingContainerConflict
-              ? <><Loader2 id="container-name-conflict-update-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.containerNameConflictUpdating')}</>
-              : <><Archive id="container-name-conflict-update-icon" className="h-4 w-4" />{t('llmConversation.containerNameConflictUpdate')}</>
-            }
+            <Archive id="container-name-conflict-update-icon" className="h-4 w-4" />
+            {t('llmConversation.containerNameConflictUpdate')}
           </button>
           <div id="container-name-conflict-divider" className="relative flex items-center gap-2">
             <div id="container-name-conflict-divider-left" className="flex-1 border-t border-border" />
@@ -1349,20 +1374,33 @@ export function ConversationDialogs({
               id="container-name-conflict-new-name-input"
               value={newContainerNameInput}
               onChange={(e) => setNewContainerNameInput(e.target.value)}
-              disabled={isApplyingContainerConflict}
+              disabled={isCheckingNewContainerName}
+              className={newContainerNameDuplicate ? 'border-destructive focus-visible:ring-destructive pr-8' : isCheckingNewContainerName ? 'pr-8' : ''}
             />
-            <button
-              id="container-name-conflict-create-new-btn"
-              type="button"
-              disabled={isApplyingContainerConflict || !newContainerNameInput.trim()}
-              onClick={() => { onContainerNameConflictCreateNew(newContainerNameInput.trim()); setNewContainerNameInput('') }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-            >
-              {isApplyingContainerConflict
-                ? <><Loader2 id="container-name-conflict-create-new-spinner" className="h-4 w-4 animate-spin" />{t('llmConversation.containerNameConflictUpdating')}</>
-                : <><Archive id="container-name-conflict-create-new-icon" className="h-4 w-4" />{t('llmConversation.containerNameConflictCreateNew')}</>
-              }
-            </button>
+            {newContainerNameDuplicate ? (
+              <a
+                id="container-name-conflict-new-name-duplicate-link"
+                href={`/games/${gameId}/items?tab=containers&q=${encodeURIComponent(newContainerNameDuplicate.code_name ?? newContainerNameDuplicate.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors"
+              >
+                <Archive id="container-name-conflict-new-name-duplicate-link-icon" className="h-4 w-4 shrink-0" />
+                <span id="container-name-conflict-new-name-duplicate-link-name" className="flex-1 truncate">{newContainerNameDuplicate.name}{newContainerNameDuplicate.code_name ? ` (${newContainerNameDuplicate.code_name})` : ''}</span>
+                <ExternalLink id="container-name-conflict-new-name-duplicate-link-ext-icon" className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            ) : (
+              <button
+                id="container-name-conflict-create-new-btn"
+                type="button"
+                disabled={!newContainerNameInput.trim() || isCheckingNewContainerName}
+                onClick={() => { onContainerNameConflictCreateNew(newContainerNameInput.trim()); setNewContainerNameInput('') }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                <Archive id="container-name-conflict-create-new-icon" className="h-4 w-4" />
+                {t('llmConversation.containerNameConflictCreateNew')}
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
