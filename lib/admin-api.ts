@@ -470,6 +470,56 @@ export async function getSGemPackage(id: string): Promise<SGemPackage> {
 }
 
 // ---------------------------------------------------------------------------
+// SuperAdmin — LLM Token Packages
+// ---------------------------------------------------------------------------
+
+export interface LLMTokenPackage {
+  id: string
+  package_key: string
+  tokens: number
+  sgem_cost: number
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface LLMTokenPackagesResult {
+  packages: LLMTokenPackage[]
+}
+
+export interface CreateLLMTokenPackageBody {
+  package_key: string
+  tokens: number
+  sgem_cost: number
+  is_active: boolean
+  sort_order: number
+}
+
+export async function listLLMTokenPackages(): Promise<LLMTokenPackagesResult> {
+  return api.get("/api/v1/admin/llm-token-packages")
+}
+
+export async function getLLMTokenPackage(id: string): Promise<LLMTokenPackage> {
+  const res: { package: LLMTokenPackage } = await api.get(`/api/v1/admin/llm-token-packages/${id}`)
+  return res.package
+}
+
+export async function updateLLMTokenPackage(id: string, body: {
+  package_key?: string
+  tokens?: number
+  sgem_cost?: number
+  is_active?: boolean
+  sort_order?: number
+}): Promise<LLMTokenPackage> {
+  return api.patch(`/api/v1/admin/llm-token-packages/${id}`, body)
+}
+
+export async function createLLMTokenPackage(body: CreateLLMTokenPackageBody): Promise<LLMTokenPackage> {
+  return api.post("/api/v1/admin/llm-token-packages", body)
+}
+
+// ---------------------------------------------------------------------------
 // SuperAdmin — Payment Methods
 // ---------------------------------------------------------------------------
 
