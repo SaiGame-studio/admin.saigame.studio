@@ -3543,7 +3543,7 @@ export const ja = {
         errorCreate: "会話の作成に失敗しました。",
         errorUpdate: "会話の更新に失敗しました。",
         errorSend: "メッセージの送信に失敗しました。",
-        errorTokenQuotaExceeded: "トークンの上限を超えました。続けるには追加でトークンを購入してください。",
+          errorTokenQuotaExceeded: "トークン上限に達しました。追加購入してください。",
         errorArchive: "会話のアーカイブに失敗しました。",
         errorUnarchive: "会話のアーカイブ解除に失敗しました。",
         errorDelete: "会話の削除に失敗しました。",
@@ -3633,7 +3633,7 @@ export const ja = {
         craftingRecipeReviewJson: "Merged JSON Preview"
     },
     lmConversation: {
-        errorTokenQuotaExceeded: "トークンの上限を超えました。続けるには追加でトークンを購入してください。"
+          errorTokenQuotaExceeded: "トークン上限に達しました。追加購入してください。"
     },
     tokenStats: {
         tabLabel: "Token Stats",

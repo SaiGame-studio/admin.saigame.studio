@@ -3545,7 +3545,7 @@ export const vi = {
         errorCreate: "Không thể tạo cuộc hội thoại.",
         errorUpdate: "Không thể cập nhật cuộc hội thoại.",
         errorSend: "Không thể gửi tin nhắn.",
-        errorTokenQuotaExceeded: "Bạn đã vượt quá hạn mức token. Vui lòng mua thêm token để tiếp tục.",
+          errorTokenQuotaExceeded: "Đã hết token. Mua thêm để tiếp tục.",
         errorArchive: "Không thể lưu trữ cuộc hội thoại.",
         errorUnarchive: "Không thể khôi phục cuộc hội thoại.",
         errorDelete: "Không thể xóa cuộc hội thoại.",
@@ -3635,7 +3635,7 @@ export const vi = {
         craftingRecipeReviewJson: "Merged JSON Preview"
     },
     lmConversation: {
-        errorTokenQuotaExceeded: "Bạn đã vượt quá hạn mức token. Vui lòng mua thêm token để tiếp tục."
+          errorTokenQuotaExceeded: "Đã hết token. Mua thêm để tiếp tục."
     },
     tokenStats: {
         tabLabel: "Token Stats",

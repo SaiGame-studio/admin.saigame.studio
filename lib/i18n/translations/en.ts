@@ -3746,7 +3746,7 @@ export const en = {
         errorCreate: "Failed to create conversation.",
         errorUpdate: "Failed to update conversation.",
         errorSend: "Failed to send message.",
-        errorTokenQuotaExceeded: "Your token quota has been exceeded. Please buy more tokens to continue.",
+          errorTokenQuotaExceeded: "Token limit reached. Buy more to continue.",
         errorArchive: "Failed to archive conversation.",
         errorUnarchive: "Failed to unarchive conversation.",
         errorDelete: "Failed to delete conversation.",
@@ -3836,7 +3836,7 @@ export const en = {
         craftingRecipeReviewJson: "Merged JSON Preview",
     },
     lmConversation: {
-        errorTokenQuotaExceeded: "Your token quota has been exceeded. Please buy more tokens to continue.",
+          errorTokenQuotaExceeded: "Token limit reached. Buy more to continue.",
     },
     tokenStats: {
         tabLabel: "Token Stats",
