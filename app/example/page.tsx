@@ -1,18 +1,14 @@
 'use client';
-
 import { useState } from 'react';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ValidLocale } from '@/lib/i18n/config';
-
 export default function ExamplePage() {
-  const [locale, setLocale] = useState<ValidLocale>('en');
-  const { t } = useTranslation(locale);
-
-  return (
-    <div className="p-8">
+    const [locale, setLocale] = useState<ValidLocale>('en');
+    const { t } = useTranslation(locale);
+    return (<div className="p-8">
       <div className="mb-8">
-        <LanguageSwitcher currentLocale={locale} onLocaleChange={setLocale} />
+        <LanguageSwitcher currentLocale={locale} onLocaleChange={setLocale}/>
       </div>
 
       <div className="space-y-4">
@@ -21,12 +17,12 @@ export default function ExamplePage() {
         <div className="grid gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">{t('shop.name')}</label>
-            <input type="text" className="w-full p-2 border rounded" />
+            <input type="text" className="w-full p-2 border rounded"/>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1">{t('shop.description')}</label>
-            <textarea className="w-full p-2 border rounded" rows={3} />
+            <textarea className="w-full p-2 border rounded" rows={3}/>
           </div>
 
           <div className="flex gap-2">
@@ -39,6 +35,5 @@ export default function ExamplePage() {
           </div>
         </div>
       </div>
-    </div>
-  );
-} 
+    </div>);
+}

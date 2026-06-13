@@ -1,14 +1,10 @@
-"use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { useTheme } from "next-themes"
-
+"use client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "next-themes";
 export function ThemeTest() {
-  const { theme } = useTheme()
-
-  return (
-    <Card className="w-full max-w-md mx-auto">
+    const { theme } = useTheme();
+    return (<Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Theme Test</CardTitle>
         <CardDescription>This card demonstrates theme-aware styling</CardDescription>
@@ -28,6 +24,5 @@ export function ThemeTest() {
           Current theme: <span className="font-bold">{theme}</span>
         </div>
       </CardContent>
-    </Card>
-  )
+    </Card>);
 }

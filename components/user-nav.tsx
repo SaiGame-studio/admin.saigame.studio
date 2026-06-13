@@ -1,38 +1,25 @@
 'use client';
-
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { LanguageButton } from '@/components/LanguageButton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger, } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/lib/i18n/useTranslation';
-
 export function UserNav() {
-  const { user, logout } = useAuth();
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  if (!user) return null;
-
-  return (
-    <div className="flex items-center gap-4">
-      <LanguageButton currentLocale={locale} onLocaleChange={(newLocale) => {}} />
+    const { user, logout } = useAuth();
+    const { locale } = useLanguage();
+    const { t } = useTranslation(locale);
+    if (!user)
+        return null;
+    return (<div className="flex items-center gap-4">
+      <LanguageButton currentLocale={locale} onLocaleChange={(newLocale) => { }}/>
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={''} alt={user.username} />
+              <AvatarImage src={''} alt={user.username}/>
               <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
           </Button>
@@ -64,6 +51,5 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
-  );
-} 
+    </div>);
+}

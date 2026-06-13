@@ -1,238 +1,238 @@
-"use client"
-
-import React, { useEffect, useState, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { getGame, fetchGameTeams, getGameCcu, getAllGameTags, updateGame, type GameCcu } from "@/lib/game-api"
-import { fetchStudioWithCache } from "@/lib/studio-api"
-import type { Game } from "@/types/game"
-import type { Studio } from "@/types/studio"
-import type { Team } from "@/types/team"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { formatTimestamp } from "@/lib/utils/date-utils"
-import { Progress } from "@/components/ui/progress"
-import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb"
-import { useTranslation } from '@/lib/i18n/use-translation'
-import { DeleteGameDialog } from "@/components/DeleteGameDialog"
-import { GameNavButtons } from "@/components/GameNavButtons"
-import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays"
-import { TracingSettingsGroup } from "@/components/TracingSettingsGroup"
-import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog"
-import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useToast } from "@/hooks/use-toast"
-import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api"
-import { EquipmentPanel } from "@/components/EquipmentPanel"
-
-const fmt = (n: number) => n.toLocaleString()
-
-export default function GameDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id: gameId } = React.use(params)
-    const router = useRouter()
-    const { t } = useTranslation()
-    const { toast } = useToast()
-    const [game, setGame] = useState<Game | null>(null)
-    const [studio, setStudio] = useState<Studio | null>(null)
-    const [teams, setTeams] = useState<Team[]>([])
-    const [loading, setLoading] = useState(true)
-    const [teamsLoading, setTeamsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
-    const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null)
-    const [catalog, setCatalog] = useState<Plugin[]>([])
-    const [ccu, setCcu] = useState<GameCcu | null>(null)
-    const [ccuRefreshing, setCcuRefreshing] = useState(false)
-    const [allTags, setAllTags] = useState<string[]>([])
-    const [tagsOpen, setTagsOpen] = useState(false)
-    const [tagsSaving, setTagsSaving] = useState(false)
-    const [tagSearch, setTagSearch] = useState("")
-    const hasFetched = useRef(false)
-
+"use client";
+import React, { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { getGame, fetchGameTeams, getGameCcu, getAllGameTags, updateGame, type GameCcu } from "@/lib/game-api";
+import { fetchStudioWithCache } from "@/lib/studio-api";
+import type { Game } from "@/types/game";
+import type { Studio } from "@/types/studio";
+import type { Team } from "@/types/team";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Edit, Gamepad2, ExternalLink, Store, Package, Users, Copy, Check, BarChart2, BookOpen, Dices, ScrollText, RefreshCw, Tag, X, Plus, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { formatTimestamp } from "@/lib/utils/date-utils";
+import { Progress } from "@/components/ui/progress";
+import { GameNameEditable, GameStatusEditable, GameDescriptionEditable } from "@/components/StudioNameEditable";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbList } from "@/components/ui/breadcrumb";
+import { useTranslation } from '@/lib/i18n/use-translation';
+import { DeleteGameDialog } from "@/components/DeleteGameDialog";
+import { GameNavButtons } from "@/components/GameNavButtons";
+import { DailyQuestMaxAdvanceDays } from "@/components/DailyQuestMaxAdvanceDays";
+import { TracingSettingsGroup } from "@/components/TracingSettingsGroup";
+import { RemoveTeamFromGameDialog } from "@/components/RemoveTeamFromGameDialog";
+import { AddTeamToGameDialog } from "@/components/AddTeamToGameDialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import { getGamePlugins, getPluginCatalog, type GamePluginsResult, type Plugin } from "@/lib/plugin-api";
+import { EquipmentPanel } from "@/components/EquipmentPanel";
+const fmt = (n: number) => n.toLocaleString();
+export default function GameDetailsPage({ params }: {
+    params: Promise<{
+        id: string;
+    }>;
+}) {
+    const { id: gameId } = React.use(params);
+    const router = useRouter();
+    const { t } = useTranslation();
+    const { toast } = useToast();
+    const [game, setGame] = useState<Game | null>(null);
+    const [studio, setStudio] = useState<Studio | null>(null);
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [teamsLoading, setTeamsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null);
+    const [catalog, setCatalog] = useState<Plugin[]>([]);
+    const [ccu, setCcu] = useState<GameCcu | null>(null);
+    const [ccuRefreshing, setCcuRefreshing] = useState(false);
+    const [allTags, setAllTags] = useState<string[]>([]);
+    const [tagsOpen, setTagsOpen] = useState(false);
+    const [tagsSaving, setTagsSaving] = useState(false);
+    const [tagSearch, setTagSearch] = useState("");
+    const hasFetched = useRef(false);
     useEffect(() => {
-        if (hasFetched.current) return
-        hasFetched.current = true
-        
+        if (hasFetched.current)
+            return;
+        hasFetched.current = true;
         async function loadGame() {
             try {
-                setLoading(true)
-                const gameData = await getGame(gameId)
-                setGame(gameData)
-                
+                setLoading(true);
+                const gameData = await getGame(gameId);
+                setGame(gameData);
                 // Load studio data if studio_id exists
                 if (gameData.studio_id) {
                     try {
-                        const studioData = await fetchStudioWithCache(gameData.studio_id)
-                        setStudio(studioData)
-                    } catch (err) {
-                        console.error("Failed to load studio:", err)
+                        const studioData = await fetchStudioWithCache(gameData.studio_id);
+                        setStudio(studioData);
+                    }
+                    catch (err) {
+                        console.error("Failed to load studio:", err);
                     }
                 }
-                
-                setError(null)
-            } catch (err) {
-                setError(t('game.loadErrorRetry'))
-                console.error(err)
-            } finally {
-                setLoading(false)
+                setError(null);
+            }
+            catch (err) {
+                setError(t('game.loadErrorRetry'));
+                console.error(err);
+            }
+            finally {
+                setLoading(false);
             }
         }
-
         async function loadTeams() {
             try {
-                setTeamsLoading(true)
-                const teamsData = await fetchGameTeams(gameId)
-                setTeams(teamsData)
-            } catch (err) {
-                console.error("Failed to load teams:", err)
-            } finally {
-                setTeamsLoading(false)
+                setTeamsLoading(true);
+                const teamsData = await fetchGameTeams(gameId);
+                setTeams(teamsData);
+            }
+            catch (err) {
+                console.error("Failed to load teams:", err);
+            }
+            finally {
+                setTeamsLoading(false);
             }
         }
-
         async function loadPlugins() {
             try {
                 const [catalogData, pluginsData] = await Promise.all([
                     getPluginCatalog(),
                     getGamePlugins(gameId),
-                ])
-                setCatalog(catalogData)
-                setGamePlugins(pluginsData)
-            } catch (err) {
-                console.error("Failed to load plugins:", err)
+                ]);
+                setCatalog(catalogData);
+                setGamePlugins(pluginsData);
+            }
+            catch (err) {
+                console.error("Failed to load plugins:", err);
             }
         }
-
         async function loadCcu() {
             try {
-                const ccuData = await getGameCcu(gameId)
-                setCcu(ccuData)
-            } catch (err) {
-                console.error("Failed to load CCU:", err)
+                const ccuData = await getGameCcu(gameId);
+                setCcu(ccuData);
+            }
+            catch (err) {
+                console.error("Failed to load CCU:", err);
             }
         }
-
         async function loadTags() {
             try {
-                const tags = await getAllGameTags()
-                setAllTags(tags)
-            } catch (err) {
-                console.error("Failed to load game tags:", err)
+                const tags = await getAllGameTags();
+                setAllTags(tags);
+            }
+            catch (err) {
+                console.error("Failed to load game tags:", err);
             }
         }
-
         loadGame().then();
         loadTeams().then();
         loadPlugins().then();
         loadCcu().then();
         loadTags().then();
-    }, [gameId])
-
+    }, [gameId]);
     const refreshCcu = async () => {
-        setCcuRefreshing(true)
+        setCcuRefreshing(true);
         try {
-            const ccuData = await getGameCcu(gameId)
-            setCcu(ccuData)
-        } catch (err) {
-            console.error("Failed to refresh CCU:", err)
-        } finally {
-            setCcuRefreshing(false)
+            const ccuData = await getGameCcu(gameId);
+            setCcu(ccuData);
         }
-    }
-
+        catch (err) {
+            console.error("Failed to refresh CCU:", err);
+        }
+        finally {
+            setCcuRefreshing(false);
+        }
+    };
     const handleAddTag = async (tag: string) => {
-        if (!game) return
-        const currentTags = game.tags ?? []
-        const normalized = tag.trim().toLowerCase()
-        if (currentTags.includes(normalized)) return
+        if (!game)
+            return;
+        const currentTags = game.tags ?? [];
+        const normalized = tag.trim().toLowerCase();
+        if (currentTags.includes(normalized))
+            return;
         if (currentTags.length >= 10) {
-            toast({ title: t('game.tagLimitReached'), description: t('game.tagLimitDesc'), variant: "destructive" })
-            return
+            toast({ title: t('game.tagLimitReached'), description: t('game.tagLimitDesc'), variant: "destructive" });
+            return;
         }
-        const newTags = [...currentTags, normalized]
-        setTagsSaving(true)
+        const newTags = [...currentTags, normalized];
+        setTagsSaving(true);
         try {
-            const updated = await updateGame(gameId, { tags: newTags })
-            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev)
-            setTagsOpen(false)
-            setTagSearch("")
-        } catch (err) {
-            console.error("Failed to add tag:", err)
-            toast({ title: t('common.error'), description: t('game.failedAddTag'), variant: "destructive" })
-        } finally {
-            setTagsSaving(false)
+            const updated = await updateGame(gameId, { tags: newTags });
+            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev);
+            setTagsOpen(false);
+            setTagSearch("");
         }
-    }
-
+        catch (err) {
+            console.error("Failed to add tag:", err);
+            toast({ title: t('common.error'), description: t('game.failedAddTag'), variant: "destructive" });
+        }
+        finally {
+            setTagsSaving(false);
+        }
+    };
     const handleRemoveTag = async (tag: string) => {
-        if (!game) return
-        const newTags = (game.tags ?? []).filter(t => t !== tag)
-        setTagsSaving(true)
+        if (!game)
+            return;
+        const newTags = (game.tags ?? []).filter(t => t !== tag);
+        setTagsSaving(true);
         try {
-            const updated = await updateGame(gameId, { tags: newTags })
-            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev)
-        } catch (err) {
-            console.error("Failed to remove tag:", err)
-            toast({ title: t('common.error'), description: t('game.failedRemoveTag'), variant: "destructive" })
-        } finally {
-            setTagsSaving(false)
+            const updated = await updateGame(gameId, { tags: newTags });
+            setGame(prev => prev ? { ...prev, tags: updated.tags } : prev);
         }
-    }
-
+        catch (err) {
+            console.error("Failed to remove tag:", err);
+            toast({ title: t('common.error'), description: t('game.failedRemoveTag'), variant: "destructive" });
+        }
+        finally {
+            setTagsSaving(false);
+        }
+    };
     const handleTeamRemoved = () => {
         fetchGameTeams(gameId)
             .then(data => setTeams(data))
-            .catch(err => console.error("Failed to reload teams:", err))
-    }
-
+            .catch(err => console.error("Failed to reload teams:", err));
+    };
     function getStatusColor(status: string) {
         switch (status) {
             case "released":
-                return "bg-green-500"
+                return "bg-green-500";
             case "beta":
-                return "bg-blue-500"
+                return "bg-blue-500";
             case "alpha":
-                return "bg-purple-500"
+                return "bg-purple-500";
             case "development":
-                return "bg-yellow-500"
+                return "bg-yellow-500";
             case "archived":
-                return "bg-gray-500"
+                return "bg-gray-500";
             default:
-                return "bg-gray-500"
+                return "bg-gray-500";
         }
     }
-
     if (loading) {
-        return (
-            <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
                 <div className="animate-pulse">
-                    <div className="h-8 w-1/3 bg-muted/50 rounded mb-4" />
-                    <div className="h-4 w-1/4 bg-muted/50 rounded mb-8" />
+                    <div className="h-8 w-1/3 bg-muted/50 rounded mb-4"/>
+                    <div className="h-4 w-1/4 bg-muted/50 rounded mb-8"/>
                     <Card>
-                        <CardHeader className="h-24 bg-muted/50 rounded-t-lg" />
+                        <CardHeader className="h-24 bg-muted/50 rounded-t-lg"/>
                         <CardContent className="p-6">
-                            <div className="h-4 w-3/4 bg-muted/50 rounded mb-4" />
-                            <div className="h-4 w-1/2 bg-muted/50 rounded mb-4" />
-                            <div className="h-4 w-2/3 bg-muted/50 rounded" />
+                            <div className="h-4 w-3/4 bg-muted/50 rounded mb-4"/>
+                            <div className="h-4 w-1/2 bg-muted/50 rounded mb-4"/>
+                            <div className="h-4 w-2/3 bg-muted/50 rounded"/>
                         </CardContent>
-                        <CardFooter className="bg-muted/20 h-12 rounded-b-lg" />
+                        <CardFooter className="bg-muted/20 h-12 rounded-b-lg"/>
                     </Card>
                 </div>
-            </div>
-        )
+            </div>);
     }
-
     if (error || !game) {
-        return (
-            <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
                 <Card className="border-destructive">
                     <CardHeader>
                         <CardTitle>{t('common.error')}</CardTitle>
@@ -250,12 +250,9 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                         </Button>
                     </CardFooter>
                 </Card>
-            </div>
-        )
+            </div>);
     }
-
-    return (
-        <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+    return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
             <div className="mb-2">
                 <Breadcrumb>
                     <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
@@ -263,16 +260,14 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                             <BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                        {game.studio_id && (
-                            <>
+                        {game.studio_id && (<>
                                 <BreadcrumbItem>
                                     <BreadcrumbLink href={`/studios/${game.studio_id}`}>
                                         {studio?.name || game.studio?.name || t('common.studio')}
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                            </>
-                        )}
+                            </>)}
                         <BreadcrumbItem>
                             <span className="">{game.name}</span>
                         </BreadcrumbItem>
@@ -283,29 +278,21 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
             <div className="flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center md:gap-0">
                 <div className="flex items-center gap-3 min-w-0">
                     <Button variant="outline" size="icon" className="shrink-0" onClick={() => game.studio_id ? router.push(`/studios/${game.studio_id}`) : router.back()}>
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4"/>
                     </Button>
                     <div className="group min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <GameNameEditable
-                                game={game}
-                                gameId={game.id}
-                                onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}
-                            />
+                            <GameNameEditable game={game} gameId={game.id} onNameUpdate={newName => setGame(prev => prev ? { ...prev, name: newName } : prev)}/>
                             <Badge variant={game.is_active ? "default" : "destructive"} className={game.is_active ? "bg-green-600 hover:bg-green-600" : ""}>
                                 {game.is_active ? "Active" : "Inactive"}
                             </Badge>
                         </div>
-                        <GameDescriptionEditable
-                            game={game}
-                            gameId={game.id}
-                            onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}
-                        />
+                        <GameDescriptionEditable game={game} gameId={game.id} onDescriptionUpdate={newDescription => setGame(prev => prev ? { ...prev, description: newDescription } : prev)}/>
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 items-start md:items-end">
-                    <GameNavButtons gameId={game.id} active="detail" />
-                    <DeleteGameDialog game={game} />
+                    <GameNavButtons gameId={game.id} active="detail"/>
+                    <DeleteGameDialog game={game}/>
                 </div>
             </div>
 
@@ -313,7 +300,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                 <Card className="lg:col-span-2 group">
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Gamepad2 className="mr-2 h-5 w-5" />
+                            <Gamepad2 className="mr-2 h-5 w-5"/>
                             {t('game.information')}
                         </CardTitle>
                     </CardHeader>
@@ -326,68 +313,51 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
                                             {game.id}
                                         </code>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 shrink-0"
-                                            onClick={() => {
-                                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                                    navigator.clipboard.writeText(game.id)
-                                                } else {
-                                                    const textarea = document.createElement('textarea')
-                                                    textarea.value = game.id
-                                                    textarea.style.position = 'fixed'
-                                                    textarea.style.opacity = '0'
-                                                    document.body.appendChild(textarea)
-                                                    textarea.select()
-                                                    document.execCommand('copy')
-                                                    document.body.removeChild(textarea)
-                                                }
-                                                setCopied(true)
-                                                setTimeout(() => setCopied(false), 2000)
-                                            }}
-                                        >
-                                            {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(game.id);
+            }
+            else {
+                const textarea = document.createElement('textarea');
+                textarea.value = game.id;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }}>
+                                            {copied ? <Check className="h-3.5 w-3.5 text-green-500"/> : <Copy className="h-3.5 w-3.5"/>}
                                         </Button>
                                     </div>
                                 </div>
-                                {game.studio_id && (
-                                    <div>
+                                {game.studio_id && (<div>
                                         <h3 className="text-sm font-medium ">{t('common.studio')}</h3>
-                                        <Link 
-                                            href={`/studios/${game.studio_id}`}
-                                            className="inline-flex items-center gap-1 hover:text-primary transition-colors text-lg"
-                                        >
+                                        <Link href={`/studios/${game.studio_id}`} className="inline-flex items-center gap-1 hover:text-primary transition-colors text-lg">
                                             {studio?.name || game.studio_id}
-                                            <ExternalLink className="w-4 h-4" />
+                                            <ExternalLink className="w-4 h-4"/>
                                         </Link>
-                                    </div>
-                                )}
+                                    </div>)}
                                 <div>
                                     <h3 className="text-sm font-medium ">{t('game.status')}</h3>
-                                    <GameStatusEditable
-                                        game={game}
-                                        gameId={game.id}
-                                        onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}
-                                    />
+                                    <GameStatusEditable game={game} gameId={game.id} onStatusUpdate={newStatus => setGame(prev => prev ? { ...prev, status: newStatus } : prev)}/>
                                 </div>
-                                {game.tier && (
-                                    <div>
+                                {game.tier && (<div>
                                         <h3 className="text-sm font-medium ">{t('game.tier')}</h3>
                                         <p className="text-lg">{game.tier}</p>
-                                    </div>
-                                )}
-                                {game.studio?.name && (
-                                    <div>
+                                    </div>)}
+                                {game.studio?.name && (<div>
                                         <h3 className="text-sm font-medium ">{t('game.studioName')}</h3>
                                         <p className="text-lg">
                                             <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary">
                                                 {game.studio.name}
-                                                <ExternalLink className="w-4 h-4 " />
+                                                <ExternalLink className="w-4 h-4 "/>
                                             </Link>
                                         </p>
-                                    </div>
-                                )}
+                                    </div>)}
                                 <div>
                                     <h3 className="text-xs font-medium text-muted-foreground">{t('game.createdAt')}</h3>
                                     <p className="text-sm">{formatTimestamp(game.created_at)}</p>
@@ -403,7 +373,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/shops`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.shop_count ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1" />
+                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
                                         </Link>
                                     </p>
                                 </div>
@@ -412,7 +382,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/players`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.usage?.player_profiles ?? game.player_count ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1" />
+                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
                                         </Link>
                                     </p>
                                 </div>
@@ -421,67 +391,44 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     <p className="text-lg">
                                         <Link href={`/games/${game.id}/items`} className="text-primary hover:text-primary/80 flex items-center gap-1">
                                             {game.usage?.items ?? 0}
-                                            <ExternalLink className="inline-block h-4 w-4 ml-1" />
+                                            <ExternalLink className="inline-block h-4 w-4 ml-1"/>
                                         </Link>
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium flex items-center gap-1 mb-2">
-                                        <Tag className="h-3.5 w-3.5" />
+                                        <Tag className="h-3.5 w-3.5"/>
                                         {t('game.tags')}
                                         <span className="text-xs text-muted-foreground font-normal">
                                             {(game.tags ?? []).length}/10
                                         </span>
                                     </h3>
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        {(game.tags ?? []).map(tag => (
-                                            <Badge key={tag} variant="secondary" className="gap-1 pr-1 text-xs">
+                                        {(game.tags ?? []).map(tag => (<Badge key={tag} variant="secondary" className="gap-1 pr-1 text-xs">
                                                 {tag}
-                                                <button
-                                                    onClick={() => handleRemoveTag(tag)}
-                                                    disabled={tagsSaving}
-                                                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors disabled:opacity-50"
-                                                >
-                                                    <X className="h-3 w-3" />
+                                                <button onClick={() => handleRemoveTag(tag)} disabled={tagsSaving} className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors disabled:opacity-50">
+                                                    <X className="h-3 w-3"/>
                                                 </button>
-                                            </Badge>
-                                        ))}
-                                        {(game.tags ?? []).length < 10 && (
-                                            <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+                                            </Badge>))}
+                                        {(game.tags ?? []).length < 10 && (<Popover open={tagsOpen} onOpenChange={setTagsOpen}>
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" size="sm" className="h-6 gap-1 text-xs px-2" disabled={tagsSaving}>
-                                                        {tagsSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                                        {tagsSaving ? <Loader2 className="h-3 w-3 animate-spin"/> : <Plus className="h-3 w-3"/>}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-60 p-2" align="start">
-                                                    <input
-                                                        type="text"
-                                                        placeholder={t('game.searchTags')}
-                                                        value={tagSearch}
-                                                        onChange={e => setTagSearch(e.target.value)}
-                                                        className="w-full px-2 py-1.5 text-sm border rounded-md bg-transparent outline-none focus:ring-1 focus:ring-ring mb-2"
-                                                    />
+                                                    <input type="text" placeholder={t('game.searchTags')} value={tagSearch} onChange={e => setTagSearch(e.target.value)} className="w-full px-2 py-1.5 text-sm border rounded-md bg-transparent outline-none focus:ring-1 focus:ring-ring mb-2"/>
                                                     <div className="max-h-48 overflow-y-auto space-y-0.5">
                                                         {allTags
-                                                            .filter(t => !(game.tags ?? []).includes(t))
-                                                            .filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase()))
-                                                            .map(tag => (
-                                                                <button
-                                                                    key={tag}
-                                                                    onClick={() => handleAddTag(tag)}
-                                                                    disabled={tagsSaving}
-                                                                    className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors disabled:opacity-50"
-                                                                >
+                .filter(t => !(game.tags ?? []).includes(t))
+                .filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase()))
+                .map(tag => (<button key={tag} onClick={() => handleAddTag(tag)} disabled={tagsSaving} className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors disabled:opacity-50">
                                                                     {tag}
-                                                                </button>
-                                                            ))}
-                                                        {allTags.filter(t => !(game.tags ?? []).includes(t)).filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
-                                                            <p className="text-xs text-muted-foreground px-2 py-1.5">{t('game.noTagsAvailable')}</p>
-                                                        )}
+                                                                </button>))}
+                                                        {allTags.filter(t => !(game.tags ?? []).includes(t)).filter(t => !tagSearch || t.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (<p className="text-xs text-muted-foreground px-2 py-1.5">{t('game.noTagsAvailable')}</p>)}
                                                     </div>
                                                 </PopoverContent>
-                                            </Popover>
-                                        )}
+                                            </Popover>)}
                                     </div>
                                 </div>
                             </div>
@@ -504,7 +451,7 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 <Label htmlFor="daily-quest-days" className="text-sm font-medium">
                                     {t('game.dailyQuestAdvanceDays')}
                                 </Label>
-                                <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame} />
+                                <DailyQuestMaxAdvanceDays game={game} onUpdate={setGame}/>
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 {t('game.dailyQuestAdvanceDaysDesc')}
@@ -517,31 +464,28 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                 <Label htmlFor="allow-trading" className="text-sm font-medium cursor-pointer">
                                     {t('game.allowPlayerTrading')}
                                 </Label>
-                                <Switch
-                                    id="allow-trading"
-                                    checked={game.settings?.allow_player_trading ?? false}
-                                    onCheckedChange={async (checked) => {
-                                        try {
-                                            const updated = await updateGame(game.id, {
-                                                settings: {
-                                                    ...game.settings,
-                                                    allow_player_trading: checked
-                                                }
-                                            })
-                                            setGame(updated)
-                                            toast({
-                                                title: t('game.settingsUpdated'),
-                                                description: checked ? t('game.tradingEnabled') : t('game.tradingDisabled')
-                                            })
-                                        } catch (err) {
-                                            toast({
-                                                title: t('common.error'),
-                                                description: t('game.failedUpdateSettings'),
-                                                variant: "destructive"
-                                            })
-                                        }
-                                    }}
-                                />
+                                <Switch id="allow-trading" checked={game.settings?.allow_player_trading ?? false} onCheckedChange={async (checked) => {
+            try {
+                const updated = await updateGame(game.id, {
+                    settings: {
+                        ...game.settings,
+                        allow_player_trading: checked
+                    }
+                });
+                setGame(updated);
+                toast({
+                    title: t('game.settingsUpdated'),
+                    description: checked ? t('game.tradingEnabled') : t('game.tradingDisabled')
+                });
+            }
+            catch (err) {
+                toast({
+                    title: t('common.error'),
+                    description: t('game.failedUpdateSettings'),
+                    variant: "destructive"
+                });
+            }
+        }}/>
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 {t('game.allowPlayerTradingDesc')}
@@ -550,17 +494,16 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
 
                         {/* Toggle 2 & 3: Allow tracing player event + Leaderboard tracing */}
                         <div className="mt-5">
-                            <TracingSettingsGroup gameId={game.id} game={game} />
+                            <TracingSettingsGroup gameId={game.id} game={game}/>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Limits & Usage Section */}
-                {(game.limits || game.usage) && (
-                    <Card className="lg:col-span-3">
+                {(game.limits || game.usage) && (<Card className="lg:col-span-3">
                         <CardHeader>
                             <CardTitle className="flex items-center">
-                                <BarChart2 className="mr-2 h-5 w-5" />
+                                <BarChart2 className="mr-2 h-5 w-5"/>
                                 {t('game.limitsAndUsage')}
                             </CardTitle>
                         </CardHeader>
@@ -573,13 +516,8 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                         <div className="flex justify-between text-sm">
                                             <span className="font-medium inline-flex items-center gap-1">
                                                 {t('game.onlineUsers')}
-                                                <button
-                                                    onClick={refreshCcu}
-                                                    disabled={ccuRefreshing}
-                                                    className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                                                    title={t('common.refresh')}
-                                                >
-                                                    <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`} />
+                                                <button onClick={refreshCcu} disabled={ccuRefreshing} className="inline-flex items-center justify-center h-4 w-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50" title={t('common.refresh')}>
+                                                    <RefreshCw className={`h-3 w-3 ${ccuRefreshing ? 'animate-spin' : ''}`}/>
                                                 </button>
                                             </span>
                                             <span className={`text-muted-foreground ${ccu && ccu.ccu.current >= ccu.ccu.limit ? 'text-destructive font-semibold' : ''}`}>
@@ -587,86 +525,71 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                                 {ccu && ccu.ccu.current >= ccu.ccu.limit && ` (${t('game.limitReached')})`}
                                             </span>
                                         </div>
-                                        <Progress
-                                            value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0}
-                                            className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}
-                                        />
+                                        <Progress value={ccu ? Math.min(ccu.ccu.utilization_pct, 100) : 0} className={`h-2 ${ccu && ccu.ccu.current >= ccu.ccu.limit ? '[&>div]:bg-destructive' : ''}`}/>
                                     </div>
                                     {/* Player Profiles (Total Players) */}
                                     <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/players`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.totalPlayer')}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.player_profiles ?? 0)} / {game.limits?.max_player_profiles != null ? fmt(game.limits.max_player_profiles) : '∞'}
                                             {game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_player_profiles
-                                            ? Math.min(((game.usage?.player_profiles ?? 0) / game.limits.max_player_profiles) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_player_profiles
+                ? Math.min(((game.usage?.player_profiles ?? 0) / game.limits.max_player_profiles) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_player_profiles != null && (game.usage?.player_profiles ?? 0) >= game.limits.max_player_profiles ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Items */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/items`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.items')}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.items ?? 0)} / {game.limits?.max_items != null ? fmt(game.limits.max_items) : '∞'}
                                             {game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_items
-                                            ? Math.min(((game.usage?.items ?? 0) / game.limits.max_items) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_items
+                ? Math.min(((game.usage?.items ?? 0) / game.limits.max_items) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_items != null && (game.usage?.items ?? 0) >= game.limits.max_items ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Shops */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/shops`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.shops')}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.shops ?? 0)} / {game.limits?.max_shops != null ? fmt(game.limits.max_shops) : '∞'}
                                             {game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_shops
-                                            ? Math.min(((game.usage?.shops ?? 0) / game.limits.max_shops) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_shops
+                ? Math.min(((game.usage?.shops ?? 0) / game.limits.max_shops) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_shops != null && (game.usage?.shops ?? 0) >= game.limits.max_shops ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Entity Defs */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/entities`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.entityDefs')}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.entity_definitions ?? 0)} / {game.limits?.max_entity_defs != null ? fmt(game.limits.max_entity_defs) : '∞'}
                                             {game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_entity_defs
-                                            ? Math.min(((game.usage?.entity_definitions ?? 0) / game.limits.max_entity_defs) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_entity_defs
+                ? Math.min(((game.usage?.entity_definitions ?? 0) / game.limits.max_entity_defs) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_entity_defs != null && (game.usage?.entity_definitions ?? 0) >= game.limits.max_entity_defs ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                             </div>
 
@@ -677,110 +600,88 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/quests`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.quests') ?? 'Quests'}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.quests ?? 0)} / {game.limits?.max_quests != null ? fmt(game.limits.max_quests) : '∞'}
                                             {game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_quests
-                                            ? Math.min(((game.usage?.quests ?? 0) / game.limits.max_quests) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_quests
+                ? Math.min(((game.usage?.quests ?? 0) / game.limits.max_quests) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_quests != null && (game.usage?.quests ?? 0) >= game.limits.max_quests ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Leaderboards */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/leaderboard`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.leaderboards') ?? 'Leaderboards'}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.leaderboards ?? 0)} / {game.limits?.max_leaderboards != null ? fmt(game.limits.max_leaderboards) : '∞'}
                                             {game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_leaderboards
-                                            ? Math.min(((game.usage?.leaderboards ?? 0) / game.limits.max_leaderboards) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_leaderboards
+                ? Math.min(((game.usage?.leaderboards ?? 0) / game.limits.max_leaderboards) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_leaderboards != null && (game.usage?.leaderboards ?? 0) >= game.limits.max_leaderboards ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Journey Node */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/analytic`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.nodeDefinitions') ?? 'Journey Node'}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.node_definitions ?? 0)} / {game.limits?.max_node_definitions != null ? fmt(game.limits.max_node_definitions) : '∞'}
                                             {game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_node_definitions
-                                            ? Math.min(((game.usage?.node_definitions ?? 0) / game.limits.max_node_definitions) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_node_definitions
+                ? Math.min(((game.usage?.node_definitions ?? 0) / game.limits.max_node_definitions) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_node_definitions != null && (game.usage?.node_definitions ?? 0) >= game.limits.max_node_definitions ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Event Types */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/analytic?tab=event-types`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.eventTypes') ?? 'Event Types'}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.event_types ?? 0)} / {game.limits?.max_event_types != null ? fmt(game.limits.max_event_types) : '∞'}
                                             {game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_event_types
-                                            ? Math.min(((game.usage?.event_types ?? 0) / game.limits.max_event_types) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_event_types
+                ? Math.min(((game.usage?.event_types ?? 0) / game.limits.max_event_types) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_event_types != null && (game.usage?.event_types ?? 0) >= game.limits.max_event_types ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                                 {/* Scripts */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <Link href={`/games/${game.id}/scripts`} className="font-medium inline-flex items-center gap-1 text-primary hover:text-primary/80">
                                             {t('game.scripts') ?? 'Scripts'}
-                                            <ExternalLink className="h-3 w-3" />
+                                            <ExternalLink className="h-3 w-3"/>
                                         </Link>
                                         <span className={`text-muted-foreground ${game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts ? 'text-destructive font-semibold' : ''}`}>
                                             {fmt(game.usage?.scripts ?? 0)} / {game.limits?.max_scripts != null ? fmt(game.limits.max_scripts) : '∞'}
                                             {game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts && ` (${t('game.limitReached')})`}
                                         </span>
                                     </div>
-                                    <Progress
-                                        value={game.limits?.max_scripts
-                                            ? Math.min(((game.usage?.scripts ?? 0) / game.limits.max_scripts) * 100, 100)
-                                            : 0}
-                                        className={`h-2 ${game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts ? '[&>div]:bg-destructive' : ''}`}
-                                    />
+                                    <Progress value={game.limits?.max_scripts
+                ? Math.min(((game.usage?.scripts ?? 0) / game.limits.max_scripts) * 100, 100)
+                : 0} className={`h-2 ${game.limits?.max_scripts != null && (game.usage?.scripts ?? 0) >= game.limits.max_scripts ? '[&>div]:bg-destructive' : ''}`}/>
                                 </div>
                             </div>
 
                             {/* Column 3: Equipment Panel */}
-                            {catalog.length > 0 && (
-                                <EquipmentPanel
-                                    gameId={game.id}
-                                    catalog={catalog}
-                                    gamePlugins={gamePlugins}
-                                />
-                            )}
+                            {catalog.length > 0 && (<EquipmentPanel gameId={game.id} catalog={catalog} gamePlugins={gamePlugins}/>)}
                         </div>
                         </CardContent>
-                    </Card>
-                )}
+                    </Card>)}
 
                 {/* Teams Section */}
                 <Card className="lg:col-span-3 mt-6">
@@ -789,52 +690,27 @@ export default function GameDetailsPage({ params }: { params: Promise<{ id: stri
                             <CardTitle>{t('studio.teams')}</CardTitle>
                             <CardDescription>{t('game.teamsDesc')}</CardDescription>
                         </div>
-                        {game.studio_id && (
-                            <div className="shrink-0">
-                                <AddTeamToGameDialog
-                                    gameId={game.id}
-                                    studioId={game.studio_id}
-                                    existingTeamIds={teams.map(t => t.id)}
-                                    onTeamsAdded={handleTeamRemoved}
-                                />
-                            </div>
-                        )}
+                        {game.studio_id && (<div className="shrink-0">
+                                <AddTeamToGameDialog gameId={game.id} studioId={game.studio_id} existingTeamIds={teams.map(t => t.id)} onTeamsAdded={handleTeamRemoved}/>
+                            </div>)}
                     </CardHeader>
                     <CardContent className="group">
-                        {teamsLoading ? (
-                            <div className="space-y-2">
-                                <Skeleton className="h-6 w-full" />
-                            </div>
-                        ) : teams.length > 0 ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                                {teams.map((team, index) => (
-                                    <React.Fragment key={team.id}>
+                        {teamsLoading ? (<div className="space-y-2">
+                                <Skeleton className="h-6 w-full"/>
+                            </div>) : teams.length > 0 ? (<div className="flex flex-wrap items-center gap-2">
+                                {teams.map((team, index) => (<React.Fragment key={team.id}>
                                         <div className="inline-flex items-center gap-1">
-                                            <Link
-                                                href={`/teams/${team.id}`}
-                                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                                            >
+                                            <Link href={`/teams/${team.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                                                 {team.name}
-                                                <ExternalLink className="w-4 h-4" />
+                                                <ExternalLink className="w-4 h-4"/>
                                             </Link>
-                                            <RemoveTeamFromGameDialog 
-                                                gameId={game.id}
-                                                team={team}
-                                                onTeamRemoved={handleTeamRemoved}
-                                            />
+                                            <RemoveTeamFromGameDialog gameId={game.id} team={team} onTeamRemoved={handleTeamRemoved}/>
                                         </div>
-                                        {index < teams.length - 1 && (
-                                            <span className="text-muted-foreground">•</span>
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">{t('game.noTeamsAssigned')}</p>
-                        )}
+                                        {index < teams.length - 1 && (<span className="text-muted-foreground">•</span>)}
+                                    </React.Fragment>))}
+                            </div>) : (<p className="text-sm text-muted-foreground">{t('game.noTeamsAssigned')}</p>)}
                     </CardContent>
                 </Card>
             </div>
-        </div>
-    )
+        </div>);
 }

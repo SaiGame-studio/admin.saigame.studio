@@ -2,15 +2,12 @@
  * RAG chunk: Container definition generation.
  * Injected when the user asks about containers, chests, bags, inventory, vaults, equipment slots.
  */
-
 export const KEYWORDS = [
-  'container', 'chest', 'bag', 'inventory', 'vault', 'shulker', 'equipment slot',
-  'container definition', 'grid', 'storage', 'slots', 'container_creating', 'code name', 'code_name',
-  'itemcontainerdefinition', 'create container', 'slot setup', 'equipment panel',
-]
-
-export const INTENT_TYPES = ['container_creating']
-
+    'container', 'chest', 'bag', 'inventory', 'vault', 'shulker', 'equipment slot',
+    'container definition', 'grid', 'storage', 'slots', 'container_creating', 'code name', 'code_name',
+    'itemcontainerdefinition', 'create container', 'slot setup', 'equipment panel',
+];
+export const INTENT_TYPES = ['container_creating'];
 export const DOC = `
 # Container Definition Generation
 
@@ -50,4 +47,4 @@ Every generated container definition must include a non-empty \`code_name\` in l
 
 ## Example Prompt
 "Create an equipment panel for a warrior class with 6 slots: head, chest, hands, legs, main weapon, off-hand"
-`
+`;

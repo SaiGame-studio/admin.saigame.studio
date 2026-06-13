@@ -1,39 +1,37 @@
-"use client"
-
-import React, {useState} from "react"
-import {useRouter} from "next/navigation"
-import {createGame} from "@/lib/studio-api"
-import {Button} from "@/components/ui/button"
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
-import {Input} from "@/components/ui/input"
-import {Label} from "@/components/ui/label"
-import {ArrowLeft, Loader2} from "lucide-react"
-import {useToast} from "@/components/ui/use-toast"
-
-export default function NewGamePage({params}: { params: Promise<{ id: string }> }) {
-    const { id: studioId } = React.use(params)
-    const router = useRouter()
-    const {toast} = useToast()
-    const [name, setName] = useState("")
-    const [description, setDescription] = useState("")
-    const [gameType, setGameType] = useState("idle")
-    const [maxPlayers, setMaxPlayers] = useState("1000")
-    const [serverRegion, setServerRegion] = useState("us-west")
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-
+"use client";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createGame } from "@/lib/studio-api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+export default function NewGamePage({ params }: {
+    params: Promise<{
+        id: string;
+    }>;
+}) {
+    const { id: studioId } = React.use(params);
+    const router = useRouter();
+    const { toast } = useToast();
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const [gameType, setGameType] = useState("idle");
+    const [maxPlayers, setMaxPlayers] = useState("1000");
+    const [serverRegion, setServerRegion] = useState("us-west");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault()
-
+        e.preventDefault();
         if (!name.trim()) {
-            setError("Game name is required")
-            return
+            setError("Game name is required");
+            return;
         }
-
         try {
-            setLoading(true)
-            setError(null)
-
+            setLoading(true);
+            setError(null);
             await createGame(studioId, {
                 name,
                 description,
@@ -42,24 +40,22 @@ export default function NewGamePage({params}: { params: Promise<{ id: string }> 
                     max_players: parseInt(maxPlayers) || 1000,
                     server_region: serverRegion
                 }
-            })
-
+            });
             toast({
                 title: "Game created",
                 description: `${name} has been created successfully.`,
-            })
-
-            router.push(`/studios/${studioId}/games`)
-        } catch (err) {
-            console.error(err)
-            setError("Failed to create game. Please try again.")
-        } finally {
-            setLoading(false)
+            });
+            router.push(`/studios/${studioId}/games`);
+        }
+        catch (err) {
+            console.error(err);
+            setError("Failed to create game. Please try again.");
+        }
+        finally {
+            setLoading(false);
         }
     }
-
-    return (
-        <div className="container mx-auto py-6">
+    return (<div className="container mx-auto py-6">
             <div className="mb-6">
                 <Button variant="outline" size="sm" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4"/>
@@ -82,59 +78,32 @@ export default function NewGamePage({params}: { params: Promise<{ id: string }> 
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         {error &&
-                            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{error}</div>}
+            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">{error}</div>}
 
                         <div className="space-y-2">
                             <Label htmlFor="name">Game Name *</Label>
-                            <Input
-                                id="name"
-                                placeholder="Enter game name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                            />
+                            <Input id="name" placeholder="Enter game name" value={name} onChange={(e) => setName(e.target.value)} required/>
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="description">Description</Label>
-                            <Input
-                                id="description"
-                                placeholder="Enter game description"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                            />
+                            <Input id="description" placeholder="Enter game description" value={description} onChange={(e) => setDescription(e.target.value)}/>
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="gameType">Game Type</Label>
-                            <Input
-                                id="gameType"
-                                placeholder="e.g., idle, rpg, strategy"
-                                value={gameType}
-                                onChange={(e) => setGameType(e.target.value)}
-                            />
+                            <Input id="gameType" placeholder="e.g., idle, rpg, strategy" value={gameType} onChange={(e) => setGameType(e.target.value)}/>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="maxPlayers">Max Players</Label>
-                                <Input
-                                    id="maxPlayers"
-                                    type="number"
-                                    placeholder="1000"
-                                    value={maxPlayers}
-                                    onChange={(e) => setMaxPlayers(e.target.value)}
-                                />
+                                <Input id="maxPlayers" type="number" placeholder="1000" value={maxPlayers} onChange={(e) => setMaxPlayers(e.target.value)}/>
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="serverRegion">Server Region</Label>
-                                <Input
-                                    id="serverRegion"
-                                    placeholder="e.g., us-west, eu-central"
-                                    value={serverRegion}
-                                    onChange={(e) => setServerRegion(e.target.value)}
-                                />
+                                <Input id="serverRegion" placeholder="e.g., us-west, eu-central" value={serverRegion} onChange={(e) => setServerRegion(e.target.value)}/>
                             </div>
                         </div>
                     </CardContent>
@@ -149,6 +118,5 @@ export default function NewGamePage({params}: { params: Promise<{ id: string }> 
                     </CardFooter>
                 </form>
             </Card>
-        </div>
-    )
+        </div>);
 }

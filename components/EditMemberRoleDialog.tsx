@@ -1,113 +1,90 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { fetchRoles, updateMemberRole } from "@/lib/team-api"
-import type { Role } from "@/types/role"
-import type { TeamMember } from "@/types/team"
-import { Pencil, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useTranslation } from "@/lib/i18n/use-translation"
-
+"use client";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { fetchRoles, updateMemberRole } from "@/lib/team-api";
+import type { Role } from "@/types/role";
+import type { TeamMember } from "@/types/team";
+import { Pencil, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/lib/i18n/use-translation";
 interface EditMemberRoleDialogProps {
-  teamId: string
-  member: TeamMember
-  onRoleUpdated?: () => void
+    teamId: string;
+    member: TeamMember;
+    onRoleUpdated?: () => void;
 }
-
 export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemberRoleDialogProps) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const [roleId, setRoleId] = useState(member.role_id)
-  const [roles, setRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(false)
-  const [rolesLoading, setRolesLoading] = useState(false)
-  const { toast } = useToast()
-
-  useEffect(() => {
-    if (open) {
-      loadRoles()
-      setRoleId(member.role_id)
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+    const [roleId, setRoleId] = useState(member.role_id);
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [rolesLoading, setRolesLoading] = useState(false);
+    const { toast } = useToast();
+    useEffect(() => {
+        if (open) {
+            loadRoles();
+            setRoleId(member.role_id);
+        }
+    }, [open, member.role_id]);
+    async function loadRoles() {
+        try {
+            setRolesLoading(true);
+            const data = await fetchRoles();
+            setRoles(data);
+        }
+        catch (err) {
+            console.error("Failed to load roles:", err);
+            toast({
+                title: t('common.error'),
+                description: t('team.loadRolesError'),
+                variant: "destructive",
+            });
+        }
+        finally {
+            setRolesLoading(false);
+        }
     }
-  }, [open, member.role_id])
-
-  async function loadRoles() {
-    try {
-      setRolesLoading(true)
-      const data = await fetchRoles()
-      setRoles(data)
-    } catch (err) {
-      console.error("Failed to load roles:", err)
-      toast({
-        title: t('common.error'),
-        description: t('team.loadRolesError'),
-        variant: "destructive",
-      })
-    } finally {
-      setRolesLoading(false)
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!roleId) {
+            toast({
+                title: t('team.validationError'),
+                description: t('team.selectRoleValidation'),
+                variant: "destructive",
+            });
+            return;
+        }
+        try {
+            setLoading(true);
+            await updateMemberRole(teamId, member.id, roleId);
+            toast({
+                title: t('common.success'),
+                description: t('team.updateRoleSuccess'),
+            });
+            setOpen(false);
+            if (onRoleUpdated) {
+                onRoleUpdated();
+            }
+        }
+        catch (err) {
+            console.error("Failed to update member role:", err);
+            toast({
+                title: t('common.error'),
+                description: err instanceof Error ? err.message : t('team.updateRole') + ' failed',
+                variant: "destructive",
+            });
+        }
+        finally {
+            setLoading(false);
+        }
     }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    
-    if (!roleId) {
-      toast({
-        title: t('team.validationError'),
-        description: t('team.selectRoleValidation'),
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setLoading(true)
-      await updateMemberRole(teamId, member.id, roleId)
-      
-      toast({
-        title: t('common.success'),
-        description: t('team.updateRoleSuccess'),
-      })
-      
-      setOpen(false)
-      
-      if (onRoleUpdated) {
-        onRoleUpdated()
-      }
-    } catch (err) {
-      console.error("Failed to update member role:", err)
-      toast({
-        title: t('common.error'),
-        description: err instanceof Error ? err.message : t('team.updateRole') + ' failed',
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    return (<Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Pencil className="h-3 w-3" />
+          <Pencil className="h-3 w-3"/>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -123,39 +100,29 @@ export function EditMemberRoleDialog({ teamId, member, onRoleUpdated }: EditMemb
               <Label htmlFor="role">{t('team.roleLabel')}</Label>
               <Select value={roleId} onValueChange={setRoleId} disabled={loading || rolesLoading}>
                 <SelectTrigger id="role">
-                  <SelectValue placeholder={rolesLoading ? t('team.loadingRoles') : t('team.selectRolePlaceholder')} />
+                  <SelectValue placeholder={rolesLoading ? t('team.loadingRoles') : t('team.selectRolePlaceholder')}/>
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
+                  {roles.map((role) => (<SelectItem key={role.id} value={role.id}>
                       {role.display_name}
-                      {role.description && (
-                        <span className="text-xs text-muted-foreground ml-2">
+                      {role.description && (<span className="text-xs text-muted-foreground ml-2">
                           - {role.description}
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
+                        </span>)}
+                    </SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={loading || !roleId}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               {t('team.updateRole')}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
-  )
+    </Dialog>);
 }
