@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "node -e \"fs.rmSync('.next',{recursive:true,force:true})\"",
-    "dev": "next dev -H local-admin.saigame.studio -p 81",
+    "dev": "next dev --webpack -H local-admin.saigame.studio -p 81",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx"

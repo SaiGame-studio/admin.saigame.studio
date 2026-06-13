@@ -9,7 +9,6 @@ interface ConversationHeaderProps {
     activeConv: Conversation;
     activeConvId: string | null;
     chatHistory: ChatTurn[];
-    conversationTokenUsage: number | null;
     editingTitle: boolean;
     setEditingTitle: (v: boolean) => void;
     editTitleValue: string;
@@ -22,7 +21,7 @@ interface ConversationHeaderProps {
     onOpenDetail: () => void;
     t: (key: string) => string;
 }
-export function ConversationHeader({ activeConv, activeConvId, chatHistory, conversationTokenUsage, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
+export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
     return (<>
       <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
         <div id="conv-panel-title-row" className="flex items-start justify-between gap-1">
@@ -82,9 +81,6 @@ export function ConversationHeader({ activeConv, activeConvId, chatHistory, conv
                   {lang}
                 </span>);
             })()}
-            <span id="conv-panel-token-used" className="text-[10px] text-muted-foreground/50 font-mono shrink-0">
-              {t('llmConversation.tokensUsed')}: {conversationTokenUsage != null ? conversationTokenUsage.toLocaleString() : '0'}
-            </span>
           </div>
         </div>)}
     </>);

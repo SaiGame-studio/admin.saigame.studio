@@ -37,6 +37,10 @@ function normalizeLlmErrorMessage(error: unknown, fallbackMessage: string, token
         || lowered.includes('402')) {
         return tokenQuotaExceededMessage;
     }
+    if (lowered.includes('llm_disabled')
+        || lowered.includes('llm requests are disabled')) {
+        return 'llmConversation.errorLlmDisabled';
+    }
     return raw || fallbackMessage;
 }
 const ITEM_CATEGORIES: ItemCategory[] = [

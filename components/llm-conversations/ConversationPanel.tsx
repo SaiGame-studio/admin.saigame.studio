@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } 
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils';
-import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, listRequestTypes, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type TokenUsageInfo, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
+import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, listRequestTypes, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline';
 import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation';
 import { useConvPanelResize } from '@/hooks/use-conv-panel-resize';
@@ -68,7 +68,6 @@ export function LLMConversationPanel() {
     const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true');
     // Token balance
     const [tokenBalance, setTokenBalance] = useState<GameLLMTokenBalance | null>(null);
-    const [conversationTokenUsage, setConversationTokenUsage] = useState<number | null>(null);
     // Sidebar state — two separate lists
     const [activeConvs, setActiveConvs] = useState<Conversation[]>([]);
     const [isLoadingActive, setIsLoadingActive] = useState(false);
@@ -591,7 +590,6 @@ export function LLMConversationPanel() {
         setIsApplyingEntityDefinitionConflict(false);
         if (!gameId || !activeConvId) {
             setActiveConv(null);
-            setConversationTokenUsage(null);
             setLinkedContent([]);
             setLoreEntryTitles({});
             setItemDefinitionNames({});
@@ -619,9 +617,6 @@ export function LLMConversationPanel() {
             return;
         }
         safeSetItem(lsActiveConv(gameId), activeConvId);
-        const rawTokenUsage = safeGetItem(lsConvTokenUsage(activeConvId));
-        const parsedTokenUsage = rawTokenUsage ? Number(rawTokenUsage) : 0;
-        setConversationTokenUsage(Number.isFinite(parsedTokenUsage) && parsedTokenUsage >= 0 ? parsedTokenUsage : 0);
         window.dispatchEvent(new Event('ss:conv-state-changed'));
         // Skip re-fetching when the conversation was just created by handleSend
         if (justCreatedConvIdRef.current === activeConvId) {
@@ -788,11 +783,6 @@ export function LLMConversationPanel() {
         loadLinkedContent(gameId, activeConvId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeConvId, gameId]);
-    useEffect(() => {
-        if (!activeConvId || conversationTokenUsage == null)
-            return;
-        safeSetItem(lsConvTokenUsage(activeConvId), String(conversationTokenUsage));
-    }, [activeConvId, conversationTokenUsage]);
     // Listen for externally created conversations (e.g. from lore link button)
     useEffect(() => {
         function handleExternalConvCreated(e: Event) {
@@ -1200,20 +1190,6 @@ export function LLMConversationPanel() {
         loadArchivedConvs(gId);
         getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => { });
     }
-    function handleConversationTokenUsage(convId: string | null, usage: TokenUsageInfo) {
-        if (!convId)
-            return;
-        const totalTokens = usage.totalTokens;
-        if (typeof totalTokens !== 'number' || !Number.isFinite(totalTokens) || totalTokens <= 0)
-            return;
-        const existingRaw = safeGetItem(lsConvTokenUsage(convId));
-        const existing = existingRaw ? Number(existingRaw) : 0;
-        const next = (Number.isFinite(existing) && existing >= 0 ? existing : 0) + totalTokens;
-        safeSetItem(lsConvTokenUsage(convId), String(next));
-        if (activeConvIdRef.current === convId) {
-            setConversationTokenUsage(next);
-        }
-    }
     useEffect(() => {
         const handler = (e: Event) => {
             const gId = gameId;
@@ -1477,7 +1453,7 @@ export function LLMConversationPanel() {
         }, (updatedConv) => {
             setActiveConv(updatedConv);
             setActiveConvs((prev) => prev.map((c) => (c.ID === updatedConv.ID ? updatedConv : c)));
-        }, t('llmConversation.errorCreate'), t('llmConversation.errorSend'), t('llmConversation.errorTokenQuotaExceeded'), retryRequestHistory.length > 0 ? retryRequestHistory : undefined, retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined, fallbackEntityType || undefined, retryHistoryContext.length > 0 ? retryHistoryContext : undefined, generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined, retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined, retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined, convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined, convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined, retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined, convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined, convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined, convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined, convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined, convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined, (usage) => handleConversationTokenUsage(convIdForUsage, usage));
+        }, t('llmConversation.errorCreate'), t('llmConversation.errorSend'), t('llmConversation.errorTokenQuotaExceeded'), retryRequestHistory.length > 0 ? retryRequestHistory : undefined, retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined, fallbackEntityType || undefined, retryHistoryContext.length > 0 ? retryHistoryContext : undefined, generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined, retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined, retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined, convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined, convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined, retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined, convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined, convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined, convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined, convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined, convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined);
     }
     function handleSend() {
         if (!gameId || !message.trim() || isStreaming)
@@ -1726,7 +1702,7 @@ export function LLMConversationPanel() {
             .flatMap(t => (t.responses ?? [])
             .filter(r => r.done && !r.error && r.responseText && r.intentType)
             .map(r => ({ request_type: r.intentType!, response_text: r.responseText })));
-        void retryResponse(gameId, activeConvId, turnId, responseIdx, intentType, userMessage, t('llmConversation.errorSend'), t('llmConversation.errorTokenQuotaExceeded'), planningAction, responseRequestHistory.length > 0 ? responseRequestHistory : undefined, generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined, retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined, retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined, retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined, convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined, convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined, retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined, convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined, convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined, convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined, convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined, convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined, (usage) => handleConversationTokenUsage(convIdForUsage, usage));
+        void retryResponse(gameId, activeConvId, turnId, responseIdx, intentType, userMessage, t('llmConversation.errorSend'), t('llmConversation.errorTokenQuotaExceeded'), planningAction, responseRequestHistory.length > 0 ? responseRequestHistory : undefined, generatedItemsForRequest.length > 0 ? generatedItemsForRequest : undefined, retryLinkedLoreIds.length > 0 ? retryLinkedLoreIds : undefined, retryLinkedItemIds.length > 0 ? retryLinkedItemIds : undefined, retryLinkedEntityIds.length > 0 ? retryLinkedEntityIds : undefined, convGeneratedPresets.length > 0 ? convGeneratedPresets : undefined, convGeneratedContainers.length > 0 ? convGeneratedContainers : undefined, retryLinkedContainerIds.length > 0 ? retryLinkedContainerIds : undefined, convGeneratedGachaPacks.length > 0 ? convGeneratedGachaPacks : undefined, convGeneratedEquipmentSlots.length > 0 ? convGeneratedEquipmentSlots : undefined, convGeneratedCraftingRecipes.length > 0 ? convGeneratedCraftingRecipes : undefined, convGeneratedEntityDefinitions.length > 0 ? convGeneratedEntityDefinitions : undefined, convGeneratedEntityPools.length > 0 ? convGeneratedEntityPools : undefined);
     }
     async function handleSavePresetDefinition(preset: Record<string, unknown>, turnId: string, responseIdx: number, presetIdx: number) {
         if (!gameId)
@@ -3041,7 +3017,7 @@ export function LLMConversationPanel() {
               </div>) : isLoadingConv && !isStreaming ? (<div id="conv-panel-loading-state" className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
               </div>) : (<>
-                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} conversationTokenUsage={conversationTokenUsage} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} t={t}/>)}
+                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} t={t}/>)}
 
                 <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} t={t}/>
               </>)}
