@@ -3585,6 +3585,8 @@ export const en = {
         titlePlaceholder: "Conversation title...",
         goalPlaceholder: "Session goal — describe what you want to build...",
         goalLabel: "Goal:",
+        increaseTitleFont: "Increase title size",
+        decreaseTitleFont: "Decrease title size",
         summary: "AI Summary",
         noSummaryYet: "Send a message to get started.",
         processing: "Processing response...",

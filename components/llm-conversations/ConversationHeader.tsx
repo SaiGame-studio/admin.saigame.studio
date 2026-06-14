@@ -1,5 +1,5 @@
 'use client';
-import { Archive, ChevronLeft, Info, MoreVertical, Pencil, Trash2, X } from 'lucide-react';
+import { Archive, ChevronLeft, Info, MoreVertical, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, } from '@/components/ui/dropdown-menu';
@@ -14,6 +14,9 @@ interface ConversationHeaderProps {
     editTitleValue: string;
     setEditTitleValue: (v: string) => void;
     onSaveTitle: () => void;
+    titleFontSize: number;
+    onIncreaseTitleFontSize: () => void;
+    onDecreaseTitleFontSize: () => void;
     onBack: () => void;
     onClose: () => void;
     onArchive: (conv: Conversation) => void;
@@ -21,7 +24,7 @@ interface ConversationHeaderProps {
     onOpenDetail: () => void;
     t: (key: string) => string;
 }
-export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
+export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, titleFontSize, onIncreaseTitleFontSize, onDecreaseTitleFontSize, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
     return (<>
       <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
         <div id="conv-panel-title-row" className="flex items-start justify-between gap-1">
@@ -29,12 +32,26 @@ export function ConversationHeader({ activeConv, activeConvId, chatHistory, edit
             <ChevronLeft className="h-3.5 w-3.5"/>
           </Button>
 
-          {editingTitle ? (<Input id="conv-panel-title-input" value={editTitleValue} onChange={(e) => setEditTitleValue(e.target.value)} onBlur={onSaveTitle} onKeyDown={(e) => {
-                if (e.key === 'Enter')
-                    onSaveTitle();
-            }} autoFocus className="text-sm h-7 font-semibold"/>) : (<button id="conv-panel-title-btn" className="flex-1 text-left text-sm font-semibold hover:underline line-clamp-1" onClick={() => { setEditTitleValue(activeConv.Title); setEditingTitle(true); }} title={t('llmConversation.editTitle')}>
-              {activeConv.Title}
-            </button>)}
+          <div id="conv-panel-title-slot" className="flex min-w-0 flex-1 items-center gap-1">
+            {editingTitle ? (<Input id="conv-panel-title-input" value={editTitleValue} onChange={(e) => setEditTitleValue(e.target.value)} onBlur={onSaveTitle} onKeyDown={(e) => {
+                    if (e.key === 'Enter')
+                        onSaveTitle();
+                }} autoFocus className="h-7 min-w-0 flex-1 font-semibold" style={{ fontSize: `${titleFontSize}px` }}/>) : (<button id="conv-panel-title-btn" className="min-w-0 flex-1 truncate text-left font-semibold hover:underline" onClick={() => { setEditTitleValue(activeConv.Title); setEditingTitle(true); }} title={t('llmConversation.editTitle')} style={{ fontSize: `${titleFontSize}px` }}>
+                {activeConv.Title}
+              </button>)}
+
+            <div id="conv-panel-title-font-controls" className="flex items-center gap-0.5 shrink-0">
+              <Button id="conv-panel-title-font-decrease" variant="ghost" size="icon" className="h-6 w-6" onClick={onDecreaseTitleFontSize} title={t('llmConversation.decreaseTitleFont')} disabled={titleFontSize <= 12}>
+                <Minus className="h-3.5 w-3.5"/>
+              </Button>
+              <span id="conv-panel-title-font-value" className="min-w-8 text-center font-mono text-muted-foreground" style={{ fontSize: `${Math.max(10, Math.round(titleFontSize * 0.7))}px` }}>
+                {titleFontSize}
+              </span>
+              <Button id="conv-panel-title-font-increase" variant="ghost" size="icon" className="h-6 w-6" onClick={onIncreaseTitleFontSize} title={t('llmConversation.increaseTitleFont')} disabled={titleFontSize >= 25}>
+                <Plus className="h-3.5 w-3.5"/>
+              </Button>
+            </div>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
