@@ -80,7 +80,7 @@ function KVEditor({ entries, onChange, label, numericValue, }: {
           <span className="text-muted-foreground">=</span>
           <Input className="h-7 text-xs" placeholder={numericValue ? "0" : "value"} inputMode={numericValue ? "decimal" : undefined} value={e.value} onChange={(ev) => update(i, "value", ev.target.value)}/>
           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" type="button" onClick={() => remove(i)}>
-            ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢
+            ?
           </Button>
         </div>))}
       <Button variant="outline" size="sm" type="button" className="h-7 text-xs mt-1" onClick={addRow}>
@@ -452,7 +452,7 @@ function CreateContainerDefinitionDialog({ open, gameId, allItems, containerType
                 <PopoverTrigger asChild>
                   <Button variant="outline" role="combobox" aria-expanded={linkedItemOpen} className="w-full justify-between font-normal">
                     {linkedItemId ? (<span className="truncate">
-                        {linkedItemDisplayName ?? linkedItemId.slice(0, 8) + "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"}
+                        {linkedItemDisplayName ?? linkedItemId.slice(0, 8) + "?"}
                         {linkedItemDisplayCode && (<span className="ml-1 text-xs text-muted-foreground font-mono">
                             ({linkedItemDisplayCode})
                           </span>)}
@@ -655,7 +655,7 @@ function EditContainerDefinitionDialog({ open, gameId, definition, initialValues
                 <PopoverTrigger asChild>
                   <Button variant="outline" role="combobox" aria-expanded={linkedItemOpen} className="w-full justify-between font-normal">
                     {linkedItemId ? (<span className="truncate">
-                        {allItems.find((i) => i.id === linkedItemId)?.name ?? linkedItemId.slice(0, 8) + "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"}
+                        {allItems.find((i) => i.id === linkedItemId)?.name ?? linkedItemId.slice(0, 8) + "?"}
                         {allItems.find((i) => i.id === linkedItemId)?.item_code && (<span className="ml-1 text-xs text-muted-foreground font-mono">
                             ({allItems.find((i) => i.id === linkedItemId)!.item_code})
                           </span>)}
@@ -885,7 +885,7 @@ function TagsTab({ gameId, tags, setTags, loading, setLoading, error, setError, 
           <h2 className="text-lg font-semibold">{t('items.itemTagsTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             {tags.length > 0
-            ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 {t('items.tagsLabel')} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {t('items.tagLimitFixed')}</span></>
+            ? <><span className={tags.length >= 50 ? "text-destructive font-medium" : ""}>{tags.length}</span><span className="text-muted-foreground">/50 {t('items.tagsLabel')} ? {t('items.tagLimitFixed')}</span></>
             : t('items.noTagsYet')}
           </p>
         </div>
@@ -974,12 +974,12 @@ function TagsTab({ gameId, tags, setTags, loading, setLoading, error, setError, 
             <div className="rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
               <p className="font-semibold text-foreground flex items-center gap-1.5"><Tag className="h-3 w-3"/> {t('items.tagKeyRules')}</p>
               <ul className="space-y-0.5 pl-1">
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {t('items.tagRuleLower')}</li>
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {t('items.tagRuleStart')}</li>
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {t('items.tagRuleLength')}</li>
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ <span className="text-amber-500 font-medium">{t('items.tagImmutableNote')}</span></li>
-                <li>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {t('items.tagRuleMax')}</li>
+                <li>Format: <code className="font-mono bg-muted rounded px-1">^[a-z0-9][a-z0-9\-]*[a-z0-9]$</code></li>
+                <li>{t('items.tagRuleLower')}</li>
+                <li>{t('items.tagRuleStart')}</li>
+                <li>{t('items.tagRuleLength')}</li>
+                <li><span className="text-amber-500 font-medium">{t('items.tagImmutableNote')}</span></li>
+                <li>{t('items.tagRuleMax')}</li>
               </ul>
             </div>
             {!editingTag && (<>
@@ -2891,7 +2891,7 @@ export default function GameItemsPage() {
                           {item.item_code ? (<div className="flex items-center gap-1">
                               <span className="text-xs font-mono text-muted-foreground">{item.item_code}</span>
                               <CopyButton text={item.item_code} size="h-3 w-3"/>
-                            </div>) : (<span className="text-muted-foreground text-xs">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>)}
+                            </div>) : (<span className="text-muted-foreground text-xs">—</span>)}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className="text-xs w-fit mx-auto">
@@ -2925,19 +2925,19 @@ export default function GameItemsPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           {item.is_stackable ? (<span className="text-green-500 text-sm font-medium">
-                              ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â Ãƒâ€¦Ã‚Â¾"}
-                            </span>) : (<span className="text-muted-foreground text-sm">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>)}
+                              {t('common.yes')} {item.max_stack_size != null ? item.max_stack_size.toLocaleString() : "∞"}
+                            </span>) : (<span className="text-muted-foreground text-sm">{t('common.no')}</span>)}
                         </TableCell>
                         {!convPanelOpen && (<TableCell className="text-center text-sm text-muted-foreground">
-                            {item.grid_width}ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â{item.grid_height}
+                            {item.grid_width} × {item.grid_height}
                           </TableCell>)}
                         {!convPanelOpen && (<TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
-                              <Button variant="ghost" size="icon" asChild title="Edit">
-                                <Link href={`/games/${gameId}/items/${item.id}`}>
-                                  <Pencil className="h-4 w-4"/>
-                                </Link>
-                              </Button>
+                                <Button variant="ghost" size="icon" asChild title="Edit">
+                                  <Link href={`/games/${gameId}/items/${item.id}`}>
+                                    <Pencil className="h-4 w-4"/>
+                                  </Link>
+                                </Button>
                             </div>
                           </TableCell>)}
                       </TableRow>))}
@@ -3265,17 +3265,17 @@ export default function GameItemsPage() {
                               {def.code_name ? (<div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={def.code_name}>
                                   <span className="truncate max-w-[180px]">{def.code_name}</span>
                                   <CopyButton text={def.code_name}/>
-                                </div>) : (<span className="text-xs text-muted-foreground italic">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>)}
+                                </div>) : (<span className="text-xs text-muted-foreground italic">?</span>)}
                             </TableCell>
                             <TableCell>
                               <ContainerTypeBadge type={def.container_type}/>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {def.grid_cols} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {def.grid_rows}
+                              {def.grid_cols} ? {def.grid_rows}
                               <span className="text-xs ml-1">({def.grid_cols * def.grid_rows} {t('items.slots')})</span>
                             </TableCell>
                             <TableCell>
-                              {def.is_portable ? (<span className="text-green-500 text-sm font-medium">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ {t('items.portable')}</span>) : (<span className="text-muted-foreground text-sm">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {t('items.fixed')}</span>)}
+                              {def.is_portable ? (<span className="text-green-500 text-sm font-medium">{t('common.yes')}</span>) : (<span className="text-muted-foreground text-sm">{t('common.no')}</span>)}
                             </TableCell>
                             <TableCell className="text-sm max-w-[180px]">
                               {def.linked_item_definition_id ? (<span className="flex items-center gap-1">
@@ -3285,7 +3285,7 @@ export default function GameItemsPage() {
                                   <Link href={`/games/${gameId}/items/${def.linked_item_definition_id}`} title={t('items.goToItemDef')}>
                                     <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary shrink-0 transition-colors"/>
                                   </Link>
-                                </span>) : (<span className="text-muted-foreground italic text-xs">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>)}
+                                </span>) : (<span className="text-muted-foreground italic text-xs">?</span>)}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-1 justify-end">
@@ -3349,9 +3349,9 @@ export default function GameItemsPage() {
                                                 </Button>
                                               </div>) : (<div className="flex items-center gap-1.5 group/edit min-w-0">
                                                 <span className={`text-sm font-mono truncate ${def.code_name ? "text-foreground" : "text-muted-foreground italic"}`}>
-                                                  {def.code_name ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
+                                                  {def.code_name ?? "—"}
                                                 </span>
-                                                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity" onClick={() => { setEditingField({ id: def.id, field: 'code_name' }); setEditValue(def.code_name ?? ""); }}>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/edit:opacity-100 transition-opacity" onClick={() => { setEditingField({ id: def.id, field: 'code_name' }); setEditValue(def.code_name ?? ""); }}>
                                                   <Pencil className="h-3 w-3"/>
                                                 </Button>
                                               </div>)}
@@ -3374,7 +3374,7 @@ export default function GameItemsPage() {
                                             {editingField?.id === def.id && editingField?.field === 'grid' ? (<div className="flex items-center gap-1">
                                                 <Input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 w-12 text-xs text-center px-1"/>
                                                 <span className="text-xs text-muted-foreground">ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>
-                                                <Input type="number" value={editValue2} onChange={(e) => setEditValue2(e.target.value)} className="h-7 w-12 text-xs text-center px-1"/>
+
                                                 <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={handleSaveInlineEdit}>
                                                   <Check className="h-4 w-4"/>
                                                 </Button>
@@ -3382,7 +3382,7 @@ export default function GameItemsPage() {
                                                   <X className="h-4 w-4"/>
                                                 </Button>
                                               </div>) : (<div className="flex items-center gap-1.5 group/edit">
-                                                <p className="text-sm font-medium">{def.grid_cols} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {def.grid_rows} ({def.grid_cols * def.grid_rows} {t('items.totalSlots')})</p>
+                                                <p className="text-sm font-medium">{def.grid_cols} ? {def.grid_rows} ({def.grid_cols * def.grid_rows} {t('items.totalSlots')})</p>
                                                 <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover/expand:opacity-100 transition-opacity" onClick={() => {
                                         setEditingField({ id: def.id, field: 'grid' });
                                         setEditValue(String(def.grid_cols));
@@ -3542,7 +3542,7 @@ export default function GameItemsPage() {
           {/* Pagination */}
           {containerTotalPages > 1 && (<div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
               <span>
-                {t('crafting.pageLabel')} {containerCurrentPage} {t('crafting.pageOf')} {containerTotalPages} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â {containerTotal} {t('items.definitions')}
+                {t('crafting.pageLabel')} {containerCurrentPage} {t('crafting.pageOf')} {containerTotalPages} - {containerTotal} {t('items.definitions')}
               </span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={containerOffset === 0} onClick={() => setContainerOffset(Math.max(0, containerOffset - CONTAINER_LIMIT))}>
@@ -3713,7 +3713,15 @@ export default function GameItemsPage() {
 
                           {/* Col 2: Keys */}
                           <div className="w-52 shrink-0 text-sm text-muted-foreground">
-                            {(pack.key_requirements ?? []).length === 0 ? (<span className="italic text-xs">{t('items.noKeyRequired')}</span>) : pack.key_requirements.length === 1 ? (<span>ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ <strong className="text-foreground">{pack.key_requirements[0].quantity}ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</strong> {gachaItemShortName(pack.key_requirements[0].item_definition_id)}</span>) : (<span>ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ {pack.key_requirements.length} {t('items.gachaKeysCount')}</span>)}
+                            {(pack.key_requirements ?? []).length === 0 ? (
+                              <span className="italic text-xs">{t('items.noKeyRequired')}</span>
+                            ) : pack.key_requirements.length === 1 ? (
+                              <span>
+                                - <strong className="text-foreground">{pack.key_requirements[0].quantity} x</strong> {gachaItemShortName(pack.key_requirements[0].item_definition_id)}
+                              </span>
+                            ) : (
+                              <span>- {pack.key_requirements.length} {t('items.gachaKeysCount')}</span>
+                            )}
                           </div>
 
                           {/* Col 3: Collect destination */}
@@ -3726,7 +3734,7 @@ export default function GameItemsPage() {
 
                           {/* Col 4: Items in pool */}
                           <div className="w-28 shrink-0 text-sm text-muted-foreground">
-                            ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â² {pack.item_pool.length} {t('items.itemsUnit')}
+                            {pack.item_pool.length} {t('items.itemsUnit')}
                           </div>
 
                           {/* Actions */}
@@ -3748,50 +3756,61 @@ export default function GameItemsPage() {
                         <Separator />
                         <CardContent className="pt-4 pb-4">
                           <div className="grid grid-cols-5 gap-4 items-start">
-                            {/* Key Requirements ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â spans 2 columns */}
                             <div className="col-span-2">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ {t('items.keyRequirements')}</p>
-                              {(pack.key_requirements ?? []).length === 0 ? (<p className="text-xs text-muted-foreground italic">{t('items.noKeyRequired')}</p>) : (<div className="rounded-md border overflow-hidden">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('items.keyRequirements')}</p>
+                              {(pack.key_requirements ?? []).length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">{t('items.noKeyRequired')}</p>
+                              ) : (
+                                <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8 w-8"/>
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 text-right w-12">{t('items.quantity')}</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {pack.key_requirements.map((kr, i) => {
-                                    const item = gachaAllItems.find((x) => x.id === kr.item_definition_id);
-                                    return (<TableRow key={i}>
+                                      {(pack.key_requirements ?? []).map((kr, i) => {
+                                        const item = gachaAllItems.find((x) => x.id === kr.item_definition_id);
+                                        return (
+                                          <TableRow key={i}>
                                             <TableCell className="text-xs py-2 w-8">
                                               <Link href={`/games/${gameId}/items/${kr.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
-                                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"/>
+                                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
                                               </Link>
                                             </TableCell>
                                             <TableCell className="text-xs py-2">
-                                              {item ? (<div className="flex items-center gap-1.5 flex-wrap">
+                                              {item ? (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
                                                   <span className="font-medium">{item.name}</span>
                                                   {item.item_code && <code className="text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
-                                                  {item.rarity && <RarityBadge rarity={item.rarity}/>}
-                                                </div>) : (<code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</code>)}
+                                                  {item.rarity && <RarityBadge rarity={item.rarity} />}
+                                                </div>
+                                              ) : (
+                                                <code className="font-mono text-[11px] text-muted-foreground">{kr.item_definition_id.slice(0, 8)}...</code>
+                                              )}
                                             </TableCell>
-                                            <TableCell className="text-xs py-2 text-right font-semibold tabular-nums">{kr.quantity}ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</TableCell>
-                                          </TableRow>);
-                                })}
+                                            <TableCell className="text-xs py-2 text-right font-semibold tabular-nums">{kr.quantity}x</TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
-                                </div>)}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Drop Table ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â spans 3 columns */}
                             <div className="col-span-3">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â² {t('items.dropTable')}</p>
-                              {pack.item_pool.length === 0 ? (<p className="text-xs text-muted-foreground italic">No items in pool</p>) : (<div className="rounded-md border overflow-hidden">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('items.dropTable')}</p>
+                              {pack.item_pool.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">No items in pool</p>
+                              ) : (
+                                <div className="rounded-md border overflow-hidden">
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-muted/50">
-                                        <TableHead className="text-xs h-8 w-8"/>
+                                        <TableHead className="text-xs h-8 w-8" />
                                         <TableHead className="text-xs h-8">{t('items.name')}</TableHead>
                                         <TableHead className="text-xs h-8 w-24">{t('items.rarityHeader')}</TableHead>
                                         <TableHead className="text-xs h-8">{t('items.dropRate')}</TableHead>
@@ -3802,30 +3821,33 @@ export default function GameItemsPage() {
                                     </TableHeader>
                                     <TableBody>
                                       {[...pack.item_pool]
-                                    .sort((a, b) => b.weight - a.weight)
-                                    .map((entry, i) => {
-                                    const item = gachaAllItems.find((x) => x.id === entry.item_definition_id);
-                                    const pct = totalWeight > 0 ? (entry.weight / totalWeight) * 100 : 0;
-                                    const rarity = entry.rarity ?? item?.rarity;
-                                    return (<TableRow key={i}>
+                                        .sort((a, b) => b.weight - a.weight)
+                                        .map((entry, i) => {
+                                          const item = gachaAllItems.find((x) => x.id === entry.item_definition_id);
+                                          const pct = totalWeight > 0 ? (entry.weight / totalWeight) * 100 : 0;
+                                          const rarity = entry.rarity ?? item?.rarity;
+                                          return (
+                                            <TableRow key={i}>
                                               <TableCell className="text-xs py-2 w-8">
                                                 <Link href={`/games/${gameId}/items/${entry.item_definition_id}`} target="_blank" title={t('items.goToItemDef')}>
-                                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"/>
+                                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
                                                 </Link>
                                               </TableCell>
                                               <TableCell className="text-xs py-2">
-                                                {item ? (<div>
+                                                {item ? (
+                                                  <div>
                                                     <span className="font-medium">{item.name}</span>
                                                     {item.item_code && <code className="ml-1.5 text-muted-foreground font-mono text-[11px]">{item.item_code}</code>}
-                                                  </div>) : (<code className="font-mono text-[11px] text-muted-foreground">{entry.item_definition_id.slice(0, 8)}ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</code>)}
+                                                  </div>
+                                                ) : (
+                                                  <code className="font-mono text-[11px] text-muted-foreground">{entry.item_definition_id.slice(0, 8)}...</code>
+                                                )}
                                               </TableCell>
                                               <TableCell className="text-xs py-2">
-                                                {rarity ? <RarityBadge rarity={rarity}/> : <span className="text-muted-foreground">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>}
-                                              </TableCell>
-                                              <TableCell className="text-xs py-2">
+                                                {rarity ? <RarityBadge rarity={rarity} /> : <span className="text-muted-foreground">-</span>}
                                                 <div className="flex items-center gap-2">
                                                   <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(pct, 100)}%` }}/>
+                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
                                                   </div>
                                                   <span className="tabular-nums text-muted-foreground w-16 text-right shrink-0">{formatPct(pct)}</span>
                                                 </div>
@@ -3833,11 +3855,13 @@ export default function GameItemsPage() {
                                               <TableCell className="text-xs py-2 text-right tabular-nums text-muted-foreground">{entry.weight.toLocaleString()}</TableCell>
                                               <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_min}</TableCell>
                                               <TableCell className="text-xs py-2 text-right tabular-nums font-medium">{entry.quantity_max}</TableCell>
-                                            </TableRow>);
-                                })}
+                                            </TableRow>
+                                          );
+                                        })}
                                     </TableBody>
                                   </Table>
-                                </div>)}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -3959,7 +3983,7 @@ export default function GameItemsPage() {
                           {def.code_name ? (<div className="text-xs font-mono text-muted-foreground flex items-center gap-0.5" title={def.code_name}>
                               <span className="truncate max-w-[180px]">{def.code_name}</span>
                               <CopyButton text={def.code_name}/>
-                            </div>) : (<span className="text-xs text-muted-foreground italic">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>)}
+                            </div>) : (<span className="text-xs text-muted-foreground italic">?</span>)}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-blue-500/15 text-blue-400 border-blue-400/40 capitalize">
@@ -3972,7 +3996,7 @@ export default function GameItemsPage() {
                         <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                           {Object.keys(def.metadata ?? {}).length > 0
                             ? Object.entries(def.metadata).map(([k, v]) => `${k}: ${v}`).join(", ")
-                            : <span className="italic">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</span>}
+                            : <span className="italic">?</span>}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-1 justify-end">
@@ -4256,10 +4280,14 @@ export default function GameItemsPage() {
         }} modal={true}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                          {row.item_definition_id
-            ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"}</span>
-            : <span className="text-muted-foreground">{t('items.selectItemPlaceholder')}</span>}
-                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50"/>
+                          {row.item_definition_id ? (
+                            <span className="truncate">
+                              {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
+                            </span>
+                          ) : (
+                            <span className="truncate text-muted-foreground">Select item</span>
+                          )}
+                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[280px] p-0" align="start">
@@ -4322,7 +4350,7 @@ export default function GameItemsPage() {
                   <Label className="text-base">{t('items.itemPoolLabel')}</Label>
                   {formTotalWeight > 0 && (<p className="text-xs text-muted-foreground">
                       {t('items.totalWeight')}: {formTotalWeight.toLocaleString()}
-                      {formTotalWeight === 1000000 && " ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ (1M = % notation)"}
+                      {formTotalWeight === 1000000 && " (1M = % notation)"}
                     </p>)}
                 </div>
                 <Button size="sm" variant="outline" type="button" onClick={addPoolRow} disabled={formSaving}>
@@ -4347,10 +4375,14 @@ export default function GameItemsPage() {
             }} modal={true}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                            {row.item_definition_id
-                ? <span className="truncate">{gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? row.item_definition_id.slice(0, 8) + "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"}</span>
-                : <span className="text-muted-foreground">{t('items.selectItemPlaceholder')}</span>}
-                            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50"/>
+                            {row.item_definition_id ? (
+                              <span className="truncate">
+                                {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
+                              </span>
+                            ) : (
+                              <span className="truncate text-muted-foreground">Select item</span>
+                            )}
+                            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[280px] p-0" align="start">
@@ -4380,7 +4412,7 @@ export default function GameItemsPage() {
                         </PopoverContent>
                       </Popover>
                       <div className="relative">
-                        <Input type="text" inputMode="numeric" className="h-8 text-xs pr-1 font-mono" value={row.weight ? Number(row.weight).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { weight: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving} title={pct > 0 ? `ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€¹Ã¢â‚¬Â  ${formatPct(pct)}` : ""}/>
+                        <Input type="text" inputMode="numeric" className="h-8 text-xs pr-1 font-mono" value={row.weight ? Number(row.weight).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { weight: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving} title={pct > 0 ? `? ${formatPct(pct)}` : ""}/>
                       </div>
                       <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_min ? Number(row.quantity_min).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
                       <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_max ? Number(row.quantity_max).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
@@ -4537,7 +4569,7 @@ export default function GameItemsPage() {
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
-                  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¡ <strong>{t('items.explanation.writeProps.tip')}</strong> {t('items.explanation.writeProps.tipContent')}
+                  Tip: <strong>{t('items.explanation.writeProps.tip')}</strong> {t('items.explanation.writeProps.tipContent')}
                 </div>
               </div>)}
 
@@ -4570,7 +4602,7 @@ export default function GameItemsPage() {
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
-                  ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â <strong>{t('items.explanation.updateQty.warning')}</strong> {t('items.explanation.updateQty.warningContent')}
+                  Warning: <strong>{t('items.explanation.updateQty.warning')}</strong> {t('items.explanation.updateQty.warningContent')}
                 </div>
               </div>)}
           </div>
