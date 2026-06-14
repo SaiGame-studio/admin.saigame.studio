@@ -8,9 +8,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
+import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { api } from "@/lib/api-client";
 import { useTranslation } from "@/lib/i18n/use-translation";
-import { useEscapeLayer } from "@/hooks/use-escape-manager";
 
 interface TokenPackage {
     id: string;
@@ -61,11 +61,11 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
             type="button"
             disabled={disabled}
             onClick={onSelect}
-            className={`relative rounded-lg border px-4 py-3 flex flex-col gap-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected
-                ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+            className={`relative flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected
+                ? "border-primary bg-primary/5 ring-2 ring-primary/30"
                 : !disabled
                     ? "border-border hover:border-primary/50 hover:bg-muted/40"
-                    : "border-border opacity-40 cursor-not-allowed"}`}
+                    : "cursor-not-allowed border-border opacity-40"}`}
         >
             {selected && (
                 <span id={`llm-purchase-card-check-${pkg.package_key}`} className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -250,7 +250,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                     <span
                         key={id}
                         id={`llm-prem-float-${id}`}
-                        className="prem-float fixed text-sm font-bold tabular-nums whitespace-nowrap select-none"
+                        className="prem-float fixed select-none whitespace-nowrap text-sm font-bold tabular-nums"
                         style={{
                             top: y,
                             left: x,
@@ -289,14 +289,13 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                 )}
 
                 <div id={`llm-purchase-body-${gameId}`} className="mt-2 flex flex-col gap-3">
-
                     <div id={`llm-purchase-token-balances-${gameId}`} className="grid grid-cols-2 gap-2">
                         <div id={`llm-purchase-premium-bal-${gameId}`} ref={premiumAnchorRef} className="flex flex-col gap-0.5 rounded-md border px-3 py-2">
                             <span id={`llm-purchase-premium-bal-label-${gameId}`} className="text-xs text-muted-foreground">{t("llmTokenPurchase.premiumTokensRemaining")}</span>
                             {loadingTokens ? (
                                 <Skeleton id={`llm-purchase-premium-bal-skel-${gameId}`} className="h-5 w-20"/>
                             ) : (
-                                <span id={`llm-purchase-premium-bal-val-${gameId}`} className="font-semibold tabular-nums text-sm">
+                                <span id={`llm-purchase-premium-bal-val-${gameId}`} className="text-sm font-semibold tabular-nums">
                                     {premiumRemaining !== null ? premiumRemaining.toLocaleString("en-US") : "—"}
                                 </span>
                             )}
@@ -307,7 +306,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                             {loadingTokens ? (
                                 <Skeleton id={`llm-purchase-free-bal-skel-${gameId}`} className="h-5 w-20"/>
                             ) : (
-                                <span id={`llm-purchase-free-bal-val-${gameId}`} className="font-semibold tabular-nums text-sm">
+                                <span id={`llm-purchase-free-bal-val-${gameId}`} className="text-sm font-semibold tabular-nums">
                                     {freeRemaining !== null ? freeRemaining.toLocaleString("en-US") : "—"}
                                 </span>
                             )}
@@ -344,7 +343,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                 </div>
             </div>
 
-            <div id={`llm-purchase-footer-${gameId}`} className={`border-t bg-background px-6 py-4 flex flex-col gap-3 transition-all duration-200 ${selectedKey ? "opacity-100 translate-y-0" : "pointer-events-none translate-y-2 opacity-0"}`}>
+            <div id={`llm-purchase-footer-${gameId}`} className={`flex flex-col gap-3 border-t bg-background px-6 py-4 transition-all duration-200 ${selectedKey ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}>
                 {(() => {
                     const pkg = packages.find((item) => item.package_key === selectedKey);
                     if (!pkg)
@@ -383,9 +382,11 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                             {t("llmTokenPurchase.processing")}
                                         </>
                                     ) : (
-                                        <>
-                                            {t("llmTokenPurchase.confirmPay")} ðŸ’¸ {pkg.sgem_cost.toLocaleString("en-US")}
-                                        </>
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <span>{t("llmTokenPurchase.confirmPay")}</span>
+                                            <span className="text-blue-400" aria-hidden="true">💎</span>
+                                            <span>{pkg.sgem_cost.toLocaleString("en-US")}</span>
+                                        </span>
                                     )}
                                 </Button>
                             </div>
@@ -429,7 +430,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controll
             ) : triggerButton)}
 
             <Sheet open={open} onOpenChange={setOpen}>
-                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="w-full sm:max-w-[622px] flex flex-col overflow-y-auto p-0 top-14 lg:top-[60px] h-[calc(100%-3.5rem)] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
+                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="top-14 flex h-[calc(100%-3.5rem)] w-full flex-col overflow-y-auto p-0 sm:max-w-[622px] lg:top-[60px] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
                     {open ? <LLMTokenPurchaseContent gameId={gameId}/> : null}
                 </SheetContent>
             </Sheet>
