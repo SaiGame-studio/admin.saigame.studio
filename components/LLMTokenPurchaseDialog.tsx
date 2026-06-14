@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, RefreshCw, Zap } from "lucide-react";
+import { Check, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -103,7 +103,6 @@ let premiumFloatId = 0;
 export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentProps) {
     const { t } = useTranslation();
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
-    const [loadingWallet, setLoadingWallet] = useState(false);
     const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
     const [premiumRemaining, setPremiumRemaining] = useState<number | null>(null);
     const [loadingTokens, setLoadingTokens] = useState(false);
@@ -121,16 +120,12 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
     }>>([]);
 
     const loadWallet = async () => {
-        setLoadingWallet(true);
         try {
             const data = await api.get("/api/v1/me/sgem-wallet");
             setSgemBalance(data.balance ?? null);
         }
         catch {
             // silent
-        }
-        finally {
-            setLoadingWallet(false);
         }
     };
 
@@ -294,24 +289,6 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                 )}
 
                 <div id={`llm-purchase-body-${gameId}`} className="mt-2 flex flex-col gap-3">
-                    <div id={`llm-purchase-wallet-${gameId}`} className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                        <div id={`llm-purchase-wallet-label-${gameId}`} className="flex items-center gap-1.5 text-muted-foreground">
-                            <span className="text-blue-400" aria-hidden="true">💎</span>
-                            <span id={`llm-purchase-wallet-text-${gameId}`}>{t("llmTokenPurchase.sgemBalance")}</span>
-                        </div>
-                        <div id={`llm-purchase-wallet-value-${gameId}`} className="flex items-center gap-2">
-                            {loadingWallet ? (
-                                <Skeleton id={`llm-purchase-wallet-skel-${gameId}`} className="h-4 w-16"/>
-                            ) : (
-                                <span id={`llm-purchase-wallet-num-${gameId}`} className="font-semibold tabular-nums">
-                                    {sgemBalance !== null ? sgemBalance.toLocaleString("en-US") : "—"}
-                                </span>
-                            )}
-                            <Button id={`llm-purchase-wallet-refresh-${gameId}`} variant="ghost" size="icon" className="h-6 w-6" onClick={loadWallet} disabled={loadingWallet}>
-                                <RefreshCw className={`h-3 w-3 ${loadingWallet ? "animate-spin" : ""}`}/>
-                            </Button>
-                        </div>
-                    </div>
 
                     <div id={`llm-purchase-token-balances-${gameId}`} className="grid grid-cols-2 gap-2">
                         <div id={`llm-purchase-premium-bal-${gameId}`} ref={premiumAnchorRef} className="flex flex-col gap-0.5 rounded-md border px-3 py-2">
