@@ -1569,6 +1569,19 @@ export function LLMConversationPanel() {
             toast({ title: t('llmConversation.errorArchive'), variant: 'destructive' });
         }
     }
+    async function handleCreateNewConversation() {
+        if (isStreaming)
+            return;
+        setActiveConvId(null);
+        setActiveConv(null);
+        setMessage('');
+        setEditingTitle(false);
+        setEditingGoal(false);
+        setEditTitleValue('');
+        setEditGoalValue('');
+        clearHistory();
+        chatHistoryConvIdRef.current = null;
+    }
     async function handleUnarchive(conv: Conversation) {
         if (!gameId)
             return;
@@ -3023,7 +3036,7 @@ export function LLMConversationPanel() {
               </div>) : isLoadingConv && !isStreaming ? (<div id="conv-panel-loading-state" className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
               </div>) : (<>
-                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} titleFontSize={titleFontSize} onIncreaseTitleFontSize={() => setTitleFontSize((v) => Math.min(25, v + 1))} onDecreaseTitleFontSize={() => setTitleFontSize((v) => Math.max(12, v - 1))} t={t}/>)}
+                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onNewConversation={handleCreateNewConversation} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} titleFontSize={titleFontSize} onIncreaseTitleFontSize={() => setTitleFontSize((v) => Math.min(25, v + 1))} onDecreaseTitleFontSize={() => setTitleFontSize((v) => Math.max(12, v - 1))} t={t}/>)}
 
                 <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} contentFontSize={titleFontSize} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} t={t}/>
               </>)}

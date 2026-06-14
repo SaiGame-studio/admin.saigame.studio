@@ -17,6 +17,7 @@ interface ConversationHeaderProps {
     titleFontSize: number;
     onIncreaseTitleFontSize: () => void;
     onDecreaseTitleFontSize: () => void;
+    onNewConversation: () => void;
     onBack: () => void;
     onClose: () => void;
     onArchive: (conv: Conversation) => void;
@@ -24,7 +25,7 @@ interface ConversationHeaderProps {
     onOpenDetail: () => void;
     t: (key: string) => string;
 }
-export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, titleFontSize, onIncreaseTitleFontSize, onDecreaseTitleFontSize, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
+export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, titleFontSize, onIncreaseTitleFontSize, onDecreaseTitleFontSize, onNewConversation, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
     return (<>
       <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
         <div id="conv-panel-title-row" className="flex items-start justify-between gap-1">
@@ -68,7 +69,11 @@ export function ConversationHeader({ activeConv, activeConvId, chatHistory, edit
                 <Info className="mr-2 h-3.5 w-3.5"/>
                 {t('llmConversation.fullDetail')}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator id="conv-panel-menu-separator" />
+              <DropdownMenuItem id="conv-panel-menu-new-conversation" onClick={onNewConversation}>
+                <Plus className="mr-2 h-3.5 w-3.5"/>
+                {t('llmConversation.newConversation')}
+              </DropdownMenuItem>
               {!activeConv.ArchivedAt && (<DropdownMenuItem id="conv-panel-menu-archive" onClick={() => onArchive(activeConv)}>
                   <Archive className="mr-2 h-3.5 w-3.5"/>
                   {t('llmConversation.archive')}
