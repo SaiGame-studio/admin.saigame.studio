@@ -16,6 +16,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { getUserTimezone } from "@/lib/utils/date-utils";
 import { CopyButton } from "@/components/CopyButton";
 import { BuySGemTab } from "@/components/BuySGemTab";
+import { BuyLLMTokenTab } from "@/components/BuyLLMTokenTab";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -178,13 +179,13 @@ function PaymentPageContent() {
     }
     const initTab = searchParams.get("txid")
         ? "transactions"
-        : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
+        : (["transactions", "redeem", "buy-sgem", "buy-scoin", "buy-token"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
     const [activeTab, setActiveTab] = useState(initTab);
     // Sync tab when URL changes (e.g. clicking + from header while already on this page)
     useEffect(() => {
         const tab = searchParams.get("txid")
             ? "transactions"
-            : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
+            : (["transactions", "redeem", "buy-sgem", "buy-scoin", "buy-token"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
         setActiveTab(tab);
     }, [searchParams]);
     const [txSubTab, setTxSubTab] = useState<"buy" | "use">((["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use");
@@ -478,6 +479,7 @@ function PaymentPageContent() {
             <TabsList className="w-auto inline-flex">
               <TabsTrigger value="buy-sgem">{t('payment.tabBuySGem')}</TabsTrigger>
               <TabsTrigger value="buy-scoin">{t('payment.tabPaymentMethod')}</TabsTrigger>
+              <TabsTrigger value="buy-token">{t('payment.tabBuyToken')}</TabsTrigger>
               <TabsTrigger value="redeem">{t('payment.tabRedeemGiftCode')}</TabsTrigger>
               <TabsTrigger value="transactions">{t('payment.tabTransactions')}</TabsTrigger>
             </TabsList>
@@ -692,6 +694,9 @@ function PaymentPageContent() {
     ============================================================ */}
           <TabsContent value="buy-sgem">
             <BuySGemTab />
+          </TabsContent>
+          <TabsContent value="buy-token">
+            <BuyLLMTokenTab />
           </TabsContent>
 
           {/* ============================================================
