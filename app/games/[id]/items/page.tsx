@@ -2649,7 +2649,7 @@ export default function GameItemsPage() {
         : presetDefs;
     const totalPages = Math.ceil(total / LIMIT);
     const currentPage = Math.floor(offset / LIMIT) + 1;
-    return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+    return (<div id="game-items-page" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb>
@@ -2705,7 +2705,7 @@ export default function GameItemsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      <Tabs id="game-items-tabs" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
             <TabsList className="w-auto inline-flex">
               {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (<TabsTrigger key={key} value={key} className="whitespace-nowrap">
