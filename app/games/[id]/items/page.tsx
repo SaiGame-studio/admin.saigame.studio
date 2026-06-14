@@ -30,7 +30,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { getGame } from "@/lib/game-api";
 import { ApiError } from "@/lib/api-client";
-import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, createContainerDefinition, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, type ContainerTypeOption, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, getItemTag, createItemTag, updateItemTag, deleteItemTag, listPresetDefinitions, createPresetDefinition, updatePresetDefinition, deletePresetDefinition, type ListItemsParams, type ItemTag, type CreateItemTagRequest, type UpdateItemTagRequest, type PresetDefinition, type CreatePresetDefinitionRequest, type UpdatePresetDefinitionRequest, } from "@/lib/inventory-api";
+import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, createContainerDefinition, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, type ContainerTypeOption, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, getItemTag, createItemTag, updateItemTag, deleteItemTag, listPresetDefinitions, createPresetDefinition, deletePresetDefinition, type ListItemsParams, type ItemTag, type CreateItemTagRequest, type UpdateItemTagRequest, type PresetDefinition, type CreatePresetDefinitionRequest, } from "@/lib/inventory-api";
 import type { ItemDefinition, ItemCategory, ItemRarity, CreateItemRequest, UpdateItemRequest, ContainerDefinition, ContainerType, CreateContainerDefinitionRequest, UpdateContainerDefinitionRequest, GachaPack, GachaPoolEntry, KeyRequirement, EquipmentSlot, } from "@/types/inventory";
 import { RARITY_COLORS } from "@/types/inventory";
 import type { GameLimits } from "@/types/game";
@@ -39,6 +39,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { CraftingTab } from "@/components/crafting/crafting-tab";
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab';
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog';
+import { EditPresetDefinitionSheet } from "./_components/EditPresetDefinitionSheet";
+import { KVEditor } from "./_components/KVEditor";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
 import { useEscapeLayer } from '@/hooks/use-escape-manager';
@@ -54,39 +56,6 @@ function RarityBadge({ rarity }: {
     return (<span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold border ${c.text} ${c.border} ${c.bg} capitalize w-fit`}>
       {rarity}
     </span>);
-}
-type KVEntry = {
-    key: string;
-    value: string;
-};
-function KVEditor({ entries, onChange, label, numericValue, }: {
-    entries: KVEntry[];
-    onChange: (v: KVEntry[]) => void;
-    label: string;
-    numericValue?: boolean;
-}) {
-    const addRow = () => onChange([...entries, { key: "", value: "" }]);
-    const remove = (i: number) => onChange(entries.filter((_, idx) => idx !== i));
-    const update = (i: number, field: "key" | "value", val: string) => {
-        if (numericValue && field === "value" && val !== "" && val !== "-" && isNaN(Number(val)))
-            return;
-        const next = entries.map((e, idx) => idx === i ? { ...e, [field]: val } : e);
-        onChange(next);
-    };
-    return (<div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {entries.map((e, i) => (<div key={i} className="flex gap-1 items-center">
-          <Input className="h-7 text-xs" placeholder="key" value={e.key} onChange={(ev) => update(i, "key", ev.target.value)}/>
-          <span className="text-muted-foreground">=</span>
-          <Input className="h-7 text-xs" placeholder={numericValue ? "0" : "value"} inputMode={numericValue ? "decimal" : undefined} value={e.value} onChange={(ev) => update(i, "value", ev.target.value)}/>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" type="button" onClick={() => remove(i)}>
-            ?
-          </Button>
-        </div>))}
-      <Button variant="outline" size="sm" type="button" className="h-7 text-xs mt-1" onClick={addRow}>
-        <Plus className="h-3 w-3 mr-1"/> Add
-      </Button>
-    </div>);
 }
 function prettyCategory(s: string): string {
     return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -4790,122 +4759,6 @@ function CreatePresetDefinitionSheet({ open, gameId, initialValues, turnContext,
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
             {t('common.submit')}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>);
-}
-      // Edit Preset Definition Sheet
-function EditPresetDefinitionSheet({ open, gameId, definition, onUpdated, onClose, }: {
-    open: boolean;
-    gameId: string;
-    definition: PresetDefinition;
-    onUpdated: () => void;
-    onClose: () => void;
-}) {
-    const { toast } = useToast();
-    const { t } = useTranslation();
-    useEscapeLayer(open, onClose, 1);
-    const [loading, setLoading] = useState(false);
-    const [name, setName] = useState(definition.name);
-    const [maxSlots, setMaxSlots] = useState(String(definition.max_slots));
-    const [meta, setMeta] = useState<{
-        key: string;
-        value: string;
-    }[]>(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })));
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    useEffect(() => {
-        if (!open)
-            return;
-        setName(definition.name);
-        setMaxSlots(String(definition.max_slots));
-        setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })));
-        setErrors({});
-    }, [open, definition]);
-    function validate(): boolean {
-        const e: Record<string, string> = {};
-        if (!name.trim() || name.trim().length < 2)
-            e.name = t('items.nameMustBe2Chars');
-        const slots = Number(maxSlots);
-        if (!maxSlots || !slots || slots < 1 || slots > 70)
-            e.maxSlots = t('items.maxSlotsInvalid');
-        setErrors(e);
-        return Object.keys(e).length === 0;
-    }
-    async function handleSubmit() {
-        if (!validate())
-            return;
-        setLoading(true);
-        try {
-            const metadata: Record<string, unknown> = {};
-            meta.forEach(({ key, value }) => {
-                if (key.trim())
-                    metadata[key.trim()] = value;
-            });
-            const body: UpdatePresetDefinitionRequest = {
-                name: name.trim(),
-                max_slots: Number(maxSlots),
-                metadata,
-            };
-            await updatePresetDefinition({ gameId }, definition.id, body);
-            toast({ title: t('items.presetUpdated'), description: `"${name.trim()}" saved.` });
-            onUpdated();
-            onClose();
-        }
-        catch (err: any) {
-            if (err?.status === 403) {
-                toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionUpdatePreset') });
-            }
-            else {
-                toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" });
-            }
-        }
-        finally {
-            setLoading(false);
-        }
-    }
-    return (<Sheet open={open} onOpenChange={(v) => {
-            if (!v)
-                onClose();
-        }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-        <SheetHeader>
-          <SheetTitle>{t('items.editPresetDefinition')}</SheetTitle>
-          <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
-        </SheetHeader>
-        <div className="space-y-4 py-2 pr-2.5 flex-1 overflow-y-auto">
-          <div className="space-y-1">
-            <Label htmlFor="epd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)}/>
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="epd-code-name">{t('items.codeName')}</Label>
-            <Input id="epd-code-name" value={definition.code_name ?? ""} readOnly className="font-mono opacity-70"/>
-            <p className="text-xs text-muted-foreground">{t('items.codeName')} is readonly.</p>
-          </div>
-          <div className="space-y-1">
-            <Label>{t('items.presetType')}</Label>
-            <Input value={definition.preset_type} disabled className="opacity-60"/>
-            <p className="text-xs text-muted-foreground">{t('items.presetTypeImmutable')}</p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
-            </div>
-            <Slider id="epd-slots" min={1} max={70} step={1} value={[Number(maxSlots)]} onValueChange={([v]) => setMaxSlots(String(v))}/>
-            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
-          </div>
-          <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataOptional')}/>
-          </div>
-        </div>
-        <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-            {t('items.saveChanges')}
           </Button>
         </SheetFooter>
       </SheetContent>
