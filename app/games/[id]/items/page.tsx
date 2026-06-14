@@ -30,7 +30,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { getGame } from "@/lib/game-api";
 import { ApiError } from "@/lib/api-client";
-import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, createContainerDefinition, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, type ContainerTypeOption, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, getItemTag, createItemTag, updateItemTag, deleteItemTag, listPresetDefinitions, createPresetDefinition, updatePresetDefinition, deletePresetDefinition, type ListItemsParams, type ItemTag, type CreateItemTagRequest, type UpdateItemTagRequest, type PresetDefinition, type CreatePresetDefinitionRequest, type UpdatePresetDefinitionRequest, } from "@/lib/inventory-api";
+import { listItemDefinitions, createItemDefinition, getItemDefinition, updateItemDefinition, fetchItemCategories, fetchItemRarities, listContainerDefinitions, createContainerDefinition, getContainerDefinition, updateContainerDefinition, deleteContainerDefinition, fetchContainerTypes, type ContainerTypeOption, listGachaPacks, createGachaPack, updateGachaPack, deleteGachaPack, setGachaPackEnabled, listEquipmentSlots, getEquipmentSlot, createEquipmentSlot, updateEquipmentSlot, deleteEquipmentSlot, listItemTags, getItemTag, createItemTag, updateItemTag, deleteItemTag, listPresetDefinitions, deletePresetDefinition, type ListItemsParams, type ItemTag, type CreateItemTagRequest, type UpdateItemTagRequest, type PresetDefinition, } from "@/lib/inventory-api";
 import type { ItemDefinition, ItemCategory, ItemRarity, CreateItemRequest, UpdateItemRequest, ContainerDefinition, ContainerType, CreateContainerDefinitionRequest, UpdateContainerDefinitionRequest, GachaPack, GachaPoolEntry, KeyRequirement, EquipmentSlot, } from "@/types/inventory";
 import { RARITY_COLORS } from "@/types/inventory";
 import type { GameLimits } from "@/types/game";
@@ -39,6 +39,12 @@ import { CopyButton } from "@/components/CopyButton";
 import { CraftingTab } from "@/components/crafting/crafting-tab";
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab';
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog';
+import { GachaPackSheet } from "./_components/GachaPackSheet";
+import { ExplanationPanel } from "./_components/ExplanationPanel";
+import { CreatePresetDefinitionSheet } from "./_components/CreatePresetDefinitionSheet";
+import { DeleteGachaPackDialog } from "./_components/DeleteGachaPackDialog";
+import { EditPresetDefinitionSheet } from "./_components/EditPresetDefinitionSheet";
+import { KVEditor } from "./_components/KVEditor";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
 import { useEscapeLayer } from '@/hooks/use-escape-manager';
@@ -54,39 +60,6 @@ function RarityBadge({ rarity }: {
     return (<span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold border ${c.text} ${c.border} ${c.bg} capitalize w-fit`}>
       {rarity}
     </span>);
-}
-type KVEntry = {
-    key: string;
-    value: string;
-};
-function KVEditor({ entries, onChange, label, numericValue, }: {
-    entries: KVEntry[];
-    onChange: (v: KVEntry[]) => void;
-    label: string;
-    numericValue?: boolean;
-}) {
-    const addRow = () => onChange([...entries, { key: "", value: "" }]);
-    const remove = (i: number) => onChange(entries.filter((_, idx) => idx !== i));
-    const update = (i: number, field: "key" | "value", val: string) => {
-        if (numericValue && field === "value" && val !== "" && val !== "-" && isNaN(Number(val)))
-            return;
-        const next = entries.map((e, idx) => idx === i ? { ...e, [field]: val } : e);
-        onChange(next);
-    };
-    return (<div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {entries.map((e, i) => (<div key={i} className="flex gap-1 items-center">
-          <Input className="h-7 text-xs" placeholder="key" value={e.key} onChange={(ev) => update(i, "key", ev.target.value)}/>
-          <span className="text-muted-foreground">=</span>
-          <Input className="h-7 text-xs" placeholder={numericValue ? "0" : "value"} inputMode={numericValue ? "decimal" : undefined} value={e.value} onChange={(ev) => update(i, "value", ev.target.value)}/>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" type="button" onClick={() => remove(i)}>
-            ?
-          </Button>
-        </div>))}
-      <Button variant="outline" size="sm" type="button" className="h-7 text-xs mt-1" onClick={addRow}>
-        <Plus className="h-3 w-3 mr-1"/> Add
-      </Button>
-    </div>);
 }
 function prettyCategory(s: string): string {
     return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -1279,7 +1252,6 @@ export default function GameItemsPage() {
     const [error, setError] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
-    const [copiedPackId, setCopiedPackId] = useState(false);
     // filters
     const [filterCategory, setFilterCategory] = useState<string>("all");
     const [filterRarity, setFilterRarity] = useState<string>("all");
@@ -1402,7 +1374,6 @@ export default function GameItemsPage() {
     const [editingPack, setEditingPack] = useState<GachaPack | null>(null);
     const [formSaving, setFormSaving] = useState(false);
     const [gachaForm, setGachaForm] = useState(emptyGachaForm());
-    const [gachaAutoSlug, setGachaAutoSlug] = useState(true);
     const [createGachaConvContext, setCreateGachaConvContext] = useState<{
         turnId: string;
         responseIdx: number;
@@ -1413,10 +1384,7 @@ export default function GameItemsPage() {
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [gachaSearch, setGachaSearch] = useState("");
     const [gachaSearchDebounced, setGachaSearchDebounced] = useState("");
-    const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null);
-    const [gachaComboSearch, setGachaComboSearch] = useState("");
     const suppressGachaAutoOpenRef = useRef(false);
-    useEscapeLayer(gachaSheetOpen, gachaCloseSheet);
     // conversation panel integration
     const [convPanelOpen, setConvPanelOpen] = useState(false);
     const [convActiveId, setConvActiveId] = useState<string | null>(null);
@@ -1514,7 +1482,6 @@ export default function GameItemsPage() {
             const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
             const meta = (detail.metadata ?? {}) as Record<string, unknown>;
             setEditingPack(null);
-            setGachaAutoSlug(false);
             setGachaForm({
                 name: typeof detail.name === 'string' ? detail.name : '',
                 code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
@@ -1575,7 +1542,6 @@ export default function GameItemsPage() {
                 ? llmData.metadata as Record<string, unknown>
                 : existingMeta;
             setEditingPack(existingPack);
-            setGachaAutoSlug(false);
             setGachaForm({
                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
                 code_name: existingPack.code_name ?? '',
@@ -1751,7 +1717,6 @@ export default function GameItemsPage() {
                         const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
                         const meta = (detail.metadata ?? {}) as Record<string, unknown>;
                         setEditingPack(null);
-                        setGachaAutoSlug(false);
                         setGachaForm({
                             name: typeof detail.name === 'string' ? detail.name : '',
                             code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
@@ -1840,7 +1805,6 @@ export default function GameItemsPage() {
                                 ? llmData.metadata as Record<string, unknown>
                                 : existingMeta;
                             setEditingPack(existingPack);
-                            setGachaAutoSlug(false);
                             setGachaForm({
                                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
                                 code_name: existingPack.code_name ?? '',
@@ -2374,7 +2338,6 @@ export default function GameItemsPage() {
     function gachaOpenCreate() {
         setEditingPack(null);
         setGachaForm(emptyGachaForm());
-        setGachaAutoSlug(true);
         setGachaSheetOpen(true);
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.delete("editPack");
@@ -2382,7 +2345,6 @@ export default function GameItemsPage() {
     }
     function gachaOpenEdit(pack: GachaPack) {
         setEditingPack(pack);
-        setGachaAutoSlug(false);
         const meta = (pack.metadata ?? {}) as Record<string, unknown>;
         setGachaForm({
             name: pack.name,
@@ -2609,7 +2571,6 @@ export default function GameItemsPage() {
             setDeletePackLoading(false);
         }
     }
-    const formTotalWeight = gachaForm.pool.reduce((s, r) => s + (Number(r.weight) || 0), 0);
     function gachaItemName(id: string) {
         const it = gachaAllItems.find((i) => i.id === id);
         if (!it)
@@ -2649,7 +2610,7 @@ export default function GameItemsPage() {
         : presetDefs;
     const totalPages = Math.ceil(total / LIMIT);
     const currentPage = Math.floor(offset / LIMIT) + 1;
-    return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+    return (<div id="game-items-page" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb>
@@ -2705,7 +2666,7 @@ export default function GameItemsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      <Tabs id="game-items-tabs" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <div className="-mx-4 px-4 overflow-x-auto sm:mx-0 sm:px-0">
             <TabsList className="w-auto inline-flex">
               {ITEMS_TABS.map(({ key, icon: Icon, labelKey }) => (<TabsTrigger key={key} value={key} className="whitespace-nowrap">
@@ -4114,366 +4075,23 @@ export default function GameItemsPage() {
           </DialogContent>
         </Dialog>
       )}
-      {/* Gacha create / edit sheet */}
-<Sheet open={gachaSheetOpen} onOpenChange={(open) => {
-        if (!open)
-            gachaCloseSheet();
-    }}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader className="mb-4">
-            <SheetTitle>{editingPack ? `${t('items.editPackPrefix')}: ${editingPack.name}` : t('items.newGachaPack')}</SheetTitle>
-            <SheetDescription className="text-xs">
-              {t('items.gachaSheetDesc')}
-            </SheetDescription>
-            {editingPack && (<div className="flex items-center gap-1 pt-1">
-                <p className="text-xs font-mono text-muted-foreground">
-                  ID: {editingPack.id}
-                </p>
-                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors" title={t('items.copyId')} onClick={(event) => {
-            const text = editingPack.id;
-            console.log('[CopyPackId] clicked, text:', text);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(() => console.log('[CopyPackId] Clipboard API success'))
-                    .catch((err) => console.warn('[CopyPackId] Clipboard API failed:', err));
-            }
-            else {
-                const sheetContent = (event.currentTarget as HTMLElement).closest('[role="dialog"]') ?? document.body;
-                console.log('[CopyPackId] container:', sheetContent);
-                const el = document.createElement('textarea');
-                el.value = text;
-                el.style.position = 'fixed';
-                el.style.top = '0';
-                el.style.left = '0';
-                el.style.opacity = '0';
-                el.style.pointerEvents = 'none';
-                sheetContent.appendChild(el);
-                el.focus();
-                el.select();
-                console.log('[CopyPackId] selectionStart:', el.selectionStart, 'selectionEnd:', el.selectionEnd);
-                const result = document.execCommand('copy');
-                console.log('[CopyPackId] execCommand result:', result);
-                sheetContent.removeChild(el);
-            }
-            setCopiedPackId(true);
-            setTimeout(() => setCopiedPackId(false), 1500);
-        }}>
-                  {copiedPackId
-            ? <Check className="h-3 w-3 text-green-500"/>
-            : <Copy className="h-3 w-3"/>}
-                </button>
-              </div>)}
-          </SheetHeader>
-
-          <div className="space-y-5">
-            {/* Name + Enabled */}
-            <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
-              <div className="space-y-1.5 min-w-0">
-                <Label htmlFor="gacha-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-                <Input id="gacha-name" placeholder={t('items.gachaNamePlaceholder')} value={gachaForm.name} onChange={(e) => {
-        const v = e.target.value;
-        setGachaForm((f) => ({
-            ...f,
-            name: v,
-            ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
-        }));
-    }} disabled={formSaving}/>
-              </div>
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <label htmlFor="gacha-enabled" className="flex items-center gap-3 h-10 px-3 rounded-md border border-border bg-muted/30 cursor-pointer select-none">
-                      <Switch id="gacha-enabled" checked={gachaForm.is_enabled} onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))} disabled={formSaving}/>
-                      <span className="text-sm font-medium">{t('items.enabled')}</span>
-                    </label>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    {t('items.playersCanOpen')}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {/* Code Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="gacha-code-name">
-                {t('items.gachaCodeNameLabel')}{" "}
-                <span className="text-muted-foreground text-xs font-normal">({t('items.gachaCodeNameHint')})</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input id="gacha-code-name" placeholder={t('items.gachaCodeNamePlaceholder')} value={gachaForm.code_name} onChange={(e) => {
-        setGachaAutoSlug(false);
-        setGachaForm((f) => ({ ...f, code_name: e.target.value }));
-    }} className="font-mono" disabled={formSaving}/>
-                <Button type="button" variant={gachaAutoSlug ? "default" : "outline"} size="icon" className="shrink-0" title={gachaAutoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
-        const next = !gachaAutoSlug;
-        setGachaAutoSlug(next);
-        if (next)
-            setGachaForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }));
-    }}>
-                  <Wand2 className="h-4 w-4"/>
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Collect Destination */}
-            <div className="space-y-1.5">
-              <Label htmlFor="gacha-collect-destination">{t('items.collectDestination')}</Label>
-              <Select value={gachaForm.collect_destination} onValueChange={(v) => setGachaForm((f) => ({ ...f, collect_destination: v as "mailbox" | "inventory" }))}>
-                <SelectTrigger id="gacha-collect-destination" disabled={formSaving}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
-                  <SelectItem value="inventory">{t('items.collectDestinationMainInventory')}</SelectItem>
-                </SelectContent>
-              </Select>
-              {gachaForm.collect_destination === "inventory" && (<p className="text-xs text-muted-foreground">{t('items.collectDestinationInventoryHint')}</p>)}
-            </div>
-
-            {/* Mailbox message (only when destination is mailbox) */}
-            {gachaForm.collect_destination === "mailbox" && (<div className="space-y-3 rounded-md border border-border/60 bg-muted/30 p-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="gacha-mailbox-title">{t('items.gachaMailboxTitle')}</Label>
-                  <Input id="gacha-mailbox-title" value={gachaForm.mailbox_title} onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_title: e.target.value }))} placeholder={t('items.gachaMailboxTitlePlaceholder')} disabled={formSaving}/>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gacha-mailbox-body">{t('items.gachaMailboxBody')}</Label>
-                  <Textarea id="gacha-mailbox-body" value={gachaForm.mailbox_body} onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_body: e.target.value }))} placeholder={t('items.gachaMailboxBodyPlaceholder')} disabled={formSaving} rows={3}/>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('items.gachaMailboxHint')}</p>
-              </div>)}
-
-            <Separator />
-
-            {/* Key Requirements */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-base">{t('items.keyRequirements')}</Label>
-                <p className="text-xs text-muted-foreground">{t('items.keyReqDesc')}</p>
-              </div>
-              {gachaForm.keyReqs.length > 0 && (<div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
-                  <span />
-                  <span>{t('items.name')}</span>
-                  <span>{t('items.quantity')}</span>
-                  <span />
-                </div>)}
-              <div className="space-y-2">
-                {gachaForm.keyReqs.map((row, i) => (<div key={i} className="grid grid-cols-[24px_1fr_80px_32px] gap-1.5 items-center">
-                    {row.item_definition_id ? (<Link href={`/games/${params.id}/items/${row.item_definition_id}`} title="View item">
-                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"/>
-                      </Link>) : (<span />)}
-                    <Popover open={gachaComboOpen === `keyreq-${i}`} onOpenChange={(open) => {
-            setGachaComboOpen(open ? `keyreq-${i}` : null);
-            if (!open)
-                setGachaComboSearch("");
-        }} modal={true}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                          {row.item_definition_id ? (
-                            <span className="truncate">
-                              {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
-                            </span>
-                          ) : (
-                            <span className="truncate text-muted-foreground">Select item</span>
-                          )}
-                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[280px] p-0" align="start">
-                        <Command shouldFilter={false}>
-                          <CommandInput placeholder={t('items.searchByNameOrIdPlaceholder')} value={gachaComboSearch} onValueChange={setGachaComboSearch}/>
-                          <CommandList>
-                            <CommandEmpty>No item found.</CommandEmpty>
-                            <CommandGroup>
-                              {gachaAllItems
-            .filter((it) => !gachaComboSearch ||
-            it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-            it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-            (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase()))
-            .slice(0, 50)
-            .map((it) => (<CommandItem key={it.id} value={it.id} onSelect={() => {
-                updateKeyReqRow(i, { item_definition_id: it.id });
-                setGachaComboOpen(null);
-                setGachaComboSearch("");
-            }}>
-                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`}/>
-                                    <span className="flex-1 truncate">{it.name}</span>
-                                    {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
-                                  </CommandItem>))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <Input type="number" min={1} className="h-8 text-xs text-center font-mono" value={row.quantity} onChange={(e) => updateKeyReqRow(i, { quantity: e.target.value })} disabled={formSaving}/>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeKeyReqRow(i)} disabled={formSaving} type="button">
-                      <X className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-              </div>
-              {gachaForm.keyReqs.length === 0 && (<p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>)}
-              <div className="flex items-center justify-between">
-                <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1"/> {t('items.addKey')}
-                </Button>
-                <button type="button" onClick={() => {
-        setCreateInitCategory("key" as ItemCategory);
-        setShowCreate(true);
-    }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-                  <Plus className="h-3 w-3"/>
-                  {t('items.createNewItem')}
-                </button>
-                <button type="button" onClick={() => fetchGachaData()} disabled={formSaving} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Reload item definitions">
-                  <RefreshCw className="h-3 w-3"/>
-                  {t('items.reloadItemDefs')}
-                </button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Item Pool */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">{t('items.itemPoolLabel')}</Label>
-                  {formTotalWeight > 0 && (<p className="text-xs text-muted-foreground">
-                      {t('items.totalWeight')}: {formTotalWeight.toLocaleString()}
-                      {formTotalWeight === 1000000 && " (1M = % notation)"}
-                    </p>)}
-                </div>
-                <Button size="sm" variant="outline" type="button" onClick={addPoolRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1"/> {t('items.addItem')}
-                </Button>
-              </div>
-              {gachaForm.pool.length > 0 && (<div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 px-1 font-medium">
-                  <span>{t('items.name')}</span>
-                  <span>{t('items.weight')}</span>
-                  <span>{t('items.min')}</span>
-                  <span>{t('items.max')}</span>
-                  <span />
-                </div>)}
-              <div className="space-y-2">
-                {gachaForm.pool.map((row, i) => {
-        const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0;
-        return (<div key={i} className="grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 items-center">
-                      <Popover open={gachaComboOpen === `pool-${i}`} onOpenChange={(open) => {
-                setGachaComboOpen(open ? `pool-${i}` : null);
-                if (!open)
-                    setGachaComboSearch("");
-            }} modal={true}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                            {row.item_definition_id ? (
-                              <span className="truncate">
-                                {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
-                              </span>
-                            ) : (
-                              <span className="truncate text-muted-foreground">Select item</span>
-                            )}
-                            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[280px] p-0" align="start">
-                          <Command shouldFilter={false}>
-                            <CommandInput placeholder={t('items.searchByNameOrIdPlaceholder')} value={gachaComboSearch} onValueChange={setGachaComboSearch}/>
-                            <CommandList>
-                              <CommandEmpty>No item found.</CommandEmpty>
-                              <CommandGroup>
-                                {gachaAllItems
-                .filter((it) => !gachaComboSearch ||
-                it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-                it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-                (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase()))
-                .slice(0, 50)
-                .map((it) => (<CommandItem key={it.id} value={it.id} onSelect={() => {
-                    updatePoolRow(i, { item_definition_id: it.id });
-                    setGachaComboOpen(null);
-                    setGachaComboSearch("");
-                }}>
-                                      <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`}/>
-                                      <span className="flex-1 truncate">{it.name}</span>
-                                      {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
-                                    </CommandItem>))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <div className="relative">
-                        <Input type="text" inputMode="numeric" className="h-8 text-xs pr-1 font-mono" value={row.weight ? Number(row.weight).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { weight: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving} title={pct > 0 ? `? ${formatPct(pct)}` : ""}/>
-                      </div>
-                      <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_min ? Number(row.quantity_min).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
-                      <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_max ? Number(row.quantity_max).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removePoolRow(i)} disabled={formSaving} type="button">
-                        <X className="h-3.5 w-3.5"/>
-                      </Button>
-                    </div>);
-    })}
-              </div>
-              {gachaForm.pool.some((r) => r.item_definition_id && Number(r.weight) > 0) && (<div className="mt-3 rounded border bg-muted/40 p-3 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{t('items.dropRatePreview')}</p>
-                  {[...gachaForm.pool]
-            .filter((r) => r.item_definition_id)
-            .sort((a, b) => (Number(b.weight) || 0) - (Number(a.weight) || 0))
-            .map((row, i) => {
-            const item = gachaAllItems.find((it) => it.id === row.item_definition_id);
-            return (<div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="flex-1 truncate">{item?.name ?? row.item_definition_id.slice(0, 8)}</span>
-                          <DropBar weight={Number(row.weight) || 0} total={formTotalWeight}/>
-                        </div>);
-        })}
-                </div>)}
-              {gachaForm.pool.length === 0 && (<p className="text-xs text-muted-foreground italic">
-                  {t('items.noItemsPool')}
-                </p>)}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-6 mt-4 border-t">
-            <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
-              {t('common.cancel')}
-            </Button>
-            {editingPack ? (<>
-                <Button variant="outline" onClick={() => handleGachaSave(false)} disabled={formSaving}>
-                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                  {t('items.saveAndContinue')}
-                </Button>
-                <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
-                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                  {t('items.saveAndClose')}
-                </Button>
-              </>) : (<Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
-                {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                {t('items.createPack')}
-              </Button>)}
-          </div>
-        </SheetContent>
-      </Sheet>;
-      {/* Gacha delete confirmation */}
-<AlertDialog open={!!deletingPack} onOpenChange={(o) => {
-        if (!o)
-            setDeletingPack(null);
-    }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('items.deletePack')} "{deletingPack?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('items.deletePackDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePackLoading}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={handleGachaDelete} disabled={deletePackLoading}>
-              {deletePackLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null}
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>;
+      <GachaPackSheet
+        open={gachaSheetOpen}
+        editingPack={editingPack}
+        gameId={gameId}
+        gachaForm={gachaForm}
+        setGachaForm={setGachaForm}
+        formSaving={formSaving}
+        gachaAllItems={gachaAllItems}
+        onClose={gachaCloseSheet}
+        onSave={handleGachaSave}
+        onReloadItems={fetchGachaData}
+        onCreateItem={(category) => {
+          setCreateInitCategory(category);
+          setShowCreate(true);
+        }}
+      />
+      <DeleteGachaPackDialog pack={deletingPack} loading={deletePackLoading} onConfirm={handleGachaDelete} onClose={() => setDeletingPack(null)} />
       {/* Preset Create Sheet */}
       <CreatePresetDefinitionSheet open={showCreatePreset} gameId={gameId} initialValues={createPresetInitialValues} turnContext={createPresetTurnContext} onCreated={fetchPresetDefs} onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined); setCreatePresetTurnContext(null); }}/>
       {/* Preset Edit Sheet */}
@@ -4519,395 +4137,8 @@ export default function GameItemsPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>;
-      {/* Explanation panel */}
-<Sheet open={showExplanationPanel} onOpenChange={setShowExplanationPanel}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto flex flex-col">
-          <SheetHeader>
-            <SheetTitle>
-              {explanationTopic === 'write_props'
-        ? t('items.explanation.writeProps.title')
-        : explanationTopic === 'update_qty'
-            ? t('items.explanation.updateQty.title')
-            : t('common.support')}
-            </SheetTitle>
-          </SheetHeader>
-
-          <div className="space-y-4 py-4 flex-1 overflow-y-auto">
-            {explanationTopic === 'write_props' && (<div className="space-y-3 text-sm">
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.writeProps.title')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('items.explanation.writeProps.description')}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenEnabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.writeProps.enabled1')}</li>
-                    <li>{t('items.explanation.writeProps.enabled2')}</li>
-                    <li>{t('items.explanation.writeProps.enabled3')}</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.writeProps.whenDisabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.writeProps.disabled1')}</li>
-                    <li>{t('items.explanation.writeProps.disabled2')}</li>
-                    <li>{t('items.explanation.writeProps.disabled3')}</li>
-                  </ul>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2 text-xs text-blue-800 dark:text-blue-200">
-                  Tip: <strong>{t('items.explanation.writeProps.tip')}</strong> {t('items.explanation.writeProps.tipContent')}
-                </div>
-              </div>)}
-
-            {explanationTopic === 'update_qty' && (<div className="space-y-3 text-sm">
-                <div>
-                  <h3 className="font-semibold text-foreground mb-1.5">{t('items.explanation.updateQty.title')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('items.explanation.updateQty.description')}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenEnabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.updateQty.enabled1')}</li>
-                    <li>{t('items.explanation.updateQty.enabled2')}</li>
-                    <li>{t('items.explanation.updateQty.enabled3')}</li>
-                    <li>{t('items.explanation.updateQty.enabled4')}</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('items.explanation.updateQty.whenDisabled')}</h4>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-                    <li>{t('items.explanation.updateQty.disabled1')}</li>
-                    <li>{t('items.explanation.updateQty.disabled2')}</li>
-                    <li>{t('items.explanation.updateQty.disabled3')}</li>
-                    <li>{t('items.explanation.updateQty.disabled4')}</li>
-                  </ul>
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 text-xs text-amber-800 dark:text-amber-200">
-                  Warning: <strong>{t('items.explanation.updateQty.warning')}</strong> {t('items.explanation.updateQty.warningContent')}
-                </div>
-              </div>)}
-          </div>
-
-          <SheetFooter className="pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowExplanationPanel(false)}>{t('common.close')}</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      </AlertDialog>
+      <ExplanationPanel open={showExplanationPanel} topic={explanationTopic} onOpenChange={setShowExplanationPanel} />
     </div>
   );
-}
-// Create Preset Definition Sheet
-function CreatePresetDefinitionSheet({ open, gameId, initialValues, turnContext, onCreated, onClose, }: {
-    open: boolean;
-    gameId: string;
-    initialValues?: {
-        name?: string;
-        preset_type?: string;
-        code_name?: string;
-        max_slots?: number;
-    };
-    turnContext?: {
-        turnId: string;
-        responseIdx: number;
-        presetIdx: number;
-        convId: string;
-    } | null;
-    onCreated: () => void;
-    onClose: () => void;
-}) {
-    const { toast } = useToast();
-    const { t } = useTranslation();
-    useEscapeLayer(open, onClose);
-    const [loading, setLoading] = useState(false);
-    const [name, setName] = useState("");
-    const [containerType, setContainerType] = useState("");
-    const [codeName, setCodeName] = useState("");
-    const [autoSlug, setAutoSlug] = useState(true);
-    const [maxSlots, setMaxSlots] = useState("20");
-    const [meta, setMeta] = useState<{
-        key: string;
-        value: string;
-    }[]>([]);
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    // Pre-fill form when opened with initial values (e.g. from LLM conversation)
-    useEffect(() => {
-        if (open && initialValues) {
-            if (initialValues.name)
-                setName(initialValues.name);
-            if (initialValues.preset_type)
-                setContainerType(initialValues.preset_type);
-            if (initialValues.code_name) {
-                setCodeName(initialValues.code_name);
-                setAutoSlug(false);
-            }
-            else if (initialValues.name) {
-                setCodeName(toSlugUnderscore(initialValues.name));
-            }
-            if (initialValues.max_slots)
-                setMaxSlots(String(initialValues.max_slots));
-        }
-    }, [open, initialValues]);
-    function resetForm() {
-        setName("");
-        setContainerType("");
-        setCodeName("");
-        setAutoSlug(true);
-        setMaxSlots("20");
-        setMeta([]);
-        setErrors({});
-    }
-    function validate(): boolean {
-        const e: Record<string, string> = {};
-        if (!name.trim() || name.trim().length < 2)
-            e.name = t('items.nameMustBe2Chars');
-        if (!containerType.trim())
-            e.containerType = t('items.containerTypeRequired');
-        const slots = Number(maxSlots);
-        if (!maxSlots || !slots || slots < 1 || slots > 70)
-            e.maxSlots = t('items.maxSlotsInvalid');
-        setErrors(e);
-        return Object.keys(e).length === 0;
-    }
-    async function handleSubmit() {
-        if (!validate())
-            return;
-        setLoading(true);
-        try {
-            const metadata: Record<string, unknown> = {};
-            meta.forEach(({ key, value }) => {
-                if (key.trim())
-                    metadata[key.trim()] = value;
-            });
-            const finalCodeName = (autoSlug ? toSlugUnderscore(name) : codeName).trim();
-            const body: CreatePresetDefinitionRequest = {
-                preset_type: containerType.trim(),
-                name: name.trim(),
-                ...(finalCodeName ? { code_name: finalCodeName } : {}),
-                max_slots: Number(maxSlots),
-                metadata,
-            };
-            const created = await createPresetDefinition({ gameId }, body);
-            toast({ title: t('items.presetCreated'), description: `"${name.trim()}" added.` });
-            // Notify conversation panel so the save button becomes a link
-            if (turnContext) {
-                window.dispatchEvent(new CustomEvent('ss:preset-created', {
-                    detail: {
-                        presetId: created.id,
-                        presetName: created.name,
-                        turnId: turnContext.turnId,
-                        responseIdx: turnContext.responseIdx,
-                        presetIdx: turnContext.presetIdx,
-                    },
-                }));
-            }
-            resetForm();
-            onCreated();
-            onClose();
-        }
-        catch (err: any) {
-            if (err?.status === 403) {
-                toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionCreatePreset') });
-            }
-            else {
-                toast({ variant: "destructive", title: t('items.failedToCreate'), description: err?.message ?? "Unknown error" });
-            }
-        }
-        finally {
-            setLoading(false);
-        }
-    }
-    return (<Sheet open={open} onOpenChange={(v) => {
-            if (!v) {
-                resetForm();
-                onClose();
-            }
-        }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-        <SheetHeader>
-          <SheetTitle>{t('items.newPresetDefinition')}</SheetTitle>
-        </SheetHeader>
-        <div className="space-y-4 py-2 flex-1 overflow-y-auto">
-          <div className="space-y-1">
-            <Label htmlFor="pd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-name" placeholder="e.g. Standard Deck" value={name} onChange={(e) => {
-            const v = e.target.value;
-            setName(v);
-            if (autoSlug)
-                setCodeName(toSlugUnderscore(v));
-        }}/>
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="pd-code-name">
-              {t('items.codeName')}{" "}
-              <span className="text-muted-foreground text-xs font-normal">({t('items.presetCodeNameHint')})</span>
-            </Label>
-            <div className="flex gap-2">
-              <Input id="pd-code-name" placeholder={t('items.presetCodeNamePlaceholder')} value={autoSlug ? toSlugUnderscore(name) : codeName} onChange={(e) => {
-            setAutoSlug(false);
-            setCodeName(e.target.value);
-        }} className="font-mono"/>
-              <Button type="button" variant={autoSlug ? "default" : "outline"} size="icon" className="shrink-0" title={autoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
-            const next = !autoSlug;
-            setAutoSlug(next);
-            if (next)
-                setCodeName(toSlugUnderscore(name));
-        }}>
-                <Wand2 className="h-4 w-4"/>
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="pd-type">{t('items.presetType')} <span className="text-destructive">*</span></Label>
-            <Input id="pd-type" placeholder="e.g. deck, party" value={containerType} onChange={(e) => setContainerType(e.target.value)}/>
-            {errors.containerType && <p className="text-xs text-destructive">{errors.containerType}</p>}
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="pd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
-            </div>
-            <Slider id="pd-slots" min={1} max={70} step={1} value={[Number(maxSlots)]} onValueChange={([v]) => setMaxSlots(String(v))}/>
-            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
-          </div>
-          <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataOptional')}/>
-          </div>
-        </div>
-        <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={() => { resetForm(); onClose(); }} disabled={loading}>{t('common.cancel')}</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-            {t('common.submit')}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>);
-}
-      // Edit Preset Definition Sheet
-function EditPresetDefinitionSheet({ open, gameId, definition, onUpdated, onClose, }: {
-    open: boolean;
-    gameId: string;
-    definition: PresetDefinition;
-    onUpdated: () => void;
-    onClose: () => void;
-}) {
-    const { toast } = useToast();
-    const { t } = useTranslation();
-    useEscapeLayer(open, onClose, 1);
-    const [loading, setLoading] = useState(false);
-    const [name, setName] = useState(definition.name);
-    const [maxSlots, setMaxSlots] = useState(String(definition.max_slots));
-    const [meta, setMeta] = useState<{
-        key: string;
-        value: string;
-    }[]>(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })));
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    useEffect(() => {
-        if (!open)
-            return;
-        setName(definition.name);
-        setMaxSlots(String(definition.max_slots));
-        setMeta(Object.entries(definition.metadata ?? {}).map(([key, value]) => ({ key, value: String(value) })));
-        setErrors({});
-    }, [open, definition]);
-    function validate(): boolean {
-        const e: Record<string, string> = {};
-        if (!name.trim() || name.trim().length < 2)
-            e.name = t('items.nameMustBe2Chars');
-        const slots = Number(maxSlots);
-        if (!maxSlots || !slots || slots < 1 || slots > 70)
-            e.maxSlots = t('items.maxSlotsInvalid');
-        setErrors(e);
-        return Object.keys(e).length === 0;
-    }
-    async function handleSubmit() {
-        if (!validate())
-            return;
-        setLoading(true);
-        try {
-            const metadata: Record<string, unknown> = {};
-            meta.forEach(({ key, value }) => {
-                if (key.trim())
-                    metadata[key.trim()] = value;
-            });
-            const body: UpdatePresetDefinitionRequest = {
-                name: name.trim(),
-                max_slots: Number(maxSlots),
-                metadata,
-            };
-            await updatePresetDefinition({ gameId }, definition.id, body);
-            toast({ title: t('items.presetUpdated'), description: `"${name.trim()}" saved.` });
-            onUpdated();
-            onClose();
-        }
-        catch (err: any) {
-            if (err?.status === 403) {
-                toast({ variant: "destructive", title: t('items.permissionDenied'), description: t('items.noPermissionUpdatePreset') });
-            }
-            else {
-                toast({ variant: "destructive", title: t('items.failedToUpdate'), description: err?.message ?? "Unknown error" });
-            }
-        }
-        finally {
-            setLoading(false);
-        }
-    }
-    return (<Sheet open={open} onOpenChange={(v) => {
-            if (!v)
-                onClose();
-        }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-        <SheetHeader>
-          <SheetTitle>{t('items.editPresetDefinition')}</SheetTitle>
-          <p className="text-xs font-mono text-muted-foreground truncate">{definition.id}</p>
-        </SheetHeader>
-        <div className="space-y-4 py-2 pr-2.5 flex-1 overflow-y-auto">
-          <div className="space-y-1">
-            <Label htmlFor="epd-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-            <Input id="epd-name" value={name} onChange={(e) => setName(e.target.value)}/>
-            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="epd-code-name">{t('items.codeName')}</Label>
-            <Input id="epd-code-name" value={definition.code_name ?? ""} readOnly className="font-mono opacity-70"/>
-            <p className="text-xs text-muted-foreground">{t('items.codeName')} is readonly.</p>
-          </div>
-          <div className="space-y-1">
-            <Label>{t('items.presetType')}</Label>
-            <Input value={definition.preset_type} disabled className="opacity-60"/>
-            <p className="text-xs text-muted-foreground">{t('items.presetTypeImmutable')}</p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="epd-slots">{t('items.maxSlots')} <span className="text-destructive">*</span></Label>
-              <span className="text-sm font-semibold tabular-nums">{maxSlots} / 70</span>
-            </div>
-            <Slider id="epd-slots" min={1} max={70} step={1} value={[Number(maxSlots)]} onValueChange={([v]) => setMaxSlots(String(v))}/>
-            {errors.maxSlots && <p className="text-xs text-destructive">{errors.maxSlots}</p>}
-          </div>
-          <div className="space-y-1">
-            <KVEditor entries={meta} onChange={setMeta} label={t('items.metadataOptional')}/>
-          </div>
-        </div>
-        <SheetFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-            {t('items.saveChanges')}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>);
 }
