@@ -269,7 +269,7 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
         {!response.done && (<Loader2 id={`conv-panel-ai-response-cursor-entity-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground"/>)}
       </div>);
     }
-    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2 [&_*]:!text-[inherit]" style={{ fontSize: `${contentFontSize}px` }}>
+    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2" style={{ fontSize: `${contentFontSize}px` }}>
       {chatHistory.map((turn) => (<div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
           <div id={`conv-panel-user-msg-${turn.id}`} className="flex justify-end mb-2">
