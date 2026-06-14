@@ -41,6 +41,7 @@ import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab';
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog';
 import { ExplanationPanel } from "./_components/ExplanationPanel";
 import { CreatePresetDefinitionSheet } from "./_components/CreatePresetDefinitionSheet";
+import { DeleteGachaPackDialog } from "./_components/DeleteGachaPackDialog";
 import { EditPresetDefinitionSheet } from "./_components/EditPresetDefinitionSheet";
 import { KVEditor } from "./_components/KVEditor";
 import { createConversation, linkConversationContent } from '@/lib/llm-conversation-api';
@@ -4424,27 +4425,7 @@ export default function GameItemsPage() {
           </div>
         </SheetContent>
       </Sheet>;
-      {/* Gacha delete confirmation */}
-<AlertDialog open={!!deletingPack} onOpenChange={(o) => {
-        if (!o)
-            setDeletingPack(null);
-    }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('items.deletePack')} "{deletingPack?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('items.deletePackDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePackLoading}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={handleGachaDelete} disabled={deletePackLoading}>
-              {deletePackLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null}
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>;
+      <DeleteGachaPackDialog pack={deletingPack} loading={deletePackLoading} onConfirm={handleGachaDelete} onClose={() => setDeletingPack(null)} />
       {/* Preset Create Sheet */}
       <CreatePresetDefinitionSheet open={showCreatePreset} gameId={gameId} initialValues={createPresetInitialValues} turnContext={createPresetTurnContext} onCreated={fetchPresetDefs} onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined); setCreatePresetTurnContext(null); }}/>
       {/* Preset Edit Sheet */}
@@ -4490,7 +4471,7 @@ export default function GameItemsPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>;
+      </AlertDialog>
       <ExplanationPanel open={showExplanationPanel} topic={explanationTopic} onOpenChange={setShowExplanationPanel} />
     </div>
   );
