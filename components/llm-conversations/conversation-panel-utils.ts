@@ -7,6 +7,7 @@ export const LS_PANEL_WIDTH = 'ss_conv_panel_width';
 export const LS_SIDEBAR_WIDTH = 'ss_conv_sidebar_width';
 export const LS_SIDEBAR_SPLIT = 'ss_conv_sidebar_split';
 export const LS_ARCHIVED_COLLAPSED = 'ss_conv_archived_collapsed';
+export const LS_TITLE_FONT_SIZE = 'ss_conv_title_font_size';
 export const lsActiveConv = (gameId: string) => `ss_conv_active_${gameId}`;
 export const lsConvHistory = (convId: string) => `ss_conv_history_${convId}`;
 export const lsLoreLinks = (convId: string) => `ss_conv_lore_links_${convId}`;

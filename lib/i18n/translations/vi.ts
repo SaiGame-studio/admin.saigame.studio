@@ -3384,6 +3384,8 @@ export const vi = {
         titlePlaceholder: "Tiêu đề cuộc hội thoại...",
         goalPlaceholder: "Mục tiêu phiên — mô tả những gì bạn muốn xây dựng...",
         goalLabel: "Mục tiêu:",
+        increaseTitleFont: "Tăng cỡ chữ tiêu đề",
+        decreaseTitleFont: "Giảm cỡ chữ tiêu đề",
         summary: "Tóm Tắt AI",
         noSummaryYet: "Gửi tin nhắn để bắt đầu.",
         processing: "Đang xử lý phản hồi...",

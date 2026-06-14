@@ -29,6 +29,7 @@ interface ConversationChatHistoryProps {
     craftingRecipeNames: Record<string, string>;
     entityPoolNames: Record<string, string>;
     questDefinitionNames: Record<string, string>;
+    contentFontSize: number;
     premiumTokensRemaining: number | null;
     onRetry: (turn: {
         id: string;
@@ -169,7 +170,7 @@ const MARKDOWN_COMPONENTS = {
       {children}
     </a>),
 };
-export function ConversationChatHistory({ chatHistory, isStreaming, gameId, activeConvId, savedLoreIds, loreEntryTitles, savedItemDefinitionIds, savedEntityDefinitionIds, savedPresetDefinitionIds, savedContainerDefinitionIds, savedGachaPackIds, savedEquipmentSlotIds, savedCraftingRecipeIds, savedEntityPoolIds, savedQuestDefinitionIds, craftingRecipeNames, entityPoolNames, questDefinitionNames, premiumTokensRemaining, onRetry, onRetryResponse, onOpenLoreReview, onSaveItemDefinition, onSaveEntityDefinition, onSavePresetDefinition, onSaveContainerDefinition, onSaveGachaPack, onSaveEquipmentSlot, onSaveCraftingRecipe, onSaveEntityPool, onSaveQuestDefinition, onBuyTokens, onApplyTagSuggestion, onRemoveGameTag, onCreateItemTagFromSuggestion, onDeleteItemTagFromSuggestion, appliedTagsPerResponse, createdItemTagsPerResponse, t, }: ConversationChatHistoryProps) {
+export function ConversationChatHistory({ chatHistory, isStreaming, gameId, activeConvId, savedLoreIds, loreEntryTitles, savedItemDefinitionIds, savedEntityDefinitionIds, savedPresetDefinitionIds, savedContainerDefinitionIds, savedGachaPackIds, savedEquipmentSlotIds, savedCraftingRecipeIds, savedEntityPoolIds, savedQuestDefinitionIds, craftingRecipeNames, entityPoolNames, questDefinitionNames, contentFontSize, premiumTokensRemaining, onRetry, onRetryResponse, onOpenLoreReview, onSaveItemDefinition, onSaveEntityDefinition, onSavePresetDefinition, onSaveContainerDefinition, onSaveGachaPack, onSaveEquipmentSlot, onSaveCraftingRecipe, onSaveEntityPool, onSaveQuestDefinition, onBuyTokens, onApplyTagSuggestion, onRemoveGameTag, onCreateItemTagFromSuggestion, onDeleteItemTagFromSuggestion, appliedTagsPerResponse, createdItemTagsPerResponse, t, }: ConversationChatHistoryProps) {
     const router = useRouter();
     const { resolvedTheme } = useTheme();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -268,11 +269,11 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
         {!response.done && (<Loader2 id={`conv-panel-ai-response-cursor-entity-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground"/>)}
       </div>);
     }
-    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2">
+    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2" style={{ fontSize: `${contentFontSize}px` }}>
       {chatHistory.map((turn) => (<div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
           <div id={`conv-panel-user-msg-${turn.id}`} className="flex justify-end mb-2">
-            <span id={`conv-panel-user-msg-text-${turn.id}`} className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs max-w-[80%] break-words">
+            <span id={`conv-panel-user-msg-text-${turn.id}`} className="rounded-lg bg-primary text-primary-foreground px-3 py-2 max-w-[80%] break-words" style={{ fontSize: 'inherit' }}>
               {turn.userMessage}
             </span>
           </div>
@@ -282,56 +283,56 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
             <Bot className="h-4 w-4 shrink-0 text-primary mt-3"/>
             <div id={`conv-panel-ai-msg-content-${turn.id}`} className="flex-1 min-w-0">
               {turn.error ? (<div id={`conv-panel-ai-error-row-${turn.id}`} className="flex items-center gap-2">
-                  <p id={`conv-panel-ai-error-${turn.id}`} className="text-xs text-destructive">{resolveErrorMessage(turn.error)}</p>
+                  <p id={`conv-panel-ai-error-${turn.id}`} className="text-destructive" style={{ fontSize: 'inherit' }}>{resolveErrorMessage(turn.error)}</p>
                   {isTokenQuotaError(turn.error) ? (<>
-                      <button id={`conv-panel-ai-retry-btn-${turn.id}`} onClick={() => onRetry(turn)} disabled={isStreaming || isRetryDisabledForTokenQuotaError()} className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')}>
+                      <button id={`conv-panel-ai-retry-btn-${turn.id}`} onClick={() => onRetry(turn)} disabled={isStreaming || isRetryDisabledForTokenQuotaError()} className="shrink-0 flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')} style={{ fontSize: 'inherit' }}>
                         <RotateCcw className="h-3 w-3"/>
                         {t('common.retry')}
                       </button>
-                      <button id={`conv-panel-ai-buy-token-btn-${turn.id}`} onClick={onBuyTokens} className="shrink-0 flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors" title={t('llmConversation.buyTokens')}>
+                      <button id={`conv-panel-ai-buy-token-btn-${turn.id}`} onClick={onBuyTokens} className="shrink-0 flex items-center gap-1 text-primary hover:text-primary/80 transition-colors" title={t('llmConversation.buyTokens')} style={{ fontSize: 'inherit' }}>
                         <Plus className="h-3 w-3"/>
                         {t('llmConversation.buyTokens')}
                       </button>
-                    </>) : (<button id={`conv-panel-ai-retry-btn-${turn.id}`} onClick={() => onRetry(turn)} disabled={isStreaming} className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')}>
+                    </>) : (<button id={`conv-panel-ai-retry-btn-${turn.id}`} onClick={() => onRetry(turn)} disabled={isStreaming} className="shrink-0 flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')} style={{ fontSize: 'inherit' }}>
                       <RotateCcw className="h-3 w-3"/>
                       {t('common.retry')}
                     </button>)}
                 </div>) : (turn.responses?.length ?? 0) > 0 ? (<div id={`conv-panel-ai-responses-${turn.id}`} className="flex flex-col gap-3">
                   {turn.responses!.map((response, idx) => (<div key={idx} id={`conv-panel-ai-response-${turn.id}-${idx}`} className="flex flex-col gap-1">
                       <div id={`conv-panel-ai-response-type-${turn.id}-${idx}`} className="flex items-center gap-2 my-2">
-                        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background shadow-sm px-2.5 py-1 text-[11px] font-medium text-foreground shrink-0">
+                        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background shadow-sm px-2.5 py-1 font-medium text-foreground shrink-0" style={{ fontSize: 'inherit' }}>
                           <Sparkles className="h-3 w-3 text-primary shrink-0"/>
                           <span className="text-primary font-semibold">
                             {t(`llmConversation.requestTypes.${response.intentType}`) || response.intentType}
                           </span>
-                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation' || response.intentType === 'entity_definition_generation') && response.entityType && (<span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded-full bg-muted px-2 py-0.5 text-[10px] normal-case font-medium text-muted-foreground">
+                          {(response.intentType.startsWith('item_') || response.intentType === 'lore_creating' || response.intentType === 'preset_generation' || response.intentType === 'entity_definition_generation') && response.entityType && (<span id={`conv-panel-ai-response-entity-type-${turn.id}-${idx}`} className="rounded-full bg-muted px-2 py-0.5 normal-case font-medium text-muted-foreground" style={{ fontSize: 'inherit' }}>
                               {response.entityType}
                             </span>)}
                         </div>
                         <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent"/>
                       </div>
                       {response.error ? (<div id={`conv-panel-ai-response-error-wrap-${turn.id}-${idx}`} className="flex items-center gap-2 flex-wrap">
-                          <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-xs text-destructive">{response.error}</p>
+                          <p id={`conv-panel-ai-response-error-${turn.id}-${idx}`} className="text-destructive" style={{ fontSize: 'inherit' }}>{response.error}</p>
                           {isTokenQuotaError(response.error) ? (<>
-                              <button id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`} onClick={() => onRetryResponse(turn.id, idx, response.intentType, turn.userMessage, response.planningAction)} disabled={isStreaming || !activeConvId || isRetryDisabledForTokenQuotaError()} className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')}>
+                              <button id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`} onClick={() => onRetryResponse(turn.id, idx, response.intentType, turn.userMessage, response.planningAction)} disabled={isStreaming || !activeConvId || isRetryDisabledForTokenQuotaError()} className="shrink-0 flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')} style={{ fontSize: 'inherit' }}>
                                 <RotateCcw className="h-3 w-3"/>
                                 {t('common.retry')}
                               </button>
-                              <button id={`conv-panel-ai-response-buy-token-btn-${turn.id}-${idx}`} onClick={onBuyTokens} className="shrink-0 flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors" title={t('llmConversation.buyTokens')}>
+                              <button id={`conv-panel-ai-response-buy-token-btn-${turn.id}-${idx}`} onClick={onBuyTokens} className="shrink-0 flex items-center gap-1 text-primary hover:text-primary/80 transition-colors" title={t('llmConversation.buyTokens')} style={{ fontSize: 'inherit' }}>
                                 <Plus className="h-3 w-3"/>
                                 {t('llmConversation.buyTokens')}
                               </button>
-                            </>) : (<button id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`} onClick={() => onRetryResponse(turn.id, idx, response.intentType, turn.userMessage, response.planningAction)} disabled={isStreaming || !activeConvId} className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')}>
+                            </>) : (<button id={`conv-panel-ai-response-retry-btn-${turn.id}-${idx}`} onClick={() => onRetryResponse(turn.id, idx, response.intentType, turn.userMessage, response.planningAction)} disabled={isStreaming || !activeConvId} className="shrink-0 flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors" title={t('common.retry')} style={{ fontSize: 'inherit' }}>
                               <RotateCcw className="h-3 w-3"/>
                               {t('common.retry')}
                             </button>)}
                         </div>) : response.intentType === 'tag_suggestion' ? (<TagSuggestionResult responseText={response.responseText ?? ''} turnId={turn.id} responseIdx={idx} isDone={!!response.done} isStreaming={isStreaming} gameId={gameId} appliedTags={appliedTagsPerResponse?.[`${turn.id}:${idx}`]} createdItemTags={createdItemTagsPerResponse?.[`${turn.id}:${idx}`]} onApplyGameTag={onApplyTagSuggestion ?? (() => { })} onRemoveGameTag={onRemoveGameTag ?? (() => { })} onCreateItemTag={onCreateItemTagFromSuggestion ?? (() => { })} onDeleteItemTag={onDeleteItemTagFromSuggestion ?? (() => { })} t={t}/>) : response.responseText ? ((response.intentType === 'item_generation' || response.intentType === 'item_modify' || response.intentType === 'generator_item_creating') ? (<div id={`conv-panel-ai-response-text-${turn.id}-${idx}`} className="flex flex-col gap-1">
-                            {splitItemResponseSegments(response.responseText).map((seg, segIdx) => seg.type === 'text' ? (<div key={segIdx} id={`conv-panel-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                            {splitItemResponseSegments(response.responseText).map((seg, segIdx) => seg.type === 'text' ? (<div key={segIdx} id={`conv-panel-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-[inherit] [&_h2]:text-[inherit] [&_h3]:text-[inherit] [&_h4]:text-[inherit] [&_h5]:text-[inherit] [&_h6]:text-[inherit] [&_p]:text-[inherit] [&_p]:break-words [&_li]:text-[inherit] [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`} style={{ fontSize: 'inherit' }}>
                                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                                     {seg.text}
                                   </ReactMarkdown>
                                 </div>) : seg.type === 'item' ? (<div key={segIdx} id={`conv-panel-segment-item-${turn.id}-${idx}-${seg.itemIdx}`} className="flex flex-col gap-1">
-                                  <div id={`conv-panel-segment-item-json-${turn.id}-${idx}-${seg.itemIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <div id={`conv-panel-segment-item-json-${turn.id}-${idx}-${seg.itemIdx}`} className={`prose prose-sm max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-[inherit] [&_h2]:text-[inherit] [&_h3]:text-[inherit] [&_h4]:text-[inherit] [&_h5]:text-[inherit] [&_h6]:text-[inherit] [&_p]:text-[inherit] [&_p]:break-words [&_li]:text-[inherit] [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`} style={{ fontSize: 'inherit' }}>
                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                                       {seg.text}
                                     </ReactMarkdown>
@@ -340,10 +341,10 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
                                 const itemKey = `${turn.id}:${idx}:${seg.itemIdx}`;
                                 const savedItemId = savedItemDefinitionIds[itemKey];
                                 const itemName = typeof seg.item.name === 'string' ? seg.item.name : `Item ${seg.itemIdx + 1}`;
-                                return savedItemId ? (<button id={`conv-panel-item-link-${turn.id}-${idx}-${seg.itemIdx}`} type="button" onClick={() => openItemDetail(savedItemId)} className="self-start inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors px-2 py-0.5 text-[10px] max-w-[240px]" title={itemName}>
+                                return savedItemId ? (<button id={`conv-panel-item-link-${turn.id}-${idx}-${seg.itemIdx}`} type="button" onClick={() => openItemDetail(savedItemId)} className="self-start inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors px-2 py-0.5 max-w-[240px]" title={itemName} style={{ fontSize: 'inherit' }}>
                                         <Package className="h-3 w-3 shrink-0"/>
                                         <span id={`conv-panel-item-link-label-${turn.id}-${idx}-${seg.itemIdx}`} className="truncate">{itemName}</span>
-                                      </button>) : (<button id={`conv-panel-save-item-btn-${turn.id}-${idx}-${seg.itemIdx}`} onClick={() => onSaveItemDefinition(seg.item, turn.id, idx, seg.itemIdx)} className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]">
+                                      </button>) : (<button id={`conv-panel-save-item-btn-${turn.id}-${idx}-${seg.itemIdx}`} onClick={() => onSaveItemDefinition(seg.item, turn.id, idx, seg.itemIdx)} className="self-start inline-flex items-center gap-1 rounded border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors my-[10px]" style={{ fontSize: 'inherit' }}>
                                         <Package className="h-3 w-3"/>
                                         <span id={`conv-panel-save-item-btn-label-${turn.id}-${idx}-${seg.itemIdx}`}>{t('llmConversation.saveAsItemDefinition')}: {itemName}</span>
                                       </button>);
@@ -351,12 +352,12 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
                                 </div>) : null)}
                             {!response.done && (<Loader2 id={`conv-panel-ai-response-cursor-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground"/>)}
                           </div>) : response.intentType === 'entity_definition_generation' ? (renderEntityDefinitionResponse(turn, response, idx)) : response.intentType === 'preset_generation' ? (<div id={`conv-panel-ai-response-presets-${turn.id}-${idx}`} className="flex flex-col gap-1">
-                            {splitPresetResponseSegments(response.responseText).map((seg, segIdx) => seg.type === 'text' ? (<div key={segIdx} id={`conv-panel-preset-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                {splitPresetResponseSegments(response.responseText).map((seg, segIdx) => seg.type === 'text' ? (<div key={segIdx} id={`conv-panel-preset-segment-text-${turn.id}-${idx}-${segIdx}`} className={`prose prose-sm max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-[inherit] [&_h2]:text-[inherit] [&_h3]:text-[inherit] [&_h4]:text-[inherit] [&_h5]:text-[inherit] [&_h6]:text-[inherit] [&_p]:text-[inherit] [&_p]:break-words [&_li]:text-[inherit] [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`} style={{ fontSize: 'inherit' }}>
                                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                                     {seg.text}
                                   </ReactMarkdown>
                                 </div>) : seg.type === 'preset' ? (<div key={segIdx} id={`conv-panel-preset-segment-${turn.id}-${idx}-${seg.presetIdx}`} className="flex flex-col gap-1">
-                                  <div id={`conv-panel-preset-segment-json-${turn.id}-${idx}-${seg.presetIdx}`} className={`prose prose-sm max-w-none text-xs break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_h4]:text-xs [&_h5]:text-xs [&_h6]:text-xs [&_p]:text-xs [&_p]:break-words [&_li]:text-xs [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`}>
+                                  <div id={`conv-panel-preset-segment-json-${turn.id}-${idx}-${seg.presetIdx}`} className={`prose prose-sm max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-[inherit] [&_h2]:text-[inherit] [&_h3]:text-[inherit] [&_h4]:text-[inherit] [&_h5]:text-[inherit] [&_h6]:text-[inherit] [&_p]:text-[inherit] [&_p]:break-words [&_li]:text-[inherit] [&_li]:break-words [&_a]:break-all${resolvedTheme?.includes('dark') ? ' prose-invert' : ''}`} style={{ fontSize: 'inherit' }}>
                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                                       {seg.text}
                                     </ReactMarkdown>

@@ -15,7 +15,7 @@ import { listConversations, getConversation, updateConversation, archiveConversa
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline';
 import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation';
 import { useConvPanelResize } from '@/hooks/use-conv-panel-resize';
-import { LS_PANEL_OPEN, LS_PANEL_MINIMIZED, LS_ARCHIVED_COLLAPSED, lsActiveConv, lsConvHistory, lsLoreLinks, lsItemLinks, lsPresetLinks, lsContainerLinks, lsGachaPackLinks, lsEquipmentSlotLinks, lsCraftingRecipeLinks, lsLoreTitles, lsItemNames, lsEntityLinks, lsEntityNames, lsContainerNames, lsGachaPackNames, lsEquipmentSlotNames, lsCraftingRecipeNames, lsEntityPoolLinks, lsEntityPoolNames, lsEntityPoolKeys, lsQuestLinks, lsQuestNames, lsQuestCodes, lsConvTokenUsage, lsPendingCraftingRecipeCreate, lsPendingCraftingRecipeEdit, lsPendingGachaCreate, lsPendingGachaEdit, lsPendingEquipmentSlotCreate, lsPendingEquipmentSlotEdit, lsPendingEntityDefinitionCreate, lsPendingEntityPoolCreate, lsPendingEntityPoolEdit, lsPendingQuestCreate, lsPendingQuestEdit, lsTagApplied, lsItemTagCreated, parseLoreResponse, parseGeneratedItemsResponse, parseGeneratedEntityDefinitionsResponse, parseGeneratedPresetsResponse, parseGeneratedContainersResponse, parseGeneratedGachaPacksResponse, parseGeneratedEquipmentSlotsResponse, parseGeneratedCraftingRecipesResponse, parseGeneratedEntityPoolsResponse, extractGameId, } from './conversation-panel-utils';
+import { LS_PANEL_OPEN, LS_PANEL_MINIMIZED, LS_ARCHIVED_COLLAPSED, LS_TITLE_FONT_SIZE, lsActiveConv, lsConvHistory, lsLoreLinks, lsItemLinks, lsPresetLinks, lsContainerLinks, lsGachaPackLinks, lsEquipmentSlotLinks, lsCraftingRecipeLinks, lsLoreTitles, lsItemNames, lsEntityLinks, lsEntityNames, lsContainerNames, lsGachaPackNames, lsEquipmentSlotNames, lsCraftingRecipeNames, lsEntityPoolLinks, lsEntityPoolNames, lsEntityPoolKeys, lsQuestLinks, lsQuestNames, lsQuestCodes, lsConvTokenUsage, lsPendingCraftingRecipeCreate, lsPendingCraftingRecipeEdit, lsPendingGachaCreate, lsPendingGachaEdit, lsPendingEquipmentSlotCreate, lsPendingEquipmentSlotEdit, lsPendingEntityDefinitionCreate, lsPendingEntityPoolCreate, lsPendingEntityPoolEdit, lsPendingQuestCreate, lsPendingQuestEdit, lsTagApplied, lsItemTagCreated, parseLoreResponse, parseGeneratedItemsResponse, parseGeneratedEntityDefinitionsResponse, parseGeneratedPresetsResponse, parseGeneratedContainersResponse, parseGeneratedGachaPacksResponse, parseGeneratedEquipmentSlotsResponse, parseGeneratedCraftingRecipesResponse, parseGeneratedEntityPoolsResponse, extractGameId, } from './conversation-panel-utils';
 import { ConversationSidebar } from './ConversationSidebar';
 import { ConversationHeader } from './ConversationHeader';
 import { ConversationChatHistory } from './ConversationChatHistory';
@@ -84,6 +84,11 @@ export function LLMConversationPanel() {
     const [editingGoal, setEditingGoal] = useState(false);
     const [editTitleValue, setEditTitleValue] = useState('');
     const [editGoalValue, setEditGoalValue] = useState('');
+    const [titleFontSize, setTitleFontSize] = useState(() => {
+        const saved = safeGetItem(LS_TITLE_FONT_SIZE);
+        const parsed = saved ? Number(saved) : NaN;
+        return Number.isFinite(parsed) ? Math.min(25, Math.max(12, parsed)) : 14;
+    });
     // Message input
     const [message, setMessage] = useState('');
     // When we create a conversation ourselves in handleSend, skip loadConversation in the useEffect
@@ -269,6 +274,7 @@ export function LLMConversationPanel() {
     // Resize state via hook
     const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize();
     useEffect(() => { safeSetItem(LS_ARCHIVED_COLLAPSED, String(isArchivedCollapsed)); }, [isArchivedCollapsed]);
+    useEffect(() => { safeSetItem(LS_TITLE_FONT_SIZE, String(titleFontSize)); }, [titleFontSize]);
     // ---------------------------------------------------------------------------
     // Fetch request types once on mount
     // ---------------------------------------------------------------------------
@@ -1562,6 +1568,19 @@ export function LLMConversationPanel() {
         catch {
             toast({ title: t('llmConversation.errorArchive'), variant: 'destructive' });
         }
+    }
+    async function handleCreateNewConversation() {
+        if (isStreaming)
+            return;
+        setActiveConvId(null);
+        setActiveConv(null);
+        setMessage('');
+        setEditingTitle(false);
+        setEditingGoal(false);
+        setEditTitleValue('');
+        setEditGoalValue('');
+        clearHistory();
+        chatHistoryConvIdRef.current = null;
     }
     async function handleUnarchive(conv: Conversation) {
         if (!gameId)
@@ -3017,9 +3036,9 @@ export function LLMConversationPanel() {
               </div>) : isLoadingConv && !isStreaming ? (<div id="conv-panel-loading-state" className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
               </div>) : (<>
-                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} t={t}/>)}
+                {activeConv && (<ConversationHeader activeConv={activeConv} activeConvId={activeConvId} chatHistory={chatHistory} editingTitle={editingTitle} setEditingTitle={setEditingTitle} editTitleValue={editTitleValue} setEditTitleValue={setEditTitleValue} onSaveTitle={handleSaveTitle} onNewConversation={handleCreateNewConversation} onBack={() => { setActiveConvId(null); setActiveConv(null); }} onClose={() => setIsOpen(false)} onArchive={handleArchive} onDelete={(conv) => setDeleteTarget(conv)} onOpenDetail={() => setDetailOpen(true)} titleFontSize={titleFontSize} onIncreaseTitleFontSize={() => setTitleFontSize((v) => Math.min(25, v + 1))} onDecreaseTitleFontSize={() => setTitleFontSize((v) => Math.max(12, v - 1))} t={t}/>)}
 
-                <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} t={t}/>
+                <ConversationChatHistory chatHistory={chatHistory} isStreaming={isStreaming} gameId={gameId} activeConvId={activeConvId} savedLoreIds={savedLoreIds} loreEntryTitles={loreEntryTitles} savedItemDefinitionIds={savedItemDefinitionIds} savedEntityDefinitionIds={savedEntityDefinitionIds} savedPresetDefinitionIds={savedPresetDefinitionIds} savedContainerDefinitionIds={savedContainerDefinitionIds} savedGachaPackIds={savedGachaPackIds} savedEquipmentSlotIds={savedEquipmentSlotIds} savedCraftingRecipeIds={savedCraftingRecipeIds} savedEntityPoolIds={savedEntityPoolIds} savedQuestDefinitionIds={savedQuestDefinitionIds} craftingRecipeNames={craftingRecipeNames} entityPoolNames={entityPoolNames} questDefinitionNames={questDefinitionNames} contentFontSize={titleFontSize} premiumTokensRemaining={tokenBalance?.premium_tokens_remaining ?? null} onRetry={handleRetry} onRetryResponse={handleRetryResponse} onOpenLoreReview={handleOpenLoreReview} onSaveItemDefinition={handleOpenItemDefinitionReview} onSaveEntityDefinition={handleSaveEntityDefinition} onSavePresetDefinition={handleSavePresetDefinition} onSaveContainerDefinition={handleSaveContainerDefinition} onSaveGachaPack={handleSaveGachaPack} onSaveEquipmentSlot={fireOpenCreateEquipmentSlot} onSaveCraftingRecipe={handleSaveCraftingRecipe} onSaveEntityPool={handleSaveEntityPool} onSaveQuestDefinition={handleSaveQuestDefinition} onBuyTokens={handleBuyTokens} onApplyTagSuggestion={handleApplyTagSuggestion} onRemoveGameTag={handleRemoveGameTag} onCreateItemTagFromSuggestion={handleCreateItemTagFromSuggestion} onDeleteItemTagFromSuggestion={handleDeleteItemTagFromSuggestion} appliedTagsPerResponse={appliedTagsPerResponse} createdItemTagsPerResponse={createdItemTagsPerResponse} t={t}/>
               </>)}
 
             {activeConvId && (linkedContent.length > 0 || isLoadingLinkedContent) && (<ConversationLinkedContent gameId={gameId} linkedContent={linkedContent} isLoadingLinkedContent={isLoadingLinkedContent} unlinkingId={unlinkingId} loreEntryTitles={loreEntryTitles} itemDefinitionNames={itemDefinitionNames} entityDefinitionNames={entityDefinitionNames} containerDefinitionNames={containerDefinitionNames} presetDefinitionNames={presetDefinitionNames} gachaPackNames={gachaPackNames} entityPoolNames={entityPoolNames} entityPoolKeys={entityPoolKeys} questDefinitionNames={questDefinitionNames} craftingRecipeNames={craftingRecipeNames} onUnlink={(linkId, contentType, contentId) => { void handleUnlinkContent(linkId, contentType, contentId); }} t={t}/>)}
