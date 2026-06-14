@@ -2389,7 +2389,6 @@ export const vi = {
                 disabled1: "Client không thể thay đổi thuộc tính vật phẩm",
                 disabled2: "Mọi thay đổi phải thông qua API của máy chủ",
                 disabled3: "Bảo mật tốt hơn cho các thuộc tính quan trọng",
-                tipLabel: "Mẹo:",
                 tip: "Mẹo:",
                 tipContent: "Sử dụng tính năng này cho các thuộc tính không quan trọng như tên hiển thị, màu sắc hoặc ghi chú cá nhân."
             },
@@ -2406,7 +2405,6 @@ export const vi = {
                 disabled2: "Ngăn chặn thay đổi số lượng vô tình hoặc ác ý",
                 disabled3: "Kiểm soát tốt hơn các vật phẩm tài nguyên giới hạn",
                 disabled4: "An toàn hơn cho các vật phẩm có giá trị hoặc loại tiền tệ",
-                warningLabel: "Cảnh báo:",
                 warning: "Cảnh báo:",
                 warningContent: "Tắt tính năng này đối với tài nguyên giới hạn, vật phẩm cao cấp hoặc tiền tệ để ngăn chặn gian lận."
             }
