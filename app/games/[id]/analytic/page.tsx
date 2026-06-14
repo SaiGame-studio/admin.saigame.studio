@@ -1,330 +1,243 @@
-"use client"
-
-import React, { useEffect, useState, useCallback, useRef } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import {
-  BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2,
-  Route, X, Wand2, ChevronDown, ChevronRight, Hammer,
-} from "lucide-react"
-import { toSlugUnderscore } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-  SheetClose,
-} from "@/components/ui/sheet"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { useToast } from "@/hooks/use-toast"
-import { getGame } from "@/lib/game-api"
-import { fetchStudioWithCache } from "@/lib/studio-api"
-import type { Game } from "@/types/game"
-import type { Studio } from "@/types/studio"
-import { GameNavButtons } from "@/components/GameNavButtons"
-import {
-  listJourneys,
-  createJourney,
-  updateJourney,
-  deleteJourney,
-  type Journey,
-  type CreateJourneyRequest,
-  type UpdateJourneyRequest,
-} from "@/lib/journey-api"
-import {
-  listEventTypes,
-  createEventType,
-  updateEventType,
-  deleteEventType,
-  type EventType,
-  type CreateEventTypeRequest,
-} from "@/lib/event-type-api"
-import { CopyButton } from "@/components/CopyButton"
-import { JourneyDagView } from "@/components/JourneyDagView"
-import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting"
-import { useTranslation } from "@/lib/i18n/use-translation"
-
+"use client";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { BarChart2, ArrowLeft, Plus, RefreshCw, Trash2, Pencil, Loader2, Route, X, Wand2, ChevronDown, ChevronRight, Hammer, } from "lucide-react";
+import { toSlugUnderscore } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose, } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/components/ui/alert-dialog";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, } from "@/components/ui/breadcrumb";
+import { useToast } from "@/hooks/use-toast";
+import { getGame } from "@/lib/game-api";
+import { fetchStudioWithCache } from "@/lib/studio-api";
+import type { Game } from "@/types/game";
+import type { Studio } from "@/types/studio";
+import { GameNavButtons } from "@/components/GameNavButtons";
+import { listJourneys, createJourney, updateJourney, deleteJourney, type Journey, type CreateJourneyRequest, type UpdateJourneyRequest, } from "@/lib/journey-api";
+import { listEventTypes, createEventType, updateEventType, deleteEventType, type EventType, type CreateEventTypeRequest, } from "@/lib/event-type-api";
+import { CopyButton } from "@/components/CopyButton";
+import { JourneyDagView } from "@/components/JourneyDagView";
+import { AllowTracingPlayerEventSetting } from "@/components/AllowTracingPlayerEventSetting";
+import { useTranslation } from "@/lib/i18n/use-translation";
 // ─── Tab config ────────────────────────────────────────────────────────────────
-
-type TabValue = "journey" | "event-types"
-
-const TABS: { value: TabValue; labelKey: string }[] = [
-  { value: "event-types", labelKey: "analytic.tabEventTypes" },
-  { value: "journey", labelKey: "analytic.tabJourney" },
-]
-
-const VALID_TABS = new Set<string>(TABS.map((t) => t.value))
-
+type TabValue = "journey" | "event-types";
+const TABS: {
+    value: TabValue;
+    labelKey: string;
+}[] = [
+    { value: "event-types", labelKey: "analytic.tabEventTypes" },
+    { value: "journey", labelKey: "analytic.tabJourney" },
+];
+const VALID_TABS = new Set<string>(TABS.map((t) => t.value));
 // ─── Journey Tab ──────────────────────────────────────────────────────────────
-
 interface JourneyTabProps {
-  gameId: string
-  journeys: Journey[]
-  loading: boolean
-  createOpen: boolean
-  setCreateOpen: (open: boolean) => void
-  onMutate: () => void
-  maxNodeDefinitions?: number
-  expandedJourneyId: string | null
-  setExpandedJourneyId: (id: string | null) => void
-  initialSessionId?: string
+    gameId: string;
+    journeys: Journey[];
+    loading: boolean;
+    createOpen: boolean;
+    setCreateOpen: (open: boolean) => void;
+    onMutate: () => void;
+    maxNodeDefinitions?: number;
+    expandedJourneyId: string | null;
+    setExpandedJourneyId: (id: string | null) => void;
+    initialSessionId?: string;
 }
-
-const JOURNEY_LIMIT = 1000
-
+const JOURNEY_LIMIT = 1000;
 function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMutate, maxNodeDefinitions, expandedJourneyId, setExpandedJourneyId, initialSessionId }: JourneyTabProps) {
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  // Create sheet
-  const [createForm, setCreateForm] = useState<CreateJourneyRequest>({
-    name: "",
-    journey_key: "",
-    description: "",
-    metadata: {},
-  })
-  const [createSaving, setCreateSaving] = useState(false)
-
-  // Edit sheet
-  const [editJourney, setEditJourney] = useState<Journey | null>(null)
-  const [editForm, setEditForm] = useState<UpdateJourneyRequest>({})
-  const [editSaving, setEditSaving] = useState(false)
-
-  // Expanded DAG row — controlled by parent via props
-  // Delete dialog
-  const [deleteJourneyItem, setDeleteJourneyItem] = useState<Journey | null>(null)
-  const [deleteSaving, setDeleteSaving] = useState(false)
-
-  // Metadata editor state (key-value pairs)
-  const [createMetaRows, setCreateMetaRows] = useState<{ k: string; v: string }[]>([])
-  const [editMetaRows, setEditMetaRows] = useState<{ k: string; v: string }[]>([])
-
-  // Auto-slug state
-  const [autoSlug, setAutoSlug] = useState(true)
-
-  const slugify = (text: string): string => toSlugUnderscore(text)
-
-  // Reset form when sheet opens
-  useEffect(() => {
-    if (createOpen) {
-      setCreateForm({ name: "", journey_key: "", description: "", metadata: {} })
-      setCreateMetaRows([])
-      setAutoSlug(true)
+    const { toast } = useToast();
+    const { t } = useTranslation();
+    // Create sheet
+    const [createForm, setCreateForm] = useState<CreateJourneyRequest>({
+        name: "",
+        journey_key: "",
+        description: "",
+        metadata: {},
+    });
+    const [createSaving, setCreateSaving] = useState(false);
+    // Edit sheet
+    const [editJourney, setEditJourney] = useState<Journey | null>(null);
+    const [editForm, setEditForm] = useState<UpdateJourneyRequest>({});
+    const [editSaving, setEditSaving] = useState(false);
+    // Expanded DAG row — controlled by parent via props
+    // Delete dialog
+    const [deleteJourneyItem, setDeleteJourneyItem] = useState<Journey | null>(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
+    // Metadata editor state (key-value pairs)
+    const [createMetaRows, setCreateMetaRows] = useState<{
+        k: string;
+        v: string;
+    }[]>([]);
+    const [editMetaRows, setEditMetaRows] = useState<{
+        k: string;
+        v: string;
+    }[]>([]);
+    // Auto-slug state
+    const [autoSlug, setAutoSlug] = useState(true);
+    const slugify = (text: string): string => toSlugUnderscore(text);
+    // Reset form when sheet opens
+    useEffect(() => {
+        if (createOpen) {
+            setCreateForm({ name: "", journey_key: "", description: "", metadata: {} });
+            setCreateMetaRows([]);
+            setAutoSlug(true);
+        }
+    }, [createOpen]);
+    // ── Create ──────────────────────────────────────────────────────────────────
+    const handleCreate = async () => {
+        if (!createForm.name.trim() || !createForm.journey_key.trim()) {
+            toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: t('analytic.toastNameKeyRequired' as any) });
+            return;
+        }
+        setCreateSaving(true);
+        try {
+            const meta: Record<string, string> = {};
+            for (const row of createMetaRows) {
+                if (row.k.trim())
+                    meta[row.k.trim()] = row.v;
+            }
+            await createJourney(gameId, { ...createForm, metadata: meta });
+            toast({ title: t('analytic.toastJourneyCreated' as any) });
+            setCreateOpen(false);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateJourney' as any) });
+        }
+        finally {
+            setCreateSaving(false);
+        }
+    };
+    // ── Edit ────────────────────────────────────────────────────────────────────
+    function openEdit(j: Journey) {
+        setEditJourney(j);
+        setEditForm({
+            name: j.name,
+            description: j.description ?? "",
+            is_active: j.is_active,
+            metadata: j.metadata ?? {},
+        });
+        const rows = Object.entries(j.metadata ?? {}).map(([k, v]) => ({ k, v }));
+        setEditMetaRows(rows);
     }
-  }, [createOpen])
-
-  // ── Create ──────────────────────────────────────────────────────────────────
-
-  const handleCreate = async () => {
-    if (!createForm.name.trim() || !createForm.journey_key.trim()) {
-      toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: t('analytic.toastNameKeyRequired' as any) })
-      return
+    const handleEdit = async () => {
+        if (!editJourney)
+            return;
+        setEditSaving(true);
+        try {
+            const meta: Record<string, string> = {};
+            for (const row of editMetaRows) {
+                if (row.k.trim())
+                    meta[row.k.trim()] = row.v;
+            }
+            await updateJourney(gameId, editJourney.id, { ...editForm, metadata: meta });
+            toast({ title: t('analytic.toastJourneyUpdated' as any) });
+            setEditJourney(null);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) });
+        }
+        finally {
+            setEditSaving(false);
+        }
+    };
+    // ── Delete ──────────────────────────────────────────────────────────────────
+    const handleDelete = async () => {
+        if (!deleteJourneyItem)
+            return;
+        setDeleteSaving(true);
+        try {
+            await deleteJourney(gameId, deleteJourneyItem.id);
+            toast({ title: t('analytic.toastJourneyDeleted' as any) });
+            setDeleteJourneyItem(null);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteJourney' as any) });
+        }
+        finally {
+            setDeleteSaving(false);
+        }
+    };
+    // ── Toggle active ────────────────────────────────────────────────────────────
+    const handleToggleActive = async (j: Journey) => {
+        try {
+            await updateJourney(gameId, j.id, { is_active: !j.is_active });
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) });
+        }
+    };
+    // ── MetaEditor helper ───────────────────────────────────────────────────────
+    const META_KEY_LIMIT = 50;
+    /** Count total keys including dotted-path nested keys (e.g. "a.b.c" = 1 key) */
+    function countKeys(rows: {
+        k: string;
+        v: string;
+    }[]): number {
+        return rows.filter(r => r.k.trim() !== "").length;
     }
-    setCreateSaving(true)
-    try {
-      const meta: Record<string, string> = {}
-      for (const row of createMetaRows) {
-        if (row.k.trim()) meta[row.k.trim()] = row.v
-      }
-      await createJourney(gameId, { ...createForm, metadata: meta })
-      toast({ title: t('analytic.toastJourneyCreated' as any) })
-      setCreateOpen(false)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateJourney' as any) })
-    } finally {
-      setCreateSaving(false)
-    }
-  }
-
-  // ── Edit ────────────────────────────────────────────────────────────────────
-
-  function openEdit(j: Journey) {
-    setEditJourney(j)
-    setEditForm({
-      name: j.name,
-      description: j.description ?? "",
-      is_active: j.is_active,
-      metadata: j.metadata ?? {},
-    })
-    const rows = Object.entries(j.metadata ?? {}).map(([k, v]) => ({ k, v }))
-    setEditMetaRows(rows)
-  }
-
-  const handleEdit = async () => {
-    if (!editJourney) return
-    setEditSaving(true)
-    try {
-      const meta: Record<string, string> = {}
-      for (const row of editMetaRows) {
-        if (row.k.trim()) meta[row.k.trim()] = row.v
-      }
-      await updateJourney(gameId, editJourney.id, { ...editForm, metadata: meta })
-      toast({ title: t('analytic.toastJourneyUpdated' as any) })
-      setEditJourney(null)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) })
-    } finally {
-      setEditSaving(false)
-    }
-  }
-
-  // ── Delete ──────────────────────────────────────────────────────────────────
-
-  const handleDelete = async () => {
-    if (!deleteJourneyItem) return
-    setDeleteSaving(true)
-    try {
-      await deleteJourney(gameId, deleteJourneyItem.id)
-      toast({ title: t('analytic.toastJourneyDeleted' as any) })
-      setDeleteJourneyItem(null)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteJourney' as any) })
-    } finally {
-      setDeleteSaving(false)
-    }
-  }
-
-  // ── Toggle active ────────────────────────────────────────────────────────────
-
-  const handleToggleActive = async (j: Journey) => {
-    try {
-      await updateJourney(gameId, j.id, { is_active: !j.is_active })
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateJourney' as any) })
-    }
-  }
-
-  // ── MetaEditor helper ───────────────────────────────────────────────────────
-
-  const META_KEY_LIMIT = 50
-
-  /** Count total keys including dotted-path nested keys (e.g. "a.b.c" = 1 key) */
-  function countKeys(rows: { k: string; v: string }[]): number {
-    return rows.filter(r => r.k.trim() !== "").length
-  }
-
-  function MetaEditor({
-    rows,
-    onChange,
-  }: {
-    rows: { k: string; v: string }[]
-    onChange: (rows: { k: string; v: string }[]) => void
-  }) {
-    const used = countKeys(rows)
-    const atLimit = used >= META_KEY_LIMIT
-
-    return (
-      <div className="space-y-2">
+    function MetaEditor({ rows, onChange, }: {
+        rows: {
+            k: string;
+            v: string;
+        }[];
+        onChange: (rows: {
+            k: string;
+            v: string;
+        }[]) => void;
+    }) {
+        const used = countKeys(rows);
+        const atLimit = used >= META_KEY_LIMIT;
+        return (<div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
           <span>{t('analytic.metaKeyValue' as any)}</span>
           <span className={atLimit ? "text-destructive font-medium" : ""}>
             {used} / {META_KEY_LIMIT} {t('analytic.metaKeysCount' as any)}
           </span>
         </div>
-        {rows.map((row, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <Input
-              placeholder={t('analytic.metaPlaceholderKey' as any)}
-              value={row.k}
-              onChange={e => {
-                const next = [...rows]
-                next[i] = { ...next[i], k: e.target.value }
-                onChange(next)
-              }}
-              className="w-1/3"
-            />
+        {rows.map((row, i) => (<div key={i} className="flex gap-2 items-center">
+            <Input placeholder={t('analytic.metaPlaceholderKey' as any)} value={row.k} onChange={e => {
+                    const next = [...rows];
+                    next[i] = { ...next[i], k: e.target.value };
+                    onChange(next);
+                }} className="w-1/3"/>
             <span className="text-muted-foreground">:</span>
-            <Input
-              placeholder={t('analytic.metaPlaceholderValue' as any)}
-              value={row.v}
-              onChange={e => {
-                const next = [...rows]
-                next[i] = { ...next[i], v: e.target.value }
-                onChange(next)
-              }}
-              className="flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-destructive"
-              onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-            >
-              <X className="h-4 w-4" />
+            <Input placeholder={t('analytic.metaPlaceholderValue' as any)} value={row.v} onChange={e => {
+                    const next = [...rows];
+                    next[i] = { ...next[i], v: e.target.value };
+                    onChange(next);
+                }} className="flex-1"/>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={() => onChange(rows.filter((_, idx) => idx !== i))}>
+              <X className="h-4 w-4"/>
             </Button>
-          </div>
-        ))}
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          disabled={atLimit}
-          title={atLimit ? t('analytic.metaLimitReached' as any) : undefined}
-          onClick={() => onChange([...rows, { k: "", v: "" }])}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" />
+          </div>))}
+        <Button variant="outline" size="sm" type="button" disabled={atLimit} title={atLimit ? t('analytic.metaLimitReached' as any) : undefined} onClick={() => onChange([...rows, { k: "", v: "" }])}>
+          <Plus className="h-3.5 w-3.5 mr-1"/>
           {t('analytic.metaAddField' as any)}
           {atLimit && <span className="ml-1 text-xs text-destructive">{t('analytic.metaLimitReached' as any)}</span>}
         </Button>
-      </div>
-    )
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-
-  return (
-    <div className="space-y-4">
+      </div>);
+    }
+    // ── Render ───────────────────────────────────────────────────────────────────
+    return (<div className="space-y-4">
       {/* Table */}
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : journeys.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-          <Route className="h-10 w-10 opacity-30" />
+      {loading ? (<div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (<Skeleton key={i} className="h-12 w-full"/>))}
+        </div>) : journeys.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+          <Route className="h-10 w-10 opacity-30"/>
           <p>{t('analytic.emptyJourneys' as any)}</p>
-        </div>
-      ) : (
-        <div className="rounded-md border">
+        </div>) : (<div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -336,17 +249,13 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
               </TableRow>
             </TableHeader>
             <TableBody>
-              {journeys.map(j => (
-                <React.Fragment key={j.id}>
-                  <TableRow
-                    className="cursor-pointer"
-                    onClick={() => setExpandedJourneyId(expandedJourneyId === j.id ? null : j.id)}
-                  >
+              {journeys.map(j => (<React.Fragment key={j.id}>
+                  <TableRow className="cursor-pointer" onClick={() => setExpandedJourneyId(expandedJourneyId === j.id ? null : j.id)}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {expandedJourneyId === j.id
-                          ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                          : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                    ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0"/>
+                    : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0"/>}
                         <div>
                           <div>{j.name}</div>
                         </div>
@@ -355,14 +264,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <code className="text-xs bg-muted px-1 py-0.5 rounded">{j.journey_key}</code>
-                        <CopyButton text={j.journey_key} />
+                        <CopyButton text={j.journey_key}/>
                       </div>
                     </TableCell>
                     <TableCell onClick={e => e.stopPropagation()}>
-                      <Switch
-                        checked={j.is_active}
-                        onCheckedChange={() => handleToggleActive(j)}
-                      />
+                      <Switch checked={j.is_active} onCheckedChange={() => handleToggleActive(j)}/>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(j.created_at).toLocaleString()}
@@ -370,40 +276,23 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(j)}>
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4"/>
                         </Button>
-                        {j.journey_key !== "main_story" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteJourneyItem(j)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        {j.journey_key !== "main_story" && (<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteJourneyItem(j)}>
+                            <Trash2 className="h-4 w-4"/>
+                          </Button>)}
                       </div>
                     </TableCell>
                   </TableRow>
-                  {expandedJourneyId === j.id && (
-                    <TableRow>
+                  {expandedJourneyId === j.id && (<TableRow>
                       <TableCell colSpan={5} className="p-4 bg-muted/10">
-                        <JourneyDagView
-                          gameId={gameId}
-                          journeyId={j.id}
-                          description={j.description}
-                          maxNodeDefinitions={maxNodeDefinitions}
-                          initialSessionId={initialSessionId}
-                        />
+                        <JourneyDagView gameId={gameId} journeyId={j.id} description={j.description} maxNodeDefinitions={maxNodeDefinitions} initialSessionId={initialSessionId}/>
                       </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              ))}
+                    </TableRow>)}
+                </React.Fragment>))}
             </TableBody>
           </Table>
-        </div>
-      )}
+        </div>)}
 
       {/* ── Create Sheet ────────────────────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
@@ -414,52 +303,34 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
               <Label>{t('analytic.labelName' as any)} <span className="text-destructive">*</span></Label>
-              <Input
-                value={createForm.name}
-                onChange={e => {
-                  const newName = e.target.value
-                  setCreateForm(f => ({
-                    ...f,
-                    name: newName,
-                    journey_key: autoSlug ? slugify(newName) : f.journey_key,
-                  }))
-                }}
-                placeholder={t('analytic.placeholderJourneyName' as any)}
-              />
+              <Input value={createForm.name} onChange={e => {
+            const newName = e.target.value;
+            setCreateForm(f => ({
+                ...f,
+                name: newName,
+                journey_key: autoSlug ? slugify(newName) : f.journey_key,
+            }));
+        }} placeholder={t('analytic.placeholderJourneyName' as any)}/>
             </div>
             <div className="space-y-1.5">
               <Label>{t('analytic.labelJourneyKey' as any)} <span className="text-destructive">*</span></Label>
               <div className="flex gap-2">
-                <Input
-                  value={createForm.journey_key}
-                  onChange={e => {
-                    setCreateForm(f => ({ ...f, journey_key: e.target.value }))
-                    setAutoSlug(false) // Disable auto-slug when manually editing
-                  }}
-                  placeholder={t('analytic.placeholderJourneyKey' as any)}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant={autoSlug ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => {
-                    const newAutoSlug = !autoSlug
-                    setAutoSlug(newAutoSlug)
-                    if (newAutoSlug) {
-                      // Re-slug from current name when enabling
-                      setCreateForm(f => ({ ...f, journey_key: slugify(f.name) }))
-                    }
-                  }}
-                  title={autoSlug ? t('analytic.autoSlugEnabled' as any) : t('analytic.autoSlugDisabled' as any)}
-                  className="shrink-0"
-                >
-                  <Wand2 className="h-4 w-4" />
+                <Input value={createForm.journey_key} onChange={e => {
+            setCreateForm(f => ({ ...f, journey_key: e.target.value }));
+            setAutoSlug(false); // Disable auto-slug when manually editing
+        }} placeholder={t('analytic.placeholderJourneyKey' as any)} className="flex-1"/>
+                <Button type="button" variant={autoSlug ? "default" : "outline"} size="icon" onClick={() => {
+            const newAutoSlug = !autoSlug;
+            setAutoSlug(newAutoSlug);
+            if (newAutoSlug) {
+                // Re-slug from current name when enabling
+                setCreateForm(f => ({ ...f, journey_key: slugify(f.name) }));
+            }
+        }} title={autoSlug ? t('analytic.autoSlugEnabled' as any) : t('analytic.autoSlugDisabled' as any)} className="shrink-0">
+                  <Wand2 className="h-4 w-4"/>
                 </Button>
               </div>
-              {autoSlug && (
-                <p className="text-xs text-muted-foreground">{t('analytic.autoSlugHint' as any)}</p>
-              )}
+              {autoSlug && (<p className="text-xs text-muted-foreground">{t('analytic.autoSlugHint' as any)}</p>)}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -468,17 +339,11 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                   {(createForm.description ?? "").length} / 500
                 </span>
               </div>
-              <Textarea
-                value={createForm.description ?? ""}
-                onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-                placeholder={t('analytic.placeholderJourneyDescription' as any)}
-                rows={3}
-                maxLength={500}
-              />
+              <Textarea value={createForm.description ?? ""} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={t('analytic.placeholderJourneyDescription' as any)} rows={3} maxLength={500}/>
             </div>
             <div className="space-y-1.5">
               <Label>{t('analytic.labelMetadata' as any)}</Label>
-              <MetaEditor rows={createMetaRows} onChange={setCreateMetaRows} />
+              <MetaEditor rows={createMetaRows} onChange={setCreateMetaRows}/>
             </div>
           </div>
           <SheetFooter className="mt-6 flex gap-2">
@@ -486,7 +351,7 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
               <Button variant="outline">{t('analytic.btnCancel' as any)}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={createSaving}>
-              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnCreate' as any)}
             </Button>
           </SheetFooter>
@@ -494,23 +359,21 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       </Sheet>
 
       {/* ── Edit Sheet ──────────────────────────────────────────────────────── */}
-      <Sheet open={!!editJourney} onOpenChange={open => { if (!open) setEditJourney(null) }}>
+      <Sheet open={!!editJourney} onOpenChange={open => {
+            if (!open)
+                setEditJourney(null);
+        }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('analytic.editJourneyTitle' as any)}</SheetTitle>
           </SheetHeader>
-          {editJourney && (
-            <div className="space-y-4 mt-6">
+          {editJourney && (<div className="space-y-4 mt-6">
               <div className="text-sm text-muted-foreground">
                 <code className="text-xs">{editJourney.journey_key}</code>
               </div>
               <div className="space-y-1.5">
                 <Label>{t('analytic.labelName' as any)}</Label>
-                <Input
-                  value={editForm.name ?? ""}
-                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder={t('analytic.placeholderEditJourneyName' as any)}
-                />
+                <Input value={editForm.name ?? ""} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder={t('analytic.placeholderEditJourneyName' as any)}/>
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -519,31 +382,21 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
                     {(editForm.description ?? "").length} / 500
                   </span>
                 </div>
-                <Textarea
-                  value={editForm.description ?? ""}
-                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  maxLength={500}
-                />
+                <Textarea value={editForm.description ?? ""} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} maxLength={500}/>
               </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-active">{t('analytic.labelActive' as any)}</Label>
-                <Switch
-                  id="edit-active"
-                  checked={editForm.is_active ?? false}
-                  onCheckedChange={v => setEditForm(f => ({ ...f, is_active: v }))}
-                />
+                <Switch id="edit-active" checked={editForm.is_active ?? false} onCheckedChange={v => setEditForm(f => ({ ...f, is_active: v }))}/>
               </div>
               <div className="space-y-1.5">
                 <Label>{t('analytic.labelMetadata' as any)}</Label>
-                <MetaEditor rows={editMetaRows} onChange={setEditMetaRows} />
+                <MetaEditor rows={editMetaRows} onChange={setEditMetaRows}/>
               </div>
-            </div>
-          )}
+            </div>)}
           <SheetFooter className="mt-6 flex gap-2">
             <Button variant="outline" onClick={() => setEditJourney(null)}>{t('analytic.btnCancel' as any)}</Button>
             <Button onClick={handleEdit} disabled={editSaving}>
-              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnSave' as any)}
             </Button>
           </SheetFooter>
@@ -551,7 +404,10 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
       </Sheet>
 
       {/* ── Delete Dialog ────────────────────────────────────────────────────── */}
-      <AlertDialog open={!!deleteJourneyItem} onOpenChange={open => { if (!open) setDeleteJourneyItem(null) }}>
+      <AlertDialog open={!!deleteJourneyItem} onOpenChange={open => {
+            if (!open)
+                setDeleteJourneyItem(null);
+        }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('analytic.deleteJourneyTitle' as any)}</AlertDialogTitle>
@@ -563,160 +419,136 @@ function JourneyTab({ gameId, journeys, loading, createOpen, setCreateOpen, onMu
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('analytic.btnCancel' as any)}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteSaving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            <AlertDialogAction onClick={handleDelete} disabled={deleteSaving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnDelete' as any)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
+    </div>);
 }
-
 // ─── Event Type Tab ───────────────────────────────────────────────────────────
-
 interface EventTypeTabProps {
-  gameId: string
-  autoCreate?: boolean
-  maxEventTypes?: number
-  eventTypes: EventType[]
-  loading: boolean
-  createOpen: boolean
-  setCreateOpen: (open: boolean) => void
-  onMutate: () => void
+    gameId: string;
+    autoCreate?: boolean;
+    maxEventTypes?: number;
+    eventTypes: EventType[];
+    loading: boolean;
+    createOpen: boolean;
+    setCreateOpen: (open: boolean) => void;
+    onMutate: () => void;
 }
-
 function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, createOpen, setCreateOpen, onMutate }: EventTypeTabProps) {
-  const { toast } = useToast()
-  const { t } = useTranslation()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  const [createForm, setCreateForm] = useState<CreateEventTypeRequest>({ event_type: "", description: "" })
-  const [createSaving, setCreateSaving] = useState(false)
-
-  // Auto-open create panel when navigated with create=1
-  useEffect(() => {
-    if (autoCreate) setCreateOpen(true)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoCreate])
-
-  // Reset form when sheet opens
-  useEffect(() => {
-    if (createOpen) setCreateForm({ event_type: "", description: "" })
-  }, [createOpen])
-
-  // Edit sheet
-  const [editItem, setEditItem] = useState<EventType | null>(null)
-  const [editDescription, setEditDescription] = useState("")
-  const [editSaving, setEditSaving] = useState(false)
-
-  // Delete dialog
-  const [deleteItem, setDeleteItem] = useState<EventType | null>(null)
-  const [deleteSaving, setDeleteSaving] = useState(false)
-
-  const load = useCallback(async (showRefresh = false) => {
-    // no-op: load is managed by parent
-  }, [])
-
-  // ── Validation ────────────────────────────────────────────────────────────
-
-  const EVENT_TYPE_REGEX = /^[a-z][a-z0-9_]*$/
-
-  function validateEventType(value: string): string | null {
-    if (!value.trim()) return t('analytic.eventTypeValidationRequired' as any)
-    if (!EVENT_TYPE_REGEX.test(value))
-      return t('analytic.eventTypeValidationRegex' as any)
-    return null
-  }
-
-  // ── Create ──────────────────────────────────────────────────────────────────
-
-  function openCreate() {
-    setCreateOpen(true)
-  }
-
-  const handleCreate = async () => {
-    const err = validateEventType(createForm.event_type)
-    if (err) {
-      toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: err })
-      return
+    const { toast } = useToast();
+    const { t } = useTranslation();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [createForm, setCreateForm] = useState<CreateEventTypeRequest>({ event_type: "", description: "" });
+    const [createSaving, setCreateSaving] = useState(false);
+    // Auto-open create panel when navigated with create=1
+    useEffect(() => {
+        if (autoCreate)
+            setCreateOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoCreate]);
+    // Reset form when sheet opens
+    useEffect(() => {
+        if (createOpen)
+            setCreateForm({ event_type: "", description: "" });
+    }, [createOpen]);
+    // Edit sheet
+    const [editItem, setEditItem] = useState<EventType | null>(null);
+    const [editDescription, setEditDescription] = useState("");
+    const [editSaving, setEditSaving] = useState(false);
+    // Delete dialog
+    const [deleteItem, setDeleteItem] = useState<EventType | null>(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
+    const load = useCallback(async (showRefresh = false) => {
+        // no-op: load is managed by parent
+    }, []);
+    // ── Validation ────────────────────────────────────────────────────────────
+    const EVENT_TYPE_REGEX = /^[a-z][a-z0-9_]*$/;
+    function validateEventType(value: string): string | null {
+        if (!value.trim())
+            return t('analytic.eventTypeValidationRequired' as any);
+        if (!EVENT_TYPE_REGEX.test(value))
+            return t('analytic.eventTypeValidationRegex' as any);
+        return null;
     }
-    setCreateSaving(true)
-    try {
-      await createEventType(gameId, createForm)
-      toast({ title: t('analytic.toastEventTypeCreated' as any) })
-      setCreateOpen(false)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateEventType' as any) })
-    } finally {
-      setCreateSaving(false)
+    // ── Create ──────────────────────────────────────────────────────────────────
+    function openCreate() {
+        setCreateOpen(true);
     }
-  }
-
-  // ── Edit ────────────────────────────────────────────────────────────────────
-
-  function openEdit(item: EventType) {
-    setEditItem(item)
-    setEditDescription(item.description ?? "")
-  }
-
-  const handleEdit = async () => {
-    if (!editItem) return
-    setEditSaving(true)
-    try {
-      await updateEventType(gameId, editItem.id, { description: editDescription })
-      toast({ title: t('analytic.toastEventTypeUpdated' as any) })
-      setEditItem(null)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateEventType' as any) })
-    } finally {
-      setEditSaving(false)
+    const handleCreate = async () => {
+        const err = validateEventType(createForm.event_type);
+        if (err) {
+            toast({ variant: "destructive", title: t('analytic.toastValidation' as any), description: err });
+            return;
+        }
+        setCreateSaving(true);
+        try {
+            await createEventType(gameId, createForm);
+            toast({ title: t('analytic.toastEventTypeCreated' as any) });
+            setCreateOpen(false);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedCreateEventType' as any) });
+        }
+        finally {
+            setCreateSaving(false);
+        }
+    };
+    // ── Edit ────────────────────────────────────────────────────────────────────
+    function openEdit(item: EventType) {
+        setEditItem(item);
+        setEditDescription(item.description ?? "");
     }
-  }
-
-  // ── Delete ──────────────────────────────────────────────────────────────────
-
-  const handleDelete = async () => {
-    if (!deleteItem) return
-    setDeleteSaving(true)
-    try {
-      await deleteEventType(gameId, deleteItem.id)
-      toast({ title: t('analytic.toastEventTypeDeleted' as any) })
-      setDeleteItem(null)
-      onMutate()
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteEventType' as any) })
-    } finally {
-      setDeleteSaving(false)
-    }
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-
-  return (
-    <div className="space-y-4">
+    const handleEdit = async () => {
+        if (!editItem)
+            return;
+        setEditSaving(true);
+        try {
+            await updateEventType(gameId, editItem.id, { description: editDescription });
+            toast({ title: t('analytic.toastEventTypeUpdated' as any) });
+            setEditItem(null);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedUpdateEventType' as any) });
+        }
+        finally {
+            setEditSaving(false);
+        }
+    };
+    // ── Delete ──────────────────────────────────────────────────────────────────
+    const handleDelete = async () => {
+        if (!deleteItem)
+            return;
+        setDeleteSaving(true);
+        try {
+            await deleteEventType(gameId, deleteItem.id);
+            toast({ title: t('analytic.toastEventTypeDeleted' as any) });
+            setDeleteItem(null);
+            onMutate();
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedDeleteEventType' as any) });
+        }
+        finally {
+            setDeleteSaving(false);
+        }
+    };
+    // ── Render ───────────────────────────────────────────────────────────────────
+    return (<div className="space-y-4">
       {/* Table */}
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : eventTypes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-          <BarChart2 className="h-10 w-10 opacity-30" />
+      {loading ? (<div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (<Skeleton key={i} className="h-12 w-full"/>))}
+        </div>) : eventTypes.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+          <BarChart2 className="h-10 w-10 opacity-30"/>
           <p>{t('analytic.emptyEventTypes' as any)}</p>
-        </div>
-      ) : (
-        <div className="rounded-md border">
+        </div>) : (<div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -729,22 +561,24 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
             <TableBody>
               {[...eventTypes]
                 .sort((a, b) => {
-                  const PINNED = ["join_game", "ending1"]
-                  const ai = PINNED.indexOf(a.event_type)
-                  const bi = PINNED.indexOf(b.event_type)
-                  if (ai !== -1 && bi !== -1) return ai - bi
-                  if (ai !== -1) return -1
-                  if (bi !== -1) return 1
-                  return 0
-                })
+                const PINNED = ["join_game", "ending1"];
+                const ai = PINNED.indexOf(a.event_type);
+                const bi = PINNED.indexOf(b.event_type);
+                if (ai !== -1 && bi !== -1)
+                    return ai - bi;
+                if (ai !== -1)
+                    return -1;
+                if (bi !== -1)
+                    return 1;
+                return 0;
+            })
                 .map((item) => {
-                const isPinned = ["join_game", "ending1"].includes(item.event_type)
-                return (
-                <TableRow key={item.id}>
+                const isPinned = ["join_game", "ending1"].includes(item.event_type);
+                return (<TableRow key={item.id}>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">{item.event_type}</code>
-                      <CopyButton text={item.event_type} />
+                      <CopyButton text={item.event_type}/>
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
@@ -756,38 +590,29 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4"/>
                       </Button>
-                      {!isPinned && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteItem(item)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      {!isPinned && (<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteItem(item)}>
+                          <Trash2 className="h-4 w-4"/>
+                        </Button>)}
                     </div>
                   </TableCell>
-                </TableRow>
-                )
-              })}
+                </TableRow>);
+            })}
             </TableBody>
           </Table>
-        </div>
-      )}
+        </div>)}
 
       {/* ── Create Sheet ────────────────────────────────────────────────────── */}
       <Sheet open={createOpen} onOpenChange={(open) => {
-        if (!open) {
-          const sp = new URLSearchParams(searchParams.toString())
-          sp.delete("create")
-          const qs = sp.toString()
-          router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
-        }
-        setCreateOpen(open)
-      }}>
+            if (!open) {
+                const sp = new URLSearchParams(searchParams.toString());
+                sp.delete("create");
+                const qs = sp.toString();
+                router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false });
+            }
+            setCreateOpen(open);
+        }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('analytic.createEventTypeTitle' as any)}</SheetTitle>
@@ -795,17 +620,8 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
           <div className="space-y-4 mt-6">
             <div className="space-y-1.5">
               <Label>{t('analytic.labelEventType' as any)} <span className="text-destructive">*</span></Label>
-              <Input
-                value={createForm.event_type}
-                onChange={e => setCreateForm(f => ({ ...f, event_type: e.target.value }))}
-                placeholder={t('analytic.placeholderEventType' as any)}
-                className={createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? "border-destructive focus-visible:ring-destructive" : ""}
-              />
-              {createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? (
-                <p className="text-xs text-destructive">{t('analytic.eventTypeValidationRegex' as any)}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t('analytic.eventTypeHint' as any)}</p>
-              )}
+              <Input value={createForm.event_type} onChange={e => setCreateForm(f => ({ ...f, event_type: e.target.value }))} placeholder={t('analytic.placeholderEventType' as any)} className={createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? "border-destructive focus-visible:ring-destructive" : ""}/>
+              {createForm.event_type && !EVENT_TYPE_REGEX.test(createForm.event_type) ? (<p className="text-xs text-destructive">{t('analytic.eventTypeValidationRegex' as any)}</p>) : (<p className="text-xs text-muted-foreground">{t('analytic.eventTypeHint' as any)}</p>)}
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -814,13 +630,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
                   {(createForm.description ?? "").length} / 500
                 </span>
               </div>
-              <Textarea
-                value={createForm.description ?? ""}
-                onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
-                placeholder={t('analytic.placeholderEventDescription' as any)}
-                rows={3}
-                maxLength={500}
-              />
+              <Textarea value={createForm.description ?? ""} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={t('analytic.placeholderEventDescription' as any)} rows={3} maxLength={500}/>
             </div>
           </div>
           <SheetFooter className="mt-6 flex gap-2">
@@ -828,7 +638,7 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
               <Button variant="outline">{t('analytic.btnCancel' as any)}</Button>
             </SheetClose>
             <Button onClick={handleCreate} disabled={createSaving}>
-              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {createSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnCreate' as any)}
             </Button>
           </SheetFooter>
@@ -836,13 +646,15 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       </Sheet>
 
       {/* ── Edit Sheet ──────────────────────────────────────────────────────── */}
-      <Sheet open={!!editItem} onOpenChange={open => { if (!open) setEditItem(null) }}>
+      <Sheet open={!!editItem} onOpenChange={open => {
+            if (!open)
+                setEditItem(null);
+        }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('analytic.editEventTypeTitle' as any)}</SheetTitle>
           </SheetHeader>
-          {editItem && (
-            <div className="space-y-4 mt-6">
+          {editItem && (<div className="space-y-4 mt-6">
               <div className="text-sm text-muted-foreground">
                 <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{editItem.event_type}</code>
               </div>
@@ -853,20 +665,13 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
                     {editDescription.length} / 500
                   </span>
                 </div>
-                <Textarea
-                  value={editDescription}
-                  onChange={e => setEditDescription(e.target.value)}
-                  placeholder={t('analytic.placeholderEventDescription' as any)}
-                  rows={3}
-                  maxLength={500}
-                />
+                <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder={t('analytic.placeholderEventDescription' as any)} rows={3} maxLength={500}/>
               </div>
-            </div>
-          )}
+            </div>)}
           <SheetFooter className="mt-6 flex gap-2">
             <Button variant="outline" onClick={() => setEditItem(null)}>{t('analytic.btnCancel' as any)}</Button>
             <Button onClick={handleEdit} disabled={editSaving}>
-              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnSave' as any)}
             </Button>
           </SheetFooter>
@@ -874,7 +679,10 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
       </Sheet>
 
       {/* ── Delete Dialog ────────────────────────────────────────────────────── */}
-      <AlertDialog open={!!deleteItem} onOpenChange={open => { if (!open) setDeleteItem(null) }}>
+      <AlertDialog open={!!deleteItem} onOpenChange={open => {
+            if (!open)
+                setDeleteItem(null);
+        }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('analytic.deleteEventTypeTitle' as any)}</AlertDialogTitle>
@@ -886,138 +694,133 @@ function EventTypeTab({ gameId, autoCreate, maxEventTypes, eventTypes, loading, 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('analytic.btnCancel' as any)}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteSaving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            <AlertDialogAction onClick={handleDelete} disabled={deleteSaving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteSaving && <Loader2 className="h-4 w-4 animate-spin mr-1"/>}
               {t('analytic.btnDelete' as any)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
+    </div>);
 }
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function AnalyticPage() {
-  const params = useParams<{ id: string }>()
-  const gameId = params.id
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  const rawTab = searchParams.get("tab") ?? "journey"
-  const activeTab: TabValue = VALID_TABS.has(rawTab) ? (rawTab as TabValue) : "journey"
-
-  const [game, setGame] = useState<Game | null>(null)
-  const [studio, setStudio] = useState<Studio | null>(null)
-  const [gameLoading, setGameLoading] = useState(true)
-
-  // Journey state (hoisted for layout: toolbar in header, table full-width below)
-  const [journeys, setJourneys] = useState<Journey[]>([])
-  const [journeysLoading, setJourneysLoading] = useState(true)
-  const [journeysRefreshing, setJourneysRefreshing] = useState(false)
-  const [journeyCreateOpen, setJourneyCreateOpen] = useState(false)
-
-  const loadJourneys = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setJourneysRefreshing(true)
-    else setJourneysLoading(true)
-    try {
-      const data = await listJourneys(gameId)
-      setJourneys(data)
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadJourneys' as any) })
-    } finally {
-      setJourneysLoading(false)
-      setJourneysRefreshing(false)
-    }
-  }, [gameId, toast])
-
-  useEffect(() => { loadJourneys() }, [loadJourneys])
-
-  // Expanded journey — synced with URL param ?journey=<id>
-  const rawJourneyParam = searchParams.get("journey")
-  const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null)
-
-  // When session_id is present but no journey is expanded, auto-open the first journey — only once
-  const autoOpenedForSessionRef = useRef(false)
-  useEffect(() => {
-    if (autoOpenedForSessionRef.current) return
-    if (!searchParams.get("session_id")) return
-    if (expandedJourneyId || journeys.length === 0) return
-    autoOpenedForSessionRef.current = true
-    setExpandedJourneyIdState(journeys[0].id)
-  }, [expandedJourneyId, journeys, searchParams])
-
-  const setExpandedJourneyId = useCallback((id: string | null) => {
-    setExpandedJourneyIdState(id)
-    const sp = new URLSearchParams(searchParams.toString())
-    if (id) {
-      sp.set("journey", id)
-    } else {
-      sp.delete("journey")
-    }
-    const qs = sp.toString()
-    router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false })
-  }, [searchParams, router, gameId])
-
-  // Event type state (hoisted for layout)
-  const [eventTypes, setEventTypes] = useState<EventType[]>([])
-  const [eventTypesLoading, setEventTypesLoading] = useState(true)
-  const [eventTypesRefreshing, setEventTypesRefreshing] = useState(false)
-  const [eventTypeCreateOpen, setEventTypeCreateOpen] = useState(false)
-
-  const loadEventTypes = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setEventTypesRefreshing(true)
-    else setEventTypesLoading(true)
-    try {
-      const data = await listEventTypes(gameId)
-      setEventTypes(data)
-    } catch {
-      toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadEventTypes' as any) })
-    } finally {
-      setEventTypesLoading(false)
-      setEventTypesRefreshing(false)
-    }
-  }, [gameId, toast])
-
-  useEffect(() => { loadEventTypes() }, [loadEventTypes])
-  useEffect(() => {
-    setGameLoading(true)
-    getGame(gameId)
-      .then(async (g) => {
-        setGame(g)
-        if (g.studio_id) {
-          try {
-            const s = await fetchStudioWithCache(g.studio_id)
-            setStudio(s)
-          } catch {
-            // ignore
-          }
+    const params = useParams<{
+        id: string;
+    }>();
+    const gameId = params.id;
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { toast } = useToast();
+    const { t } = useTranslation();
+    const rawTab = searchParams.get("tab") ?? "journey";
+    const activeTab: TabValue = VALID_TABS.has(rawTab) ? (rawTab as TabValue) : "journey";
+    const [game, setGame] = useState<Game | null>(null);
+    const [studio, setStudio] = useState<Studio | null>(null);
+    const [gameLoading, setGameLoading] = useState(true);
+    // Journey state (hoisted for layout: toolbar in header, table full-width below)
+    const [journeys, setJourneys] = useState<Journey[]>([]);
+    const [journeysLoading, setJourneysLoading] = useState(true);
+    const [journeysRefreshing, setJourneysRefreshing] = useState(false);
+    const [journeyCreateOpen, setJourneyCreateOpen] = useState(false);
+    const loadJourneys = useCallback(async (showRefresh = false) => {
+        if (showRefresh)
+            setJourneysRefreshing(true);
+        else
+            setJourneysLoading(true);
+        try {
+            const data = await listJourneys(gameId);
+            setJourneys(data);
         }
-      })
-      .catch(() => toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadGame' as any) }))
-      .finally(() => setGameLoading(false))
-  }, [gameId, toast])
-
-  const handleTabChange = (value: string) => {
-    const sp = new URLSearchParams(searchParams.toString())
-    if (value === "journey") {
-      sp.delete("tab")
-    } else {
-      sp.set("tab", value)
-    }
-    const qs = sp.toString()
-    router.push(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`)
-  }
-
-  return (
-    <div className="container mx-auto py-6">
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadJourneys' as any) });
+        }
+        finally {
+            setJourneysLoading(false);
+            setJourneysRefreshing(false);
+        }
+    }, [gameId, toast]);
+    useEffect(() => { loadJourneys(); }, [loadJourneys]);
+    // Expanded journey — synced with URL param ?journey=<id>
+    const rawJourneyParam = searchParams.get("journey");
+    const [expandedJourneyId, setExpandedJourneyIdState] = useState<string | null>(rawJourneyParam ?? null);
+    // When session_id is present but no journey is expanded, auto-open the first journey — only once
+    const autoOpenedForSessionRef = useRef(false);
+    useEffect(() => {
+        if (autoOpenedForSessionRef.current)
+            return;
+        if (!searchParams.get("session_id"))
+            return;
+        if (expandedJourneyId || journeys.length === 0)
+            return;
+        autoOpenedForSessionRef.current = true;
+        setExpandedJourneyIdState(journeys[0].id);
+    }, [expandedJourneyId, journeys, searchParams]);
+    const setExpandedJourneyId = useCallback((id: string | null) => {
+        setExpandedJourneyIdState(id);
+        const sp = new URLSearchParams(searchParams.toString());
+        if (id) {
+            sp.set("journey", id);
+        }
+        else {
+            sp.delete("journey");
+        }
+        const qs = sp.toString();
+        router.replace(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`, { scroll: false });
+    }, [searchParams, router, gameId]);
+    // Event type state (hoisted for layout)
+    const [eventTypes, setEventTypes] = useState<EventType[]>([]);
+    const [eventTypesLoading, setEventTypesLoading] = useState(true);
+    const [eventTypesRefreshing, setEventTypesRefreshing] = useState(false);
+    const [eventTypeCreateOpen, setEventTypeCreateOpen] = useState(false);
+    const loadEventTypes = useCallback(async (showRefresh = false) => {
+        if (showRefresh)
+            setEventTypesRefreshing(true);
+        else
+            setEventTypesLoading(true);
+        try {
+            const data = await listEventTypes(gameId);
+            setEventTypes(data);
+        }
+        catch {
+            toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadEventTypes' as any) });
+        }
+        finally {
+            setEventTypesLoading(false);
+            setEventTypesRefreshing(false);
+        }
+    }, [gameId, toast]);
+    useEffect(() => { loadEventTypes(); }, [loadEventTypes]);
+    useEffect(() => {
+        setGameLoading(true);
+        getGame(gameId)
+            .then(async (g) => {
+            setGame(g);
+            if (g.studio_id) {
+                try {
+                    const s = await fetchStudioWithCache(g.studio_id);
+                    setStudio(s);
+                }
+                catch {
+                    // ignore
+                }
+            }
+        })
+            .catch(() => toast({ variant: "destructive", title: t('analytic.toastError' as any), description: t('analytic.toastFailedLoadGame' as any) }))
+            .finally(() => setGameLoading(false));
+    }, [gameId, toast]);
+    const handleTabChange = (value: string) => {
+        const sp = new URLSearchParams(searchParams.toString());
+        if (value === "journey") {
+            sp.delete("tab");
+        }
+        else {
+            sp.set("tab", value);
+        }
+        const qs = sp.toString();
+        router.push(`/games/${gameId}/analytic${qs ? `?${qs}` : ""}`);
+    };
+    return (<div className="container mx-auto py-6">
       {/* Breadcrumb */}
       <div className="mb-2">
         <Breadcrumb>
@@ -1026,16 +829,14 @@ export default function AnalyticPage() {
               <BreadcrumbLink href="/studios">{t('analytic.breadcrumbStudios' as any)}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            {game?.studio_id && (
-              <>
+            {game?.studio_id && (<>
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/studios/${game.studio_id}`}>
                     {studio?.name || game.studio?.name || t('analytic.breadcrumbStudio' as any)}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
-              </>
-            )}
+              </>)}
             <BreadcrumbItem>
               <BreadcrumbLink href={`/games/${gameId}`}>
                 {gameLoading ? gameId : (game?.name ?? gameId)}
@@ -1053,17 +854,17 @@ export default function AnalyticPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" onClick={() => router.push(`/games/${gameId}`)}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4"/>
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
+              <BarChart2 className="h-5 w-5"/>
               <h1 className="text-2xl font-bold">{t('analytic.pageTitle' as any)}</h1>
             </div>
           </div>
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
-          <GameNavButtons gameId={gameId} active="analytic" />
+          <GameNavButtons gameId={gameId} active="analytic"/>
         </div>
       </div>
 
@@ -1074,128 +875,78 @@ export default function AnalyticPage() {
           {/* Col 1: tab triggers + journey toolbar */}
           <div className="flex-1 min-w-0 space-y-4">
             <TabsList>
-              {TABS.map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value}>
+              {TABS.map((tab) => (<TabsTrigger key={tab.value} value={tab.value}>
                   {t(tab.labelKey as any)}
-                </TabsTrigger>
-              ))}
+                </TabsTrigger>))}
             </TabsList>
-            {activeTab === "journey" && (
-              <div className="flex items-center justify-between gap-4">
+            {activeTab === "journey" && (<div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   {(() => {
-                    const used = journeys.length
-                    const max = JOURNEY_LIMIT
-                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
-                    return (
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                const used = journeys.length;
+                const max = JOURNEY_LIMIT;
+                const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
+                return (<p className="text-sm text-muted-foreground flex items-center gap-2">
                         <span className={used >= max ? "text-destructive font-medium" : ""}>
                           {used.toLocaleString()} / {max.toLocaleString()}
                         </span>
                         <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                          <span
-                            className={`block h-full rounded-full transition-all ${
-                              used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
+                          <span className={`block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
                         </span>
                         <span className="text-xs text-muted-foreground">{t('analytic.fixedLimitNote' as any)}</span>
-                      </p>
-                    )
-                  })()}
+                      </p>);
+            })()}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Button variant="outline" size="icon" onClick={() => loadJourneys(true)} disabled={journeysRefreshing}>
-                    <RefreshCw className={`h-4 w-4 ${journeysRefreshing ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-4 w-4 ${journeysRefreshing ? "animate-spin" : ""}`}/>
                   </Button>
                   <Button size="sm" onClick={() => setJourneyCreateOpen(true)} disabled={journeys.length >= JOURNEY_LIMIT}>
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1"/>
                     {t('analytic.newJourney' as any)}
                   </Button>
                 </div>
-              </div>
-            )}
-            {activeTab === "event-types" && (
-              <div className="flex items-center justify-between gap-4">
+              </div>)}
+            {activeTab === "event-types" && (<div className="flex items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   {game?.limits?.max_event_types != null
-                    ? (() => {
-                        const used = eventTypes.length
-                        const max = game.limits!.max_event_types!
-                        const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0
-                        return (
-                          <>
+                ? (() => {
+                    const used = eventTypes.length;
+                    const max = game.limits!.max_event_types!;
+                    const pct = max > 0 ? Math.min((used / max) * 100, 100) : 0;
+                    return (<>
                             <span className={used >= max ? "text-destructive font-medium" : ""}>
                               {used.toLocaleString()} / {max.toLocaleString()}
                             </span>
                             <span className="inline-block h-1.5 w-24 rounded-full bg-muted overflow-hidden align-middle">
-                              <span
-                                className={`block h-full rounded-full transition-all ${
-                                  used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
+                              <span className={`block h-full rounded-full transition-all ${used >= max ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
                             </span>
-                            <Link
-                              href={`/games/${gameId}/plugins`}
-                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                              title={t('analytic.managePluginsTitle' as any)}
-                            >
-                              <Hammer className="h-3.5 w-3.5" />
+                            <Link href={`/games/${gameId}/plugins`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors" title={t('analytic.managePluginsTitle' as any)}>
+                              <Hammer className="h-3.5 w-3.5"/>
                             </Link>
-                          </>
-                        )
-                      })()
-                    : <span>{eventTypes.length.toLocaleString()}</span>
-                  }
+                          </>);
+                })()
+                : <span>{eventTypes.length.toLocaleString()}</span>}
                 </p>
                 <div className="flex gap-2 shrink-0">
                   <Button variant="outline" size="icon" onClick={() => loadEventTypes(true)} disabled={eventTypesRefreshing}>
-                    <RefreshCw className={`h-4 w-4 ${eventTypesRefreshing ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-4 w-4 ${eventTypesRefreshing ? "animate-spin" : ""}`}/>
                   </Button>
                   <Button size="sm" onClick={() => setEventTypeCreateOpen(true)} disabled={game?.limits?.max_event_types != null && eventTypes.length >= game.limits.max_event_types}>
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1"/>
                     {t('analytic.newEventType' as any)}
                   </Button>
                 </div>
-              </div>
-            )}
+              </div>)}
           </div>
           {/* Col 2: Player event tracing setting */}
           <div className="rounded-lg border px-4 py-3 bg-muted/30 shrink-0 w-[400px]">
-            <AllowTracingPlayerEventSetting gameId={gameId} game={game} />
+            <AllowTracingPlayerEventSetting gameId={gameId} game={game}/>
           </div>
         </div>
 
         {/* Full-width content */}
-        {activeTab === "journey" && (
-          <JourneyTab
-            gameId={gameId}
-            journeys={journeys}
-            loading={journeysLoading}
-            createOpen={journeyCreateOpen}
-            setCreateOpen={setJourneyCreateOpen}
-            onMutate={() => loadJourneys(true)}
-            maxNodeDefinitions={game?.limits?.max_node_definitions}
-            expandedJourneyId={expandedJourneyId}
-            setExpandedJourneyId={setExpandedJourneyId}
-            initialSessionId={searchParams.get("session_id") ?? undefined}
-          />
-        )}
-        {activeTab === "event-types" && (
-          <EventTypeTab
-            gameId={gameId}
-            autoCreate={searchParams.get("create") === "1"}
-            maxEventTypes={game?.limits?.max_event_types}
-            eventTypes={eventTypes}
-            loading={eventTypesLoading}
-            createOpen={eventTypeCreateOpen}
-            setCreateOpen={setEventTypeCreateOpen}
-            onMutate={() => loadEventTypes(true)}
-          />
-        )}
+        {activeTab === "journey" && (<JourneyTab gameId={gameId} journeys={journeys} loading={journeysLoading} createOpen={journeyCreateOpen} setCreateOpen={setJourneyCreateOpen} onMutate={() => loadJourneys(true)} maxNodeDefinitions={game?.limits?.max_node_definitions} expandedJourneyId={expandedJourneyId} setExpandedJourneyId={setExpandedJourneyId} initialSessionId={searchParams.get("session_id") ?? undefined}/>)}
+        {activeTab === "event-types" && (<EventTypeTab gameId={gameId} autoCreate={searchParams.get("create") === "1"} maxEventTypes={game?.limits?.max_event_types} eventTypes={eventTypes} loading={eventTypesLoading} createOpen={eventTypeCreateOpen} setCreateOpen={setEventTypeCreateOpen} onMutate={() => loadEventTypes(true)}/>)}
       </Tabs>
-    </div>
-  )
+    </div>);
 }

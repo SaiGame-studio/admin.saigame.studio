@@ -1,515 +1,466 @@
-"use client"
-
-import { Suspense, useCallback, useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import {
-  ArrowLeft,
-  BadgeCheck,
-  Gift,
-  Loader2,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Building2,
-  CreditCard,
-  Coins,
-  CheckCircle2,
-  MessageCircle,
-} from "lucide-react"
-
-import { api } from "@/lib/api-client"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { useTranslation } from "@/lib/i18n/use-translation"
-import { getUserTimezone } from "@/lib/utils/date-utils"
-import { CopyButton } from "@/components/CopyButton"
-import { BuySGemTab } from "@/components/BuySGemTab"
-
+"use client";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, BadgeCheck, Gift, Loader2, RefreshCw, ArrowUpRight, ArrowDownLeft, Building2, CreditCard, Coins, CheckCircle2, MessageCircle, } from "lucide-react";
+import { api } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import { getUserTimezone } from "@/lib/utils/date-utils";
+import { CopyButton } from "@/components/CopyButton";
+import { BuySGemTab } from "@/components/BuySGemTab";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 interface Transaction {
-  id: string
-  user_id: string
-  amount: number
-  type: string
-  status: string
-  balance_before: number
-  balance_after: number
-  description?: string
-  reference_id?: string
-  reference_type?: string
-  created_by?: string
-  created_at: string
-  processed_at?: string
+    id: string;
+    user_id: string;
+    amount: number;
+    type: string;
+    status: string;
+    balance_before: number;
+    balance_after: number;
+    description?: string;
+    reference_id?: string;
+    reference_type?: string;
+    created_by?: string;
+    created_at: string;
+    processed_at?: string;
 }
-
 interface TransactionsResponse {
-  limit: number
-  offset: number
-  total: number
-  transactions: Transaction[]
+    limit: number;
+    offset: number;
+    total: number;
+    transactions: Transaction[];
 }
-
 interface PaymentTransaction {
-  id: string
-  user_id: string
-  currency_type: "sgem" | "scoin"
-  currency_package_id?: string
-  payment_method_config_id?: string
-  provider_key: string
-  amount: number
-  currency: string
-  currency_amount: number
-  status: string
-  provider_data?: Record<string, unknown>
-  currency_credited_at?: string
-  created_at: string
-  updated_at: string
+    id: string;
+    user_id: string;
+    currency_type: "sgem" | "scoin";
+    currency_package_id?: string;
+    payment_method_config_id?: string;
+    provider_key: string;
+    amount: number;
+    currency: string;
+    currency_amount: number;
+    status: string;
+    provider_data?: Record<string, unknown>;
+    currency_credited_at?: string;
+    created_at: string;
+    updated_at: string;
 }
-
 interface PaymentTransactionsResponse {
-  limit: number
-  offset: number
-  total: number
-  transactions: PaymentTransaction[]
+    limit: number;
+    offset: number;
+    total: number;
+    transactions: PaymentTransaction[];
 }
-
 interface PaymentMethod {
-  id: string
-  provider_key: string
-  display_name: string
-  description: string
-  supports_subscription: boolean
-  is_active: boolean
-  supported_currencies?: string
+    id: string;
+    provider_key: string;
+    display_name: string;
+    description: string;
+    supports_subscription: boolean;
+    is_active: boolean;
+    supported_currencies?: string;
 }
-
 interface CoinPackage {
-  id: string
-  key: string
-  name: string
-  description: string
-  price_amount: number
-  price_currency: string
-  prices?: Record<string, number>
-  bonus_scoin: number
-  total_scoin: number
-  base_scoin: number
+    id: string;
+    key: string;
+    name: string;
+    description: string;
+    price_amount: number;
+    price_currency: string;
+    prices?: Record<string, number>;
+    bonus_scoin: number;
+    total_scoin: number;
+    base_scoin: number;
 }
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 const LOCALE_CURRENCY: Record<string, string> = {
-  vi: "VND",
-  ja: "JPY",
-  en: "USD",
-}
-
-function getLocalizedPrice(pkg: CoinPackage, locale: string, method?: PaymentMethod | null): { amount: number; currency: string } {
-  // Priority 1: first supported currency of the selected method that exists in prices
-  if (method?.supported_currencies && pkg.prices) {
-    const supported = method.supported_currencies.split(",").map(c => c.trim()).filter(Boolean)
-    for (const cur of supported) {
-      if (pkg.prices[cur] != null) {
-        return { amount: pkg.prices[cur], currency: cur }
-      }
+    vi: "VND",
+    ja: "JPY",
+    en: "USD",
+};
+function getLocalizedPrice(pkg: CoinPackage, locale: string, method?: PaymentMethod | null): {
+    amount: number;
+    currency: string;
+} {
+    // Priority 1: first supported currency of the selected method that exists in prices
+    if (method?.supported_currencies && pkg.prices) {
+        const supported = method.supported_currencies.split(",").map(c => c.trim()).filter(Boolean);
+        for (const cur of supported) {
+            if (pkg.prices[cur] != null) {
+                return { amount: pkg.prices[cur], currency: cur };
+            }
+        }
     }
-  }
-  // Priority 2: locale-based currency
-  const preferredCurrency = LOCALE_CURRENCY[locale]
-  if (preferredCurrency && pkg.prices?.[preferredCurrency] != null) {
-    return { amount: pkg.prices[preferredCurrency], currency: preferredCurrency }
-  }
-  return { amount: pkg.price_amount, currency: pkg.price_currency }
+    // Priority 2: locale-based currency
+    const preferredCurrency = LOCALE_CURRENCY[locale];
+    if (preferredCurrency && pkg.prices?.[preferredCurrency] != null) {
+        return { amount: pkg.prices[preferredCurrency], currency: preferredCurrency };
+    }
+    return { amount: pkg.price_amount, currency: pkg.price_currency };
 }
-
 function formatPrice(amount: number, currency: string): string {
-  const value = amount / 100
-  if (currency === "VND") {
-    return value.toLocaleString("vi-VN") + " ₫"
-  }
-  if (currency === "JPY") {
-    return "¥" + value.toLocaleString("ja-JP")
-  }
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
-  } catch {
-    return `${value.toLocaleString()} ${currency}`
-  }
+    const value = amount / 100;
+    if (currency === "VND") {
+        return value.toLocaleString("vi-VN") + " ₫";
+    }
+    if (currency === "JPY") {
+        return "¥" + value.toLocaleString("ja-JP");
+    }
+    try {
+        return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
+    }
+    catch {
+        return `${value.toLocaleString()} ${currency}`;
+    }
 }
-
 function getMethodIcon(providerKey: string) {
-  switch (providerKey) {
-    case "bank_transfer_vn":
-      return <Building2 className="h-6 w-6" />
-    case "paddle":
-      return <CreditCard className="h-6 w-6" />
-    default:
-      return <CreditCard className="h-6 w-6" />
-  }
+    switch (providerKey) {
+        case "bank_transfer_vn":
+            return <Building2 className="h-6 w-6"/>;
+        case "paddle":
+            return <CreditCard className="h-6 w-6"/>;
+        default:
+            return <CreditCard className="h-6 w-6"/>;
+    }
 }
-
 // ---------------------------------------------------------------------------
 // Transaction type badge label
 // ---------------------------------------------------------------------------
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  completed: "default",
-  pending: "secondary",
-  awaiting_payment: "secondary",
-  failed: "destructive",
-  expired: "destructive",
-  credit_failed: "destructive",
-}
-
+    completed: "default",
+    pending: "secondary",
+    awaiting_payment: "secondary",
+    failed: "destructive",
+    expired: "destructive",
+    credit_failed: "destructive",
+};
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    timeZone: getUserTimezone(),
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+    return new Date(iso).toLocaleString(undefined, {
+        timeZone: getUserTimezone(),
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
-
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 export default function PaymentPage() {
-  return (
-    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+    return (<Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>}>
       <PaymentPageContent />
-    </Suspense>
-  )
+    </Suspense>);
 }
-
 function PaymentPageContent() {
-  const { toast } = useToast()
-  const { t, locale } = useTranslation()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  // ---------- URL-synced state (no router.replace to avoid RSC requests) ----------
-  function replaceParams(updater: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(window.location.search)
-    updater(params)
-    window.history.replaceState(null, "", `/payment?${params.toString()}`)
-  }
-
-  const initTab = searchParams.get("txid")
-    ? "transactions"
-    : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin")
-  const [activeTab, setActiveTab] = useState(initTab)
-
-  // Sync tab when URL changes (e.g. clicking + from header while already on this page)
-  useEffect(() => {
-    const tab = searchParams.get("txid")
-      ? "transactions"
-      : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin")
-    setActiveTab(tab)
-  }, [searchParams])
-  const [txSubTab, setTxSubTab] = useState<"buy" | "use">(
-    (["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use"
-  )
-  const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null)
-
-  function handleTabChange(value: string) {
-    setActiveTab(value)
-    replaceParams((params) => {
-      params.set("tab", value)
-      if (value !== "transactions") {
-        params.delete("txid")
-        params.delete("subtab")
-      }
-    })
-  }
-
-  function handleTxSubTabChange(value: string) {
-    setTxSubTab(value as "buy" | "use")
-    replaceParams((params) => params.set("subtab", value))
-  }
-
-  function setExpandedPayTxId(id: string | null) {
-    setExpandedPayTxIdState(id)
-    replaceParams((params) => {
-      if (id) params.set("txid", id)
-      else params.delete("txid")
-    })
-  }
-
-  const getTypeLabel = (type: string) =>
-    ({
-      admin_topup: t('payment.typeAdminTopup'),
-      gift_code: t('payment.typeGiftCode'),
-      purchase: t('payment.typePurchase'),
-      refund: t('payment.typeRefund'),
-    } as Record<string, string>)[type] ?? type
-
-  // ---------- gift code state ----------
-  const [code, setCode] = useState("")
-  const [redeeming, setRedeeming] = useState(false)
-  // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
-  const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({})
-
-  async function resolvePackageName(id: string, currencyType: "sgem" | "scoin" = "scoin") {
-    // Already in cache
-    if (id in pkgNameCache) return
-    // Already in loaded packages list
-    if (packages.find((p) => p.id === id)) return
-    // Fetch individually
-    setPkgNameCache((prev) => ({ ...prev, [id]: null }))
-    try {
-      if (currencyType === "sgem") {
-        const data = await api.get(`/api/v1/payments/sgem-packages/${id}`)
-        setPkgNameCache((prev) => ({ ...prev, [id]: (data?.package ?? data)?.name ?? id }))
-      } else {
-        const data = await api.get(`/api/v1/payments/packages/${id}`)
-        setPkgNameCache((prev) => ({ ...prev, [id]: data?.name ?? id }))
-      }
-    } catch {
-      setPkgNameCache((prev) => ({ ...prev, [id]: id }))
+    const { toast } = useToast();
+    const { t, locale } = useTranslation();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    // ---------- URL-synced state (no router.replace to avoid RSC requests) ----------
+    function replaceParams(updater: (params: URLSearchParams) => void) {
+        const params = new URLSearchParams(window.location.search);
+        updater(params);
+        window.history.replaceState(null, "", `/payment?${params.toString()}`);
     }
-  }
-
-  // ---------- payment transactions (Buy Coin) ----------
-  const [payTxFetched, setPayTxFetched] = useState(false)
-  const [payTxData, setPayTxData] = useState<PaymentTransactionsResponse | null>(null)
-  const [payTxLoading, setPayTxLoading] = useState(false)
-  const [payTxError, setPayTxError] = useState(false)
-
-  const fetchPaymentTransactions = useCallback(async () => {
-    setPayTxLoading(true)
-    setPayTxError(false)
-    try {
-      const data = await api.get("/api/v1/payments/transactions?limit=20&offset=0")
-      setPayTxData(data)
-    } catch {
-      setPayTxError(true)
-    } finally {
-      setPayTxLoading(false)
+    const initTab = searchParams.get("txid")
+        ? "transactions"
+        : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
+    const [activeTab, setActiveTab] = useState(initTab);
+    // Sync tab when URL changes (e.g. clicking + from header while already on this page)
+    useEffect(() => {
+        const tab = searchParams.get("txid")
+            ? "transactions"
+            : (["transactions", "redeem", "buy-sgem", "buy-scoin"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "buy-scoin");
+        setActiveTab(tab);
+    }, [searchParams]);
+    const [txSubTab, setTxSubTab] = useState<"buy" | "use">((["buy", "use"].includes(searchParams.get("subtab") ?? "") ? searchParams.get("subtab")! : "buy") as "buy" | "use");
+    const [expandedPayTxId, setExpandedPayTxIdState] = useState<string | null>(searchParams.get("txid") ?? null);
+    function handleTabChange(value: string) {
+        setActiveTab(value);
+        replaceParams((params) => {
+            params.set("tab", value);
+            if (value !== "transactions") {
+                params.delete("txid");
+                params.delete("subtab");
+            }
+        });
     }
-  }, [])
-
-  // ---------- coin transactions (Use Coin) ----------
-  const [txData, setTxData] = useState<TransactionsResponse | null>(null)
-  const [txLoading, setTxLoading] = useState(false)
-  const [txError, setTxError] = useState(false)
-
-  const fetchTransactions = useCallback(async () => {
-    setTxLoading(true)
-    setTxError(false)
-    try {
-      const data = await api.get("/api/v1/coins/transactions?limit=20&offset=0")
-      setTxData(data)
-    } catch {
-      setTxError(true)
-    } finally {
-      setTxLoading(false)
+    function handleTxSubTabChange(value: string) {
+        setTxSubTab(value as "buy" | "use");
+        replaceParams((params) => params.set("subtab", value));
     }
-  }, [])
-
-  useEffect(() => {
-    if (txSubTab === "buy" && !payTxFetched) {
-      setPayTxFetched(true)
-      fetchPaymentTransactions()
+    function setExpandedPayTxId(id: string | null) {
+        setExpandedPayTxIdState(id);
+        replaceParams((params) => {
+            if (id)
+                params.set("txid", id);
+            else
+                params.delete("txid");
+        });
     }
-  }, [txSubTab, payTxFetched, fetchPaymentTransactions])
-
-  // Auto-resolve package name when txid is in URL on load
-  useEffect(() => {
-    if (expandedPayTxId && payTxData) {
-      const tx = payTxData.transactions.find(t => t.id === expandedPayTxId)
-      if (tx?.currency_package_id) resolvePackageName(tx.currency_package_id, tx.currency_type)
+    const getTypeLabel = (type: string) => ({
+        admin_topup: t('payment.typeAdminTopup'),
+        gift_code: t('payment.typeGiftCode'),
+        purchase: t('payment.typePurchase'),
+        refund: t('payment.typeRefund'),
+    } as Record<string, string>)[type] ?? type;
+    // ---------- gift code state ----------
+    const [code, setCode] = useState("");
+    const [redeeming, setRedeeming] = useState(false);
+    // Cache for package names fetched individually (id -> name | null=loading | undefined=not fetched)
+    const [pkgNameCache, setPkgNameCache] = useState<Record<string, string | null>>({});
+    async function resolvePackageName(id: string, currencyType: "sgem" | "scoin" = "scoin") {
+        // Already in cache
+        if (id in pkgNameCache)
+            return;
+        // Already in loaded packages list
+        if (packages.find((p) => p.id === id))
+            return;
+        // Fetch individually
+        setPkgNameCache((prev) => ({ ...prev, [id]: null }));
+        try {
+            if (currencyType === "sgem") {
+                const data = await api.get(`/api/v1/payments/sgem-packages/${id}`);
+                setPkgNameCache((prev) => ({ ...prev, [id]: (data?.package ?? data)?.name ?? id }));
+            }
+            else {
+                const data = await api.get(`/api/v1/payments/packages/${id}`);
+                setPkgNameCache((prev) => ({ ...prev, [id]: data?.name ?? id }));
+            }
+        }
+        catch {
+            setPkgNameCache((prev) => ({ ...prev, [id]: id }));
+        }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payTxData, expandedPayTxId])
-
-  // Lazy-load coin transactions only when "Use Coin" sub-tab is first opened
-  const [txFetched, setTxFetched] = useState(false)
-  useEffect(() => {
-    if (txSubTab === "use" && !txFetched) {
-      setTxFetched(true)
-      fetchTransactions()
+    // ---------- payment transactions (Buy Coin) ----------
+    const [payTxFetched, setPayTxFetched] = useState(false);
+    const [payTxData, setPayTxData] = useState<PaymentTransactionsResponse | null>(null);
+    const [payTxLoading, setPayTxLoading] = useState(false);
+    const [payTxError, setPayTxError] = useState(false);
+    const fetchPaymentTransactions = useCallback(async () => {
+        setPayTxLoading(true);
+        setPayTxError(false);
+        try {
+            const data = await api.get("/api/v1/payments/transactions?limit=20&offset=0");
+            setPayTxData(data);
+        }
+        catch {
+            setPayTxError(true);
+        }
+        finally {
+            setPayTxLoading(false);
+        }
+    }, []);
+    // ---------- coin transactions (Use Coin) ----------
+    const [txData, setTxData] = useState<TransactionsResponse | null>(null);
+    const [txLoading, setTxLoading] = useState(false);
+    const [txError, setTxError] = useState(false);
+    const fetchTransactions = useCallback(async () => {
+        setTxLoading(true);
+        setTxError(false);
+        try {
+            const data = await api.get("/api/v1/coins/transactions?limit=20&offset=0");
+            setTxData(data);
+        }
+        catch {
+            setTxError(true);
+        }
+        finally {
+            setTxLoading(false);
+        }
+    }, []);
+    useEffect(() => {
+        if (txSubTab === "buy" && !payTxFetched) {
+            setPayTxFetched(true);
+            fetchPaymentTransactions();
+        }
+    }, [txSubTab, payTxFetched, fetchPaymentTransactions]);
+    // Auto-resolve package name when txid is in URL on load
+    useEffect(() => {
+        if (expandedPayTxId && payTxData) {
+            const tx = payTxData.transactions.find(t => t.id === expandedPayTxId);
+            if (tx?.currency_package_id)
+                resolvePackageName(tx.currency_package_id, tx.currency_type);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [payTxData, expandedPayTxId]);
+    // Lazy-load coin transactions only when "Use Coin" sub-tab is first opened
+    const [txFetched, setTxFetched] = useState(false);
+    useEffect(() => {
+        if (txSubTab === "use" && !txFetched) {
+            setTxFetched(true);
+            fetchTransactions();
+        }
+    }, [txSubTab, txFetched, fetchTransactions]);
+    // ---------- packages & methods state ----------
+    const [packages, setPackages] = useState<CoinPackage[]>([]);
+    const [packagesLoading, setPackagesLoading] = useState(false);
+    const [packagesError, setPackagesError] = useState(false);
+    const [methods, setMethods] = useState<PaymentMethod[]>([]);
+    const [methodsLoading, setMethodsLoading] = useState(false);
+    const [methodsError, setMethodsError] = useState(false);
+    const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
+    const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+    const [stampingId, setStampingId] = useState<string | null>(null);
+    const [checkingOut, setCheckingOut] = useState(false);
+    const STORAGE_KEY_PACKAGE = "payment:lastPackageId";
+    const STORAGE_KEY_METHOD = "payment:lastMethodId";
+    // Restore last selected package after packages are loaded
+    useEffect(() => {
+        if (packages.length === 0)
+            return;
+        const savedId = localStorage.getItem(STORAGE_KEY_PACKAGE);
+        if (savedId) {
+            const found = packages.find((p) => p.id === savedId);
+            if (found)
+                setSelectedPackage(found);
+        }
+    }, [packages]);
+    // Restore last selected method after methods are loaded
+    useEffect(() => {
+        if (methods.length === 0)
+            return;
+        const savedId = localStorage.getItem(STORAGE_KEY_METHOD);
+        if (savedId) {
+            const found = methods.find((m) => m.id === savedId);
+            if (found)
+                setSelectedMethod(found);
+        }
+    }, [methods]);
+    function handleSelectPackage(pkg: CoinPackage, isSelected: boolean) {
+        if (isSelected) {
+            setSelectedPackage(null);
+            localStorage.removeItem(STORAGE_KEY_PACKAGE);
+        }
+        else {
+            setSelectedPackage(pkg);
+            localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id);
+            if (pkg.bonus_scoin > 0) {
+                setStampingId(pkg.id);
+                setTimeout(() => setStampingId(null), 800);
+            }
+        }
     }
-  }, [txSubTab, txFetched, fetchTransactions])
-
-  // ---------- packages & methods state ----------
-  const [packages, setPackages] = useState<CoinPackage[]>([])
-  const [packagesLoading, setPackagesLoading] = useState(false)
-  const [packagesError, setPackagesError] = useState(false)
-
-  const [methods, setMethods] = useState<PaymentMethod[]>([])
-  const [methodsLoading, setMethodsLoading] = useState(false)
-  const [methodsError, setMethodsError] = useState(false)
-
-  const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null)
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
-  const [stampingId, setStampingId] = useState<string | null>(null)
-  const [checkingOut, setCheckingOut] = useState(false)
-
-  const STORAGE_KEY_PACKAGE = "payment:lastPackageId"
-  const STORAGE_KEY_METHOD = "payment:lastMethodId"
-
-  // Restore last selected package after packages are loaded
-  useEffect(() => {
-    if (packages.length === 0) return
-    const savedId = localStorage.getItem(STORAGE_KEY_PACKAGE)
-    if (savedId) {
-      const found = packages.find((p) => p.id === savedId)
-      if (found) setSelectedPackage(found)
+    const fetchPackages = useCallback(async () => {
+        setPackagesLoading(true);
+        setPackagesError(false);
+        try {
+            const data = await api.get(`/api/v1/payments/packages?lang=${locale}`);
+            setPackages(data.packages ?? []);
+        }
+        catch {
+            setPackagesError(true);
+        }
+        finally {
+            setPackagesLoading(false);
+        }
+    }, [locale]);
+    const fetchMethods = useCallback(async () => {
+        setMethodsLoading(true);
+        setMethodsError(false);
+        try {
+            const data = await api.get(`/api/v1/payments/methods?lang=${locale}`);
+            setMethods((data.methods ?? []).filter((m: PaymentMethod) => m.is_active));
+        }
+        catch {
+            setMethodsError(true);
+        }
+        finally {
+            setMethodsLoading(false);
+        }
+    }, [locale]);
+    useEffect(() => {
+        fetchPackages();
+        fetchMethods();
+    }, [fetchPackages, fetchMethods]);
+    async function handleCheckout() {
+        if (!selectedPackage || !selectedMethod)
+            return;
+        if (selectedMethod.provider_key === "direct_transfer") {
+            router.push(`/payment/direct-transfer?package_id=${selectedPackage.id}`);
+            return;
+        }
+        setCheckingOut(true);
+        try {
+            const idempotencyKey = typeof crypto?.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+            const price = getLocalizedPrice(selectedPackage, locale, selectedMethod);
+            const res = await api.post("/api/v1/payments/initiate", {
+                package_key: selectedPackage.key,
+                provider_key: selectedMethod.provider_key,
+                idempotency_key: idempotencyKey,
+                currency: price.currency,
+                amount: price.amount / 100,
+            });
+            console.log("[SePay] initiate response:", res);
+            const root = res?.data ?? res;
+            const txId = root?.transaction?.id;
+            if (!txId)
+                throw new Error("No transaction returned");
+            // Store intent data for the checkout page
+            sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res));
+            router.push(`/payment/sepay-checkout?tx_id=${txId}`);
+        }
+        catch (err: any) {
+            toast({
+                variant: "destructive",
+                title: t('payment.checkoutFailed'),
+                description: err?.data?.error ?? err?.message ?? t('payment.checkoutFailedDesc'),
+            });
+        }
+        finally {
+            setCheckingOut(false);
+        }
     }
-  }, [packages])
-
-  // Restore last selected method after methods are loaded
-  useEffect(() => {
-    if (methods.length === 0) return
-    const savedId = localStorage.getItem(STORAGE_KEY_METHOD)
-    if (savedId) {
-      const found = methods.find((m) => m.id === savedId)
-      if (found) setSelectedMethod(found)
+    async function handleRedeem(e: React.FormEvent) {
+        e.preventDefault();
+        if (!code.trim())
+            return;
+        setRedeeming(true);
+        try {
+            const data = await api.post("/api/v1/coins/redeem", { code: code.trim() });
+            toast({
+                title: t('payment.redeemSuccess'),
+                description: typeof data?.message === "string"
+                    ? data.message
+                    : t('payment.redeemSuccessDesc'),
+            });
+            setCode("");
+            window.dispatchEvent(new CustomEvent("wallet:refresh"));
+            fetchTransactions();
+        }
+        catch (err: any) {
+            toast({
+                variant: "destructive",
+                title: t('payment.redeemFailed'),
+                description: err?.data?.message ?? err?.message ?? t('payment.redeemFailedDesc'),
+            });
+        }
+        finally {
+            setRedeeming(false);
+        }
     }
-  }, [methods])
-
-  function handleSelectPackage(pkg: CoinPackage, isSelected: boolean) {
-    if (isSelected) {
-      setSelectedPackage(null)
-      localStorage.removeItem(STORAGE_KEY_PACKAGE)
-    } else {
-      setSelectedPackage(pkg)
-      localStorage.setItem(STORAGE_KEY_PACKAGE, pkg.id)
-      if (pkg.bonus_scoin > 0) {
-        setStampingId(pkg.id)
-        setTimeout(() => setStampingId(null), 800)
-      }
-    }
-  }
-
-  const fetchPackages = useCallback(async () => {
-    setPackagesLoading(true)
-    setPackagesError(false)
-    try {
-      const data = await api.get(`/api/v1/payments/packages?lang=${locale}`)
-      setPackages(data.packages ?? [])
-    } catch {
-      setPackagesError(true)
-    } finally {
-      setPackagesLoading(false)
-    }
-  }, [locale])
-
-  const fetchMethods = useCallback(async () => {
-    setMethodsLoading(true)
-    setMethodsError(false)
-    try {
-      const data = await api.get(`/api/v1/payments/methods?lang=${locale}`)
-      setMethods((data.methods ?? []).filter((m: PaymentMethod) => m.is_active))
-    } catch {
-      setMethodsError(true)
-    } finally {
-      setMethodsLoading(false)
-    }
-  }, [locale])
-
-  useEffect(() => {
-    fetchPackages()
-    fetchMethods()
-  }, [fetchPackages, fetchMethods])
-
-  async function handleCheckout() {
-    if (!selectedPackage || !selectedMethod) return
-    if (selectedMethod.provider_key === "direct_transfer") {
-      router.push(`/payment/direct-transfer?package_id=${selectedPackage.id}`)
-      return
-    }
-    setCheckingOut(true)
-    try {
-      const idempotencyKey =
-        typeof crypto?.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
-
-      const price = getLocalizedPrice(selectedPackage, locale, selectedMethod)
-
-      const res = await api.post("/api/v1/payments/initiate", {
-        package_key: selectedPackage.key,
-        provider_key: selectedMethod.provider_key,
-        idempotency_key: idempotencyKey,
-        currency: price.currency,
-        amount: price.amount / 100,
-      })
-      console.log("[SePay] initiate response:", res)
-
-      const root = res?.data ?? res
-      const txId = root?.transaction?.id
-      if (!txId) throw new Error("No transaction returned")
-
-      // Store intent data for the checkout page
-      sessionStorage.setItem(`sepay:${txId}`, JSON.stringify(res))
-
-      router.push(`/payment/sepay-checkout?tx_id=${txId}`)
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: t('payment.checkoutFailed'),
-        description: err?.data?.error ?? err?.message ?? t('payment.checkoutFailedDesc'),
-      })
-    } finally {
-      setCheckingOut(false)
-    }
-  }
-
-  async function handleRedeem(e: React.FormEvent) {
-    e.preventDefault()
-    if (!code.trim()) return
-
-    setRedeeming(true)
-    try {
-      const data = await api.post("/api/v1/coins/redeem", { code: code.trim() })
-
-      toast({
-        title: t('payment.redeemSuccess'),
-        description:
-          typeof data?.message === "string"
-            ? data.message
-            : t('payment.redeemSuccessDesc'),
-      })
-      setCode("")
-      window.dispatchEvent(new CustomEvent("wallet:refresh"))
-      fetchTransactions()
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: t('payment.redeemFailed'),
-        description:
-          err?.data?.message ?? err?.message ?? t('payment.redeemFailedDesc'),
-      })
-    } finally {
-      setRedeeming(false)
-    }
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6 sm:space-y-6">
+    return (<div className="container mx-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 sm:gap-4">
         <Button variant="outline" size="icon" asChild className="shrink-0">
           <Link href="/">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4"/>
             <span className="sr-only">{t('payment.back')}</span>
           </Link>
         </Button>
@@ -533,38 +484,31 @@ function PaymentPageContent() {
           </div>
 
           {/* ============================================================
-              TAB 1 – Buy sCoin
-          ============================================================ */}
+        TAB 1 – Buy sCoin
+    ============================================================ */}
           <TabsContent value="buy-scoin" className="mt-6 space-y-8">
 
             {/* ---- Packages section ---- */}
             <section className="space-y-3">
               <div className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />
+                <Coins className="h-5 w-5 text-primary"/>
                 <h2 className="text-lg font-semibold">{t('payment.coinPackages')}</h2>
               </div>
 
-              {packagesLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : packagesError ? (
-                <Card>
+              {packagesLoading ? (<div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/>
+                </div>) : packagesError ? (<Card>
                   <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
                     <p className="text-sm text-destructive">{t('payment.packagesError')}</p>
                     <Button variant="outline" size="sm" onClick={fetchPackages}>
                       {t('payment.tryAgain')}
                     </Button>
                   </CardContent>
-                </Card>
-              ) : packages.length === 0 ? (
-                <Card>
+                </Card>) : packages.length === 0 ? (<Card>
                   <CardContent className="py-8 text-center text-sm text-muted-foreground">
                     {t('payment.noPackages')}
                   </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                </Card>) : (<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <style>{`
                     @keyframes stamp-in {
                       0%   { transform: rotate(-15deg) scale(3); opacity: 0; }
@@ -583,25 +527,16 @@ function PaymentPageContent() {
                     .card-shake    { animation: card-shake 0.45s ease 0.1s; }
                   `}</style>
                   {packages.map((pkg) => {
-                    const isSelected = selectedPackage?.id === pkg.id
-                    return (
-                      <Card
-                        key={pkg.id}
-                        className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""} ${stampingId === pkg.id ? "card-shake" : ""}`}
-                        onClick={() => handleSelectPackage(pkg, isSelected)}
-                      >
-                        {isSelected && (
-                          <div className="absolute right-3 top-3 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md">
-                            <CheckCircle2 className="h-5 w-5" />
-                          </div>
-                        )}
-                        {pkg.bonus_scoin > 0 && (
-                          <div className="absolute left-0 top-0">
+                const isSelected = selectedPackage?.id === pkg.id;
+                return (<Card key={pkg.id} className={`relative cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""} ${stampingId === pkg.id ? "card-shake" : ""}`} onClick={() => handleSelectPackage(pkg, isSelected)}>
+                        {isSelected && (<div className="absolute right-3 top-3 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md">
+                            <CheckCircle2 className="h-5 w-5"/>
+                          </div>)}
+                        {pkg.bonus_scoin > 0 && (<div className="absolute left-0 top-0">
                             <Badge className="rounded-none rounded-br-md text-sm font-bold px-2.5 py-1 shadow-sm">
                               +{pkg.bonus_scoin.toLocaleString()} {t('payment.bonus')}
                             </Badge>
-                          </div>
-                        )}
+                          </div>)}
                         <CardHeader className={`pb-2 ${pkg.bonus_scoin > 0 ? "pt-8" : "pt-5"}`}>
                           <CardTitle className="text-base">{pkg.name}</CardTitle>
                           <CardDescription className="text-xs line-clamp-2 h-[2.5rem]">
@@ -615,31 +550,25 @@ function PaymentPageContent() {
                                 {pkg.total_scoin.toLocaleString()}
                                 <span className="text-sm font-normal text-muted-foreground ml-1">🪙</span>
                               </p>
-                              {pkg.bonus_scoin > 0 && (
-                                <p className="text-xs text-muted-foreground">
+                              {pkg.bonus_scoin > 0 && (<p className="text-xs text-muted-foreground">
                                   {pkg.base_scoin.toLocaleString()} <span className="font-bold text-primary">+{pkg.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
-                                </p>
-                              )}
+                                </p>)}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <p className="text-base font-semibold text-primary whitespace-nowrap">
-                                {(() => { const p = getLocalizedPrice(pkg, locale, selectedMethod); return formatPrice(p.amount, p.currency) })()}
+                                {(() => { const p = getLocalizedPrice(pkg, locale, selectedMethod); return formatPrice(p.amount, p.currency); })()}
                               </p>
-                              {pkg.bonus_scoin > 0 && (
-                                <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 sm:w-14 sm:h-14 ${isSelected ? "stamp-animate" : ""}`}>
+                              {pkg.bonus_scoin > 0 && (<div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 border-dashed border-primary/70 bg-primary/10 rotate-[-15deg] select-none shrink-0 sm:w-14 sm:h-14 ${isSelected ? "stamp-animate" : ""}`}>
                                   <span className="text-[10px] font-bold text-primary leading-tight text-center rotate-0 sm:text-[11px]">
-                                    {t('payment.save')}<br/>{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
+                                    {t('payment.save')}<br />{Math.round(pkg.bonus_scoin / pkg.base_scoin * 100)}%
                                   </span>
-                                </div>
-                              )}
+                                </div>)}
                             </div>
                           </div>
                         </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )}
+                      </Card>);
+            })}
+                </div>)}
             </section>
 
             {/* ---- Payment methods + Order summary (2 columns) ---- */}
@@ -648,81 +577,60 @@ function PaymentPageContent() {
               {/* Column 1 – Payment Methods */}
               <section className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <BadgeCheck className="h-5 w-5 text-primary" />
+                  <BadgeCheck className="h-5 w-5 text-primary"/>
                   <h2 className="text-lg font-semibold">{t('payment.paymentMethods')}</h2>
                 </div>
 
-                {methodsLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : methodsError ? (
-                  <Card>
+                {methodsLoading ? (<div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/>
+                  </div>) : methodsError ? (<Card>
                     <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
                       <p className="text-sm text-destructive">{t('payment.methodsError')}</p>
                       <Button variant="outline" size="sm" onClick={fetchMethods}>
                         {t('payment.tryAgain')}
                       </Button>
                     </CardContent>
-                  </Card>
-                ) : methods.length === 0 ? (
-                  <Card>
+                  </Card>) : methods.length === 0 ? (<Card>
                     <CardContent className="py-8 text-center text-sm text-muted-foreground">
                       {t('payment.noMethods')}
                     </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-3">
+                  </Card>) : (<div className="grid gap-3">
                     {methods.map((method) => {
-                      const isSelected = selectedMethod?.id === method.id
-                      return (
-                        <Card
-                          key={method.id}
-                          className={`cursor-pointer transition-all hover:border-primary/60 ${
-                            isSelected ? "border-primary ring-2 ring-primary/30" : ""
-                          }`}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedMethod(null)
-                              localStorage.removeItem(STORAGE_KEY_METHOD)
-                            } else {
-                              setSelectedMethod(method)
-                              localStorage.setItem(STORAGE_KEY_METHOD, method.id)
-                            }
-                          }}
-                        >
+                const isSelected = selectedMethod?.id === method.id;
+                return (<Card key={method.id} className={`cursor-pointer transition-all hover:border-primary/60 ${isSelected ? "border-primary ring-2 ring-primary/30" : ""}`} onClick={() => {
+                        if (isSelected) {
+                            setSelectedMethod(null);
+                            localStorage.removeItem(STORAGE_KEY_METHOD);
+                        }
+                        else {
+                            setSelectedMethod(method);
+                            localStorage.setItem(STORAGE_KEY_METHOD, method.id);
+                        }
+                    }}>
                           <CardContent className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm text-foreground">
                               {getMethodIcon(method.provider_key)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-sm">{method.display_name}</p>
-                              {method.description && (
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{method.description}</p>
-                              )}
-                              {method.supports_subscription && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                              {method.description && (<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{method.description}</p>)}
+                              {method.supports_subscription && (<p className="text-xs text-muted-foreground mt-0.5">
                                   {t('payment.supportsSubscription')}
-                                </p>
-                              )}
+                                </p>)}
                             </div>
-                            {isSelected && (
-                              <div className="rounded-full bg-primary p-0.5 text-primary-foreground shadow-md shrink-0">
-                                <CheckCircle2 className="h-5 w-5" />
-                              </div>
-                            )}
+                            {isSelected && (<div className="rounded-full bg-primary p-0.5 text-primary-foreground shadow-md shrink-0">
+                                <CheckCircle2 className="h-5 w-5"/>
+                              </div>)}
                           </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
+                        </Card>);
+            })}
+                  </div>)}
               </section>
 
               {/* Column 2 – Order Summary */}
               <section className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-primary" />
+                  <Coins className="h-5 w-5 text-primary"/>
                   <h2 className="text-lg font-semibold">{t('payment.orderSummary')}</h2>
                 </div>
                 <Card>
@@ -730,24 +638,18 @@ function PaymentPageContent() {
                     {/* Package row */}
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('payment.coinPackages')}</p>
-                      {selectedPackage ? (
-                        <div className="flex items-start justify-between gap-2">
+                      {selectedPackage ? (<div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="text-sm font-semibold">{selectedPackage.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {selectedPackage.total_scoin.toLocaleString()} sCoin
-                              {selectedPackage.bonus_scoin > 0 && (
-                                <span className="ml-1 text-primary">+{selectedPackage.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>
-                              )}
+                              {selectedPackage.bonus_scoin > 0 && (<span className="ml-1 text-primary">+{selectedPackage.bonus_scoin.toLocaleString()} {t('payment.bonusLabel')}</span>)}
                             </p>
                           </div>
                           <p className="text-sm font-semibold text-primary shrink-0">
-                            {(() => { const p = getLocalizedPrice(selectedPackage, locale, selectedMethod); return formatPrice(p.amount, p.currency) })()}
+                            {(() => { const p = getLocalizedPrice(selectedPackage, locale, selectedMethod); return formatPrice(p.amount, p.currency); })()}
                           </p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">{t('payment.noPackageSelected')}</p>
-                      )}
+                        </div>) : (<p className="text-sm text-muted-foreground italic">{t('payment.noPackageSelected')}</p>)}
                     </div>
 
                     <Separator />
@@ -755,31 +657,21 @@ function PaymentPageContent() {
                     {/* Method row */}
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('payment.paymentMethods')}</p>
-                      {selectedMethod ? (
-                        <div className="flex items-center gap-3">
+                      {selectedMethod ? (<div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border bg-muted text-foreground">
                             {getMethodIcon(selectedMethod.provider_key)}
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold">{selectedMethod.display_name}</p>
-                            {selectedMethod.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">{selectedMethod.description}</p>
-                            )}
+                            {selectedMethod.description && (<p className="text-xs text-muted-foreground line-clamp-2">{selectedMethod.description}</p>)}
                           </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">{t('payment.noMethodSelected')}</p>
-                      )}
+                        </div>) : (<p className="text-sm text-muted-foreground italic">{t('payment.noMethodSelected')}</p>)}
                     </div>
 
                     <Separator />
 
-                    <Button
-                      className="w-full"
-                      disabled={!selectedPackage || !selectedMethod || checkingOut}
-                      onClick={handleCheckout}
-                    >
-                      {checkingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button className="w-full" disabled={!selectedPackage || !selectedMethod || checkingOut} onClick={handleCheckout}>
+                      {checkingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                       {t('payment.proceedToPayment')}
                     </Button>
                   </CardContent>
@@ -787,7 +679,7 @@ function PaymentPageContent() {
 
                 {/* discount tip */}
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
-                  <MessageCircle className="h-3 w-3 shrink-0" />
+                  <MessageCircle className="h-3 w-3 shrink-0"/>
                   {t('payment.discountTip')}
                 </p>
               </section>
@@ -796,19 +688,19 @@ function PaymentPageContent() {
           </TabsContent>
 
           {/* ============================================================
-              TAB 2 – Buy sGem
-          ============================================================ */}
+        TAB 2 – Buy sGem
+    ============================================================ */}
           <TabsContent value="buy-sgem">
             <BuySGemTab />
           </TabsContent>
 
           {/* ============================================================
-              TAB 3 – Redeem Gift Code
-          ============================================================ */}
+        TAB 3 – Redeem Gift Code
+    ============================================================ */}
           <TabsContent value="redeem" className="mt-6">
             <section className="space-y-3 max-w-full lg:max-w-[50%]">
               <div className="flex items-center gap-2">
-                <Gift className="h-5 w-5 text-primary" />
+                <Gift className="h-5 w-5 text-primary"/>
                 <h2 className="text-lg font-semibold">{t('payment.redeemGiftCode')}</h2>
               </div>
               <Card>
@@ -819,38 +711,19 @@ function PaymentPageContent() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form
-                    onSubmit={handleRedeem}
-                    className="flex flex-col gap-4 sm:flex-row sm:items-end"
-                  >
+                  <form onSubmit={handleRedeem} className="flex flex-col gap-4 sm:flex-row sm:items-end">
                     <div className="flex-1 space-y-1.5">
                       <Label htmlFor="gift-code">{t('payment.giftCodeLabel')}</Label>
-                      <Input
-                        id="gift-code"
-                        placeholder={t('payment.giftCodePlaceholder')}
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        disabled={redeeming}
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
+                      <Input id="gift-code" placeholder={t('payment.giftCodePlaceholder')} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} disabled={redeeming} autoComplete="off" spellCheck={false}/>
                     </div>
-                    <Button
-                      type="submit"
-                      disabled={redeeming || !code.trim()}
-                      className="shrink-0"
-                    >
-                      {redeeming ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Button type="submit" disabled={redeeming || !code.trim()} className="shrink-0">
+                      {redeeming ? (<>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                           {t('payment.redeeming')}
-                        </>
-                      ) : (
-                        <>
-                          <Gift className="mr-2 h-4 w-4" />
+                        </>) : (<>
+                          <Gift className="mr-2 h-4 w-4"/>
                           {t('payment.redeem')}
-                        </>
-                      )}
+                        </>)}
                     </Button>
                   </form>
                 </CardContent>
@@ -859,8 +732,8 @@ function PaymentPageContent() {
           </TabsContent>
 
           {/* ============================================================
-              TAB 3 – Transactions
-          ============================================================ */}
+        TAB 3 – Transactions
+    ============================================================ */}
           <TabsContent value="transactions" className="mt-6">
             <Tabs value={txSubTab} onValueChange={handleTxSubTabChange}>
               <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
@@ -868,55 +741,38 @@ function PaymentPageContent() {
                   <TabsTrigger value="buy">{t('payment.subTabBuyCoin')}</TabsTrigger>
                   <TabsTrigger value="use">{t('payment.subTabUseCoin')}</TabsTrigger>
                 </TabsList>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={txSubTab === "buy" ? fetchPaymentTransactions : fetchTransactions}
-                  disabled={txSubTab === "buy" ? payTxLoading : txLoading}
-                >
-                  <RefreshCw className={`h-4 w-4 ${(txSubTab === "buy" ? payTxLoading : txLoading) ? "animate-spin" : ""}`} />
+                <Button variant="outline" size="icon" onClick={txSubTab === "buy" ? fetchPaymentTransactions : fetchTransactions} disabled={txSubTab === "buy" ? payTxLoading : txLoading}>
+                  <RefreshCw className={`h-4 w-4 ${(txSubTab === "buy" ? payTxLoading : txLoading) ? "animate-spin" : ""}`}/>
                 </Button>
               </div>
 
               {/* ---- Sub-tab: Buy Coin ---- */}
               <TabsContent value="buy" className="mt-0">
-                {payTxLoading && !payTxData ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : payTxError ? (
-                  <Card>
+                {payTxLoading && !payTxData ? (<div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/>
+                  </div>) : payTxError ? (<Card>
                     <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
                       <p className="text-sm text-destructive">{t('payment.loadError')}</p>
                       <Button variant="outline" size="sm" onClick={fetchPaymentTransactions}>
                         {t('payment.tryAgain')}
                       </Button>
                     </CardContent>
-                  </Card>
-                ) : !payTxData?.transactions?.length ? (
-                  <Card>
+                  </Card>) : !payTxData?.transactions?.length ? (<Card>
                     <CardContent className="py-10 text-center text-sm text-muted-foreground">
                       {t('payment.noTransactions')}
                     </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
+                  </Card>) : (<div className="space-y-2">
                     {payTxData.transactions.map((tx) => {
-                      const isExpanded = expandedPayTxId === tx.id
-                      return (
-                        <Card
-                          key={tx.id}
-                          className="cursor-pointer transition-colors hover:border-primary/40"
-                          onClick={() => {
-                            const next = isExpanded ? null : tx.id
-                            setExpandedPayTxId(next)
-                            if (next && tx.currency_package_id) resolvePackageName(tx.currency_package_id, tx.currency_type)
-                          }}
-                          id={tx.id}
-                        >
+                const isExpanded = expandedPayTxId === tx.id;
+                return (<Card key={tx.id} className="cursor-pointer transition-colors hover:border-primary/40" onClick={() => {
+                        const next = isExpanded ? null : tx.id;
+                        setExpandedPayTxId(next);
+                        if (next && tx.currency_package_id)
+                            resolvePackageName(tx.currency_package_id, tx.currency_type);
+                    }} id={tx.id}>
                           <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
                             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-base">
-                              {tx.currency_type === "sgem" ? "💎" : <Coins className="h-4 w-4" />}
+                              {tx.currency_type === "sgem" ? "💎" : <Coins className="h-4 w-4"/>}
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -925,14 +781,11 @@ function PaymentPageContent() {
                               </p>
                               <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 truncate">
                                 <span className="truncate">{tx.id}</span>
-                                <CopyButton text={tx.id} />
+                                <CopyButton text={tx.id}/>
                               </p>
                             </div>
 
-                            <Badge
-                              variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                              className="hidden text-xs shrink-0 capitalize sm:inline-flex"
-                            >
+                            <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="hidden text-xs shrink-0 capitalize sm:inline-flex">
                               {tx.status.replace(/_/g, " ")}
                             </Badge>
 
@@ -943,45 +796,32 @@ function PaymentPageContent() {
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 {tx.amount.toLocaleString()} {tx.currency}
                               </p>
-                              <Badge
-                                variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                                className="mt-1 text-[10px] h-4 capitalize sm:hidden"
-                              >
+                              <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 capitalize sm:hidden">
                                 {tx.status.replace(/_/g, " ")}
                               </Badge>
                             </div>
                           </CardContent>
 
-                          {isExpanded && (
-                            <CardContent
-                              className="border-t px-4 pb-4 pt-3 space-y-3"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                          {isExpanded && (<CardContent className="border-t px-4 pb-4 pt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailTransactionId')}</p>
-                                  <p className="font-mono text-xs break-all select-all flex items-center gap-1">{tx.id}<CopyButton text={tx.id} /></p>
+                                  <p className="font-mono text-xs break-all select-all flex items-center gap-1">{tx.id}<CopyButton text={tx.id}/></p>
                                 </div>
                                 {tx.scoin_package_id && (() => {
-                                  const fromList = packages.find((p) => p.id === tx.scoin_package_id)
-                                  const cachedName = pkgNameCache[tx.scoin_package_id]
-                                  const name = fromList?.name ?? (cachedName === null ? null : cachedName)
-                                  return (
-                                    <div>
+                            const fromList = packages.find((p) => p.id === tx.scoin_package_id);
+                            const cachedName = pkgNameCache[tx.scoin_package_id];
+                            const name = fromList?.name ?? (cachedName === null ? null : cachedName);
+                            return (<div>
                                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailPackage')}</p>
-                                      {name === null ? (
-                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                          <Loader2 className="h-3 w-3 animate-spin" /> {t('payment.detailLoading')}
-                                        </span>
-                                      ) : (
-                                        <div>
+                                      {name === null ? (<span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Loader2 className="h-3 w-3 animate-spin"/> {t('payment.detailLoading')}
+                                        </span>) : (<div>
                                           <p className="font-medium">{name ?? tx.scoin_package_id}</p>
                                           <p className="font-mono text-xs text-muted-foreground break-all">{tx.scoin_package_id}</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )
-                                })()}
+                                        </div>)}
+                                    </div>);
+                        })()}
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailProvider')}</p>
                                   <p>{tx.provider_key}</p>
@@ -1008,68 +848,45 @@ function PaymentPageContent() {
                                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailUpdated')}</p>
                                   <p>{formatDate(tx.updated_at)}</p>
                                 </div>
-                                {tx.currency_credited_at && (
-                                  <div>
+                                {tx.currency_credited_at && (<div>
                                     <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">Credited At</p>
                                     <p>{formatDate(tx.currency_credited_at)}</p>
-                                  </div>
-                                )}
-                                {tx.provider_data && Object.keys(tx.provider_data).length > 0 && (
-                                  <div className="sm:col-span-2">
+                                  </div>)}
+                                {tx.provider_data && Object.keys(tx.provider_data).length > 0 && (<div className="sm:col-span-2">
                                     <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t('payment.detailProviderData')}</p>
                                     <pre className="text-xs bg-muted rounded p-2 overflow-x-auto">{JSON.stringify(tx.provider_data, null, 2)}</pre>
-                                  </div>
-                                )}
+                                  </div>)}
                               </div>
-                            </CardContent>
-                          )}
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
+                            </CardContent>)}
+                        </Card>);
+            })}
+                  </div>)}
               </TabsContent>
 
               {/* ---- Sub-tab: Use Coin ---- */}
               <TabsContent value="use" className="mt-0">
-                {txLoading && !txData ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : txError ? (
-                  <Card>
+                {txLoading && !txData ? (<div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/>
+                  </div>) : txError ? (<Card>
                     <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
                       <p className="text-sm text-destructive">{t('payment.loadError')}</p>
                       <Button variant="outline" size="sm" onClick={fetchTransactions}>
                         {t('payment.tryAgain')}
                       </Button>
                     </CardContent>
-                  </Card>
-                ) : txData?.transactions?.length === 0 ? (
-                  <Card>
+                  </Card>) : txData?.transactions?.length === 0 ? (<Card>
                     <CardContent className="py-10 text-center text-sm text-muted-foreground">
                       {t('payment.noTransactions')}
                     </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
+                  </Card>) : (<div className="space-y-2">
                     {txData?.transactions?.map((tx) => {
-                      const isCredit = tx.amount > 0
-                      return (
-                        <Card key={tx.id}>
+                const isCredit = tx.amount > 0;
+                return (<Card key={tx.id}>
                           <CardContent className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
-                            <div
-                              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
-                                isCredit
-                                  ? "bg-green-500/10 text-green-500"
-                                  : "bg-destructive/10 text-destructive"
-                              }`}
-                            >
-                              {isCredit ? (
-                                <ArrowDownLeft className="h-4 w-4" />
-                              ) : (
-                                <ArrowUpRight className="h-4 w-4" />
-                              )}
+                            <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${isCredit
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-destructive/10 text-destructive"}`}>
+                              {isCredit ? (<ArrowDownLeft className="h-4 w-4"/>) : (<ArrowUpRight className="h-4 w-4"/>)}
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -1085,44 +902,31 @@ function PaymentPageContent() {
                               {getTypeLabel(tx.type)}
                             </Badge>
 
-                            <Badge
-                              variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                              className="hidden text-xs shrink-0 sm:inline-flex"
-                            >
+                            <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="hidden text-xs shrink-0 sm:inline-flex">
                               {tx.status}
                             </Badge>
 
                             <div className="text-right shrink-0">
-                              <p
-                                className={`font-semibold tabular-nums text-sm sm:text-base ${
-                                  isCredit ? "text-green-500" : "text-destructive"
-                                }`}
-                              >
+                              <p className={`font-semibold tabular-nums text-sm sm:text-base ${isCredit ? "text-green-500" : "text-destructive"}`}>
                                 {isCredit ? "+" : ""}
                                 {tx.amount.toLocaleString()}
                               </p>
                               <p className="text-xs text-muted-foreground tabular-nums">
                                 → {tx.balance_after.toLocaleString()}
                               </p>
-                              <Badge
-                                variant={STATUS_VARIANT[tx.status] ?? "secondary"}
-                                className="mt-1 text-[10px] h-4 sm:hidden"
-                              >
+                              <Badge variant={STATUS_VARIANT[tx.status] ?? "secondary"} className="mt-1 text-[10px] h-4 sm:hidden">
                                 {tx.status}
                               </Badge>
                             </div>
                           </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
+                        </Card>);
+            })}
+                  </div>)}
               </TabsContent>
             </Tabs>
           </TabsContent>
         </Tabs>
       </div>
 
-    </div>
-  )
+    </div>);
 }

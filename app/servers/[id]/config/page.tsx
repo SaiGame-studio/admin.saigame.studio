@@ -1,45 +1,42 @@
-"use client"
-
-import React, { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft, Save } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-
-export default function ServerConfigPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params)
-  const router = useRouter()
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleSave = () => {
-    setIsSaving(true)
-
-    // Simulate saving configuration
-    setTimeout(() => {
-      setIsSaving(false)
-    }, 1000)
-  }
-
-  return (
-    <div className="flex min-h-screen w-full flex-col">
+"use client";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+export default function ServerConfigPage({ params }: {
+    params: Promise<{
+        id: string;
+    }>;
+}) {
+    const { id } = React.use(params);
+    const router = useRouter();
+    const [isSaving, setIsSaving] = useState(false);
+    const handleSave = () => {
+        setIsSaving(true);
+        // Simulate saving configuration
+        setTimeout(() => {
+            setIsSaving(false);
+        }, 1000);
+    };
+    return (<div className="flex min-h-screen w-full flex-col">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
             <Link href="/">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4"/>
               <span className="sr-only">Back</span>
             </Link>
           </Button>
           <h1 className="text-xl font-semibold md:text-2xl">Server Configuration</h1>
           <Button className="ml-auto" onClick={handleSave} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="mr-2 h-4 w-4"/>
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
@@ -61,31 +58,27 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="server-name">Server Name</Label>
-                  <Input id="server-name" defaultValue="Minecraft Survival" />
+                  <Input id="server-name" defaultValue="Minecraft Survival"/>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="server-description">Server Description</Label>
-                  <Textarea
-                    id="server-description"
-                    defaultValue="A survival Minecraft server with a friendly community."
-                    rows={3}
-                  />
+                  <Textarea id="server-description" defaultValue="A survival Minecraft server with a friendly community." rows={3}/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="max-players">Max Players</Label>
-                    <Input id="max-players" type="number" defaultValue="50" />
+                    <Input id="max-players" type="number" defaultValue="50"/>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="server-port">Server Port</Label>
-                    <Input id="server-port" type="number" defaultValue="25565" />
+                    <Input id="server-port" type="number" defaultValue="25565"/>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="public-listing" defaultChecked />
+                  <Switch id="public-listing" defaultChecked/>
                   <Label htmlFor="public-listing">List server publicly</Label>
                 </div>
               </CardContent>
@@ -102,26 +95,26 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="memory-allocation">Memory Allocation (GB)</Label>
-                    <Input id="memory-allocation" type="number" defaultValue="4" />
+                    <Input id="memory-allocation" type="number" defaultValue="4"/>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="cpu-cores">CPU Cores</Label>
-                    <Input id="cpu-cores" type="number" defaultValue="2" />
+                    <Input id="cpu-cores" type="number" defaultValue="2"/>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="view-distance">View Distance</Label>
-                  <Input id="view-distance" type="number" defaultValue="10" />
+                  <Input id="view-distance" type="number" defaultValue="10"/>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="simulation-distance">Simulation Distance</Label>
-                  <Input id="simulation-distance" type="number" defaultValue="8" />
+                  <Input id="simulation-distance" type="number" defaultValue="8"/>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="optimize-chunks" defaultChecked />
+                  <Switch id="optimize-chunks" defaultChecked/>
                   <Label htmlFor="optimize-chunks">Optimize chunk loading</Label>
                 </div>
               </CardContent>
@@ -137,11 +130,7 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="difficulty">Difficulty</Label>
-                  <select
-                    id="difficulty"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    defaultValue="normal"
-                  >
+                  <select id="difficulty" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" defaultValue="normal">
                     <option value="peaceful">Peaceful</option>
                     <option value="easy">Easy</option>
                     <option value="normal">Normal</option>
@@ -151,11 +140,7 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
 
                 <div className="space-y-2">
                   <Label htmlFor="gamemode">Default Gamemode</Label>
-                  <select
-                    id="gamemode"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    defaultValue="survival"
-                  >
+                  <select id="gamemode" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" defaultValue="survival">
                     <option value="survival">Survival</option>
                     <option value="creative">Creative</option>
                     <option value="adventure">Adventure</option>
@@ -164,17 +149,17 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="pvp" defaultChecked />
+                  <Switch id="pvp" defaultChecked/>
                   <Label htmlFor="pvp">Enable PvP</Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="spawn-monsters" defaultChecked />
+                  <Switch id="spawn-monsters" defaultChecked/>
                   <Label htmlFor="spawn-monsters">Spawn monsters</Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="spawn-animals" defaultChecked />
+                  <Switch id="spawn-animals" defaultChecked/>
                   <Label htmlFor="spawn-animals">Spawn animals</Label>
                 </div>
               </CardContent>
@@ -190,11 +175,7 @@ export default function ServerConfigPage({ params }: { params: Promise<{ id: str
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="server-properties">Server Properties</Label>
-                  <Textarea
-                    id="server-properties"
-                    className="font-mono text-xs"
-                    rows={15}
-                    defaultValue={`# Minecraft server properties
+                  <Textarea id="server-properties" className="font-mono text-xs" rows={15} defaultValue={`# Minecraft server properties
 spawn-protection=16
 max-tick-time=60000
 query.port=25565
@@ -240,22 +221,17 @@ level-seed=
 use-native-transport=true
 prevent-proxy-connections=false
 enable-rcon=false
-motd=A Minecraft Server`}
-                  />
+motd=A Minecraft Server`}/>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="java-args">Java Arguments</Label>
-                  <Input
-                    id="java-args"
-                    defaultValue="-Xmx4G -Xms1G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true"
-                  />
+                  <Input id="java-args" defaultValue="-Xmx4G -Xms1G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true"/>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </main>
-    </div>
-  )
+    </div>);
 }

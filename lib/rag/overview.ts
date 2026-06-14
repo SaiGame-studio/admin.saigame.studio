@@ -2,15 +2,12 @@
  * RAG chunk: Platform overview.
  * Injected when the user asks general "what is", "how does it work", "what can I do" questions.
  */
-
 export const KEYWORDS = [
-  'what is', 'how does', 'overview', 'platform', 'explain', 'introduce',
-  'saigame', 'studio', 'admin', 'system', 'features', 'capabilities',
-  'hệ thống', 'là gì', 'giới thiệu', 'tổng quan', 'làm được gì',
-]
-
-export const INTENT_TYPES: string[] = []
-
+    'what is', 'how does', 'overview', 'platform', 'explain', 'introduce',
+    'saigame', 'studio', 'admin', 'system', 'features', 'capabilities',
+    'hệ thống', 'là gì', 'giới thiệu', 'tổng quan', 'làm được gì',
+];
+export const INTENT_TYPES: string[] = [];
 export const DOC = `
 # SaiGame Studio Admin Platform — Overview
 
@@ -48,4 +45,4 @@ Every LLM call consumes tokens. Each game has:
 - **Free pool** — provided by the platform on game creation.
 - **Premium pool** — purchased by the studio.
 Premium tokens are used first. When both pools are exhausted, AI calls return HTTP 402.
-`
+`;

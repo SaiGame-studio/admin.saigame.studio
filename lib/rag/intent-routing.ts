@@ -2,15 +2,12 @@
  * RAG chunk: Intent detection and request routing.
  * Injected when the user asks how prompts are classified or routed to different AI tasks.
  */
-
 export const KEYWORDS = [
-  'intent', 'detect', 'routing', 'request type', 'classify', 'auto', 'auto-detect',
-  'how does the AI know', 'wrong intent', 'detected wrong', 'specify type',
-  'loại request', 'phân loại', 'tự động nhận biết', 'nhận dạng ý định',
-]
-
-export const INTENT_TYPES: string[] = []
-
+    'intent', 'detect', 'routing', 'request type', 'classify', 'auto', 'auto-detect',
+    'how does the AI know', 'wrong intent', 'detected wrong', 'specify type',
+    'loại request', 'phân loại', 'tự động nhận biết', 'nhận dạng ý định',
+];
+export const INTENT_TYPES: string[] = [];
 export const DOC = `
 # Intent Detection & Request Routing
 
@@ -50,4 +47,4 @@ This ensures lore context is generated before items that reference it.
 
 ## The "Unknown" Intent
 If the classifier cannot determine the intent, it returns an \`IntentUndetectableError\` and asks the user for clarification instead of guessing.
-`
+`;

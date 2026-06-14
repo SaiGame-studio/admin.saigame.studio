@@ -1,23 +1,18 @@
-"use client"
-
-import { Globe, Palette } from "lucide-react"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { LanguageSelector } from "@/components/ui/language-selector"
-import { ThemeSelector } from "@/components/ui/theme-selector"
-import { useTranslation } from "@/lib/i18n/use-translation"
-
+"use client";
+import { Globe, Palette } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { LanguageSelector } from "@/components/ui/language-selector";
+import { ThemeSelector } from "@/components/ui/theme-selector";
+import { useTranslation } from "@/lib/i18n/use-translation";
 export function SettingsContent() {
-  const { t, locale } = useTranslation()
-
-  return (
-    <div className="space-y-6 max-w-4xl">
+    const { t, locale } = useTranslation();
+    return (<div className="space-y-6 max-w-4xl">
       {/* Language Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
+            <Globe className="h-5 w-5"/>
             {t('settings.languageSettings')}
           </CardTitle>
           <CardDescription>
@@ -41,7 +36,7 @@ export function SettingsContent() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
+            <Palette className="h-5 w-5"/>
             {t('settings.appearance')}
           </CardTitle>
           <CardDescription>
@@ -60,6 +55,5 @@ export function SettingsContent() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  )
+    </div>);
 }

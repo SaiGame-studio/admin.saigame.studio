@@ -1,3 +1,2 @@
-"use client"
-
-export { useToast, toast } from "@/hooks/use-toast"
+"use client";
+export { useToast, toast } from "@/hooks/use-toast";

@@ -1,15 +1,11 @@
 'use client';
-
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import { LanguageSelector } from '@/components/ui/language-selector';
-
 export function LanguageTest() {
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-
-  return (
-    <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-lg">
+    const { locale } = useLanguage();
+    const { t } = useTranslation(locale);
+    return (<div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-lg">
       <h2 className="text-xl font-bold mb-4">Language Test</h2>
       
       <div className="space-y-4">
@@ -36,6 +32,5 @@ export function LanguageTest() {
           </p>
         </div>
       </div>
-    </div>
-  );
-} 
+    </div>);
+}

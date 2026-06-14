@@ -1,38 +1,53 @@
-import { useState, useRef, useCallback } from 'react'
-import { createConversation, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestEntityPoolCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, requestQuestDefinitionGeneration, requestQuestDefinitionGenerationPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api'
-import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds } from '@/lib/llm-conversation-api'
-import type { Conversation } from '@/types/llm-conversation'
-import type { ItemCategory, ItemRarity } from '@/types/inventory'
-
+import { useState, useRef, useCallback } from 'react';
+import { createConversation, extractTokenUsage, requestContainerCreatingPlanning, requestCraftingRecipeCreatingPlanning, requestEntityPoolCreatingPlanning, requestGachaPackCreatingPlanning, requestGeneratorItemCreatingPlanning, requestQuestDefinitionGeneration, requestQuestDefinitionGenerationPlanning, streamDetectIntent, streamRequest } from '@/lib/llm-conversation-api';
+import type { DetectedIntent, DetectIntentHistoryEntry, ConversationContextIds, TokenUsageInfo } from '@/lib/llm-conversation-api';
+import type { Conversation } from '@/types/llm-conversation';
+import type { ItemCategory, ItemRarity } from '@/types/inventory';
 export interface IntentResponse {
-  intentType: string
-  entityType: string
-  responseText: string
-  done: boolean
-  error: string | null
-  planningAction?: Record<string, unknown>
+    intentType: string;
+    entityType: string;
+    responseText: string;
+    done: boolean;
+    error: string | null;
+    planningAction?: Record<string, unknown>;
 }
-
 export interface ChatTurn {
-  id: string
-  userMessage: string
-  aiText: string
-  detectedType: string | null
-  responses?: IntentResponse[]
-  done: boolean
-  error: string | null
+    id: string;
+    userMessage: string;
+    aiText: string;
+    detectedType: string | null;
+    detectedLanguage?: string | null;
+    responses?: IntentResponse[];
+    done: boolean;
+    error: string | null;
 }
-
 interface PipelineIntent extends DetectedIntent {
-  planningAction?: Record<string, unknown>
+    planningAction?: Record<string, unknown>;
 }
-
+function normalizeLlmErrorMessage(error: unknown, fallbackMessage: string, tokenQuotaExceededMessage: string): string {
+    const raw = typeof error === 'string'
+        ? error
+        : (error instanceof Error ? error.message : '');
+    const lowered = raw.toLowerCase();
+    if (lowered.includes('token_quota_exceeded')
+        || lowered.includes('token quota exceeded')
+        || lowered.includes('quota exceeded')
+        || lowered.includes('payment required')
+        || lowered.includes('http 402')
+        || lowered.includes('402')) {
+        return tokenQuotaExceededMessage;
+    }
+    if (lowered.includes('llm_disabled')
+        || lowered.includes('llm requests are disabled')) {
+        return 'llmConversation.errorLlmDisabled';
+    }
+    return raw || fallbackMessage;
+}
 const ITEM_CATEGORIES: ItemCategory[] = [
-  'weapon', 'armor', 'consumable', 'currency', 'material', 'card',
-  'container', 'decoration', 'gacha_pack', 'generator', 'other',
-]
-const ITEM_RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary']
-
+    'weapon', 'armor', 'consumable', 'currency', 'material', 'card',
+    'container', 'decoration', 'gacha_pack', 'generator', 'other',
+];
+const ITEM_RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 /**
  * Manages the sequential API pipeline triggered on each chat send:
  *   Step 1 — createConversation (regular REST)  — only when no convId is provided
@@ -43,642 +58,487 @@ const ITEM_RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'lege
  * becomes stale regardless of how many steps are added in the future.
  */
 export function useChatPipeline() {
-  const [isRunning, setIsRunning] = useState(false)
-  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([])
-
-  // Ref-based guard so the guard check inside `send` always reads the live value
-  // even if the closure captured a stale `isRunning` snapshot.
-  const isRunningRef = useRef(false)
-
-  const send = useCallback(async (
-    gameId: string,
-    userPrompt: string,
-    convId: string | null,
-    requestType: string,          // 'auto' → detect-intent SSE; anything else → skip SSE
-    onConvCreated: (conv: Conversation) => void,
-    onConvUpdated: (conv: Conversation) => void,
-    errorCreate: string,
-    errorSend: string,
-    requestHistory?: Array<{ request_type: string; response_text: string }>,
-    loreEntryIds?: string[],
-    fallbackEntityType?: string,
-    historyContext?: DetectIntentHistoryEntry[],
-    generatedItems?: unknown[],
-    itemDefinitionIds?: string[],
-    entityDefinitionIds?: string[],
-    generatedPresets?: unknown[],
-    generatedContainers?: unknown[],
-    containerDefinitionIds?: string[],
-    generatedGachaPacks?: unknown[],
-    generatedEquipmentSlots?: unknown[],
-    generatedCraftingRecipes?: unknown[],
-    generatedEntityDefinitions?: unknown[],
-    generatedEntityPools?: unknown[],
-  ): Promise<void> => {
-
-    const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36)
-    isRunningRef.current = true
-    setIsRunning(true)
-
-    const finish = () => {
-      isRunningRef.current = false
-      setIsRunning(false)
-    }
-
-    try {
-      // ── Step 1: ensure conversation exists (regular REST) ────────────────────
-      let resolvedConvId = convId
-      if (!resolvedConvId) {
-        const newConv = await createConversation(gameId, {
-          title: userPrompt.slice(0, 60),
-          goal: userPrompt,
-        })
-        resolvedConvId = newConv.ID
-        onConvCreated(newConv)
-        // Fresh history for a brand-new conversation
-        setChatHistory([])
-      }
-
-      // Suppress unused-callback warning — onConvUpdated is kept in signature for callers
-      void onConvUpdated
-
-      // Append user turn immediately so the UI feels responsive
-      setChatHistory((prev) => [
-        ...prev,
-        { id: turnId, userMessage: userPrompt, aiText: '', detectedType: null, done: false, error: null },
-      ])
-
-      // ── Step 2: detect intent (SSE) or use explicit type ────────────────────
-      // Build shared context IDs — passed to both streamDetectIntent and streamRequest
-      const contextIds: ConversationContextIds = {
-        lore_entry_ids: loreEntryIds ?? [],
-        item_definition_ids: itemDefinitionIds ?? [],
-        container_definition_ids: containerDefinitionIds ?? [],
-        entity_definition_ids: entityDefinitionIds ?? [],
-      }
-
-      let resolvedIntents: PipelineIntent[] = []
-      let detectedLanguage: string | undefined
-      if (requestType === 'auto') {
-        let detectError = ''
-        await streamDetectIntent(
-          gameId,
-          resolvedConvId,
-          userPrompt,
-          historyContext ?? [],
-          contextIds,
-          (chunk) =>
-            setChatHistory((prev) =>
-              prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))
-            ),
-          (result) => {
-            resolvedIntents = result.intents
-            detectedLanguage = result.detectedLanguage
-            const firstType = result.intents[0]?.type ?? null
-            setChatHistory((prev) =>
-              prev.map((t) => (t.id === turnId ? { ...t, detectedType: firstType } : t))
-            )
-          },
-          (errMsg) => {
-            detectError = errMsg
-            setChatHistory((prev) =>
-              prev.map((t) => (t.id === turnId ? { ...t, error: errMsg, done: true } : t))
-            )
-          },
-        )
-        if (detectError) { finish(); return }
-      } else {
-        resolvedIntents = [{ type: requestType }]
-        // Type explicitly chosen — set immediately, skip detect-intent
-        setChatHistory((prev) =>
-          prev.map((t) => (t.id === turnId ? { ...t, detectedType: requestType } : t))
-        )
-      }
-
-      // ── Step 3: stream each intent sequentially ──────────────────────────────
-      const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
-        if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning' && intent.type !== 'entity_pool_creating_planning' && intent.type !== 'quest_definition_generation_planning') return [intent]
-
-        const goals = intent.goals ?? []
-        const entityType = intent.entityType || fallbackEntityType || undefined
-        const mapAction = (action: {
-          type: string
-          entity_type?: string
-          goal?: string
-          goals?: string[]
-          item_category?: string
-          item_code?: string
-          item_name?: string
-          item_definition_ids?: string[]
-          depends_on?: number[]
-        }): PipelineIntent | null => {
-          const actionGoals = Array.isArray(action.goals)
-            ? action.goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-            : (typeof action.goal === 'string' && action.goal.trim() ? [action.goal] : [])
-
-          if (action.type === 'item_generation') {
-            return {
-              type: 'item_generation',
-              entityType: action.entity_type,
-              goals: actionGoals,
-              planningAction: action,
+    const [isRunning, setIsRunning] = useState(false);
+    const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
+    // Ref-based guard so the guard check inside `send` always reads the live value
+    // even if the closure captured a stale `isRunning` snapshot.
+    const isRunningRef = useRef(false);
+    const send = useCallback(async (gameId: string, userPrompt: string, convId: string | null, requestType: string, // 'auto' → detect-intent SSE; anything else → skip SSE
+    onConvCreated: (conv: Conversation) => void, onConvUpdated: (conv: Conversation) => void, errorCreate: string, errorSend: string, errorTokenQuotaExceeded: string, requestHistory?: Array<{
+        request_type: string;
+        response_text: string;
+    }>, loreEntryIds?: string[], fallbackEntityType?: string, historyContext?: DetectIntentHistoryEntry[], generatedItems?: unknown[], itemDefinitionIds?: string[], entityDefinitionIds?: string[], generatedPresets?: unknown[], generatedContainers?: unknown[], containerDefinitionIds?: string[], generatedGachaPacks?: unknown[], generatedEquipmentSlots?: unknown[], generatedCraftingRecipes?: unknown[], generatedEntityDefinitions?: unknown[], generatedEntityPools?: unknown[], onTokenUsage?: (usage: TokenUsageInfo) => void): Promise<void> => {
+        const turnId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        isRunningRef.current = true;
+        setIsRunning(true);
+        const finish = () => {
+            isRunningRef.current = false;
+            setIsRunning(false);
+        };
+        try {
+            // ── Step 1: ensure conversation exists (regular REST) ────────────────────
+            let resolvedConvId = convId;
+            if (!resolvedConvId) {
+                const newConv = await createConversation(gameId, {
+                    title: userPrompt.slice(0, 60),
+                    goal: userPrompt,
+                });
+                resolvedConvId = newConv.ID;
+                onConvCreated(newConv);
+                // Fresh history for a brand-new conversation
+                setChatHistory([]);
             }
-          }
-          if (action.type === 'entity_definition_generation') {
-            return {
-              type: 'entity_definition_generation',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
+            // Suppress unused-callback warning — onConvUpdated is kept in signature for callers
+            void onConvUpdated;
+            // Append user turn immediately so the UI feels responsive
+            setChatHistory((prev) => [
+                ...prev,
+                { id: turnId, userMessage: userPrompt, aiText: '', detectedType: null, done: false, error: null },
+            ]);
+            // ── Step 2: detect intent (SSE) or use explicit type ────────────────────
+            // Build shared context IDs — passed to both streamDetectIntent and streamRequest
+            const contextIds: ConversationContextIds = {
+                lore_entry_ids: loreEntryIds ?? [],
+                item_definition_ids: itemDefinitionIds ?? [],
+                container_definition_ids: containerDefinitionIds ?? [],
+                entity_definition_ids: entityDefinitionIds ?? [],
+            };
+            let resolvedIntents: PipelineIntent[] = [];
+            let detectedLanguage: string | undefined;
+            if (requestType === 'auto') {
+                let detectError = '';
+                await streamDetectIntent(gameId, resolvedConvId, userPrompt, historyContext ?? [], contextIds, (chunk) => setChatHistory((prev) => prev.map((t) => (t.id === turnId ? { ...t, aiText: t.aiText + chunk } : t))), (result, usage) => {
+                    resolvedIntents = result.intents;
+                    detectedLanguage = result.detectedLanguage;
+                    if (usage?.totalTokens != null)
+                        onTokenUsage?.(usage);
+                    const firstType = result.intents[0]?.type ?? null;
+                    setChatHistory((prev) => prev.map((t) => (t.id === turnId ? { ...t, detectedType: firstType, detectedLanguage: detectedLanguage ?? null } : t)));
+                }, (errMsg) => {
+                    detectError = errMsg;
+                    setChatHistory((prev) => prev.map((t) => (t.id === turnId ? { ...t, error: normalizeLlmErrorMessage(errMsg, errorSend, errorTokenQuotaExceeded), done: true } : t)));
+                });
+                if (detectError) {
+                    finish();
+                    return;
+                }
             }
-          }
-          if (action.type === 'container_creating') {
-            return {
-              type: 'container_creating',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
+            else {
+                resolvedIntents = [{ type: requestType }];
+                // Type explicitly chosen — set immediately, skip detect-intent
+                setChatHistory((prev) => prev.map((t) => (t.id === turnId ? { ...t, detectedType: requestType } : t)));
             }
-          }
-          if (action.type === 'gacha_pack_creating') {
-            return {
-              type: 'gacha_pack_creating',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
+            // ── Step 3: stream each intent sequentially ──────────────────────────────
+            const expandPlannedIntent = async (intent: PipelineIntent): Promise<PipelineIntent[]> => {
+                if (intent.type !== 'container_creating_planning' && intent.type !== 'crafting_recipe_creating_planning' && intent.type !== 'gacha_pack_creating_planning' && intent.type !== 'generator_item_creating_planning' && intent.type !== 'entity_pool_creating_planning' && intent.type !== 'quest_definition_generation_planning')
+                    return [intent];
+                const goals = intent.goals ?? [];
+                const entityType = intent.entityType || fallbackEntityType || undefined;
+                const mapAction = (action: {
+                    type: string;
+                    entity_type?: string;
+                    goal?: string;
+                    goals?: string[];
+                    item_category?: string;
+                    item_code?: string;
+                    item_name?: string;
+                    item_definition_ids?: string[];
+                    depends_on?: number[];
+                }): PipelineIntent | null => {
+                    const actionGoals = Array.isArray(action.goals)
+                        ? action.goals.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+                        : (typeof action.goal === 'string' && action.goal.trim() ? [action.goal] : []);
+                    if (action.type === 'item_generation') {
+                        return {
+                            type: 'item_generation',
+                            entityType: action.entity_type,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'entity_definition_generation') {
+                        return {
+                            type: 'entity_definition_generation',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'container_creating') {
+                        return {
+                            type: 'container_creating',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'gacha_pack_creating') {
+                        return {
+                            type: 'gacha_pack_creating',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'generator_item_creating') {
+                        return {
+                            type: 'generator_item_creating',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'entity_pool_creating') {
+                        return {
+                            type: 'entity_pool_creating',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'crafting_recipe_creating') {
+                        return {
+                            type: 'crafting_recipe_creating',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    if (action.type === 'quest_definition_generation') {
+                        return {
+                            type: 'quest_definition_generation',
+                            entityType: action.entity_type || entityType,
+                            goals: actionGoals,
+                            planningAction: action,
+                        };
+                    }
+                    return null;
+                };
+                const plan = intent.type === 'container_creating_planning'
+                    ? await requestContainerCreatingPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                        entityType,
+                        goals,
+                        history: historyContext,
+                    })
+                    : intent.type === 'quest_definition_generation_planning'
+                        ? await requestQuestDefinitionGenerationPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                            language: detectedLanguage,
+                            entityType,
+                            goals,
+                            history: historyContext,
+                            requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
+                        })
+                        : intent.type === 'crafting_recipe_creating_planning'
+                            ? await requestCraftingRecipeCreatingPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                                language: detectedLanguage,
+                                entityType,
+                                goals,
+                                history: historyContext,
+                            })
+                            : intent.type === 'generator_item_creating_planning'
+                                ? await requestGeneratorItemCreatingPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                                    language: detectedLanguage,
+                                    entityType,
+                                    goals,
+                                    history: historyContext,
+                                })
+                                : intent.type === 'entity_pool_creating_planning'
+                                    ? await requestEntityPoolCreatingPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                                        language: detectedLanguage,
+                                        entityType,
+                                        goals,
+                                        history: historyContext,
+                                    })
+                                    : await requestGachaPackCreatingPlanning(gameId, resolvedConvId, userPrompt, contextIds, {
+                                        language: detectedLanguage,
+                                        entityType,
+                                        goals,
+                                        history: historyContext,
+                                    });
+                const plannedIntents = (plan.content?.actions ?? [])
+                    .map((action) => mapAction(action))
+                    .filter((planned): planned is PipelineIntent => !!planned);
+                return plannedIntents.length > 0
+                    ? plannedIntents
+                    : (intent.type === 'container_creating_planning'
+                        ? [{ type: 'container_creating', entityType, goals }]
+                        : intent.type === 'generator_item_creating_planning'
+                            ? [{ type: 'generator_item_creating', entityType, goals }]
+                            : intent.type === 'entity_pool_creating_planning'
+                                ? [{ type: 'entity_pool_creating', entityType, goals }]
+                                : intent.type === 'crafting_recipe_creating_planning'
+                                    ? [{ type: 'crafting_recipe_creating', entityType, goals }]
+                                    : intent.type === 'quest_definition_generation_planning'
+                                        ? [{ type: 'quest_definition_generation', entityType, goals }]
+                                        : [{ type: 'gacha_pack_creating', entityType, goals }]);
+            };
+            const executionIntents = (await Promise.all(resolvedIntents.map(expandPlannedIntent))).flat();
+            // Pre-initialise all response slots so the UI shows spinners immediately
+            setChatHistory((prev) => prev.map((t) => t.id !== turnId ? t : {
+                ...t,
+                responses: executionIntents.map((intent) => ({
+                    intentType: intent.type,
+                    entityType: intent.entityType ?? '',
+                    responseText: '',
+                    done: false,
+                    error: null,
+                    planningAction: intent.planningAction,
+                })),
+            }));
+            // Growing history: starts with prior-turn responses, each completed intent appends its text
+            const activeHistory: Array<{
+                request_type: string;
+                response_text: string;
+            }> = [
+                ...(requestHistory ?? []),
+            ];
+            for (let i = 0; i < executionIntents.length; i++) {
+                const intent = executionIntents[i];
+                let currentResponseText = '';
+                const generatedItemsForRequest = (() => {
+                    if (intent.type === 'quest_definition_generation') {
+                        if (generatedItems && generatedItems.length > 0)
+                            return generatedItems;
+                        return undefined;
+                    }
+                    if (intent.planningAction)
+                        return [intent.planningAction];
+                    if (intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0)
+                        return generatedPresets;
+                    if (intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0)
+                        return generatedContainers;
+                    if (intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0)
+                        return generatedGachaPacks;
+                    if (intent.type === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0)
+                        return generatedEquipmentSlots;
+                    if (intent.type === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0)
+                        return generatedCraftingRecipes;
+                    if (intent.type === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0)
+                        return generatedEntityPools;
+                    if ((intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0)
+                        return generatedItems;
+                    return undefined;
+                })();
+                if (intent.type === 'quest_definition_generation') {
+                    let requestError = '';
+                    try {
+                        const response = await requestQuestDefinitionGeneration(gameId, resolvedConvId, userPrompt, contextIds, {
+                            language: detectedLanguage,
+                            entityType: intent.entityType || fallbackEntityType || undefined,
+                            goals: intent.goals,
+                            history: historyContext,
+                            requestHistory: activeHistory.length > 0 ? [...activeHistory] : undefined,
+                            generatedItems: generatedItemsForRequest,
+                        });
+                        currentResponseText = JSON.stringify(response.content ?? {}, null, 2);
+                        const usage = extractTokenUsage(response as unknown as Record<string, unknown>);
+                        if (usage?.totalTokens != null)
+                            onTokenUsage?.(usage);
+                        setChatHistory((prev) => prev.map((t) => {
+                            if (t.id !== turnId)
+                                return t;
+                            const responses = (t.responses ?? []).map((r, idx) => idx === i ? { ...r, responseText: currentResponseText, done: true } : r);
+                            return { ...t, responses };
+                        }));
+                    }
+                    catch (err) {
+                        requestError = err instanceof Error ? err.message : 'Unknown error';
+                        setChatHistory((prev) => prev.map((t) => {
+                            if (t.id !== turnId)
+                                return t;
+                            const responses = (t.responses ?? []).map((r, idx) => idx === i ? { ...r, error: requestError, done: true } : r);
+                            return { ...t, responses };
+                        }));
+                    }
+                    if (requestError) {
+                        finish();
+                        return;
+                    }
+                    if (currentResponseText) {
+                        activeHistory.push({ request_type: intent.type, response_text: currentResponseText });
+                    }
+                    continue;
+                }
+                await streamRequest(gameId, resolvedConvId, intent.type, userPrompt, (chunk) => {
+                    currentResponseText += chunk;
+                    setChatHistory((prev) => prev.map((t) => {
+                        if (t.id !== turnId)
+                            return t;
+                        const responses = (t.responses ?? []).map((r, idx) => idx === i ? { ...r, responseText: r.responseText + chunk } : r);
+                        return { ...t, responses };
+                    }));
+                }, (_requestId, usage) => {
+                    if (usage?.totalTokens != null)
+                        onTokenUsage?.(usage);
+                    setChatHistory((prev) => prev.map((t) => {
+                        if (t.id !== turnId)
+                            return t;
+                        const responses = (t.responses ?? []).map((r, idx) => idx === i ? { ...r, done: true } : r);
+                        return { ...t, responses };
+                    }));
+                }, (errMsg) => {
+                    setChatHistory((prev) => prev.map((t) => {
+                        if (t.id !== turnId)
+                            return t;
+                        const responses = (t.responses ?? []).map((r, idx) => idx === i ? { ...r, error: normalizeLlmErrorMessage(errMsg, errorSend, errorTokenQuotaExceeded), done: true } : r);
+                        return { ...t, responses };
+                    }));
+                }, activeHistory.length > 0 ? [...activeHistory] : undefined, contextIds, (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation' || intent.type === 'crafting_recipe_creating' || intent.type === 'entity_definition_generation') ? (intent.entityType || fallbackEntityType || undefined) : undefined, (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation' || intent.type === 'crafting_recipe_creating' || intent.type === 'entity_definition_generation') ? intent.goals : undefined, generatedItemsForRequest);
+                // After each completed intent, append its response to activeHistory so
+                // subsequent intents in this same turn receive all prior responses as context
+                if (currentResponseText) {
+                    activeHistory.push({ request_type: intent.type, response_text: currentResponseText });
+                }
             }
-          }
-          if (action.type === 'generator_item_creating') {
-            return {
-              type: 'generator_item_creating',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
-            }
-          }
-          if (action.type === 'entity_pool_creating') {
-            return {
-              type: 'entity_pool_creating',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
-            }
-          }
-          if (action.type === 'crafting_recipe_creating') {
-            return {
-              type: 'crafting_recipe_creating',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
-            }
-          }
-          if (action.type === 'quest_definition_generation') {
-            return {
-              type: 'quest_definition_generation',
-              entityType: action.entity_type || entityType,
-              goals: actionGoals,
-              planningAction: action,
-            }
-          }
-          return null
+            // Mark the turn complete
+            setChatHistory((prev) => prev.map((t) => (t.id === turnId ? { ...t, done: true } : t)));
+            finish();
         }
-
-        const plan = intent.type === 'container_creating_planning'
-          ? await requestContainerCreatingPlanning(
-              gameId,
-              resolvedConvId,
-              userPrompt,
-              contextIds,
-              {
-                entityType,
-                goals,
-                history: historyContext,
-              },
-            )
-          : intent.type === 'quest_definition_generation_planning'
-            ? await requestQuestDefinitionGenerationPlanning(
-                gameId,
-                resolvedConvId,
-                userPrompt,
-                contextIds,
-                {
-                  language: detectedLanguage,
-                  entityType,
-                  goals,
-                  history: historyContext,
-                  requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
-                },
-              )
-          : intent.type === 'crafting_recipe_creating_planning'
-            ? await requestCraftingRecipeCreatingPlanning(
-                gameId,
-                resolvedConvId,
-                userPrompt,
-                contextIds,
-                {
-                  language: detectedLanguage,
-                  entityType,
-                  goals,
-                  history: historyContext,
-                },
-              )
-          : intent.type === 'generator_item_creating_planning'
-              ? await requestGeneratorItemCreatingPlanning(
-                  gameId,
-                  resolvedConvId,
-                  userPrompt,
-                  contextIds,
-                  {
-                    language: detectedLanguage,
-                    entityType,
-                    goals,
-                    history: historyContext,
-                  },
-                )
-            : intent.type === 'entity_pool_creating_planning'
-              ? await requestEntityPoolCreatingPlanning(
-                  gameId,
-                  resolvedConvId,
-                  userPrompt,
-                  contextIds,
-                  {
-                    language: detectedLanguage,
-                    entityType,
-                    goals,
-                    history: historyContext,
-                  },
-                )
-            : await requestGachaPackCreatingPlanning(
-                gameId,
-                resolvedConvId,
-                userPrompt,
-                contextIds,
-                {
-                  language: detectedLanguage,
-                  entityType,
-                  goals,
-                  history: historyContext,
-                },
-              )
-
-        const plannedIntents = (plan.content?.actions ?? [])
-          .map((action) => mapAction(action))
-          .filter((planned): planned is PipelineIntent => !!planned)
-
-        return plannedIntents.length > 0
-          ? plannedIntents
-          : (
-            intent.type === 'container_creating_planning'
-              ? [{ type: 'container_creating', entityType, goals }]
-              : intent.type === 'generator_item_creating_planning'
-                ? [{ type: 'generator_item_creating', entityType, goals }]
-                : intent.type === 'entity_pool_creating_planning'
-                  ? [{ type: 'entity_pool_creating', entityType, goals }]
-                : intent.type === 'crafting_recipe_creating_planning'
-                  ? [{ type: 'crafting_recipe_creating', entityType, goals }]
-                  : intent.type === 'quest_definition_generation_planning'
-                    ? [{ type: 'quest_definition_generation', entityType, goals }]
-                    : [{ type: 'gacha_pack_creating', entityType, goals }]
-          )
-      }
-
-      const executionIntents = (await Promise.all(resolvedIntents.map(expandPlannedIntent))).flat()
-
-      // Pre-initialise all response slots so the UI shows spinners immediately
-      setChatHistory((prev) =>
-        prev.map((t) => t.id !== turnId ? t : {
-          ...t,
-          responses: executionIntents.map((intent) => ({
-            intentType: intent.type,
-            entityType: intent.entityType ?? '',
-            responseText: '',
-            done: false,
-            error: null,
-            planningAction: intent.planningAction,
-          })),
-        })
-      )
-
-      // Growing history: starts with prior-turn responses, each completed intent appends its text
-      const activeHistory: Array<{ request_type: string; response_text: string }> = [
-        ...(requestHistory ?? []),
-      ]
-
-      for (let i = 0; i < executionIntents.length; i++) {
-        const intent = executionIntents[i]
-        let currentResponseText = ''
-        const generatedItemsForRequest = (() => {
-          if (intent.type === 'quest_definition_generation') {
-            if (generatedItems && generatedItems.length > 0) return generatedItems
-            return undefined
-          }
-          if (intent.planningAction) return [intent.planningAction]
-          if (intent.type === 'preset_generation' && generatedPresets && generatedPresets.length > 0) return generatedPresets
-          if (intent.type === 'container_creating' && generatedContainers && generatedContainers.length > 0) return generatedContainers
-          if (intent.type === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0) return generatedGachaPacks
-          if (intent.type === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0) return generatedEquipmentSlots
-          if (intent.type === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0) return generatedCraftingRecipes
-          if (intent.type === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0) return generatedEntityPools
-          if ((intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating') && generatedItems && generatedItems.length > 0) return generatedItems
-          return undefined
-        })()
-
-        if (intent.type === 'quest_definition_generation') {
-          let requestError = ''
-          try {
-            const response = await requestQuestDefinitionGeneration(
-              gameId,
-              resolvedConvId,
-              userPrompt,
-              contextIds,
-              {
-                language: detectedLanguage,
-                entityType: intent.entityType || fallbackEntityType || undefined,
-                goals: intent.goals,
-                history: historyContext,
-                requestHistory: activeHistory.length > 0 ? [...activeHistory] : undefined,
-                generatedItems: generatedItemsForRequest,
-              },
-            )
-            currentResponseText = JSON.stringify(response.content ?? {}, null, 2)
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                const responses = (t.responses ?? []).map((r, idx) =>
-                  idx === i ? { ...r, responseText: currentResponseText, done: true } : r
-                )
-                return { ...t, responses }
-              })
-            )
-          } catch (err) {
-            requestError = err instanceof Error ? err.message : 'Unknown error'
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                const responses = (t.responses ?? []).map((r, idx) =>
-                  idx === i ? { ...r, error: requestError, done: true } : r
-                )
-                return { ...t, responses }
-              })
-            )
-          }
-          if (requestError) { finish(); return }
-          if (currentResponseText) {
-            activeHistory.push({ request_type: intent.type, response_text: currentResponseText })
-          }
-          continue
+        catch (error) {
+            // Pipeline failed — surface the error on the turn (or create a synthetic turn
+            // if the failure happened before the turn was appended, e.g. createConversation threw)
+            setChatHistory((prev) => {
+                const hasTurn = prev.some((t) => t.id === turnId);
+                if (hasTurn) {
+                    return prev.map((t) => t.id === turnId ? { ...t, error: normalizeLlmErrorMessage(error, errorSend, errorTokenQuotaExceeded), done: true } : t);
+                }
+                return [
+                    ...prev,
+                    {
+                        id: turnId,
+                        userMessage: userPrompt,
+                        aiText: '',
+                        detectedType: null,
+                        done: true,
+                        error: normalizeLlmErrorMessage(error, errorCreate, errorTokenQuotaExceeded),
+                    },
+                ];
+            });
+            finish();
         }
-
-        await streamRequest(
-          gameId,
-          resolvedConvId,
-          intent.type,
-          userPrompt,
-          (chunk) => {
-            currentResponseText += chunk
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                const responses = (t.responses ?? []).map((r, idx) =>
-                  idx === i ? { ...r, responseText: r.responseText + chunk } : r
-                )
-                return { ...t, responses }
-              })
-            )
-          },
-          (_requestId) => {
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                const responses = (t.responses ?? []).map((r, idx) =>
-                  idx === i ? { ...r, done: true } : r
-                )
-                return { ...t, responses }
-              })
-            )
-          },
-          (errMsg) => {
-            setChatHistory((prev) =>
-              prev.map((t) => {
-                if (t.id !== turnId) return t
-                const responses = (t.responses ?? []).map((r, idx) =>
-                  idx === i ? { ...r, error: errMsg, done: true } : r
-                )
-                return { ...t, responses }
-              })
-            )
-          },
-          activeHistory.length > 0 ? [...activeHistory] : undefined,
-          contextIds,
-          (intent.type === 'lore_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation' || intent.type === 'crafting_recipe_creating' || intent.type === 'entity_definition_generation') ? (intent.entityType || fallbackEntityType || undefined) : undefined,
-          (intent.type === 'item_generation' || intent.type === 'item_modify' || intent.type === 'generator_item_creating' || intent.type === 'preset_generation' || intent.type === 'container_creating' || intent.type === 'gacha_pack_creating' || intent.type === 'equipment_slot_generation' || intent.type === 'crafting_recipe_creating' || intent.type === 'entity_definition_generation') ? intent.goals : undefined,
-          generatedItemsForRequest
-        )
-        // After each completed intent, append its response to activeHistory so
-        // subsequent intents in this same turn receive all prior responses as context
-        if (currentResponseText) {
-          activeHistory.push({ request_type: intent.type, response_text: currentResponseText })
+    }, []);
+    const clearHistory = useCallback(() => {
+        setChatHistory([]);
+    }, []);
+    const removeTurn = useCallback((id: string) => {
+        setChatHistory((prev) => prev.filter((t) => t.id !== id));
+    }, []);
+    const loadHistory = useCallback((turns: ChatTurn[]) => {
+        setChatHistory(turns);
+    }, []);
+    const retryResponse = useCallback(async (gameId: string, convId: string, turnId: string, responseIdx: number, intentType: string, userMessage: string, errorSend: string, errorTokenQuotaExceeded: string, planningAction?: Record<string, unknown>, requestHistory?: Array<{
+        request_type: string;
+        response_text: string;
+    }>, generatedItems?: unknown[], loreEntryIds?: string[], itemDefinitionIds?: string[], entityDefinitionIds?: string[], generatedPresets?: unknown[], generatedContainers?: unknown[], containerDefinitionIds?: string[], generatedGachaPacks?: unknown[], generatedEquipmentSlots?: unknown[], generatedCraftingRecipes?: unknown[], generatedEntityDefinitions?: unknown[], generatedEntityPools?: unknown[], onTokenUsage?: (usage: TokenUsageInfo) => void): Promise<void> => {
+        if (!gameId || !convId || isRunningRef.current)
+            return;
+        isRunningRef.current = true;
+        setIsRunning(true);
+        const finish = () => {
+            isRunningRef.current = false;
+            setIsRunning(false);
+        };
+        // Reset this specific response to loading state
+        setChatHistory((prev) => prev.map((t) => {
+            if (t.id !== turnId)
+                return t;
+            const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, responseText: '', error: null, done: false } : r);
+            return { ...t, responses };
+        }));
+        try {
+            const generatedItemsForRetry = (() => {
+                if (intentType === 'quest_definition_generation') {
+                    if (generatedItems && generatedItems.length > 0)
+                        return generatedItems;
+                    return undefined;
+                }
+                if (planningAction)
+                    return [planningAction];
+                if (intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0)
+                    return generatedPresets;
+                if (intentType === 'container_creating' && generatedContainers && generatedContainers.length > 0)
+                    return generatedContainers;
+                if (intentType === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0)
+                    return generatedGachaPacks;
+                if (intentType === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0)
+                    return generatedEquipmentSlots;
+                if (intentType === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0)
+                    return generatedCraftingRecipes;
+                if (intentType === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0)
+                    return generatedEntityPools;
+                if ((intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0)
+                    return generatedItems;
+                if (intentType === 'entity_definition_generation' && generatedEntityDefinitions && generatedEntityDefinitions.length > 0)
+                    return generatedEntityDefinitions;
+                return undefined;
+            })();
+            if (intentType === 'quest_definition_generation') {
+                const response = await requestQuestDefinitionGeneration(gameId, convId, userMessage, {
+                    lore_entry_ids: loreEntryIds ?? [],
+                    item_definition_ids: itemDefinitionIds ?? [],
+                    container_definition_ids: containerDefinitionIds ?? [],
+                    entity_definition_ids: entityDefinitionIds ?? [],
+                }, {
+                    goals: planningAction && Array.isArray((planningAction as {
+                        goals?: string[];
+                    }).goals)
+                        ? (planningAction as {
+                            goals?: string[];
+                        }).goals
+                        : undefined,
+                    requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
+                    generatedItems: generatedItemsForRetry,
+                });
+                const currentResponseText = JSON.stringify(response.content ?? {}, null, 2);
+                const usage = extractTokenUsage(response as unknown as Record<string, unknown>);
+                if (usage?.totalTokens != null)
+                    onTokenUsage?.(usage);
+                setChatHistory((prev) => prev.map((t) => {
+                    if (t.id !== turnId)
+                        return t;
+                    const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, responseText: currentResponseText, done: true } : r);
+                    return { ...t, responses };
+                }));
+                finish();
+                return;
+            }
+            await streamRequest(gameId, convId, intentType, userMessage, (chunk) => setChatHistory((prev) => prev.map((t) => {
+                if (t.id !== turnId)
+                    return t;
+                const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, responseText: r.responseText + chunk } : r);
+                return { ...t, responses };
+            })), (_requestId, usage) => {
+                if (usage?.totalTokens != null)
+                    onTokenUsage?.(usage);
+                setChatHistory((prev) => prev.map((t) => {
+                    if (t.id !== turnId)
+                        return t;
+                    const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, done: true } : r);
+                    return { ...t, responses };
+                }));
+            }, (errMsg) => {
+                setChatHistory((prev) => prev.map((t) => {
+                    if (t.id !== turnId)
+                        return t;
+                    const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, error: normalizeLlmErrorMessage(errMsg, errorSend, errorTokenQuotaExceeded), done: true } : r);
+                    return { ...t, responses };
+                }));
+            }, requestHistory && requestHistory.length > 0 ? requestHistory : undefined, {
+                lore_entry_ids: loreEntryIds ?? [],
+                item_definition_ids: itemDefinitionIds ?? [],
+                container_definition_ids: containerDefinitionIds ?? [],
+                entity_definition_ids: entityDefinitionIds ?? [],
+            }, undefined, undefined, generatedItemsForRetry);
         }
-      }
-
-      // Mark the turn complete
-      setChatHistory((prev) =>
-        prev.map((t) => (t.id === turnId ? { ...t, done: true } : t))
-      )
-      finish()
-    } catch {
-      // Pipeline failed — surface the error on the turn (or create a synthetic turn
-      // if the failure happened before the turn was appended, e.g. createConversation threw)
-      setChatHistory((prev) => {
-        const hasTurn = prev.some((t) => t.id === turnId)
-        if (hasTurn) {
-          return prev.map((t) =>
-            t.id === turnId ? { ...t, error: errorSend, done: true } : t
-          )
+        catch (error) {
+            setChatHistory((prev) => prev.map((t) => {
+                if (t.id !== turnId)
+                    return t;
+                const responses = (t.responses ?? []).map((r, idx) => idx === responseIdx ? { ...r, error: normalizeLlmErrorMessage(undefined, errorSend, errorTokenQuotaExceeded), done: true } : r);
+                return { ...t, responses };
+            }));
         }
-        return [
-          ...prev,
-          {
-            id: turnId,
-            userMessage: userPrompt,
-            aiText: '',
-            detectedType: null,
-            done: true,
-            error: errorCreate,
-          },
-        ]
-      })
-      finish()
-    }
-  }, [])
-
-  const clearHistory = useCallback(() => {
-    setChatHistory([])
-  }, [])
-  const removeTurn = useCallback((id: string) => {
-    setChatHistory((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-  const loadHistory = useCallback((turns: ChatTurn[]) => {
-    setChatHistory(turns)
-  }, [])
-
-  const retryResponse = useCallback(async (
-    gameId: string,
-    convId: string,
-    turnId: string,
-    responseIdx: number,
-    intentType: string,
-    userMessage: string,
-    errorSend: string,
-    planningAction?: Record<string, unknown>,
-    requestHistory?: Array<{ request_type: string; response_text: string }>,
-    generatedItems?: unknown[],
-    loreEntryIds?: string[],
-    itemDefinitionIds?: string[],
-    entityDefinitionIds?: string[],
-    generatedPresets?: unknown[],
-    generatedContainers?: unknown[],
-    containerDefinitionIds?: string[],
-    generatedGachaPacks?: unknown[],
-    generatedEquipmentSlots?: unknown[],
-    generatedCraftingRecipes?: unknown[],
-    generatedEntityDefinitions?: unknown[],
-    generatedEntityPools?: unknown[],
-  ): Promise<void> => {
-    if (!gameId || !convId || isRunningRef.current) return
-
-    isRunningRef.current = true
-    setIsRunning(true)
-
-    const finish = () => {
-      isRunningRef.current = false
-      setIsRunning(false)
-    }
-
-    // Reset this specific response to loading state
-    setChatHistory((prev) =>
-      prev.map((t) => {
-        if (t.id !== turnId) return t
-        const responses = (t.responses ?? []).map((r, idx) =>
-          idx === responseIdx ? { ...r, responseText: '', error: null, done: false } : r
-        )
-        return { ...t, responses }
-      })
-    )
-
-    try {
-      const generatedItemsForRetry = (() => {
-        if (intentType === 'quest_definition_generation') {
-          if (generatedItems && generatedItems.length > 0) return generatedItems
-          return undefined
-        }
-        if (planningAction) return [planningAction]
-        if (intentType === 'preset_generation' && generatedPresets && generatedPresets.length > 0) return generatedPresets
-        if (intentType === 'container_creating' && generatedContainers && generatedContainers.length > 0) return generatedContainers
-        if (intentType === 'gacha_pack_creating' && generatedGachaPacks && generatedGachaPacks.length > 0) return generatedGachaPacks
-        if (intentType === 'equipment_slot_generation' && generatedEquipmentSlots && generatedEquipmentSlots.length > 0) return generatedEquipmentSlots
-        if (intentType === 'crafting_recipe_creating' && generatedCraftingRecipes && generatedCraftingRecipes.length > 0) return generatedCraftingRecipes
-        if (intentType === 'entity_pool_creating' && generatedEntityPools && generatedEntityPools.length > 0) return generatedEntityPools
-        if ((intentType === 'item_generation' || intentType === 'item_modify' || intentType === 'generator_item_creating') && generatedItems && generatedItems.length > 0) return generatedItems
-        if (intentType === 'entity_definition_generation' && generatedEntityDefinitions && generatedEntityDefinitions.length > 0) return generatedEntityDefinitions
-        return undefined
-      })()
-
-      if (intentType === 'quest_definition_generation') {
-        const response = await requestQuestDefinitionGeneration(
-          gameId,
-          convId,
-          userMessage,
-          {
-            lore_entry_ids: loreEntryIds ?? [],
-            item_definition_ids: itemDefinitionIds ?? [],
-            container_definition_ids: containerDefinitionIds ?? [],
-            entity_definition_ids: entityDefinitionIds ?? [],
-          },
-          {
-            goals: planningAction && Array.isArray((planningAction as { goals?: string[] }).goals)
-              ? (planningAction as { goals?: string[] }).goals
-              : undefined,
-            requestHistory: requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
-            generatedItems: generatedItemsForRetry,
-          },
-        )
-        const currentResponseText = JSON.stringify(response.content ?? {}, null, 2)
-        setChatHistory((prev) =>
-          prev.map((t) => {
-            if (t.id !== turnId) return t
-            const responses = (t.responses ?? []).map((r, idx) =>
-              idx === responseIdx ? { ...r, responseText: currentResponseText, done: true } : r
-            )
-            return { ...t, responses }
-          })
-        )
-        finish()
-        return
-      }
-
-      await streamRequest(
-        gameId,
-        convId,
-        intentType,
-        userMessage,
-        (chunk) =>
-          setChatHistory((prev) =>
-            prev.map((t) => {
-              if (t.id !== turnId) return t
-              const responses = (t.responses ?? []).map((r, idx) =>
-                idx === responseIdx ? { ...r, responseText: r.responseText + chunk } : r
-              )
-              return { ...t, responses }
-            })
-          ),
-        (_requestId) => {
-          setChatHistory((prev) =>
-            prev.map((t) => {
-              if (t.id !== turnId) return t
-              const responses = (t.responses ?? []).map((r, idx) =>
-                idx === responseIdx ? { ...r, done: true } : r
-              )
-              return { ...t, responses }
-            })
-          )
-        },
-        (errMsg) => {
-          setChatHistory((prev) =>
-            prev.map((t) => {
-              if (t.id !== turnId) return t
-              const responses = (t.responses ?? []).map((r, idx) =>
-                idx === responseIdx ? { ...r, error: errMsg, done: true } : r
-              )
-              return { ...t, responses }
-            })
-          )
-        },
-        requestHistory && requestHistory.length > 0 ? requestHistory : undefined,
-        {
-          lore_entry_ids: loreEntryIds ?? [],
-          item_definition_ids: itemDefinitionIds ?? [],
-          container_definition_ids: containerDefinitionIds ?? [],
-          entity_definition_ids: entityDefinitionIds ?? [],
-        },
-        undefined,
-        undefined,
-        generatedItemsForRetry,
-      )
-    } catch {
-      setChatHistory((prev) =>
-        prev.map((t) => {
-          if (t.id !== turnId) return t
-          const responses = (t.responses ?? []).map((r, idx) =>
-            idx === responseIdx ? { ...r, error: errorSend, done: true } : r
-          )
-          return { ...t, responses }
-        })
-      )
-    }
-
-    finish()
-  }, [])
-
-  return { isRunning, chatHistory, send, retryResponse, clearHistory, loadHistory, removeTurn }
+        finish();
+    }, []);
+    return { isRunning, chatHistory, send, retryResponse, clearHistory, loadHistory, removeTurn };
 }
