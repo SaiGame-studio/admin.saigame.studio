@@ -39,6 +39,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { CraftingTab } from "@/components/crafting/crafting-tab";
 import { EquipmentsTab, EquipmentSlotSheet } from '@/components/EquipmentsTab';
 import { CreateItemDefinitionDialog } from '@/components/CreateItemDefinitionDialog';
+import { GachaPackSheet } from "./_components/GachaPackSheet";
 import { ExplanationPanel } from "./_components/ExplanationPanel";
 import { CreatePresetDefinitionSheet } from "./_components/CreatePresetDefinitionSheet";
 import { DeleteGachaPackDialog } from "./_components/DeleteGachaPackDialog";
@@ -1251,7 +1252,6 @@ export default function GameItemsPage() {
     const [error, setError] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
-    const [copiedPackId, setCopiedPackId] = useState(false);
     // filters
     const [filterCategory, setFilterCategory] = useState<string>("all");
     const [filterRarity, setFilterRarity] = useState<string>("all");
@@ -1374,7 +1374,6 @@ export default function GameItemsPage() {
     const [editingPack, setEditingPack] = useState<GachaPack | null>(null);
     const [formSaving, setFormSaving] = useState(false);
     const [gachaForm, setGachaForm] = useState(emptyGachaForm());
-    const [gachaAutoSlug, setGachaAutoSlug] = useState(true);
     const [createGachaConvContext, setCreateGachaConvContext] = useState<{
         turnId: string;
         responseIdx: number;
@@ -1385,10 +1384,7 @@ export default function GameItemsPage() {
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [gachaSearch, setGachaSearch] = useState("");
     const [gachaSearchDebounced, setGachaSearchDebounced] = useState("");
-    const [gachaComboOpen, setGachaComboOpen] = useState<string | null>(null);
-    const [gachaComboSearch, setGachaComboSearch] = useState("");
     const suppressGachaAutoOpenRef = useRef(false);
-    useEscapeLayer(gachaSheetOpen, gachaCloseSheet);
     // conversation panel integration
     const [convPanelOpen, setConvPanelOpen] = useState(false);
     const [convActiveId, setConvActiveId] = useState<string | null>(null);
@@ -1486,7 +1482,6 @@ export default function GameItemsPage() {
             const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
             const meta = (detail.metadata ?? {}) as Record<string, unknown>;
             setEditingPack(null);
-            setGachaAutoSlug(false);
             setGachaForm({
                 name: typeof detail.name === 'string' ? detail.name : '',
                 code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
@@ -1547,7 +1542,6 @@ export default function GameItemsPage() {
                 ? llmData.metadata as Record<string, unknown>
                 : existingMeta;
             setEditingPack(existingPack);
-            setGachaAutoSlug(false);
             setGachaForm({
                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
                 code_name: existingPack.code_name ?? '',
@@ -1723,7 +1717,6 @@ export default function GameItemsPage() {
                         const keyReqs = rawKeyReqs.map((r: KeyReqRow) => ({ ...r, item_definition_id: applyRefCodeMap(r.item_definition_id, codeToId) }));
                         const meta = (detail.metadata ?? {}) as Record<string, unknown>;
                         setEditingPack(null);
-                        setGachaAutoSlug(false);
                         setGachaForm({
                             name: typeof detail.name === 'string' ? detail.name : '',
                             code_name: typeof detail.code_name === 'string' ? detail.code_name : '',
@@ -1812,7 +1805,6 @@ export default function GameItemsPage() {
                                 ? llmData.metadata as Record<string, unknown>
                                 : existingMeta;
                             setEditingPack(existingPack);
-                            setGachaAutoSlug(false);
                             setGachaForm({
                                 name: typeof llmData.name === 'string' && llmData.name.trim() ? llmData.name : existingPack.name,
                                 code_name: existingPack.code_name ?? '',
@@ -2346,7 +2338,6 @@ export default function GameItemsPage() {
     function gachaOpenCreate() {
         setEditingPack(null);
         setGachaForm(emptyGachaForm());
-        setGachaAutoSlug(true);
         setGachaSheetOpen(true);
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.delete("editPack");
@@ -2354,7 +2345,6 @@ export default function GameItemsPage() {
     }
     function gachaOpenEdit(pack: GachaPack) {
         setEditingPack(pack);
-        setGachaAutoSlug(false);
         const meta = (pack.metadata ?? {}) as Record<string, unknown>;
         setGachaForm({
             name: pack.name,
@@ -2581,7 +2571,6 @@ export default function GameItemsPage() {
             setDeletePackLoading(false);
         }
     }
-    const formTotalWeight = gachaForm.pool.reduce((s, r) => s + (Number(r.weight) || 0), 0);
     function gachaItemName(id: string) {
         const it = gachaAllItems.find((i) => i.id === id);
         if (!it)
@@ -4086,345 +4075,22 @@ export default function GameItemsPage() {
           </DialogContent>
         </Dialog>
       )}
-      {/* Gacha create / edit sheet */}
-<Sheet open={gachaSheetOpen} onOpenChange={(open) => {
-        if (!open)
-            gachaCloseSheet();
-    }}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader className="mb-4">
-            <SheetTitle>{editingPack ? `${t('items.editPackPrefix')}: ${editingPack.name}` : t('items.newGachaPack')}</SheetTitle>
-            <SheetDescription className="text-xs">
-              {t('items.gachaSheetDesc')}
-            </SheetDescription>
-            {editingPack && (<div className="flex items-center gap-1 pt-1">
-                <p className="text-xs font-mono text-muted-foreground">
-                  ID: {editingPack.id}
-                </p>
-                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors" title={t('items.copyId')} onClick={(event) => {
-            const text = editingPack.id;
-            console.log('[CopyPackId] clicked, text:', text);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(() => console.log('[CopyPackId] Clipboard API success'))
-                    .catch((err) => console.warn('[CopyPackId] Clipboard API failed:', err));
-            }
-            else {
-                const sheetContent = (event.currentTarget as HTMLElement).closest('[role="dialog"]') ?? document.body;
-                console.log('[CopyPackId] container:', sheetContent);
-                const el = document.createElement('textarea');
-                el.value = text;
-                el.style.position = 'fixed';
-                el.style.top = '0';
-                el.style.left = '0';
-                el.style.opacity = '0';
-                el.style.pointerEvents = 'none';
-                sheetContent.appendChild(el);
-                el.focus();
-                el.select();
-                console.log('[CopyPackId] selectionStart:', el.selectionStart, 'selectionEnd:', el.selectionEnd);
-                const result = document.execCommand('copy');
-                console.log('[CopyPackId] execCommand result:', result);
-                sheetContent.removeChild(el);
-            }
-            setCopiedPackId(true);
-            setTimeout(() => setCopiedPackId(false), 1500);
-        }}>
-                  {copiedPackId
-            ? <Check className="h-3 w-3 text-green-500"/>
-            : <Copy className="h-3 w-3"/>}
-                </button>
-              </div>)}
-          </SheetHeader>
-
-          <div className="space-y-5">
-            {/* Name + Enabled */}
-            <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
-              <div className="space-y-1.5 min-w-0">
-                <Label htmlFor="gacha-name">{t('items.name')} <span className="text-destructive">*</span></Label>
-                <Input id="gacha-name" placeholder={t('items.gachaNamePlaceholder')} value={gachaForm.name} onChange={(e) => {
-        const v = e.target.value;
-        setGachaForm((f) => ({
-            ...f,
-            name: v,
-            ...(gachaAutoSlug ? { code_name: toSlugUnderscore(v) } : {}),
-        }));
-    }} disabled={formSaving}/>
-              </div>
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <label htmlFor="gacha-enabled" className="flex items-center gap-3 h-10 px-3 rounded-md border border-border bg-muted/30 cursor-pointer select-none">
-                      <Switch id="gacha-enabled" checked={gachaForm.is_enabled} onCheckedChange={(v) => setGachaForm((f) => ({ ...f, is_enabled: v }))} disabled={formSaving}/>
-                      <span className="text-sm font-medium">{t('items.enabled')}</span>
-                    </label>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    {t('items.playersCanOpen')}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            {/* Code Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="gacha-code-name">
-                {t('items.gachaCodeNameLabel')}{" "}
-                <span className="text-muted-foreground text-xs font-normal">({t('items.gachaCodeNameHint')})</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input id="gacha-code-name" placeholder={t('items.gachaCodeNamePlaceholder')} value={gachaForm.code_name} onChange={(e) => {
-        setGachaAutoSlug(false);
-        setGachaForm((f) => ({ ...f, code_name: e.target.value }));
-    }} className="font-mono" disabled={formSaving}/>
-                <Button type="button" variant={gachaAutoSlug ? "default" : "outline"} size="icon" className="shrink-0" title={gachaAutoSlug ? t('items.autoSlugOn') : t('items.autoSlugOff')} onClick={() => {
-        const next = !gachaAutoSlug;
-        setGachaAutoSlug(next);
-        if (next)
-            setGachaForm((f) => ({ ...f, code_name: toSlugUnderscore(f.name) }));
-    }}>
-                  <Wand2 className="h-4 w-4"/>
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Collect Destination */}
-            <div className="space-y-1.5">
-              <Label htmlFor="gacha-collect-destination">{t('items.collectDestination')}</Label>
-              <Select value={gachaForm.collect_destination} onValueChange={(v) => setGachaForm((f) => ({ ...f, collect_destination: v as "mailbox" | "inventory" }))}>
-                <SelectTrigger id="gacha-collect-destination" disabled={formSaving}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mailbox">{t('items.collectDestinationMailbox')}</SelectItem>
-                  <SelectItem value="inventory">{t('items.collectDestinationMainInventory')}</SelectItem>
-                </SelectContent>
-              </Select>
-              {gachaForm.collect_destination === "inventory" && (<p className="text-xs text-muted-foreground">{t('items.collectDestinationInventoryHint')}</p>)}
-            </div>
-
-            {/* Mailbox message (only when destination is mailbox) */}
-            {gachaForm.collect_destination === "mailbox" && (<div className="space-y-3 rounded-md border border-border/60 bg-muted/30 p-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="gacha-mailbox-title">{t('items.gachaMailboxTitle')}</Label>
-                  <Input id="gacha-mailbox-title" value={gachaForm.mailbox_title} onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_title: e.target.value }))} placeholder={t('items.gachaMailboxTitlePlaceholder')} disabled={formSaving}/>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gacha-mailbox-body">{t('items.gachaMailboxBody')}</Label>
-                  <Textarea id="gacha-mailbox-body" value={gachaForm.mailbox_body} onChange={(e) => setGachaForm((f) => ({ ...f, mailbox_body: e.target.value }))} placeholder={t('items.gachaMailboxBodyPlaceholder')} disabled={formSaving} rows={3}/>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('items.gachaMailboxHint')}</p>
-              </div>)}
-
-            <Separator />
-
-            {/* Key Requirements */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-base">{t('items.keyRequirements')}</Label>
-                <p className="text-xs text-muted-foreground">{t('items.keyReqDesc')}</p>
-              </div>
-              {gachaForm.keyReqs.length > 0 && (<div className="text-xs text-muted-foreground grid grid-cols-[24px_1fr_80px_32px] gap-1.5 px-1 font-medium">
-                  <span />
-                  <span>{t('items.name')}</span>
-                  <span>{t('items.quantity')}</span>
-                  <span />
-                </div>)}
-              <div className="space-y-2">
-                {gachaForm.keyReqs.map((row, i) => (<div key={i} className="grid grid-cols-[24px_1fr_80px_32px] gap-1.5 items-center">
-                    {row.item_definition_id ? (<Link href={`/games/${params.id}/items/${row.item_definition_id}`} title="View item">
-                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors"/>
-                      </Link>) : (<span />)}
-                    <Popover open={gachaComboOpen === `keyreq-${i}`} onOpenChange={(open) => {
-            setGachaComboOpen(open ? `keyreq-${i}` : null);
-            if (!open)
-                setGachaComboSearch("");
-        }} modal={true}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                          {row.item_definition_id ? (
-                            <span className="truncate">
-                              {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
-                            </span>
-                          ) : (
-                            <span className="truncate text-muted-foreground">Select item</span>
-                          )}
-                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[280px] p-0" align="start">
-                        <Command shouldFilter={false}>
-                          <CommandInput placeholder={t('items.searchByNameOrIdPlaceholder')} value={gachaComboSearch} onValueChange={setGachaComboSearch}/>
-                          <CommandList>
-                            <CommandEmpty>No item found.</CommandEmpty>
-                            <CommandGroup>
-                              {gachaAllItems
-            .filter((it) => !gachaComboSearch ||
-            it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-            it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-            (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase()))
-            .slice(0, 50)
-            .map((it) => (<CommandItem key={it.id} value={it.id} onSelect={() => {
-                updateKeyReqRow(i, { item_definition_id: it.id });
-                setGachaComboOpen(null);
-                setGachaComboSearch("");
-            }}>
-                                    <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`}/>
-                                    <span className="flex-1 truncate">{it.name}</span>
-                                    {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
-                                  </CommandItem>))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <Input type="number" min={1} className="h-8 text-xs text-center font-mono" value={row.quantity} onChange={(e) => updateKeyReqRow(i, { quantity: e.target.value })} disabled={formSaving}/>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeKeyReqRow(i)} disabled={formSaving} type="button">
-                      <X className="h-3.5 w-3.5"/>
-                    </Button>
-                  </div>))}
-              </div>
-              {gachaForm.keyReqs.length === 0 && (<p className="text-xs text-muted-foreground italic">{t('items.noKeyItems')}</p>)}
-              <div className="flex items-center justify-between">
-                <Button size="sm" variant="outline" type="button" onClick={addKeyReqRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1"/> {t('items.addKey')}
-                </Button>
-                <button type="button" onClick={() => {
-        setCreateInitCategory("key" as ItemCategory);
-        setShowCreate(true);
-    }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-                  <Plus className="h-3 w-3"/>
-                  {t('items.createNewItem')}
-                </button>
-                <button type="button" onClick={() => fetchGachaData()} disabled={formSaving} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50" title="Reload item definitions">
-                  <RefreshCw className="h-3 w-3"/>
-                  {t('items.reloadItemDefs')}
-                </button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Item Pool */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base">{t('items.itemPoolLabel')}</Label>
-                  {formTotalWeight > 0 && (<p className="text-xs text-muted-foreground">
-                      {t('items.totalWeight')}: {formTotalWeight.toLocaleString()}
-                      {formTotalWeight === 1000000 && " (1M = % notation)"}
-                    </p>)}
-                </div>
-                <Button size="sm" variant="outline" type="button" onClick={addPoolRow} disabled={formSaving}>
-                  <Plus className="h-3.5 w-3.5 mr-1"/> {t('items.addItem')}
-                </Button>
-              </div>
-              {gachaForm.pool.length > 0 && (<div className="text-xs text-muted-foreground grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 px-1 font-medium">
-                  <span>{t('items.name')}</span>
-                  <span>{t('items.weight')}</span>
-                  <span>{t('items.min')}</span>
-                  <span>{t('items.max')}</span>
-                  <span />
-                </div>)}
-              <div className="space-y-2">
-                {gachaForm.pool.map((row, i) => {
-        const pct = formTotalWeight > 0 ? ((Number(row.weight) || 0) / formTotalWeight * 100) : 0;
-        return (<div key={i} className="grid grid-cols-[1fr_110px_120px_120px_32px] gap-1.5 items-center">
-                      <Popover open={gachaComboOpen === `pool-${i}`} onOpenChange={(open) => {
-                setGachaComboOpen(open ? `pool-${i}` : null);
-                if (!open)
-                    setGachaComboSearch("");
-            }} modal={true}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-between font-normal" disabled={formSaving}>
-                            {row.item_definition_id ? (
-                              <span className="truncate">
-                                {gachaAllItems.find((it) => it.id === row.item_definition_id)?.name ?? `${row.item_definition_id.slice(0, 8)}...`}
-                              </span>
-                            ) : (
-                              <span className="truncate text-muted-foreground">Select item</span>
-                            )}
-                            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[280px] p-0" align="start">
-                          <Command shouldFilter={false}>
-                            <CommandInput placeholder={t('items.searchByNameOrIdPlaceholder')} value={gachaComboSearch} onValueChange={setGachaComboSearch}/>
-                            <CommandList>
-                              <CommandEmpty>No item found.</CommandEmpty>
-                              <CommandGroup>
-                                {gachaAllItems
-                .filter((it) => !gachaComboSearch ||
-                it.name.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-                it.id.toLowerCase().includes(gachaComboSearch.toLowerCase()) ||
-                (it.item_code ?? "").toLowerCase().includes(gachaComboSearch.toLowerCase()))
-                .slice(0, 50)
-                .map((it) => (<CommandItem key={it.id} value={it.id} onSelect={() => {
-                    updatePoolRow(i, { item_definition_id: it.id });
-                    setGachaComboOpen(null);
-                    setGachaComboSearch("");
-                }}>
-                                      <Check className={`mr-2 h-4 w-4 shrink-0 ${row.item_definition_id === it.id ? "opacity-100" : "opacity-0"}`}/>
-                                      <span className="flex-1 truncate">{it.name}</span>
-                                      {it.item_code && <span className="text-xs text-muted-foreground font-mono ml-1">({it.item_code})</span>}
-                                    </CommandItem>))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <div className="relative">
-                        <Input type="text" inputMode="numeric" className="h-8 text-xs pr-1 font-mono" value={row.weight ? Number(row.weight).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { weight: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving} title={pct > 0 ? `? ${formatPct(pct)}` : ""}/>
-                      </div>
-                      <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_min ? Number(row.quantity_min).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_min: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
-                      <Input type="text" inputMode="numeric" className="h-8 text-xs text-center font-mono" value={row.quantity_max ? Number(row.quantity_max).toLocaleString() : ""} onChange={(e) => updatePoolRow(i, { quantity_max: e.target.value.replace(/[^0-9]/g, "") })} disabled={formSaving}/>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removePoolRow(i)} disabled={formSaving} type="button">
-                        <X className="h-3.5 w-3.5"/>
-                      </Button>
-                    </div>);
-    })}
-              </div>
-              {gachaForm.pool.some((r) => r.item_definition_id && Number(r.weight) > 0) && (<div className="mt-3 rounded border bg-muted/40 p-3 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{t('items.dropRatePreview')}</p>
-                  {[...gachaForm.pool]
-            .filter((r) => r.item_definition_id)
-            .sort((a, b) => (Number(b.weight) || 0) - (Number(a.weight) || 0))
-            .map((row, i) => {
-            const item = gachaAllItems.find((it) => it.id === row.item_definition_id);
-            return (<div key={i} className="flex items-center gap-2 text-xs">
-                          <span className="flex-1 truncate">{item?.name ?? row.item_definition_id.slice(0, 8)}</span>
-                          <DropBar weight={Number(row.weight) || 0} total={formTotalWeight}/>
-                        </div>);
-        })}
-                </div>)}
-              {gachaForm.pool.length === 0 && (<p className="text-xs text-muted-foreground italic">
-                  {t('items.noItemsPool')}
-                </p>)}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-6 mt-4 border-t">
-            <Button variant="outline" onClick={() => gachaCloseSheet()} disabled={formSaving}>
-              {t('common.cancel')}
-            </Button>
-            {editingPack ? (<>
-                <Button variant="outline" onClick={() => handleGachaSave(false)} disabled={formSaving}>
-                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                  {t('items.saveAndContinue')}
-                </Button>
-                <Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
-                  {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                  {t('items.saveAndClose')}
-                </Button>
-              </>) : (<Button onClick={() => handleGachaSave(true)} disabled={formSaving}>
-                {formSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
-                {t('items.createPack')}
-              </Button>)}
-          </div>
-        </SheetContent>
-      </Sheet>;
+      <GachaPackSheet
+        open={gachaSheetOpen}
+        editingPack={editingPack}
+        gameId={gameId}
+        gachaForm={gachaForm}
+        setGachaForm={setGachaForm}
+        formSaving={formSaving}
+        gachaAllItems={gachaAllItems}
+        onClose={gachaCloseSheet}
+        onSave={handleGachaSave}
+        onReloadItems={fetchGachaData}
+        onCreateItem={(category) => {
+          setCreateInitCategory(category);
+          setShowCreate(true);
+        }}
+      />
       <DeleteGachaPackDialog pack={deletingPack} loading={deletePackLoading} onConfirm={handleGachaDelete} onClose={() => setDeletingPack(null)} />
       {/* Preset Create Sheet */}
       <CreatePresetDefinitionSheet open={showCreatePreset} gameId={gameId} initialValues={createPresetInitialValues} turnContext={createPresetTurnContext} onCreated={fetchPresetDefs} onClose={() => { setShowCreatePreset(false); setCreatePresetInitialValues(undefined); setCreatePresetTurnContext(null); }}/>
