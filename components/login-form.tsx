@@ -1,173 +1,158 @@
-"use client"
-
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Eye, EyeOff, Loader2, Chrome } from "lucide-react"
-import { GoogleLogin } from "@react-oauth/google"
-import { cn } from "@/lib/utils"
-
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/contexts/auth-context"
-import { Checkbox } from "@/components/ui/checkbox"
-import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/storage-utils"
-import { useRouter } from "next/navigation"
-import { useTranslation } from "@/lib/i18n/use-translation"
-import { LanguageSelector } from "@/components/ui/language-selector"
-import { useServerConfig } from "@/hooks/use-server-config"
-
+"use client";
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Eye, EyeOff, Loader2, Chrome } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/auth-context";
+import { Checkbox } from "@/components/ui/checkbox";
+import { safeGetItem, safeSetItem, safeRemoveItem } from "@/lib/storage-utils";
+import { useRouter } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import { LanguageSelector } from "@/components/ui/language-selector";
+import { useServerConfig } from "@/hooks/use-server-config";
 // Storage key for remembered email/username
-const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login"
-
+const REMEMBERED_LOGIN_KEY = "game_server_admin_remembered_login";
 export function LoginForm() {
-  const { login } = useAuth()
-  const { toast } = useToast()
-  const { t } = useTranslation()
-  const { config } = useServerConfig()
-  const registrationEnabled = config === null || config.features.registration_enabled
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [usernameOrEmail, setUsernameOrEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [rememberMe, setRememberMe] = useState(false)
-  const [loginWasRemembered, setLoginWasRemembered] = useState(false)
-  const router = useRouter()
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com"
-  const [googleBtnWidth, setGoogleBtnWidth] = useState("300px")
-
-  useEffect(() => {
-    const updateWidth = () => {
-      const vw = window.innerWidth
-      if (vw < 360) setGoogleBtnWidth("260px")
-      else if (vw < 400) setGoogleBtnWidth("280px")
-      else setGoogleBtnWidth("350px")
-    }
-    updateWidth()
-    window.addEventListener("resize", updateWidth)
-    return () => window.removeEventListener("resize", updateWidth)
-  }, [])
-
-  // Check for remembered email/username on component mount
-  useEffect(() => {
-    const rememberedLogin = safeGetItem(REMEMBERED_LOGIN_KEY)
-    if (rememberedLogin) {
-      setUsernameOrEmail(rememberedLogin)
-      setRememberMe(true)
-      setLoginWasRemembered(true)
-    }
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Handle "Remember Me" functionality
-      if (rememberMe && usernameOrEmail) {
-        // Store email/username in localStorage if "Remember Me" is checked
-        safeSetItem(REMEMBERED_LOGIN_KEY, usernameOrEmail)
-      } else {
-        // Remove stored email/username if "Remember Me" is unchecked
-        safeRemoveItem(REMEMBERED_LOGIN_KEY)
-      }
-
-      // Get the API URL from environment variable
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
-      if (!apiUrl) {
-        throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.")
-      }
-
-      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ username: usernameOrEmail, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed. Please check your credentials.")
-      }
-
-      // Success - use the auth context to login
-      if (data.access_token) {
-        login(data.access_token, data.refresh_token)
-
-        toast({
-          title: t('login.loginSuccess'),
-          description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
-        })
-      } else {
-        throw new Error("No access token received from server")
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    setIsGoogleLoading(true)
-    setError(null)
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (!apiUrl) {
-        throw new Error("API URL is not configured")
-      }
-
-      const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ id_token: credentialResponse.credential }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || "Google login failed")
-      }
-
-      if (data.access_token) {
-        login(data.access_token, data.refresh_token)
-        toast({
-          title: t('login.loginSuccess'),
-          description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
-        })
-      } else {
-        throw new Error("No access token received from server")
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred during Google login")
-    } finally {
-      setIsGoogleLoading(false)
-    }
-  }
-
-  const handleGoogleError = () => {
-    setError("Google login failed. Please try again.")
-  }
-
-  return (
-    <Card className="w-full relative">
+    const { login } = useAuth();
+    const { toast } = useToast();
+    const { t } = useTranslation();
+    const { config } = useServerConfig();
+    const registrationEnabled = config === null || config.features.registration_enabled;
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [usernameOrEmail, setUsernameOrEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [loginWasRemembered, setLoginWasRemembered] = useState(false);
+    const router = useRouter();
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "780968193083-p0c7vvsf864khtltmqk8pv82l6qoconn.apps.googleusercontent.com";
+    const [googleBtnWidth, setGoogleBtnWidth] = useState("300px");
+    useEffect(() => {
+        const updateWidth = () => {
+            const vw = window.innerWidth;
+            if (vw < 360)
+                setGoogleBtnWidth("260px");
+            else if (vw < 400)
+                setGoogleBtnWidth("280px");
+            else
+                setGoogleBtnWidth("350px");
+        };
+        updateWidth();
+        window.addEventListener("resize", updateWidth);
+        return () => window.removeEventListener("resize", updateWidth);
+    }, []);
+    // Check for remembered email/username on component mount
+    useEffect(() => {
+        const rememberedLogin = safeGetItem(REMEMBERED_LOGIN_KEY);
+        if (rememberedLogin) {
+            setUsernameOrEmail(rememberedLogin);
+            setRememberMe(true);
+            setLoginWasRemembered(true);
+        }
+    }, []);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Handle "Remember Me" functionality
+            if (rememberMe && usernameOrEmail) {
+                // Store email/username in localStorage if "Remember Me" is checked
+                safeSetItem(REMEMBERED_LOGIN_KEY, usernameOrEmail);
+            }
+            else {
+                // Remove stored email/username if "Remember Me" is unchecked
+                safeRemoveItem(REMEMBERED_LOGIN_KEY);
+            }
+            // Get the API URL from environment variable
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+            if (!apiUrl) {
+                throw new Error("API URL is not configured. Please set the NEXT_PUBLIC_API_URL environment variable.");
+            }
+            const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ username: usernameOrEmail, password }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || "Login failed. Please check your credentials.");
+            }
+            // Success - use the auth context to login
+            if (data.access_token) {
+                login(data.access_token, data.refresh_token);
+                toast({
+                    title: t('login.loginSuccess'),
+                    description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
+                });
+            }
+            else {
+                throw new Error("No access token received from server");
+            }
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : "An unexpected error occurred");
+        }
+        finally {
+            setIsLoading(false);
+        }
+    };
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setIsGoogleLoading(true);
+        setError(null);
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+            if (!apiUrl) {
+                throw new Error("API URL is not configured");
+            }
+            const response = await fetch(`${apiUrl}/api/v1/auth/google`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({ id_token: credentialResponse.credential }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || "Google login failed");
+            }
+            if (data.access_token) {
+                login(data.access_token, data.refresh_token);
+                toast({
+                    title: t('login.loginSuccess'),
+                    description: `${t('login.welcomeBack')}, ${data.user?.username || data.user?.email || 'User'}!`,
+                });
+            }
+            else {
+                throw new Error("No access token received from server");
+            }
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : "An unexpected error occurred during Google login");
+        }
+        finally {
+            setIsGoogleLoading(false);
+        }
+    };
+    const handleGoogleError = () => {
+        setError("Google login failed. Please try again.");
+    };
+    return (<Card className="w-full relative">
       <div className="absolute top-3 right-3 z-10">
-        <LanguageSelector compact />
+        <LanguageSelector compact/>
       </div>
       <form onSubmit={handleSubmit}>
         <CardHeader className="space-y-1 pb-2">
@@ -175,79 +160,43 @@ export function LoginForm() {
           <div className="text-sm text-muted-foreground">{t('login.subtitle')}</div>
         </CardHeader>
         <CardContent className="space-y-3 pb-3">
-          {error && (
-            <Alert variant="destructive">
+          {error && (<Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            </Alert>)}
           <div className="space-y-2">
             <Label htmlFor="usernameOrEmail">{t('login.emailOrUsername')}</Label>
-            <Input
-              id="usernameOrEmail"
-              type="text"
-              placeholder={t('login.emailOrUsernamePlaceholder')}
-              value={usernameOrEmail}
-              onChange={(e) => setUsernameOrEmail(e.target.value)}
-              required
-              disabled={isLoading}
-              className={cn(loginWasRemembered && "border-primary")}
-              aria-describedby={loginWasRemembered ? "login-remembered" : undefined}
-            />
-            {loginWasRemembered && (
-              <p id="login-remembered" className="text-xs text-muted-foreground flex items-center">
+            <Input id="usernameOrEmail" type="text" placeholder={t('login.emailOrUsernamePlaceholder')} value={usernameOrEmail} onChange={(e) => setUsernameOrEmail(e.target.value)} required disabled={isLoading} className={cn(loginWasRemembered && "border-primary")} aria-describedby={loginWasRemembered ? "login-remembered" : undefined}/>
+            {loginWasRemembered && (<p id="login-remembered" className="text-xs text-muted-foreground flex items-center">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary mr-1.5"></span>
                 {t('login.loginRemembered')}
-              </p>
-            )}
+              </p>)}
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="password">{t('login.password')}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs shrink-0"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <>
-                    <EyeOff className="h-4 w-4 sm:mr-2" />
+              <Button type="button" variant="ghost" size="sm" className="h-8 text-xs shrink-0" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? (<>
+                    <EyeOff className="h-4 w-4 sm:mr-2"/>
                     <span className="hidden sm:inline">{t('login.hidePassword')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4 sm:mr-2" />
+                  </>) : (<>
+                    <Eye className="h-4 w-4 sm:mr-2"/>
                     <span className="hidden sm:inline">{t('login.showPassword')}</span>
-                  </>
-                )}
+                  </>)}
               </Button>
             </div>
             <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
+              <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isLoading}/>
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 pt-2 flex-wrap">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="remember"
-                checked={rememberMe}
-                onCheckedChange={(checked) => {
-                  setRememberMe(checked === true)
-                  // If unchecking, reset the loginWasRemembered state
-                  if (checked === false) {
-                    setLoginWasRemembered(false)
-                  }
-                }}
-              />
+              <Checkbox id="remember" checked={rememberMe} onCheckedChange={(checked) => {
+            setRememberMe(checked === true);
+            // If unchecking, reset the loginWasRemembered state
+            if (checked === false) {
+                setLoginWasRemembered(false);
+            }
+        }}/>
               <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
                 {t('login.rememberMe')}
               </Label>
@@ -259,25 +208,18 @@ export function LoginForm() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-3 pt-0">
           <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isLoading ? (<>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                 {t('login.signingIn')}
-              </>
-            ) : isGoogleLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              </>) : isGoogleLoading ? (<>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                 {t('login.verifyingGoogle')}
-              </>
-            ) : (
-              t('login.signIn')
-            )}
+              </>) : (t('login.signIn'))}
           </Button>
-          {googleClientId && (
-            <>
+          {googleClientId && (<>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t"/>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">{t('login.orContinueWith')}</span>
@@ -285,32 +227,19 @@ export function LoginForm() {
               </div>
 
               <div className="flex justify-center w-full overflow-hidden">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  useOneTap
-                  theme="outline"
-                  size="large"
-                  width={googleBtnWidth}
-                  text="signin_with"
-                  shape="rectangular"
-                />
+                <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} useOneTap theme="outline" size="large" width={googleBtnWidth} text="signin_with" shape="rectangular"/>
               </div>
-            </>
-          )}
+            </>)}
 
           <div className="text-center text-sm text-muted-foreground">
-            {registrationEnabled && (
-              <>
+            {registrationEnabled && (<>
                 {t('login.dontHaveAccount')}{" "}
                 <Button type="button" variant="link" className="px-0 font-normal" size="sm" formNoValidate onClick={() => router.push('/register')}>
                   {t('login.signUp')}
                 </Button>
-              </>
-            )}
+              </>)}
           </div>
         </CardFooter>
       </form>
-    </Card>
-  )
+    </Card>);
 }

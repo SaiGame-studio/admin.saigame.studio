@@ -1,133 +1,127 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { getAllGames } from "@/lib/game-api"
-import { fetchStudioWithCache } from "@/lib/studio-api"
-import type { Game } from "@/types/game"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Gamepad2, ArrowRight, RefreshCw, ExternalLink, ChevronDown, X } from "lucide-react"
-import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
-import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { useTranslation } from '@/lib/i18n/useTranslation'
-
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { getAllGames } from "@/lib/game-api";
+import { fetchStudioWithCache } from "@/lib/studio-api";
+import type { Game } from "@/types/game";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Gamepad2, ArrowRight, RefreshCw, ExternalLink, ChevronDown, X } from "lucide-react";
+import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTranslation } from '@/lib/i18n/useTranslation';
 export default function GamesPage() {
-  const router = useRouter()
-  const { locale } = useLanguage();
-  const { t } = useTranslation(locale);
-  const [games, setGames] = useState<Game[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [studioNames, setStudioNames] = useState<Record<string, { id: string; name: string }>>({})
-
-  // Available status options
-  const statusOptions = [
-    { value: "released", label: t('games.statusReleased') },
-    { value: "beta", label: t('games.statusBeta') },
-    { value: "alpha", label: t('games.statusAlpha') },
-    { value: "development", label: t('games.statusDevelopment') },
-    { value: "archived", label: t('games.statusArchived') }
-  ]
-
-  // Filter games based on status
-  const filteredGames = statusFilter.length === 0 
-    ? games 
-    : games.filter(game => statusFilter.includes(game.status.toLowerCase()))
-
-  // Toggle status filter
-  const toggleStatusFilter = (status: string) => {
-    setStatusFilter(prev => 
-      prev.includes(status) 
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    )
-  }
-
-  // Clear all filters
-  const clearAllFilters = () => {
-    setStatusFilter([])
-  }
-
-  // Load studio names for games that don't have studio info embedded
-  async function loadStudioNames(gamesData: Game[]) {
-    const studioIds = [...new Set(gamesData.filter(g => g.studio_id && !g.studio?.name).map(g => g.studio_id))]
-    if (studioIds.length === 0) return
-
-    const names: Record<string, { id: string; name: string }> = {}
-    await Promise.all(
-      studioIds.map(async (studioId) => {
-        try {
-          const studio = await fetchStudioWithCache(studioId)
-          names[studioId] = { id: studio.id, name: studio.name }
-        } catch (err) {
-          console.error(`Failed to load studio ${studioId}`, err)
+    const router = useRouter();
+    const { locale } = useLanguage();
+    const { t } = useTranslation(locale);
+    const [games, setGames] = useState<Game[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string[]>([]);
+    const [studioNames, setStudioNames] = useState<Record<string, {
+        id: string;
+        name: string;
+    }>>({});
+    // Available status options
+    const statusOptions = [
+        { value: "released", label: t('games.statusReleased') },
+        { value: "beta", label: t('games.statusBeta') },
+        { value: "alpha", label: t('games.statusAlpha') },
+        { value: "development", label: t('games.statusDevelopment') },
+        { value: "archived", label: t('games.statusArchived') }
+    ];
+    // Filter games based on status
+    const filteredGames = statusFilter.length === 0
+        ? games
+        : games.filter(game => statusFilter.includes(game.status.toLowerCase()));
+    // Toggle status filter
+    const toggleStatusFilter = (status: string) => {
+        setStatusFilter(prev => prev.includes(status)
+            ? prev.filter(s => s !== status)
+            : [...prev, status]);
+    };
+    // Clear all filters
+    const clearAllFilters = () => {
+        setStatusFilter([]);
+    };
+    // Load studio names for games that don't have studio info embedded
+    async function loadStudioNames(gamesData: Game[]) {
+        const studioIds = [...new Set(gamesData.filter(g => g.studio_id && !g.studio?.name).map(g => g.studio_id))];
+        if (studioIds.length === 0)
+            return;
+        const names: Record<string, {
+            id: string;
+            name: string;
+        }> = {};
+        await Promise.all(studioIds.map(async (studioId) => {
+            try {
+                const studio = await fetchStudioWithCache(studioId);
+                names[studioId] = { id: studio.id, name: studio.name };
+            }
+            catch (err) {
+                console.error(`Failed to load studio ${studioId}`, err);
+            }
+        }));
+        setStudioNames(prev => ({ ...prev, ...names }));
+    }
+    useEffect(() => {
+        async function loadGames() {
+            try {
+                setLoading(true);
+                const gamesData = await getAllGames();
+                setGames(gamesData);
+                setError(null);
+                loadStudioNames(gamesData);
+            }
+            catch (err) {
+                setError(t('games.loadError'));
+                console.error(err);
+            }
+            finally {
+                setLoading(false);
+            }
         }
-      })
-    )
-    setStudioNames(prev => ({ ...prev, ...names }))
-  }
-
-  useEffect(() => {
-    async function loadGames() {
-      try {
-        setLoading(true)
-        const gamesData = await getAllGames()
-        setGames(gamesData)
-        setError(null)
-        loadStudioNames(gamesData)
-      } catch (err) {
-        setError(t('games.loadError'))
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+        loadGames();
+    }, []);
+    const refreshGames = async () => {
+        try {
+            setLoading(true);
+            const gamesData = await getAllGames();
+            setGames(gamesData);
+            setError(null);
+            loadStudioNames(gamesData);
+        }
+        catch (err) {
+            setError(t('games.refreshError'));
+            console.error(err);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    function getStatusColor(status: string) {
+        switch (status.toLowerCase()) {
+            case "released":
+                return "bg-green-500";
+            case "beta":
+                return "bg-blue-500";
+            case "alpha":
+                return "bg-purple-500";
+            case "development":
+                return "bg-yellow-500";
+            case "archived":
+                return "bg-gray-500";
+            default:
+                return "bg-gray-500";
+        }
     }
-
-    loadGames();
-  }, [])
-
-  const refreshGames = async () => {
-    try {
-      setLoading(true)
-      const gamesData = await getAllGames()
-      setGames(gamesData)
-      setError(null)
-      loadStudioNames(gamesData)
-    } catch (err) {
-      setError(t('games.refreshError'))
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function getStatusColor(status: string) {
-    switch (status.toLowerCase()) {
-      case "released":
-        return "bg-green-500"
-      case "beta":
-        return "bg-blue-500"
-      case "alpha":
-        return "bg-purple-500"
-      case "development":
-        return "bg-yellow-500"
-      case "archived":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+    return (<div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('games.title')}</h1>
@@ -138,7 +132,7 @@ export default function GamesPage() {
             <Link href="/games/new">{t('games.createGame')}</Link>
           </Button>
           <Button onClick={refreshGames} variant="outline" disabled={loading} className="flex-1 sm:flex-none">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}/>
             {t('games.refresh')}
           </Button>
         </div>
@@ -151,73 +145,50 @@ export default function GamesPage() {
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm">
               {statusFilter.length > 0 ? t('games.selectedStatuses') : t('games.selectStatus')}
-              <ChevronDown className="ml-2 h-4 w-4" />
+              <ChevronDown className="ml-2 h-4 w-4"/>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[200px]">
             <div className="flex flex-col gap-2">
-              {statusOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={option.value}
-                    checked={statusFilter.includes(option.value)}
-                    onCheckedChange={(checked) => toggleStatusFilter(option.value)}
-                  />
-                  <label
-                    htmlFor={option.value}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
+              {statusOptions.map((option) => (<div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox id={option.value} checked={statusFilter.includes(option.value)} onCheckedChange={(checked) => toggleStatusFilter(option.value)}/>
+                  <label htmlFor={option.value} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     {option.label}
                   </label>
-                </div>
-              ))}
+                </div>))}
             </div>
           </PopoverContent>
         </Popover>
-        {statusFilter.length > 0 && (
-          <span className="text-sm ">
+        {statusFilter.length > 0 && (<span className="text-sm ">
             {t('games.showingGames')}: {filteredGames.length} / {games.length}
-          </span>
-        )}
+          </span>)}
       </div>
 
       {/* Active Filters */}
-      {statusFilter.length > 0 && (
-        <div className="mb-4 flex items-center gap-2 flex-wrap">
+      {statusFilter.length > 0 && (<div className="mb-4 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{t('games.activeFilters')}:</span>
           {statusFilter.map((status) => {
-            const statusOption = statusOptions.find(opt => opt.value === status)
-            return (
-              <Badge key={status} variant="secondary" className="flex items-center gap-1">
+                const statusOption = statusOptions.find(opt => opt.value === status);
+                return (<Badge key={status} variant="secondary" className="flex items-center gap-1">
                 {statusOption?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" 
-                  onClick={() => toggleStatusFilter(status)}
-                />
-              </Badge>
-            )
-          })}
+                <X className="h-3 w-3 cursor-pointer hover:bg-destructive hover:text-destructive-foreground rounded-full" onClick={() => toggleStatusFilter(status)}/>
+              </Badge>);
+            })}
           <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs">
             {t('games.clearAll')}
           </Button>
-        </div>
-      )}
+        </div>)}
 
-      {loading ? (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="h-24 bg-muted/50 rounded-t-lg" />
+      {loading ? (<div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (<Card key={i} className="animate-pulse">
+              <CardHeader className="h-24 bg-muted/50 rounded-t-lg"/>
               <CardContent className="p-6">
-                <div className="h-4 w-3/4 bg-muted/50 rounded mb-4" />
-                <div className="h-4 w-1/2 bg-muted/50 rounded" />
+                <div className="h-4 w-3/4 bg-muted/50 rounded mb-4"/>
+                <div className="h-4 w-1/2 bg-muted/50 rounded"/>
               </CardContent>
-              <CardFooter className="bg-muted/20 h-12 rounded-b-lg" />
-            </Card>
-          ))}
-        </div>
-      ) : error ? (
-        <Card className="border-destructive">
+              <CardFooter className="bg-muted/20 h-12 rounded-b-lg"/>
+            </Card>))}
+        </div>) : error ? (<Card className="border-destructive">
           <CardHeader>
             <CardTitle>{t('common.error')}</CardTitle>
             <CardDescription>{t('games.loadErrorDesc')}</CardDescription>
@@ -230,11 +201,9 @@ export default function GamesPage() {
               {t('games.tryAgain')}
             </Button>
           </CardFooter>
-        </Card>
-      ) : games.length === 0 ? (
-        <Card className="text-center p-6">
+        </Card>) : games.length === 0 ? (<Card className="text-center p-6">
           <CardHeader>
-            <Gamepad2 className="mx-auto h-12 w-12 " />
+            <Gamepad2 className="mx-auto h-12 w-12 "/>
             <CardTitle className="mt-4">{t('games.noGamesFound')}</CardTitle>
             <CardDescription>{t('games.noGamesDesc')}</CardDescription>
           </CardHeader>
@@ -243,11 +212,9 @@ export default function GamesPage() {
               <Link href="/studios">{t('games.goToStudios')}</Link>
             </Button>
           </CardFooter>
-        </Card>
-      ) : filteredGames.length === 0 ? (
-        <Card className="text-center p-6">
+        </Card>) : filteredGames.length === 0 ? (<Card className="text-center p-6">
           <CardHeader>
-            <Gamepad2 className="mx-auto h-12 w-12 " />
+            <Gamepad2 className="mx-auto h-12 w-12 "/>
             <CardTitle className="mt-4">{t('games.noFilteredGames')}</CardTitle>
             <CardDescription>{t('games.noFilteredGamesDesc')}</CardDescription>
           </CardHeader>
@@ -256,17 +223,14 @@ export default function GamesPage() {
               {t('games.clearFilter')}
             </Button>
           </CardFooter>
-        </Card>
-      ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {filteredGames.map((game) => (
-            <Card key={game.id} className="overflow-hidden">
+        </Card>) : (<div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {filteredGames.map((game) => (<Card key={game.id} className="overflow-hidden">
               <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3 space-y-0">
                 <div className="flex flex-col space-y-2 min-w-0 flex-1">
                   <CardTitle className="text-lg sm:text-xl">
                     <Link href={`/games/${game.id}`} className="inline-flex items-center gap-1 hover:text-primary max-w-full">
                       <span className="truncate">{game.name}</span>
-                      <ExternalLink className="w-4 h-4 shrink-0" />
+                      <ExternalLink className="w-4 h-4 shrink-0"/>
                     </Link>
                   </CardTitle>
                   <div className="flex flex-col gap-1">
@@ -274,12 +238,10 @@ export default function GamesPage() {
                       <span className="text-sm ">{t('games.status')}:</span>
                       <Badge className={getStatusColor(game.status)}>{game.status}</Badge>
                     </div>
-                    {game.tier && (
-                      <div className="flex items-center gap-2 flex-wrap">
+                    {game.tier && (<div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm ">{t('games.tier')}:</span>
                         <span className="text-sm ">{game.tier}</span>
-                      </div>
-                    )}
+                      </div>)}
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm" className="shrink-0">
@@ -288,27 +250,16 @@ export default function GamesPage() {
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex flex-col gap-1 text-sm min-w-0">
-                  <span className="truncate">{t('games.studio')}: {game.studio?.name && game.studio?.id ? (
-                    <Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
+                  <span className="truncate">{t('games.studio')}: {game.studio?.name && game.studio?.id ? (<Link href={`/studios/${game.studio.id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
                       <span className="truncate">{game.studio.name}</span>
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                    </Link>
-                  ) : studioNames[game.studio_id] ? (
-                    <Link href={`/studios/${studioNames[game.studio_id].id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
+                      <ExternalLink className="w-3 h-3 shrink-0"/>
+                    </Link>) : studioNames[game.studio_id] ? (<Link href={`/studios/${studioNames[game.studio_id].id}`} className="inline-flex items-center gap-1 hover:text-primary font-semibold max-w-full align-middle">
                       <span className="truncate">{studioNames[game.studio_id].name}</span>
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                    </Link>
-                  ) : game.studio_id ? (
-                    <span className="font-semibold text-muted-foreground">...</span>
-                  ) : (
-                    <span className="font-semibold">-</span>
-                  )}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0"/>
+                    </Link>) : game.studio_id ? (<span className="font-semibold text-muted-foreground">...</span>) : (<span className="font-semibold">-</span>)}</span>
                 </div>
               </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+            </Card>))}
+        </div>)}
+    </div>);
 }

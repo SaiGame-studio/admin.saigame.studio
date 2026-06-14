@@ -1,603 +1,549 @@
-"use client"
-
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useParams } from "next/navigation"
-import Link from "next/link"
-import {
-  ArrowLeft,
-  BarChart2,
-  Check,
-  ChevronDown,
-  HelpCircle,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Zap,
-} from "lucide-react"
-
-import { api } from "@/lib/api-client"
-import { getGame } from "@/lib/game-api"
-import { fetchStudioWithCache } from "@/lib/studio-api"
-import {
-  getPluginCatalog,
-  getGamePlugins,
-  subscribeToPlugin,
-  unsubscribeFromPlugin,
-  getRemainingStacks,
-  getSubscriptionCost,
-  type Plugin,
-  type GamePluginsResult,
-} from "@/lib/plugin-api"
-import type { Game } from "@/types/game"
-import type { Studio } from "@/types/studio"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useToast } from "@/hooks/use-toast"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { useTranslation } from "@/lib/i18n/use-translation"
-import { getUserTimezone } from "@/lib/utils/date-utils"
-import { CopyButton } from "@/components/CopyButton"
-import { GameNavButtons } from "@/components/GameNavButtons"
-
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, BarChart2, Check, ChevronDown, HelpCircle, Loader2, Plus, RefreshCw, Trash2, Zap, } from "lucide-react";
+import { api } from "@/lib/api-client";
+import { getGame } from "@/lib/game-api";
+import { fetchStudioWithCache } from "@/lib/studio-api";
+import { getPluginCatalog, getGamePlugins, subscribeToPlugin, unsubscribeFromPlugin, getRemainingStacks, getSubscriptionCost, type Plugin, type GamePluginsResult, } from "@/lib/plugin-api";
+import type { Game } from "@/types/game";
+import type { Studio } from "@/types/studio";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import { getUserTimezone } from "@/lib/utils/date-utils";
+import { CopyButton } from "@/components/CopyButton";
+import { GameNavButtons } from "@/components/GameNavButtons";
 // ---------------------------------------------------------------------------
 // Limit explanations for the help panel
 // ---------------------------------------------------------------------------
-
 const LIMIT_EXPLANATIONS: Record<string, {
-  title: string
-  icon: string
-  tagline: string
-  description: string
-  details: string[]
-  grantTable: { tier: string; perStack: string }[]
-  tip?: string
+    title: string;
+    icon: string;
+    tagline: string;
+    description: string;
+    details: string[];
+    grantTable: {
+        tier: string;
+        perStack: string;
+    }[];
+    tip?: string;
 }> = {
-  ccu: {
-    title: "Concurrent Users (CCU)",
-    icon: "👥",
-    tagline: "How many players can be online simultaneously",
-    description: "CCU is the maximum number of players connected to your game at the same moment. It is enforced in real time via the HTTP middleware — when the limit is reached the server responds with HTTP 503 (server full). The counter comes from a live Redis value and refreshes automatically.",
-    details: [
-      "Default base limit: 20 CCU. Each plugin subscription adds on top of this base.",
-      "CCU sessions expire automatically after 30 minutes of inactivity — active players never get kicked mid-session.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+20 CCU" },
-      { tier: "Uncommon (×7 max)", perStack: "+60 CCU / stack" },
-      { tier: "Rare (×3 max)", perStack: "+4K CCU / stack" },
-      { tier: "Epic (×3 max)", perStack: "+10K CCU / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+100K CCU / stack" },
-    ],
-    tip: "CCU is the most time-sensitive limit — it blocks players in real time. If you hit it during peak hours, upgrading to Rare or above provides the biggest jump (up to 12,010 CCU with ×3 Rare).",
-  },
-  profiles: {
-    title: "Player Profiles",
-    icon: "👤",
-    tagline: "Total unique players who can register in your game",
-    description: "This is the total number of distinct player accounts that can be created in your game. When the limit is reached, new player registrations are blocked with HTTP 429. Each profile stores the player's progress, inventory, currency, and metadata.",
-    details: [
-      "Default base limit: 100 profiles. Plugins increase this significantly.",
-      "The limit counts all profiles ever created, including inactive or churned players.",
-      "HTTP 429 is returned before profile creation when the cap is reached.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+100 profiles" },
-      { tier: "Uncommon (×7 max)", perStack: "+300 profiles / stack" },
-      { tier: "Rare (×3 max)", perStack: "+20K profiles / stack" },
-      { tier: "Epic (×3 max)", perStack: "+200K profiles / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+5M profiles / stack" },
-    ],
-    tip: "Games expecting viral growth should upgrade early — going from Uncommon to Rare multiplies your profile cap by ~66×.",
-  },
-  items: {
-    title: "Items",
-    icon: "📦",
-    tagline: "Number of unique item definitions you can create",
-    description: "This limits how many unique item templates (blueprints) you can define in your game. Every distinct item type — weapons, armour, potions, keys — consumes one slot. When the limit is reached, new item definitions are blocked with HTTP 429.",
-    details: [
-      "Default base limit: 100 item definitions.",
-      "This controls item types (definitions), not item instances owned by players.",
-      "Each variation counts as a separate definition (e.g. Iron Sword and Steel Sword are two items).",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+100 items" },
-      { tier: "Uncommon (×7 max)", perStack: "+100 items / stack" },
-      { tier: "Rare (×3 max)", perStack: "+4K items / stack" },
-      { tier: "Epic (×3 max)", perStack: "+10K items / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+100K items / stack" },
-    ],
-    tip: "Consolidate item variants using item attributes (e.g. tier, color) rather than separate definitions to stay within limits.",
-  },
-  shops: {
-    title: "Shops",
-    icon: "🏪",
-    tagline: "Number of in-game stores you can set up",
-    description: "This is the maximum number of shop instances you can create. Each shop can have its own catalog, pricing rules, and access conditions. New shop creation is blocked with HTTP 429 when the limit is reached.",
-    details: [
-      "Default base limit: 2 shops.",
-      "Seasonal event shops, weekly rotating shops, and permanent shops each count as separate instances.",
-      "Shops can be scoped to specific game modes, regions, or player segments.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+2 shops" },
-      { tier: "Uncommon (×7 max)", perStack: "+2 shops / stack" },
-      { tier: "Rare (×3 max)", perStack: "+50 shops / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K shops / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+70K shops / stack" },
-    ],
-    tip: "If you only need a few shops, Rare tier (up to 150 shops with ×3) is more than enough for most mid-size games.",
-  },
-  quests: {
-    title: "Quests",
-    icon: "📜",
-    tagline: "Number of quest definitions you can design",
-    description: "This controls how many quest definitions you can create across all quest types. New quest definitions are blocked with HTTP 429 when the limit is reached. Requires Rare tier or above to unlock Battle Pass functionality.",
-    details: [
-      "Default base limit: 30 quest definitions.",
-      "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
-      "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary).",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+30 quests" },
-      { tier: "Uncommon (×7 max)", perStack: "+30 quests / stack" },
-      { tier: "Rare (×3 max)", perStack: "+300 quests / stack" },
-      { tier: "Epic (×3 max)", perStack: "+3K quests / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+30K quests / stack" },
-    ],
-    tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
-  },
-  nodes: {
-    title: "Journey Node Definitions",
-    icon: "🔗",
-    tagline: "Milestones and gates in your player progression graph",
-    description: "Journey Node Definitions determine how many stages, milestones, or branching checkpoints you can create in your player journey (DAG). The limit `max_nodes_per_journey` uses MAX resolution — the highest active plugin tier wins (not sum). New node definitions are blocked with HTTP 429 when the cap is reached.",
-    details: [
-      "Default base limit: 100 node definitions.",
-      "Node Defs do not receive User Events directly — events must be mapped through an Event Type first.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+100 node defs" },
-      { tier: "Uncommon (×7 max)", perStack: "+0 node defs / stack" },
-      { tier: "Rare (×3 max)", perStack: "+100 node defs / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K node defs / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+10K node defs / stack" },
-    ],
-    tip: "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap (100/500) is often more limiting than the total node definition count.",
-  },
-  event_types: {
-    title: "Event Types",
-    icon: "📡",
-    tagline: "Named player events your game can emit and track",
-    description: "Event Types are named schemas that represent actions players perform in your game — such as 'level_up', 'item_purchased', or 'quest_completed'. Unlike Journey Node Definitions, Event Types are the entry point for raw player telemetry: your game emits an event by name, and the system routes it. A single Event Type can feed data into multiple Journey Nodes simultaneously, making it a shared signal across your entire progression graph.",
-    details: [
-      "Default base limit: 100 event type definitions.",
-      "Event Types are the only way for player actions to enter the Journey system — Node Defs cannot receive events directly.",
-      "One Event Type can trigger conditions on many different Journey Nodes at the same time.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+100 event types" },
-      { tier: "Uncommon (×7 max)", perStack: "+0 event types / stack" },
-      { tier: "Rare (×3 max)", perStack: "+100 event types / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K event types / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+10K event types / stack" },
-    ],
-    tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across multiple quest conditions and journey nodes.",
-  },
-  scripts: {
-    title: "Scripts",
-    icon: "📜",
-    tagline: "Custom logic and automation scripts for your game",
-    description: "Scripts allow you to implement complex server-side logic, automation, and custom behaviors. Each unique script file you upload consumes one slot. When the limit is reached, new script creation is blocked with HTTP 429.",
-    details: [
-      "Default base limit: 10 scripts. Every plugin subscription adds on top of this base.",
-      "The limit counts unique script files, not script executions or library imports.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+10 scripts" },
-      { tier: "Uncommon (×7 max)", perStack: "+0 scripts / stack" },
-      { tier: "Rare (×3 max)", perStack: "+100 scripts / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K scripts / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+10K scripts / stack" },
-    ],
-    tip: "Use modular script design to reuse logic across multiple functions and minimize the number of individual scripts needed.",
-  },
-  entity_defs: {
-    title: "Entity Def",
-    icon: "🧩",
-    tagline: "Total entity definitions allowed (Enemy, Room, Relic, etc.)",
-    description: "Entity Defs allow you to create structured schemas for any object in your game. This includes enemies, NPCs, rooms, relics, and any other custom entity type. These definitions serve as blueprints for the individual instances that populate your game world.",
-    details: [
-      "Common examples: Enemy, NPC, Room, Relic, Boss, Defense Unit.",
-      "Each unique entity def consumes one slot in your limit.",
-      "When the limit is reached, you cannot create new types of entities until you upgrade or remove unused ones.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+0 entity defs" },
-      { tier: "Uncommon (×7 max)", perStack: "+0 entity defs / stack" },
-      { tier: "Rare (×3 max)", perStack: "+100 entity defs / stack" },
-      { tier: "Epic (×3 max)", perStack: "+1K entity defs / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+10K entity defs / stack" },
-    ],
-    tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate between similar entities instead of creating separate definitions for every variation.",
-  },
-  boards: {
-    title: "Leaderboards",
-    icon: "📋",
-    tagline: "Track and rank player performance across seasons",
-    description: "Leaderboards allow you to rank players based on scores from events, items, or custom triggers. You can define various scoring modes (sum, max, min, latest) and setting up automated reset schedules.",
-    details: [
-      "Default base limit: 2 leaderboard definitions.",
-      "Supports different reset frequencies: Daily, Weekly, Monthly, and Seasonal.",
-      "Each season maintains its own history and archive for historical lookups.",
-    ],
-    grantTable: [
-      { tier: "Common (auto)", perStack: "+2 boards" },
-      { tier: "Uncommon (×7 max)", perStack: "+2 boards / stack" },
-      { tier: "Rare (×3 max)", perStack: "+30 boards / stack" },
-      { tier: "Epic (×3 max)", perStack: "+300 boards / stack" },
-      { tier: "Legendary (×3 max)", perStack: "+3K boards / stack" },
-    ],
-    tip: "Use reset schedules to keep the competition fresh. Rare tier is recommended for games with seasonal ranking systems.",
-  },
-}
-
+    ccu: {
+        title: "Concurrent Users (CCU)",
+        icon: "👥",
+        tagline: "How many players can be online simultaneously",
+        description: "CCU is the maximum number of players connected to your game at the same moment. It is enforced in real time via the HTTP middleware — when the limit is reached the server responds with HTTP 503 (server full). The counter comes from a live Redis value and refreshes automatically.",
+        details: [
+            "Default base limit: 20 CCU. Each plugin subscription adds on top of this base.",
+            "CCU sessions expire automatically after 30 minutes of inactivity — active players never get kicked mid-session.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+20 CCU" },
+            { tier: "Uncommon (×7 max)", perStack: "+60 CCU / stack" },
+            { tier: "Rare (×3 max)", perStack: "+4K CCU / stack" },
+            { tier: "Epic (×3 max)", perStack: "+10K CCU / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+100K CCU / stack" },
+        ],
+        tip: "CCU is the most time-sensitive limit — it blocks players in real time. If you hit it during peak hours, upgrading to Rare or above provides the biggest jump (up to 12,010 CCU with ×3 Rare).",
+    },
+    profiles: {
+        title: "Player Profiles",
+        icon: "👤",
+        tagline: "Total unique players who can register in your game",
+        description: "This is the total number of distinct player accounts that can be created in your game. When the limit is reached, new player registrations are blocked with HTTP 429. Each profile stores the player's progress, inventory, currency, and metadata.",
+        details: [
+            "Default base limit: 100 profiles. Plugins increase this significantly.",
+            "The limit counts all profiles ever created, including inactive or churned players.",
+            "HTTP 429 is returned before profile creation when the cap is reached.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+100 profiles" },
+            { tier: "Uncommon (×7 max)", perStack: "+300 profiles / stack" },
+            { tier: "Rare (×3 max)", perStack: "+20K profiles / stack" },
+            { tier: "Epic (×3 max)", perStack: "+200K profiles / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+5M profiles / stack" },
+        ],
+        tip: "Games expecting viral growth should upgrade early — going from Uncommon to Rare multiplies your profile cap by ~66×.",
+    },
+    items: {
+        title: "Items",
+        icon: "📦",
+        tagline: "Number of unique item definitions you can create",
+        description: "This limits how many unique item templates (blueprints) you can define in your game. Every distinct item type — weapons, armour, potions, keys — consumes one slot. When the limit is reached, new item definitions are blocked with HTTP 429.",
+        details: [
+            "Default base limit: 100 item definitions.",
+            "This controls item types (definitions), not item instances owned by players.",
+            "Each variation counts as a separate definition (e.g. Iron Sword and Steel Sword are two items).",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+100 items" },
+            { tier: "Uncommon (×7 max)", perStack: "+100 items / stack" },
+            { tier: "Rare (×3 max)", perStack: "+4K items / stack" },
+            { tier: "Epic (×3 max)", perStack: "+10K items / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+100K items / stack" },
+        ],
+        tip: "Consolidate item variants using item attributes (e.g. tier, color) rather than separate definitions to stay within limits.",
+    },
+    shops: {
+        title: "Shops",
+        icon: "🏪",
+        tagline: "Number of in-game stores you can set up",
+        description: "This is the maximum number of shop instances you can create. Each shop can have its own catalog, pricing rules, and access conditions. New shop creation is blocked with HTTP 429 when the limit is reached.",
+        details: [
+            "Default base limit: 2 shops.",
+            "Seasonal event shops, weekly rotating shops, and permanent shops each count as separate instances.",
+            "Shops can be scoped to specific game modes, regions, or player segments.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+2 shops" },
+            { tier: "Uncommon (×7 max)", perStack: "+2 shops / stack" },
+            { tier: "Rare (×3 max)", perStack: "+50 shops / stack" },
+            { tier: "Epic (×3 max)", perStack: "+1K shops / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+70K shops / stack" },
+        ],
+        tip: "If you only need a few shops, Rare tier (up to 150 shops with ×3) is more than enough for most mid-size games.",
+    },
+    quests: {
+        title: "Quests",
+        icon: "📜",
+        tagline: "Number of quest definitions you can design",
+        description: "This controls how many quest definitions you can create across all quest types. New quest definitions are blocked with HTTP 429 when the limit is reached. Requires Rare tier or above to unlock Battle Pass functionality.",
+        details: [
+            "Default base limit: 30 quest definitions.",
+            "Includes all quest types: daily, weekly, story, one-time, and seasonal.",
+            "Battle Pass sets require Rare tier or above (30 sets/stack at Rare, 300 at Epic, 3,000 at Legendary).",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+30 quests" },
+            { tier: "Uncommon (×7 max)", perStack: "+30 quests / stack" },
+            { tier: "Rare (×3 max)", perStack: "+300 quests / stack" },
+            { tier: "Epic (×3 max)", perStack: "+3K quests / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+30K quests / stack" },
+        ],
+        tip: "Common and Uncommon provide identical quest grants per stack. Upgrading to Rare gives a 10× multiplier and unlocks Battle Pass.",
+    },
+    nodes: {
+        title: "Journey Node Definitions",
+        icon: "🔗",
+        tagline: "Milestones and gates in your player progression graph",
+        description: "Journey Node Definitions determine how many stages, milestones, or branching checkpoints you can create in your player journey (DAG). The limit `max_nodes_per_journey` uses MAX resolution — the highest active plugin tier wins (not sum). New node definitions are blocked with HTTP 429 when the cap is reached.",
+        details: [
+            "Default base limit: 100 node definitions.",
+            "Node Defs do not receive User Events directly — events must be mapped through an Event Type first.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+100 node defs" },
+            { tier: "Uncommon (×7 max)", perStack: "+0 node defs / stack" },
+            { tier: "Rare (×3 max)", perStack: "+100 node defs / stack" },
+            { tier: "Epic (×3 max)", perStack: "+1K node defs / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+10K node defs / stack" },
+        ],
+        tip: "If you need deep branching storylines, prioritize Epic or above — the per-journey node cap (100/500) is often more limiting than the total node definition count.",
+    },
+    event_types: {
+        title: "Event Types",
+        icon: "📡",
+        tagline: "Named player events your game can emit and track",
+        description: "Event Types are named schemas that represent actions players perform in your game — such as 'level_up', 'item_purchased', or 'quest_completed'. Unlike Journey Node Definitions, Event Types are the entry point for raw player telemetry: your game emits an event by name, and the system routes it. A single Event Type can feed data into multiple Journey Nodes simultaneously, making it a shared signal across your entire progression graph.",
+        details: [
+            "Default base limit: 100 event type definitions.",
+            "Event Types are the only way for player actions to enter the Journey system — Node Defs cannot receive events directly.",
+            "One Event Type can trigger conditions on many different Journey Nodes at the same time.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+100 event types" },
+            { tier: "Uncommon (×7 max)", perStack: "+0 event types / stack" },
+            { tier: "Rare (×3 max)", perStack: "+100 event types / stack" },
+            { tier: "Epic (×3 max)", perStack: "+1K event types / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+10K event types / stack" },
+        ],
+        tip: "Design Event Types around player actions, not game internals. Keep names generic enough to reuse across multiple quest conditions and journey nodes.",
+    },
+    scripts: {
+        title: "Scripts",
+        icon: "📜",
+        tagline: "Custom logic and automation scripts for your game",
+        description: "Scripts allow you to implement complex server-side logic, automation, and custom behaviors. Each unique script file you upload consumes one slot. When the limit is reached, new script creation is blocked with HTTP 429.",
+        details: [
+            "Default base limit: 10 scripts. Every plugin subscription adds on top of this base.",
+            "The limit counts unique script files, not script executions or library imports.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+10 scripts" },
+            { tier: "Uncommon (×7 max)", perStack: "+0 scripts / stack" },
+            { tier: "Rare (×3 max)", perStack: "+100 scripts / stack" },
+            { tier: "Epic (×3 max)", perStack: "+1K scripts / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+10K scripts / stack" },
+        ],
+        tip: "Use modular script design to reuse logic across multiple functions and minimize the number of individual scripts needed.",
+    },
+    entity_defs: {
+        title: "Entity Def",
+        icon: "🧩",
+        tagline: "Total entity definitions allowed (Enemy, Room, Relic, etc.)",
+        description: "Entity Defs allow you to create structured schemas for any object in your game. This includes enemies, NPCs, rooms, relics, and any other custom entity type. These definitions serve as blueprints for the individual instances that populate your game world.",
+        details: [
+            "Common examples: Enemy, NPC, Room, Relic, Boss, Defense Unit.",
+            "Each unique entity def consumes one slot in your limit.",
+            "When the limit is reached, you cannot create new types of entities until you upgrade or remove unused ones.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+0 entity defs" },
+            { tier: "Uncommon (×7 max)", perStack: "+0 entity defs / stack" },
+            { tier: "Rare (×3 max)", perStack: "+100 entity defs / stack" },
+            { tier: "Epic (×3 max)", perStack: "+1K entity defs / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+10K entity defs / stack" },
+        ],
+        tip: "Keep entity defs generic where possible. Use properties and metadata to differentiate between similar entities instead of creating separate definitions for every variation.",
+    },
+    boards: {
+        title: "Leaderboards",
+        icon: "📋",
+        tagline: "Track and rank player performance across seasons",
+        description: "Leaderboards allow you to rank players based on scores from events, items, or custom triggers. You can define various scoring modes (sum, max, min, latest) and setting up automated reset schedules.",
+        details: [
+            "Default base limit: 2 leaderboard definitions.",
+            "Supports different reset frequencies: Daily, Weekly, Monthly, and Seasonal.",
+            "Each season maintains its own history and archive for historical lookups.",
+        ],
+        grantTable: [
+            { tier: "Common (auto)", perStack: "+2 boards" },
+            { tier: "Uncommon (×7 max)", perStack: "+2 boards / stack" },
+            { tier: "Rare (×3 max)", perStack: "+30 boards / stack" },
+            { tier: "Epic (×3 max)", perStack: "+300 boards / stack" },
+            { tier: "Legendary (×3 max)", perStack: "+3K boards / stack" },
+        ],
+        tip: "Use reset schedules to keep the competition fresh. Rare tier is recommended for games with seasonal ranking systems.",
+    },
+};
 // ---------------------------------------------------------------------------
 // Materia / Gem config — inspired by FF Materia system
 // ---------------------------------------------------------------------------
-
 const GEM_TIERS = [
-  {
-    image: "/materias/common.png",
-    gradient: "from-green-400 via-emerald-400 to-teal-500",
-    glow: "shadow-green-500/70",
-    glowColor: "#22c55e",
-    border: "border-green-500/40",
-    activeBorder: "border-green-400",
-    activeGlow: "shadow-green-500/40",
-    bg: "bg-green-500/10 dark:bg-green-500/5",
-    text: "text-green-400",
-    slotEmpty: "border-green-500/25 bg-green-500/5",
-    label: "Uncommon",
-    emoji: "💚",
-  },
-  {
-    image: "/materias/rare.png",
-    gradient: "from-sky-400 via-blue-400 to-cyan-500",
-    glow: "shadow-blue-500/70",
-    glowColor: "#3b82f6",
-    border: "border-blue-500/40",
-    activeBorder: "border-blue-400",
-    activeGlow: "shadow-blue-500/40",
-    bg: "bg-blue-500/10 dark:bg-blue-500/5",
-    text: "text-blue-400",
-    slotEmpty: "border-blue-500/25 bg-blue-500/5",
-    label: "Rare",
-    emoji: "💙",
-  },
-  {
-    image: "/materias/epic.png",
-    gradient: "from-red-400 via-rose-500 to-red-600",
-    glow: "shadow-red-500/70",
-    glowColor: "#ef4444",
-    border: "border-red-500/40",
-    activeBorder: "border-red-400",
-    activeGlow: "shadow-red-500/40",
-    bg: "bg-red-500/10 dark:bg-red-500/5",
-    text: "text-red-400",
-    slotEmpty: "border-red-500/25 bg-red-500/5",
-    label: "Epic",
-    emoji: "❤️",
-  },
-  {
-    image: "/materias/legendary.png",
-    gradient: "from-yellow-300 via-amber-400 to-orange-500",
-    glow: "shadow-yellow-500/70",
-    glowColor: "#eab308",
-    border: "border-yellow-500/40",
-    activeBorder: "border-yellow-400",
-    activeGlow: "shadow-yellow-500/40",
-    bg: "bg-yellow-500/10 dark:bg-yellow-500/5",
-    text: "text-yellow-400",
-    slotEmpty: "border-yellow-500/25 bg-yellow-500/5",
-    label: "Legendary",
-    emoji: "💛",
-  },
-]
-
+    {
+        image: "/materias/common.png",
+        gradient: "from-green-400 via-emerald-400 to-teal-500",
+        glow: "shadow-green-500/70",
+        glowColor: "#22c55e",
+        border: "border-green-500/40",
+        activeBorder: "border-green-400",
+        activeGlow: "shadow-green-500/40",
+        bg: "bg-green-500/10 dark:bg-green-500/5",
+        text: "text-green-400",
+        slotEmpty: "border-green-500/25 bg-green-500/5",
+        label: "Uncommon",
+        emoji: "💚",
+    },
+    {
+        image: "/materias/rare.png",
+        gradient: "from-sky-400 via-blue-400 to-cyan-500",
+        glow: "shadow-blue-500/70",
+        glowColor: "#3b82f6",
+        border: "border-blue-500/40",
+        activeBorder: "border-blue-400",
+        activeGlow: "shadow-blue-500/40",
+        bg: "bg-blue-500/10 dark:bg-blue-500/5",
+        text: "text-blue-400",
+        slotEmpty: "border-blue-500/25 bg-blue-500/5",
+        label: "Rare",
+        emoji: "💙",
+    },
+    {
+        image: "/materias/epic.png",
+        gradient: "from-red-400 via-rose-500 to-red-600",
+        glow: "shadow-red-500/70",
+        glowColor: "#ef4444",
+        border: "border-red-500/40",
+        activeBorder: "border-red-400",
+        activeGlow: "shadow-red-500/40",
+        bg: "bg-red-500/10 dark:bg-red-500/5",
+        text: "text-red-400",
+        slotEmpty: "border-red-500/25 bg-red-500/5",
+        label: "Epic",
+        emoji: "❤️",
+    },
+    {
+        image: "/materias/legendary.png",
+        gradient: "from-yellow-300 via-amber-400 to-orange-500",
+        glow: "shadow-yellow-500/70",
+        glowColor: "#eab308",
+        border: "border-yellow-500/40",
+        activeBorder: "border-yellow-400",
+        activeGlow: "shadow-yellow-500/40",
+        bg: "bg-yellow-500/10 dark:bg-yellow-500/5",
+        text: "text-yellow-400",
+        slotEmpty: "border-yellow-500/25 bg-yellow-500/5",
+        label: "Legendary",
+        emoji: "💛",
+    },
+];
 function getGemTier(idx: number) {
-  return GEM_TIERS[idx % GEM_TIERS.length]
+    return GEM_TIERS[idx % GEM_TIERS.length];
 }
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
 function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return String(n)
+    if (n >= 1000000)
+        return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000)
+        return `${(n / 1000).toFixed(0)}K`;
+    return String(n);
 }
-
 function formatFull(n: number): string {
-  return n.toLocaleString()
+    return n.toLocaleString();
 }
-
 function timeAgo(date: Date): string {
-  const diffMs = Date.now() - date.getTime()
-  const isFuture = diffMs < 0
-  const abs = Math.abs(diffMs)
-  const secs = Math.floor(abs / 1000)
-  const mins = Math.floor(secs / 60)
-  const hours = Math.floor(mins / 60)
-  const days = Math.floor(hours / 24)
-  const months = Math.floor(days / 30)
-  const years = Math.floor(days / 365)
-  let rel: string
-  if (secs < 60) rel = `${secs}s`
-  else if (mins < 60) rel = `${mins}m`
-  else if (hours < 24) rel = `${hours}h`
-  else if (days < 30) rel = `${days}d`
-  else if (months < 12) rel = `${months}mo`
-  else rel = `${years}y`
-  return isFuture ? `in ${rel}` : `${rel} ago`
+    const diffMs = Date.now() - date.getTime();
+    const isFuture = diffMs < 0;
+    const abs = Math.abs(diffMs);
+    const secs = Math.floor(abs / 1000);
+    const mins = Math.floor(secs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+    let rel: string;
+    if (secs < 60)
+        rel = `${secs}s`;
+    else if (mins < 60)
+        rel = `${mins}m`;
+    else if (hours < 24)
+        rel = `${hours}h`;
+    else if (days < 30)
+        rel = `${days}d`;
+    else if (months < 12)
+        rel = `${months}mo`;
+    else
+        rel = `${years}y`;
+    return isFuture ? `in ${rel}` : `${rel} ago`;
 }
-
-function ExpiryBadge({ expiresAt }: { expiresAt?: string | null }) {
-  const { t } = useTranslation()
-  if (!expiresAt) return <span className="text-xs text-muted-foreground">{t('plugins.permanent')}</span>
-  const d = new Date(expiresAt)
-  const now = new Date()
-  const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  const isExpired = daysLeft <= 0
-  const color = isExpired ? "text-destructive" : daysLeft <= 7 ? "text-destructive" : daysLeft <= 30 ? "text-yellow-500" : "text-muted-foreground"
-  const daysAgo = isExpired ? Math.abs(daysLeft) : 0
-  return (
-    <span className={`text-xs ${color}`}>
+function ExpiryBadge({ expiresAt }: {
+    expiresAt?: string | null;
+}) {
+    const { t } = useTranslation();
+    if (!expiresAt)
+        return <span className="text-xs text-muted-foreground">{t('plugins.permanent')}</span>;
+    const d = new Date(expiresAt);
+    const now = new Date();
+    const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const isExpired = daysLeft <= 0;
+    const color = isExpired ? "text-destructive" : daysLeft <= 7 ? "text-destructive" : daysLeft <= 30 ? "text-yellow-500" : "text-muted-foreground";
+    const daysAgo = isExpired ? Math.abs(daysLeft) : 0;
+    return (<span className={`text-xs ${color}`}>
       {d.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}
       {isExpired
-        ? ` (${daysAgo === 0 ? t('plugins.materia.today') : `${daysAgo}d ago`})`
-        : ` (${daysLeft}${t('plugins.materia.daysLeft')})`}
-    </span>
-  )
+            ? ` (${daysAgo === 0 ? t('plugins.materia.today') : `${daysAgo}d ago`})`
+            : ` (${daysLeft}${t('plugins.materia.daysLeft')})`}
+    </span>);
 }
-
 /** Visual materia orb — filled or empty slot */
-function MateriaOrb({
-  filled,
-  cancelled,
-  gem,
-  size = "sm",
-}: {
-  filled: boolean
-  cancelled?: boolean
-  gem: (typeof GEM_TIERS)[number]
-  size?: "sm" | "md"
+function MateriaOrb({ filled, cancelled, gem, size = "sm", }: {
+    filled: boolean;
+    cancelled?: boolean;
+    gem: (typeof GEM_TIERS)[number];
+    size?: "sm" | "md";
 }) {
-  const dim = size === "md" ? "w-8 h-8" : "w-5 h-5"
-  if (filled && !cancelled) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={gem.image}
-        alt={gem.label}
-        className={`inline-block ${dim} rounded-full object-contain drop-shadow-md`}
-        style={{ filter: `drop-shadow(0 0 5px ${gem.glowColor})` }}
-      />
-    )
-  }
-  if (filled && cancelled) {
-    return (
-      <span className={`relative inline-flex ${dim}`}>
+    const dim = size === "md" ? "w-8 h-8" : "w-5 h-5";
+    if (filled && !cancelled) {
+        return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={gem.image} alt={gem.label} className={`inline-block ${dim} rounded-full object-contain drop-shadow-md`} style={{ filter: `drop-shadow(0 0 5px ${gem.glowColor})` }}/>);
+    }
+    if (filled && cancelled) {
+        return (<span className={`relative inline-flex ${dim}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={gem.image}
-          alt={gem.label}
-          className={`${dim} rounded-full object-contain`}
-          style={{ filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }}
-        />
-        <span className="absolute inset-0 rounded-full border-2 border-orange-400/70" />
-      </span>
-    )
-  }
-  return (
-    <span
-      className={`inline-block ${dim} rounded-full border-2 ${gem.slotEmpty}`}
-    />
-  )
+        <img src={gem.image} alt={gem.label} className={`${dim} rounded-full object-contain`} style={{ filter: "grayscale(0.6) brightness(0.7)", opacity: 0.6 }}/>
+        <span className="absolute inset-0 rounded-full border-2 border-orange-400/70"/>
+      </span>);
+    }
+    return (<span className={`inline-block ${dim} rounded-full border-2 ${gem.slotEmpty}`}/>);
 }
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-
 export default function GamePluginsPage() {
-  const params = useParams<{ id: string }>()
-  const gameId = params.id
-  const { toast } = useToast()
-  const { t } = useTranslation()
-
-  const [game, setGame] = useState<Game | null>(null)
-  const [studio, setStudio] = useState<Studio | null>(null)
-  const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null)
-  const [catalog, setCatalog] = useState<Plugin[]>([])
-  const [walletBalance, setWalletBalance] = useState<number | null>(null)
-
-  const [loading, setLoading] = useState(true)
-  const [catalogLoading, setCatalogLoading] = useState(true)
-  const [subscribing, setSubscribing] = useState<string | null>(null)
-
-  const [confirmPlugin, setConfirmPlugin] = useState<Plugin | null>(null)
-  const [confirmPluginIdx, setConfirmPluginIdx] = useState(0)
-  const [confirmStacks, setConfirmStacks] = useState(1)
-  const savedScrollY = useRef(0)
-
-  const [unsubTarget, setUnsubTarget] = useState<{ plugin: Plugin; idx: number } | null>(null)
-  const [unsubbing, setUnsubbing] = useState<string | null>(null)
-  const [expandedSubId, setExpandedSubId] = useState<string | null>(null)
-  const [openLimitSheet, setOpenLimitSheet] = useState<string | null>(null)
-
-  const loadAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [gameData, pluginsData, walletData] = await Promise.all([
-        getGame(gameId),
-        getGamePlugins(gameId),
-        api.get("/api/v1/coins/wallet").catch(() => null),
-      ])
-      setGame(gameData)
-      setGamePlugins(pluginsData)
-      if (walletData) setWalletBalance(walletData.balance ?? null)
-      if (gameData.studio_id) {
-        const studioData = await fetchStudioWithCache(gameData.studio_id).catch(() => null)
-        if (studioData) setStudio(studioData)
-      }
-    } catch (err: any) {
-      toast({ variant: "destructive", title: t('plugins.materia.toastFailedLoad'), description: err?.message })
-    } finally {
-      setLoading(false)
+    const params = useParams<{
+        id: string;
+    }>();
+    const gameId = params.id;
+    const { toast } = useToast();
+    const { t } = useTranslation();
+    const [game, setGame] = useState<Game | null>(null);
+    const [studio, setStudio] = useState<Studio | null>(null);
+    const [gamePlugins, setGamePlugins] = useState<GamePluginsResult | null>(null);
+    const [catalog, setCatalog] = useState<Plugin[]>([]);
+    const [walletBalance, setWalletBalance] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [catalogLoading, setCatalogLoading] = useState(true);
+    const [subscribing, setSubscribing] = useState<string | null>(null);
+    const [confirmPlugin, setConfirmPlugin] = useState<Plugin | null>(null);
+    const [confirmPluginIdx, setConfirmPluginIdx] = useState(0);
+    const [confirmStacks, setConfirmStacks] = useState(1);
+    const savedScrollY = useRef(0);
+    const [unsubTarget, setUnsubTarget] = useState<{
+        plugin: Plugin;
+        idx: number;
+    } | null>(null);
+    const [unsubbing, setUnsubbing] = useState<string | null>(null);
+    const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
+    const [openLimitSheet, setOpenLimitSheet] = useState<string | null>(null);
+    const loadAll = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [gameData, pluginsData, walletData] = await Promise.all([
+                getGame(gameId),
+                getGamePlugins(gameId),
+                api.get("/api/v1/coins/wallet").catch(() => null),
+            ]);
+            setGame(gameData);
+            setGamePlugins(pluginsData);
+            if (walletData)
+                setWalletBalance(walletData.balance ?? null);
+            if (gameData.studio_id) {
+                const studioData = await fetchStudioWithCache(gameData.studio_id).catch(() => null);
+                if (studioData)
+                    setStudio(studioData);
+            }
+        }
+        catch (err: any) {
+            toast({ variant: "destructive", title: t('plugins.materia.toastFailedLoad'), description: err?.message });
+        }
+        finally {
+            setLoading(false);
+        }
+    }, [gameId, toast]);
+    const loadCatalog = useCallback(async () => {
+        setCatalogLoading(true);
+        try {
+            const plugins = await getPluginCatalog();
+            setCatalog(plugins.filter((p) => p.max_stacks > 0).sort((a, b) => a.sort_order - b.sort_order));
+        }
+        catch { /* silent */ }
+        finally {
+            setCatalogLoading(false);
+        }
+    }, []);
+    useEffect(() => { loadAll(); loadCatalog(); }, [loadAll, loadCatalog]);
+    async function handleUnsubConfirm() {
+        if (!unsubTarget)
+            return;
+        const { plugin } = unsubTarget;
+        setUnsubbing(plugin.id);
+        setUnsubTarget(null);
+        try {
+            await unsubscribeFromPlugin(gameId, plugin.id);
+            toast({ title: `🔮 ${plugin.display_name} ${t('plugins.materia.toastRemoved')}` });
+            window.dispatchEvent(new Event("wallet:refresh"));
+            await loadAll();
+        }
+        catch (err: any) {
+            toast({ variant: "destructive", title: err?.data?.error ?? err?.message ?? t('plugins.materia.toastUnsubFailed') });
+        }
+        finally {
+            setUnsubbing(null);
+        }
     }
-  }, [gameId, toast])
-
-  const loadCatalog = useCallback(async () => {
-    setCatalogLoading(true)
-    try {
-      const plugins = await getPluginCatalog()
-      setCatalog(plugins.filter((p) => p.max_stacks > 0).sort((a, b) => a.sort_order - b.sort_order))
-    } catch { /* silent */ } finally {
-      setCatalogLoading(false)
+    async function handleSubscribeConfirm() {
+        if (!confirmPlugin)
+            return;
+        const pluginId = confirmPlugin.id;
+        setSubscribing(pluginId);
+        setConfirmPlugin(null);
+        try {
+            await subscribeToPlugin(gameId, pluginId, confirmStacks);
+            toast({ title: `✨ ${t('plugins.materia.toastSocketed')} ${confirmPlugin.display_name} × ${confirmStacks}` });
+            window.dispatchEvent(new Event("wallet:refresh"));
+            await loadAll();
+        }
+        catch (err: any) {
+            const status = err?.status;
+            let msg = err?.data?.error ?? err?.message ?? t('plugins.materia.toastSubFailed');
+            if (status === 402)
+                msg = `${t('plugins.materia.toastNotEnoughCoins')} 🪙 ${getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}`;
+            else if (status === 400 && msg.includes("max stacks"))
+                msg = t('plugins.materia.toastMaxStacks');
+            toast({ variant: "destructive", title: msg });
+        }
+        finally {
+            setSubscribing(null);
+        }
     }
-  }, [])
-
-  useEffect(() => { loadAll(); loadCatalog() }, [loadAll, loadCatalog])
-
-  async function handleUnsubConfirm() {
-    if (!unsubTarget) return
-    const { plugin } = unsubTarget
-    setUnsubbing(plugin.id)
-    setUnsubTarget(null)
-    try {
-      await unsubscribeFromPlugin(gameId, plugin.id)
-      toast({ title: `🔮 ${plugin.display_name} ${t('plugins.materia.toastRemoved')}` })
-      window.dispatchEvent(new Event("wallet:refresh"))
-      await loadAll()
-    } catch (err: any) {
-      toast({ variant: "destructive", title: err?.data?.error ?? err?.message ?? t('plugins.materia.toastUnsubFailed') })
-    } finally {
-      setUnsubbing(null)
-    }
-  }
-
-  async function handleSubscribeConfirm() {
-    if (!confirmPlugin) return
-    const pluginId = confirmPlugin.id
-    setSubscribing(pluginId)
-    setConfirmPlugin(null)
-    try {
-      await subscribeToPlugin(gameId, pluginId, confirmStacks)
-      toast({ title: `✨ ${t('plugins.materia.toastSocketed')} ${confirmPlugin.display_name} × ${confirmStacks}` })
-      window.dispatchEvent(new Event("wallet:refresh"))
-      await loadAll()
-    } catch (err: any) {
-      const status = err?.status
-      let msg = err?.data?.error ?? err?.message ?? t('plugins.materia.toastSubFailed')
-      if (status === 402) msg = `${t('plugins.materia.toastNotEnoughCoins')} 🪙 ${getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}`
-      else if (status === 400 && msg.includes("max stacks")) msg = t('plugins.materia.toastMaxStacks')
-      toast({ variant: "destructive", title: msg })
-    } finally {
-      setSubscribing(null)
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  if (loading) {
-    return (
-      <div className="container mx-auto py-6 space-y-6">
-        <Skeleton className="h-6 w-64" />
-        <Skeleton className="h-40 w-full rounded-2xl" />
+    // ---------------------------------------------------------------------------
+    if (loading) {
+        return (<div className="container mx-auto py-6 space-y-6">
+        <Skeleton className="h-6 w-64"/>
+        <Skeleton className="h-40 w-full rounded-2xl"/>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-2xl" />)}
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-2xl"/>)}
         </div>
-      </div>
-    )
-  }
-
-  const lim = gamePlugins?.effective_limits
-  const subs = gamePlugins?.subscriptions ?? []
-  const activeSubs_ = subs.filter((s) => !s.subscription.is_revoked)
-  const historySubs = subs.filter((s) => s.subscription.is_revoked)
-  const totalMonthlyCost = activeSubs_.filter((s) => !s.is_cancelled).reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0)
-
-  // Compute how much each metric will be reduced when cancelled subs expire.
-  // This is derived from the frontend subscription data so it's always accurate,
-  // regardless of whether the API's pending_limits field is correct.
-  const cancelledSubs = activeSubs_.filter((s) => s.is_cancelled)
-  const pendingReduction = cancelledSubs.length > 0
-    ? cancelledSubs.reduce(
-        (acc, { subscription, plugin }) => {
-          const n = 1
-          return {
-            max_concurrent_users: acc.max_concurrent_users + plugin.ccu_grant * n,
-            max_profiles: acc.max_profiles + plugin.profiles_grant * n,
-            max_items: acc.max_items + plugin.items_grant * n,
-            max_shops: acc.max_shops + plugin.shops_grant * n,
-            max_quests: acc.max_quests + (plugin.quests_grant ?? 0) * n,
-            max_node_definitions: acc.max_node_definitions + (plugin.node_defs_grant ?? 0) * n,
-            max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
-            max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
-            max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
-            max_scripts: acc.max_scripts + (plugin.scripts_grant ?? 0) * n,
-          }
-        },
-        { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0 }
-      )
-    : null
-  const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {}
-  activeSubs_.forEach(({ subscription, plugin }) => {
-    if (!subsByPluginId[plugin.id]) subsByPluginId[plugin.id] = []
-    subsByPluginId[plugin.id].push(subscription)
-  })
-
-  // Custom (admin-granted) plugins grouped by plugin ID
-  const customGrantPlugins = Object.values(
-    activeSubs_
-      .filter((s) => s.plugin.plugin_type === "custom")
-      .reduce((acc, { plugin, subscription }) => {
-        if (!acc[plugin.id]) acc[plugin.id] = { plugin, totalStacks: 0 }
-        acc[plugin.id].totalStacks += 1
-        return acc
-      }, {} as Record<string, { plugin: Plugin; totalStacks: number }>)
-  )
-
-  return (
-    <div className="container mx-auto py-6 space-y-8">
+      </div>);
+    }
+    const lim = gamePlugins?.effective_limits;
+    const subs = gamePlugins?.subscriptions ?? [];
+    const activeSubs_ = subs.filter((s) => !s.subscription.is_revoked);
+    const historySubs = subs.filter((s) => s.subscription.is_revoked);
+    const totalMonthlyCost = activeSubs_.filter((s) => !s.is_cancelled).reduce((sum, { subscription }) => sum + (subscription.coins_per_month ?? 0), 0);
+    // Compute how much each metric will be reduced when cancelled subs expire.
+    // This is derived from the frontend subscription data so it's always accurate,
+    // regardless of whether the API's pending_limits field is correct.
+    const cancelledSubs = activeSubs_.filter((s) => s.is_cancelled);
+    const pendingReduction = cancelledSubs.length > 0
+        ? cancelledSubs.reduce((acc, { subscription, plugin }) => {
+            const n = 1;
+            return {
+                max_concurrent_users: acc.max_concurrent_users + plugin.ccu_grant * n,
+                max_profiles: acc.max_profiles + plugin.profiles_grant * n,
+                max_items: acc.max_items + plugin.items_grant * n,
+                max_shops: acc.max_shops + plugin.shops_grant * n,
+                max_quests: acc.max_quests + (plugin.quests_grant ?? 0) * n,
+                max_node_definitions: acc.max_node_definitions + (plugin.node_defs_grant ?? 0) * n,
+                max_event_types: acc.max_event_types + (plugin.event_types_grant ?? 0) * n,
+                max_boards: acc.max_boards + (plugin.boards_grant ?? 0) * n,
+                max_entity_defs: acc.max_entity_defs + (plugin.entity_defs_grant ?? 0) * n,
+                max_scripts: acc.max_scripts + (plugin.scripts_grant ?? 0) * n,
+            };
+        }, { max_concurrent_users: 0, max_profiles: 0, max_items: 0, max_shops: 0, max_quests: 0, max_node_definitions: 0, max_event_types: 0, max_boards: 0, max_entity_defs: 0, max_scripts: 0 })
+        : null;
+    const subsByPluginId: Record<string, typeof subs[0]["subscription"][]> = {};
+    activeSubs_.forEach(({ subscription, plugin }) => {
+        if (!subsByPluginId[plugin.id])
+            subsByPluginId[plugin.id] = [];
+        subsByPluginId[plugin.id].push(subscription);
+    });
+    // Custom (admin-granted) plugins grouped by plugin ID
+    const customGrantPlugins = Object.values(activeSubs_
+        .filter((s) => s.plugin.plugin_type === "custom")
+        .reduce((acc, { plugin, subscription }) => {
+        if (!acc[plugin.id])
+            acc[plugin.id] = { plugin, totalStacks: 0 };
+        acc[plugin.id].totalStacks += 1;
+        return acc;
+    }, {} as Record<string, {
+        plugin: Plugin;
+        totalStacks: number;
+    }>));
+    return (<div className="container mx-auto py-6 space-y-8">
       {/* Breadcrumb */}
       <div className="mb-2">
         <Breadcrumb>
           <BreadcrumbList className="flex-nowrap overflow-x-auto whitespace-nowrap">
             <BreadcrumbItem><BreadcrumbLink href="/studios">{t('common.studios')}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            {game?.studio_id && (
-              <>
+            {game?.studio_id && (<>
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/studios/${game.studio_id}`}>{studio?.name ?? game.studio_id}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
-              </>
-            )}
+              </>)}
             <BreadcrumbItem>
               <BreadcrumbLink href={`/games/${gameId}`}>{game?.name ?? gameId}</BreadcrumbLink>
             </BreadcrumbItem>
@@ -611,7 +557,7 @@ export default function GamePluginsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" asChild>
-            <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4" /></Link>
+            <Link href={`/games/${gameId}`}><ArrowLeft className="h-4 w-4"/></Link>
           </Button>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight leading-tight">{game?.name ?? gameId}</h1>
@@ -619,68 +565,54 @@ export default function GamePluginsPage() {
           </div>
         </div>
         <div className="flex flex-col gap-2 mt-4 md:mt-0 items-end">
-          <GameNavButtons gameId={gameId} active="plugins" />
+          <GameNavButtons gameId={gameId} active="plugins"/>
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>
             </Button>
           </div>
         </div>
       </div>
 
       {/* ──────────────────────────────────────────
-          EQUIPMENT PANEL  (the "game" as weapon)
-         ────────────────────────────────────────── */}
+                EQUIPMENT PANEL  (the "game" as weapon)
+               ────────────────────────────────────────── */}
       <div className="relative rounded-2xl border border-border/60 bg-card overflow-hidden">
         {/* subtle dark gradient strip */}
-        <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-muted/30 to-transparent pointer-events-none"/>
 
         <div className="relative p-5 flex flex-col gap-4">
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Col 1: Materia Slot Visualizer — standard tiers | admin grants */}
-          {!catalogLoading && catalog.length > 0 && gamePlugins && (
-            <div className="flex gap-6 flex-wrap">
+          {!catalogLoading && catalog.length > 0 && gamePlugins && (<div className="flex gap-6 flex-wrap">
               {/* Left column: standard catalog tiers */}
               <div className="flex flex-col gap-2">
                 {catalog.map((plugin, idx) => {
-                  const gem = getGemTier(idx)
-                  const remaining = getRemainingStacks(plugin, subs)
-                  const owned = plugin.max_stacks - remaining
-                  const cancelledOwned2 = subs
+                const gem = getGemTier(idx);
+                const remaining = getRemainingStacks(plugin, subs);
+                const owned = plugin.max_stacks - remaining;
+                const cancelledOwned2 = subs
                     .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                    .reduce((sum, _s) => sum + 1, 0)
-                  const activeOwned2 = owned - cancelledOwned2
-                  return (
-                    <div key={plugin.id} className="flex items-center gap-2">
+                    .reduce((sum, _s) => sum + 1, 0);
+                const activeOwned2 = owned - cancelledOwned2;
+                return (<div key={plugin.id} className="flex items-center gap-2">
                       <span className={`w-20 shrink-0 text-xs font-semibold ${gem.text}`}>{plugin.display_name}</span>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                          <MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm" />
-                        ))}
+                        {Array.from({ length: plugin.max_stacks }).map((_, si) => (<MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned2 && si < owned} gem={gem} size="sm"/>))}
                       </div>
-                      {owned > 0 && (
-                        <span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>
-                      )}
-                    </div>
-                  )
-                })}
+                      {owned > 0 && (<span className="text-xs text-muted-foreground ml-1">{owned}/{plugin.max_stacks}</span>)}
+                    </div>);
+            })}
                 {/* Monthly cost badge */}
-                {gamePlugins && (
-                  <TooltipProvider delayDuration={200}>
+                {gamePlugins && (<TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className={`mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 self-start shadow-sm cursor-default ${
-                          totalMonthlyCost === 0
-                            ? "border-green-500/40 bg-green-500/10"
-                            : "border-yellow-500/40 bg-yellow-500/10"
-                        }`}>
+                        <div className={`mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 self-start shadow-sm cursor-default ${totalMonthlyCost === 0
+                    ? "border-green-500/40 bg-green-500/10"
+                    : "border-yellow-500/40 bg-yellow-500/10"}`}>
                           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('plugins.materia.monthly')}</span>
-                          {totalMonthlyCost === 0 ? (
-                            <span className="text-sm font-extrabold text-green-400">Free</span>
-                          ) : (
-                            <span className="text-sm font-extrabold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>
-                          )}
+                          {totalMonthlyCost === 0 ? (<span className="text-sm font-extrabold text-green-400">Free</span>) : (<span className="text-sm font-extrabold text-yellow-400">🪙 {totalMonthlyCost.toLocaleString()}</span>)}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-[220px] text-xs leading-relaxed">
@@ -688,181 +620,146 @@ export default function GamePluginsPage() {
                         <p className="text-muted-foreground">Total coins deducted from your wallet each month to maintain all active Materia sockets. Cancelling a socket stops future charges.</p>
                       </TooltipContent>
                     </Tooltip>
-                  </TooltipProvider>
-                )}
+                  </TooltipProvider>)}
               </div>
               {/* Right column: admin grant rows */}
-              {customGrantPlugins.length > 0 && (
-                <div className="flex flex-col gap-2 border-l border-border/30 pl-6">
-                  {customGrantPlugins.map(({ plugin, totalStacks }) => (
-                    <div key={plugin.id} className="flex items-center gap-2">
+              {customGrantPlugins.length > 0 && (<div className="flex flex-col gap-2 border-l border-border/30 pl-6">
+                  {customGrantPlugins.map(({ plugin, totalStacks }) => (<div key={plugin.id} className="flex items-center gap-2">
                       <span className="w-20 shrink-0 text-xs font-semibold text-purple-400">{plugin.display_name}</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-full px-2 py-0.5">×{totalStacks}</span>
                         <span className="text-[10px] text-muted-foreground font-medium">Admin Grant</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                    </div>))}
+                </div>)}
+            </div>)}
 
           {/* Col 2 & 3 & 4: Stats — split into three columns */}
           {game && (() => {
             const statsData = [
-                  { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
-                  { key: "profiles", label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
-                  { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
-                  { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
-                  { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
-                  { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
-                  { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
-                  { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
-                  { key: "scripts", label: t('plugins.materia.labelScripts'), max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
-                  { key: "entity_defs", label: t('plugins.materia.labelEntityDefs'), max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
-            ] as { key: string; label: string; max: number | null; reduction?: number; used: number | undefined; icon: string; grantField: (p: Plugin) => number }[]
-            const col2 = statsData.slice(0, 4)
-            const col3 = statsData.slice(4, 7)
-            const col4 = statsData.slice(7)
+                { key: "ccu", label: t('plugins.ccu'), max: game.limits?.max_concurrent_users ?? null, reduction: pendingReduction?.max_concurrent_users, used: game.usage?.concurrent_users, icon: "👥", grantField: (p: Plugin) => p.ccu_grant },
+                { key: "profiles", label: t('plugins.profiles'), max: game.limits?.max_player_profiles ?? null, reduction: pendingReduction?.max_profiles, used: game.usage?.player_profiles, icon: "👤", grantField: (p: Plugin) => p.profiles_grant },
+                { key: "items", label: t('plugins.items'), max: game.limits?.max_items ?? null, reduction: pendingReduction?.max_items, used: game.usage?.items, icon: "📦", grantField: (p: Plugin) => p.items_grant },
+                { key: "shops", label: t('plugins.shops'), max: game.limits?.max_shops ?? null, reduction: pendingReduction?.max_shops, used: game.usage?.shops, icon: "🏪", grantField: (p: Plugin) => p.shops_grant },
+                { key: "quests", label: t('plugins.quests'), max: game.limits?.max_quests ?? null, reduction: pendingReduction?.max_quests, used: game.usage?.quests ?? 0, icon: "📜", grantField: (p: Plugin) => p.quests_grant ?? 0 },
+                { key: "nodes", label: t('plugins.nodeDefinitions'), max: game.limits?.max_node_definitions ?? null, reduction: pendingReduction?.max_node_definitions, used: game.usage?.node_definitions ?? 0, icon: "🔗", grantField: (p: Plugin) => p.node_defs_grant ?? 0 },
+                { key: "event_types", label: t('plugins.eventTypes') || "Event Types", max: game.limits?.max_event_types ?? null, reduction: pendingReduction?.max_event_types, used: game.usage?.event_types ?? 0, icon: "📡", grantField: (p: Plugin) => p.event_types_grant ?? 0 },
+                { key: "boards", label: t('plugins.boards') || "Leaderboards", max: game.limits?.max_leaderboards !== undefined ? game.limits.max_leaderboards : null, reduction: pendingReduction?.max_boards, used: game.usage?.leaderboards ?? 0, icon: "📋", grantField: (p: Plugin) => p.boards_grant ?? 0 },
+                { key: "scripts", label: t('plugins.materia.labelScripts'), max: game.limits?.max_scripts ?? null, reduction: pendingReduction?.max_scripts, used: game.usage?.scripts ?? 0, icon: "📜", grantField: (p: Plugin) => p.scripts_grant ?? 0 },
+                { key: "entity_defs", label: t('plugins.materia.labelEntityDefs'), max: game.limits?.max_entity_defs ?? null, reduction: pendingReduction?.max_entity_defs, used: game.usage?.entity_definitions ?? 0, icon: "🧩", grantField: (p: Plugin) => p.entity_defs_grant ?? 0 },
+            ] as {
+                key: string;
+                label: string;
+                max: number | null;
+                reduction?: number;
+                used: number | undefined;
+                icon: string;
+                grantField: (p: Plugin) => number;
+            }[];
+            const col2 = statsData.slice(0, 4);
+            const col3 = statsData.slice(4, 7);
+            const col4 = statsData.slice(7);
             const renderStat = (row: any) => {
-                  const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null
-                  const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : ""
-                  const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0
-                  const contributions = activeSubs_
+                const pct = (row.used != null && row.max != null && row.max > 0) ? Math.min(100, (row.used / row.max) * 100) : null;
+                const numColor = pct == null ? "" : pct >= 90 ? "text-destructive" : pct >= 70 ? "text-yellow-500" : "";
+                const hasPending = pendingReduction != null && (row.reduction ?? 0) > 0;
+                const contributions = activeSubs_
                     .map(({ subscription, plugin, is_cancelled }) => ({
-                      name: plugin.display_name,
-                      stacks: 1,
-                      amount: row.grantField(plugin) * 1,
-                      isCancelled: is_cancelled,
-                    }))
-                    .filter(c => c.amount > 0)
-                  const totalFromPlugins = contributions.reduce((s, c) => s + c.amount, 0)
-                  const base = Math.max(0, (row.max ?? 0) - totalFromPlugins)
-                  return (
-                    <Tooltip key={row.label}>
+                    name: plugin.display_name,
+                    stacks: 1,
+                    amount: row.grantField(plugin) * 1,
+                    isCancelled: is_cancelled,
+                }))
+                    .filter(c => c.amount > 0);
+                const totalFromPlugins = contributions.reduce((s, c) => s + c.amount, 0);
+                const base = Math.max(0, (row.max ?? 0) - totalFromPlugins);
+                return (<Tooltip key={row.label}>
                       <TooltipTrigger asChild>
                         <div className="rounded-xl bg-muted/40 px-3 py-2 cursor-default">
                           <div className="flex items-center gap-1.5 mb-1">
                             <span className="text-sm">{row.icon}</span>
                             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{row.label}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOpenLimitSheet(row.key) }}
-                              className="ml-auto text-muted-foreground/50 hover:text-muted-foreground transition-colors rounded"
-                            >
-                              <HelpCircle className="h-3 w-3" />
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setOpenLimitSheet(row.key); }} className="ml-auto text-muted-foreground/50 hover:text-muted-foreground transition-colors rounded">
+                              <HelpCircle className="h-3 w-3"/>
                             </button>
                           </div>
                           <p className={`text-base font-bold tabular-nums leading-none ${numColor}`}>
-                            {row.used != null ? (
-                              <>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>
-                            ) : (row.max != null ? formatNumber(row.max) : '∞')}
-                            {hasPending && (
-                              <span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - (row.reduction ?? 0))} {t('plugins.materia.afterExpiry')}</span>
-                            )}
+                            {row.used != null ? (<>{formatNumber(row.used)}<span className="text-muted-foreground font-normal text-xs"> / {row.max != null ? formatNumber(row.max) : '∞'}</span></>) : (row.max != null ? formatNumber(row.max) : '∞')}
+                            {hasPending && (<span className="text-[10px] text-orange-400 font-normal ml-2">{formatNumber(row.max ?? 0)} → {formatNumber((row.max ?? 0) - (row.reduction ?? 0))} {t('plugins.materia.afterExpiry')}</span>)}
                           </p>
-                          {pct != null && (
-                            <div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"}`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          )}
+                          {pct != null && (<div className="mt-1.5 w-full h-1 rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"}`} style={{ width: `${pct}%` }}/>
+                            </div>)}
                         </div>
                       </TooltipTrigger>
-                      {(contributions.length > 0 || base > 0) && (
-                        <TooltipContent side="bottom" className="p-0 overflow-hidden min-w-[200px]">
+                      {(contributions.length > 0 || base > 0) && (<TooltipContent side="bottom" className="p-0 overflow-hidden min-w-[200px]">
                           <div className="px-3 py-2 bg-muted/60 border-b border-border/60">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{row.label} breakdown</p>
                           </div>
                           <div className="px-3 py-2 space-y-1">
-                            {base > 0 && (
-                              <div className="flex items-center justify-between gap-6 text-xs">
+                            {base > 0 && (<div className="flex items-center justify-between gap-6 text-xs">
                                 <span className="text-muted-foreground">Base</span>
                                 <span className="font-semibold tabular-nums">+{formatFull(base)}</span>
-                              </div>
-                            )}
-                            {contributions.map((c, ci) => (
-                              <div key={ci} className={`flex items-center justify-between gap-6 text-xs ${c.isCancelled ? "opacity-50" : ""}`}>
+                              </div>)}
+                            {contributions.map((c, ci) => (<div key={ci} className={`flex items-center justify-between gap-6 text-xs ${c.isCancelled ? "opacity-50" : ""}`}>
                                 <span className={c.isCancelled ? "line-through text-muted-foreground" : ""}>{c.name} <span className="text-muted-foreground">×{c.stacks}</span></span>
                                 <span className="font-semibold tabular-nums text-green-400">+{formatFull(c.amount)}</span>
-                              </div>
-                            ))}
+                              </div>))}
                             <div className="border-t border-border/60 pt-1 flex items-center justify-between gap-6 text-xs">
                               <span className="text-muted-foreground font-semibold">Total</span>
                               <span className="font-bold tabular-nums">{row.max != null ? formatFull(row.max) : '∞'}</span>
                             </div>
                           </div>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  )
-            }
-            return (
-              <TooltipProvider delayDuration={200}>
+                        </TooltipContent>)}
+                    </Tooltip>);
+            };
+            return (<TooltipProvider delayDuration={200}>
                 {/* Col 2 */}
                 <div className="flex flex-col gap-2">{col2.map(renderStat)}</div>
                 {/* Col 3 */}
                 <div className="flex flex-col gap-2">{col3.map(renderStat)}</div>
                 {/* Col 4 */}
                 <div className="flex flex-col gap-2">{col4.map(renderStat)}</div>
-              </TooltipProvider>
-            )
-          })()}
+              </TooltipProvider>);
+        })()}
           </div>
         </div>
       </div>
 
       {/* ──────────────────────────────────────────
-          MATERIA CATALOG
-         ────────────────────────────────────────── */}
+                MATERIA CATALOG
+               ────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-2 mb-5">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.materia.availableMateria')}</span>
-          <div className="flex-1 h-px bg-border" />
+          <div className="flex-1 h-px bg-border"/>
         </div>
 
-        {catalogLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-2xl" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {catalogLoading ? (<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-2xl"/>)}
+          </div>) : (<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {catalog.map((plugin, idx) => {
-              const gem = getGemTier(idx)
-              const remaining = gamePlugins ? getRemainingStacks(plugin, subs) : plugin.max_stacks
-              const owned = plugin.max_stacks - remaining
-              const cancelledOwned = subs
-                .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
-                .reduce((sum, _s) => sum + 1, 0)
-              const activeOwned = owned - cancelledOwned
-              const cost = plugin.cost_coins
-              const canAfford = walletBalance !== null ? walletBalance >= cost : true
-              const atCap = remaining <= 0
-              const activeSubs = subsByPluginId[plugin.id] ?? []
-              const isSpinning = subscribing === plugin.id
-
-              return (
-                <div
-                  key={plugin.id}
-                  className={`relative flex flex-col rounded-2xl border-2 overflow-hidden transition-all duration-300
+                const gem = getGemTier(idx);
+                const remaining = gamePlugins ? getRemainingStacks(plugin, subs) : plugin.max_stacks;
+                const owned = plugin.max_stacks - remaining;
+                const cancelledOwned = subs
+                    .filter((s) => s.plugin.id === plugin.id && s.is_cancelled && !s.subscription.is_revoked)
+                    .reduce((sum, _s) => sum + 1, 0);
+                const activeOwned = owned - cancelledOwned;
+                const cost = plugin.cost_coins;
+                const canAfford = walletBalance !== null ? walletBalance >= cost : true;
+                const atCap = remaining <= 0;
+                const activeSubs = subsByPluginId[plugin.id] ?? [];
+                const isSpinning = subscribing === plugin.id;
+                return (<div key={plugin.id} className={`relative flex flex-col rounded-2xl border-2 overflow-hidden transition-all duration-300
                     ${atCap
-                      ? `${gem.activeBorder} shadow-[0_0_28px_-6px] ${gem.activeGlow}`
-                      : `${gem.border} hover:${gem.activeBorder} hover:shadow-lg`
-                    }`}
-                >
+                        ? `${gem.activeBorder} shadow-[0_0_28px_-6px] ${gem.activeGlow}`
+                        : `${gem.border} hover:${gem.activeBorder} hover:shadow-lg`}`}>
                   {/* Gem Hero */}
                   <div className={`flex flex-col items-center justify-center py-7 gap-3 ${gem.bg}`}>
                     {/* Large orb image */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={gem.image}
-                      alt={gem.label}
-                      className="w-24 h-24 object-contain"
-                      style={{ filter: `drop-shadow(0 0 20px ${gem.glowColor}) drop-shadow(0 0 8px ${gem.glowColor})` }}
-                    />
+                    <img src={gem.image} alt={gem.label} className="w-24 h-24 object-contain" style={{ filter: `drop-shadow(0 0 20px ${gem.glowColor}) drop-shadow(0 0 8px ${gem.glowColor})` }}/>
                     <span className={`text-xs font-extrabold uppercase tracking-widest ${gem.text}`}>
                       {plugin.display_name}
                     </span>
@@ -870,32 +767,18 @@ export default function GamePluginsPage() {
 
                   {/* Cost */}
                   <div className="px-4 pt-3 pb-1 text-center">
-                    {cost === 0 ? (
-                      <span className="text-2xl font-extrabold text-green-400">Free</span>
-                    ) : (
-                      <span className="text-2xl font-extrabold text-yellow-400 tabular-nums">🪙 {cost.toLocaleString()}</span>
-                    )}
+                    {cost === 0 ? (<span className="text-2xl font-extrabold text-green-400">Free</span>) : (<span className="text-2xl font-extrabold text-yellow-400 tabular-nums">🪙 {cost.toLocaleString()}</span>)}
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('plugins.materia.costSubtitle')}</p>
                   </div>
 
                   {/* Stack slots */}
                   <div className="px-4 py-2 flex flex-col items-center gap-1.5">
                     <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                      {Array.from({ length: plugin.max_stacks }).map((_, si) => (
-                        <MateriaOrb
-                          key={si}
-                          filled={si < owned}
-                          cancelled={si >= activeOwned && si < owned}
-                          gem={gem}
-                          size="md"
-                        />
-                      ))}
+                      {Array.from({ length: plugin.max_stacks }).map((_, si) => (<MateriaOrb key={si} filled={si < owned} cancelled={si >= activeOwned && si < owned} gem={gem} size="md"/>))}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {activeOwned} / {plugin.max_stacks} {t('plugins.materia.slotsFilled')}
-                      {cancelledOwned > 0 && (
-                        <span className="text-orange-400 ml-1">(+{cancelledOwned} {t('plugins.materia.expiring')})</span>
-                      )}
+                      {cancelledOwned > 0 && (<span className="text-orange-400 ml-1">(+{cancelledOwned} {t('plugins.materia.expiring')})</span>)}
                     </p>
                   </div>
 
@@ -914,81 +797,44 @@ export default function GamePluginsPage() {
                         { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
                         { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
                         { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
-                      ].map((r) => (
-                        <div key={r.label} className="flex items-center justify-between">
+                    ].map((r) => (<div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
                           <span className="font-semibold tabular-nums">+{formatNumber(r.val)}</span>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
                   </div>
 
                   {/* Action buttons */}
                   <div className="px-4 pb-4 pt-1 flex flex-row gap-2">
-                    {atCap ? (
-                      <Button className="w-full" size="sm" disabled variant="outline">
-                        <Check className="mr-1.5 h-4 w-4 text-green-400" /> {t('plugins.materia.allSlotsFilled')}
-                      </Button>
-                    ) : (
-                      <button
-                        disabled={isSpinning || !canAfford}
-                        onClick={() => { savedScrollY.current = window.scrollY; setConfirmPlugin(plugin); setConfirmPluginIdx(idx); setConfirmStacks(1) }}
-                        className={`flex-1 py-2 px-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5
+                    {atCap ? (<Button className="w-full" size="sm" disabled variant="outline">
+                        <Check className="mr-1.5 h-4 w-4 text-green-400"/> {t('plugins.materia.allSlotsFilled')}
+                      </Button>) : (<button disabled={isSpinning || !canAfford} onClick={() => { savedScrollY.current = window.scrollY; setConfirmPlugin(plugin); setConfirmPluginIdx(idx); setConfirmStacks(1); }} className={`flex-1 py-2 px-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5
                           ${!canAfford || isSpinning
                             ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground border border-border"
-                            : `bg-gradient-to-r ${gem.gradient} text-white shadow-lg hover:brightness-110 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`
-                          }`}
-                      >
-                        {isSpinning ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
+                            : `bg-gradient-to-r ${gem.gradient} text-white shadow-lg hover:brightness-110 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`}`}>
+                        {isSpinning ? (<Loader2 className="h-4 w-4 animate-spin"/>) : (<Plus className="h-4 w-4"/>)}
                         {!canAfford ? t('plugins.materia.noCoins') : t('plugins.materia.addSocket')}
-                      </button>
-                    )}
-                    {owned > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-destructive hover:text-destructive hover:border-destructive/60"
-                        disabled={unsubbing === plugin.id}
-                        onClick={() => setUnsubTarget({ plugin, idx })}
-                      >
-                        {unsubbing === plugin.id ? (
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                        )}
+                      </button>)}
+                    {owned > 0 && (<Button variant="outline" size="sm" className="flex-1 text-destructive hover:text-destructive hover:border-destructive/60" disabled={unsubbing === plugin.id} onClick={() => setUnsubTarget({ plugin, idx })}>
+                        {unsubbing === plugin.id ? (<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin"/>) : (<Trash2 className="mr-1.5 h-3.5 w-3.5"/>)}
                         {t('plugins.materia.remove')}
-                      </Button>
-                    )}
+                      </Button>)}
                   </div>
-                </div>
-              )
+                </div>);
             })}
-          </div>
-        )}
+          </div>)}
         {/* Admin Grant plugin cards */}
-        {customGrantPlugins.length > 0 && (
-          <div className="mt-8">
+        {customGrantPlugins.length > 0 && (<div className="mt-8">
             <div className="flex items-center gap-2 mb-5">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Admin Grants</span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-border"/>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {customGrantPlugins.map(({ plugin, totalStacks }) => (
-                <div
-                  key={plugin.id}
-                  className="relative flex flex-col rounded-2xl border-2 overflow-hidden border-purple-500/40 hover:border-purple-400/70 transition-all duration-300"
-                >
+              {customGrantPlugins.map(({ plugin, totalStacks }) => (<div key={plugin.id} className="relative flex flex-col rounded-2xl border-2 overflow-hidden border-purple-500/40 hover:border-purple-400/70 transition-all duration-300">
                   {/* Hero */}
                   <div className="flex flex-col items-center justify-center py-7 gap-3 bg-purple-500/10">
-                    <div
-                      className="w-24 h-24 flex items-center justify-center rounded-full bg-purple-500/20 border-2 border-purple-500/40"
-                      style={{ boxShadow: "0 0 24px rgba(168,85,247,0.35)" }}
-                    >
-                      <Zap className="h-12 w-12 text-purple-400" style={{ filter: "drop-shadow(0 0 8px #a855f7)" }} />
+                    <div className="w-24 h-24 flex items-center justify-center rounded-full bg-purple-500/20 border-2 border-purple-500/40" style={{ boxShadow: "0 0 24px rgba(168,85,247,0.35)" }}>
+                      <Zap className="h-12 w-12 text-purple-400" style={{ filter: "drop-shadow(0 0 8px #a855f7)" }}/>
                     </div>
                     <span className="text-xs font-extrabold uppercase tracking-widest text-purple-400">{plugin.display_name}</span>
                   </div>
@@ -1012,102 +858,79 @@ export default function GamePluginsPage() {
                     </p>
                     <div className="space-y-1 text-xs">
                       {([
-                        { icon: "👥", label: t('plugins.materia.labelCcu'), val: plugin.ccu_grant },
-                        { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
-                        { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
-                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
-                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
-                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
-                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
-                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
-                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
-                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
-                        { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
-                      ] as { icon: string; label: string; val: number }[]).map((r) => (
-                        <div key={r.label} className="flex items-center justify-between">
+                    { icon: "👥", label: t('plugins.materia.labelCcu'), val: plugin.ccu_grant },
+                    { icon: "👤", label: t('plugins.materia.labelProfiles'), val: plugin.profiles_grant },
+                    { icon: "📦", label: t('plugins.materia.labelItems'), val: plugin.items_grant },
+                    { icon: "🏪", label: t('plugins.materia.labelShops'), val: plugin.shops_grant },
+                    { icon: "📜", label: t('plugins.materia.labelQuests'), val: plugin.quests_grant ?? 0 },
+                    { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: plugin.node_defs_grant ?? 0 },
+                    { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: plugin.event_types_grant ?? 0 },
+                    { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: plugin.boards_grant ?? 0 },
+                    { icon: "📜", label: t('plugins.materia.labelScripts'), val: plugin.scripts_grant ?? 0 },
+                    { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: plugin.entity_defs_grant ?? 0 },
+                    { icon: "🎰", label: t('plugins.materia.labelGacha'), val: plugin.gacha_grant ?? 0 },
+                ] as {
+                    icon: string;
+                    label: string;
+                    val: number;
+                }[]).map((r) => (<div key={r.label} className="flex items-center justify-between">
                           <span className="text-muted-foreground">{r.icon} {r.label}</span>
                           <span className={`font-semibold tabular-nums ${r.val > 0 ? "text-purple-400" : "text-muted-foreground"}`}>
                             {r.val > 0 ? `+${formatNumber(r.val * totalStacks)}` : "—"}
                           </span>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
-                    {plugin.description && (
-                      <p className="mt-2 text-[10px] text-muted-foreground italic border-t border-border/40 pt-2">{plugin.description}</p>
-                    )}
+                    {plugin.description && (<p className="mt-2 text-[10px] text-muted-foreground italic border-t border-border/40 pt-2">{plugin.description}</p>)}
                   </div>
                   {/* Footer */}
                   <div className="px-4 pb-4 pt-1 text-center">
                     <p className="text-[10px] text-muted-foreground">Granted by admin · Read-only</p>
                   </div>
-                </div>
-              ))}
+                </div>))}
             </div>
-          </div>
-        )}
+          </div>)}
       </div>
 
       {/* ──────────────────────────────────────────
-          ACTIVE SUBSCRIPTIONS LIST
-         ────────────────────────────────────────── */}
-      {activeSubs_.length > 0 && (
-        <div>
+                ACTIVE SUBSCRIPTIONS LIST
+               ────────────────────────────────────────── */}
+      {activeSubs_.length > 0 && (<div>
           <div className="flex items-center gap-2 mb-4">
-            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground"/>
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.activeSubscriptions')}</span>
-            <div className="flex-1 h-px bg-border" />
+            <div className="flex-1 h-px bg-border"/>
             <span className="text-[10px] text-muted-foreground">{activeSubs_.length} {t('plugins.activeSubscriptions').toLowerCase()}</span>
           </div>
           <div className="space-y-2">
             {activeSubs_.map(({ subscription, plugin, is_cancelled, status }, i) => {
-              const isExpired = subscription.expires_at ? new Date(subscription.expires_at) < new Date() : false
-              const isRevoked = subscription.is_revoked
-              const isCancelled = is_cancelled
-              const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
-              const activatedAt = new Date(subscription.activated_at)
-              const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
-              const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null
-              const renewedAt = new Date(subscription.renewed_at)
-              const daysLeft = expiresAt
-                ? Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000)
-                : null
-              const isExpanded = expandedSubId === subscription.id
-
-              return (
-                <div
-                  key={subscription.id}
-                  className={`rounded-xl border overflow-hidden ${
-                    isCancelled ? "border-orange-500/20" : isExpired ? "border-border/50" : "border-border"
-                  }`}
-                >
+                const isExpired = subscription.expires_at ? new Date(subscription.expires_at) < new Date() : false;
+                const isRevoked = subscription.is_revoked;
+                const isCancelled = is_cancelled;
+                const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null;
+                const activatedAt = new Date(subscription.activated_at);
+                const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null;
+                const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null;
+                const renewedAt = new Date(subscription.renewed_at);
+                const daysLeft = expiresAt
+                    ? Math.ceil((expiresAt.getTime() - Date.now()) / 86400000)
+                    : null;
+                const isExpanded = expandedSubId === subscription.id;
+                return (<div key={subscription.id} className={`rounded-xl border overflow-hidden ${isCancelled ? "border-orange-500/20" : isExpired ? "border-border/50" : "border-border"}`}>
                   {/* Row header — clickable */}
-                  <div
-                    className={`flex items-center justify-between px-4 py-3 gap-4 cursor-pointer select-none transition-colors hover:bg-muted/40 ${
-                      isCancelled ? "bg-orange-500/5" : isExpired ? "bg-muted/20 opacity-60" : "bg-card"
-                    }`}
-                    onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}
-                  >
+                  <div className={`flex items-center justify-between px-4 py-3 gap-4 cursor-pointer select-none transition-colors hover:bg-muted/40 ${isCancelled ? "bg-orange-500/5" : isExpired ? "bg-muted/20 opacity-60" : "bg-card"}`} onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}>
                     {/* Left: index + plugin name */}
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{plugin.display_name}</span>
-                          {plugin.plugin_type === "custom" && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>
-                          )}
-                          {isCancelled && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
-                          )}
-                          {!isCancelled && isExpired && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>
-                          )}
-                          {subscription.coins_per_month > 0 && (
-                            <span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
-                          )}
+                          {plugin.plugin_type === "custom" && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>)}
+                          {isCancelled && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>)}
+                          {!isCancelled && isExpired && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border">{t('plugins.materia.statusExpired')}</span>)}
+                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-yellow-400 font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
                         </div>
                         <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
+                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3"/></span>
                           <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                           {cancelledAt && <span className="text-orange-400">{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                           {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
@@ -1118,40 +941,31 @@ export default function GamePluginsPage() {
                     {/* Right: expiry info + chevron */}
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
-                        {isCancelled ? (
-                          <>
+                        {isCancelled ? (<>
                             <p className="text-xs text-orange-400 font-semibold">{t('plugins.materia.willNotRenew')}</p>
-                            {expiresAt && (
-                              <>
+                            {expiresAt && (<>
                                 <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-muted-foreground"}`}>
                                   {isExpired
-                                    ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
-                                    : `${daysLeft}${t('plugins.materia.daysLeft')}`}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                              </>
-                            )}
-                          </>
-                        ) : expiresAt ? (
-                          <>
-                            <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
-                              {isExpired
                                 ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
                                 : `${daysLeft}${t('plugins.materia.daysLeft')}`}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                              </>)}
+                          </>) : expiresAt ? (<>
+                            <p className={`text-xs font-semibold ${isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-400" : "text-foreground"}`}>
+                              {isExpired
+                            ? `${t('plugins.materia.statusExpired')} (${Math.abs(daysLeft!) === 0 ? t('plugins.materia.today') : `${Math.abs(daysLeft!)}d ago`})`
+                            : `${daysLeft}${t('plugins.materia.daysLeft')}`}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                          </>
-                        ) : (
-                          <p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>
-                        )}
+                          </>) : (<p className="text-xs text-green-400 font-semibold">{t('plugins.permanent')}</p>)}
                       </div>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}/>
                     </div>
                   </div>
 
                   {/* Expanded detail panel */}
-                  {isExpanded && (
-                    <div className="border-t border-border/60 bg-muted/20 px-5 py-4 space-y-4">
+                  {isExpanded && (<div className="border-t border-border/60 bg-muted/20 px-5 py-4 space-y-4">
                       {/* Subscription details */}
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Subscription</p>
@@ -1159,12 +973,12 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">ID</span>
                             <span className="font-mono text-[10px] break-all">{subscription.id}</span>
-                            <CopyButton text={subscription.id} size="h-3 w-3" />
+                            <CopyButton text={subscription.id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Plugin ID</span>
                             <span className="font-mono text-[10px] break-all">{subscription.plugin_id}</span>
-                            <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
+                            <CopyButton text={subscription.plugin_id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
@@ -1172,17 +986,15 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Status</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${
-                              status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
-                              status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
-                              status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
-                              "bg-muted text-muted-foreground border-border"
-                            }`}>{status ?? "—"}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                            status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                                status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
+                                    "bg-muted text-muted-foreground border-border"}`}>{status ?? "—"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Activated by</span>
                             <span className="font-mono text-[10px]">{subscription.activated_by.slice(0, 8)}…</span>
-                            <CopyButton text={subscription.activated_by} size="h-3 w-3" />
+                            <CopyButton text={subscription.activated_by} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Activated at</span>
@@ -1192,37 +1004,27 @@ export default function GamePluginsPage() {
                             <span className="text-muted-foreground w-28 shrink-0">Renewed at</span>
                             <span>{renewedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(renewedAt)}</span></span>
                           </div>
-                          {expiresAt && (
-                            <div className="flex items-center gap-1.5">
+                          {expiresAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Expires at</span>
                               <span className={isExpired ? "text-destructive" : daysLeft !== null && daysLeft <= 7 ? "text-yellow-500" : ""}>{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(expiresAt)}</span></span>
-                            </div>
-                          )}
-                          {cancelledAt && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {cancelledAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Cancelled at</span>
                               <span className="text-orange-400">{cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(cancelledAt)}</span></span>
-                            </div>
-                          )}
-                          {revokedAt && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {revokedAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Revoked at</span>
                               <span className="text-destructive">{revokedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(revokedAt)}</span></span>
-                            </div>
-                          )}
-                          {subscription.revoked_by && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {subscription.revoked_by && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Revoked by</span>
                               <span className="font-mono text-[10px]">{subscription.revoked_by.slice(0, 8)}…</span>
-                              <CopyButton text={subscription.revoked_by} size="h-3 w-3" />
-                            </div>
-                          )}
-                          {subscription.note?.trim() && (
-                            <div className="flex items-center gap-1.5 col-span-2">
+                              <CopyButton text={subscription.revoked_by} size="h-3 w-3"/>
+                            </div>)}
+                          {subscription.note?.trim() && (<div className="flex items-center gap-1.5 col-span-2">
                               <span className="text-muted-foreground w-28 shrink-0">Note</span>
                               <span className="italic">{subscription.note}</span>
-                            </div>
-                          )}
+                            </div>)}
                         </div>
                       </div>
 
@@ -1233,18 +1035,16 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">ID</span>
                             <span className="font-mono text-[10px] break-all">{plugin.id}</span>
-                            <CopyButton text={plugin.id} size="h-3 w-3" />
+                            <CopyButton text={plugin.id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Type</span>
                             <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${plugin.plugin_type === "standard" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" : "bg-muted text-muted-foreground border-border"}`}>{plugin.plugin_type}</span>
                           </div>
-                          {plugin.description?.trim() && (
-                            <div className="flex items-start gap-1.5 col-span-2">
+                          {plugin.description?.trim() && (<div className="flex items-start gap-1.5 col-span-2">
                               <span className="text-muted-foreground w-28 shrink-0">Description</span>
                               <span>{plugin.description}</span>
-                            </div>
-                          )}
+                            </div>)}
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">CCU grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.ccu_grant)}</span>
@@ -1289,12 +1089,10 @@ export default function GamePluginsPage() {
                             <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
                             <span className="font-semibold">{plugin.max_stacks || "∞"}</span>
                           </div>
-                          {plugin.is_template !== undefined && (
-                            <div className="flex items-center gap-1.5">
+                          {plugin.is_template !== undefined && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Is template</span>
                               <span className="font-semibold">{plugin.is_template ? "Yes" : "No"}</span>
-                            </div>
-                          )}
+                            </div>)}
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Created at</span>
                             <span>{new Date(plugin.created_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.created_at))}</span></span>
@@ -1305,67 +1103,47 @@ export default function GamePluginsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )
+                    </div>)}
+                </div>);
             })}
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* ──────────────────────────────────────────
-          SUBSCRIPTION HISTORY (cancelled / revoked)
-         ────────────────────────────────────────── */}
-      {historySubs.length > 0 && (
-        <div>
+                SUBSCRIPTION HISTORY (cancelled / revoked)
+               ────────────────────────────────────────── */}
+      {historySubs.length > 0 && (<div>
           <div className="flex items-center gap-2 mb-4">
-            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <BarChart2 className="h-3.5 w-3.5 text-muted-foreground"/>
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('plugins.history') ?? 'History'}</span>
-            <div className="flex-1 h-px bg-border" />
+            <div className="flex-1 h-px bg-border"/>
             <span className="text-[10px] text-muted-foreground">{historySubs.length}</span>
           </div>
           <div className="space-y-2">
             {historySubs.map(({ subscription, plugin, is_cancelled, status }, i) => {
-              const isRevoked = subscription.is_revoked
-              const isCancelled = is_cancelled
-              const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null
-              const activatedAt = new Date(subscription.activated_at)
-              const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null
-              const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null
-              const renewedAt = new Date(subscription.renewed_at)
-              const isExpanded = expandedSubId === subscription.id
-
-              return (
-                <div
-                  key={subscription.id}
-                  className="rounded-xl border border-border/50 overflow-hidden"
-                >
+                const isRevoked = subscription.is_revoked;
+                const isCancelled = is_cancelled;
+                const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null;
+                const activatedAt = new Date(subscription.activated_at);
+                const cancelledAt = subscription.cancelled_at ? new Date(subscription.cancelled_at) : null;
+                const revokedAt = subscription.revoked_at ? new Date(subscription.revoked_at) : null;
+                const renewedAt = new Date(subscription.renewed_at);
+                const isExpanded = expandedSubId === subscription.id;
+                return (<div key={subscription.id} className="rounded-xl border border-border/50 overflow-hidden">
                   {/* Row header — clickable */}
-                  <div
-                    className="flex items-center justify-between px-4 py-3 gap-4 bg-muted/10 opacity-50 hover:opacity-80 transition-opacity cursor-pointer select-none hover:bg-muted/30"
-                    onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}
-                  >
+                  <div className="flex items-center justify-between px-4 py-3 gap-4 bg-muted/10 opacity-50 hover:opacity-80 transition-opacity cursor-pointer select-none hover:bg-muted/30" onClick={() => setExpandedSubId(isExpanded ? null : subscription.id)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-[10px] font-mono text-muted-foreground w-5 text-right shrink-0">#{i + 1}</span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm text-muted-foreground">{plugin.display_name}</span>
-                          {plugin.plugin_type === "custom" && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>
-                          )}
-                          {isCancelled && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>
-                          )}
-                          {isRevoked && (
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>
-                          )}
-                          {subscription.coins_per_month > 0 && (
-                            <span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>
-                          )}
+                          {plugin.plugin_type === "custom" && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">Admin Grant</span>)}
+                          {isCancelled && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('plugins.materia.statusCancelled')}</span>)}
+                          {isRevoked && (<span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30">{t('plugins.materia.statusRevoked')}</span>)}
+                          {subscription.coins_per_month > 0 && (<span className="text-[10px] text-muted-foreground font-semibold">🪙 {formatNumber(subscription.coins_per_month)}{t('plugins.perMonth')}</span>)}
                         </div>
                         <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3" /></span>
+                          <span>{t('plugins.materia.labelId')}: <span className="font-mono text-[10px]">{subscription.id.slice(0, 8)}…</span><CopyButton text={subscription.id} size="h-3 w-3"/></span>
                           <span>{t('plugins.materia.labelActivated')}: {activatedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                           {cancelledAt && <span>{t('plugins.materia.labelCancelledAt')}: {cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
                           {subscription.note?.trim() && <span className="italic">{subscription.note}</span>}
@@ -1374,19 +1152,14 @@ export default function GamePluginsPage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
-                        {expiresAt ? (
-                          <p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}</p>
-                        ) : (
-                          <p className="text-[10px] text-muted-foreground">{t('plugins.permanent')}</p>
-                        )}
+                        {expiresAt ? (<p className="text-[10px] text-muted-foreground">{expiresAt.toLocaleDateString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric" })}</p>) : (<p className="text-[10px] text-muted-foreground">{t('plugins.permanent')}</p>)}
                       </div>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}/>
                     </div>
                   </div>
 
                   {/* Expanded detail panel */}
-                  {isExpanded && (
-                    <div className="border-t border-border/40 bg-muted/10 px-5 py-4 space-y-4">
+                  {isExpanded && (<div className="border-t border-border/40 bg-muted/10 px-5 py-4 space-y-4">
                       {/* Subscription details */}
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Subscription</p>
@@ -1394,12 +1167,12 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">ID</span>
                             <span className="font-mono text-[10px] break-all">{subscription.id}</span>
-                            <CopyButton text={subscription.id} size="h-3 w-3" />
+                            <CopyButton text={subscription.id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Plugin ID</span>
                             <span className="font-mono text-[10px] break-all">{subscription.plugin_id}</span>
-                            <CopyButton text={subscription.plugin_id} size="h-3 w-3" />
+                            <CopyButton text={subscription.plugin_id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Cost/month</span>
@@ -1407,17 +1180,15 @@ export default function GamePluginsPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Status</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${
-                              status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
-                              status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
-                              status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
-                              "bg-muted text-muted-foreground border-border"
-                            }`}>{status ?? "—"}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${status === "active" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                            status === "cancelled" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                                status === "revoked" ? "bg-destructive/15 text-destructive border-destructive/30" :
+                                    "bg-muted text-muted-foreground border-border"}`}>{status ?? "—"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Activated by</span>
                             <span className="font-mono text-[10px]">{subscription.activated_by.slice(0, 8)}…</span>
-                            <CopyButton text={subscription.activated_by} size="h-3 w-3" />
+                            <CopyButton text={subscription.activated_by} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Activated at</span>
@@ -1427,37 +1198,27 @@ export default function GamePluginsPage() {
                             <span className="text-muted-foreground w-28 shrink-0">Renewed at</span>
                             <span>{renewedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(renewedAt)}</span></span>
                           </div>
-                          {expiresAt && (
-                            <div className="flex items-center gap-1.5">
+                          {expiresAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Expires at</span>
                               <span>{expiresAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(expiresAt)}</span></span>
-                            </div>
-                          )}
-                          {cancelledAt && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {cancelledAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Cancelled at</span>
                               <span className="text-orange-400">{cancelledAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(cancelledAt)}</span></span>
-                            </div>
-                          )}
-                          {revokedAt && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {revokedAt && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Revoked at</span>
                               <span className="text-destructive">{revokedAt.toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(revokedAt)}</span></span>
-                            </div>
-                          )}
-                          {subscription.revoked_by && (
-                            <div className="flex items-center gap-1.5">
+                            </div>)}
+                          {subscription.revoked_by && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Revoked by</span>
                               <span className="font-mono text-[10px]">{subscription.revoked_by.slice(0, 8)}…</span>
-                              <CopyButton text={subscription.revoked_by} size="h-3 w-3" />
-                            </div>
-                          )}
-                          {subscription.note?.trim() && (
-                            <div className="flex items-center gap-1.5 col-span-2">
+                              <CopyButton text={subscription.revoked_by} size="h-3 w-3"/>
+                            </div>)}
+                          {subscription.note?.trim() && (<div className="flex items-center gap-1.5 col-span-2">
                               <span className="text-muted-foreground w-28 shrink-0">Note</span>
                               <span className="italic">{subscription.note}</span>
-                            </div>
-                          )}
+                            </div>)}
                         </div>
                       </div>
 
@@ -1468,18 +1229,16 @@ export default function GamePluginsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">ID</span>
                             <span className="font-mono text-[10px] break-all">{plugin.id}</span>
-                            <CopyButton text={plugin.id} size="h-3 w-3" />
+                            <CopyButton text={plugin.id} size="h-3 w-3"/>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Type</span>
                             <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${plugin.plugin_type === "standard" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" : "bg-muted text-muted-foreground border-border"}`}>{plugin.plugin_type}</span>
                           </div>
-                          {plugin.description?.trim() && (
-                            <div className="flex items-start gap-1.5 col-span-2">
+                          {plugin.description?.trim() && (<div className="flex items-start gap-1.5 col-span-2">
                               <span className="text-muted-foreground w-28 shrink-0">Description</span>
                               <span>{plugin.description}</span>
-                            </div>
-                          )}
+                            </div>)}
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">CCU grant</span>
                             <span className="font-semibold">+{formatNumber(plugin.ccu_grant)}</span>
@@ -1524,12 +1283,10 @@ export default function GamePluginsPage() {
                             <span className="text-muted-foreground w-28 shrink-0">Max stacks</span>
                             <span className="font-semibold">{plugin.max_stacks || "∞"}</span>
                           </div>
-                          {plugin.is_template !== undefined && (
-                            <div className="flex items-center gap-1.5">
+                          {plugin.is_template !== undefined && (<div className="flex items-center gap-1.5">
                               <span className="text-muted-foreground w-28 shrink-0">Is template</span>
                               <span className="font-semibold">{plugin.is_template ? "Yes" : "No"}</span>
-                            </div>
-                          )}
+                            </div>)}
                           <div className="flex items-center gap-1.5">
                             <span className="text-muted-foreground w-28 shrink-0">Created at</span>
                             <span>{new Date(plugin.created_at).toLocaleString(undefined, { timeZone: getUserTimezone(), year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}{" "}<span className="text-muted-foreground/60">{timeAgo(new Date(plugin.created_at))}</span></span>
@@ -1540,31 +1297,22 @@ export default function GamePluginsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )
+                    </div>)}
+                </div>);
             })}
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* ──────────────────────────────────────────
-          REMOVE MATERIA CONFIRMATION DIALOG
-         ────────────────────────────────────────── */}
+                REMOVE MATERIA CONFIRMATION DIALOG
+               ────────────────────────────────────────── */}
       <AlertDialog open={!!unsubTarget} onOpenChange={(o) => !o && setUnsubTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               {unsubTarget && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={getGemTier(unsubTarget.idx).image}
-                  alt={getGemTier(unsubTarget.idx).label}
-                  className="w-6 h-6 object-contain"
-                  style={{ filter: `drop-shadow(0 0 6px ${getGemTier(unsubTarget.idx).glowColor})` }}
-                />
-              )}
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={getGemTier(unsubTarget.idx).image} alt={getGemTier(unsubTarget.idx).label} className="w-6 h-6 object-contain" style={{ filter: `drop-shadow(0 0 6px ${getGemTier(unsubTarget.idx).glowColor})` }}/>)}
               Remove {unsubTarget?.plugin.display_name} {t('plugins.materia.removeConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -1573,32 +1321,29 @@ export default function GamePluginsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleUnsubConfirm}
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" /> {t('plugins.materia.removeAction')}
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleUnsubConfirm}>
+              <Trash2 className="mr-1.5 h-4 w-4"/> {t('plugins.materia.removeAction')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* ──────────────────────────────────────────
-          SOCKET CONFIRMATION DIALOG
-         ────────────────────────────────────────── */}
-      <AlertDialog open={!!confirmPlugin} onOpenChange={(o) => { if (!o) { setConfirmPlugin(null); const y = savedScrollY.current; requestAnimationFrame(() => window.scrollTo({ top: y, behavior: 'instant' })) } }}>
+                SOCKET CONFIRMATION DIALOG
+               ────────────────────────────────────────── */}
+      <AlertDialog open={!!confirmPlugin} onOpenChange={(o) => {
+            if (!o) {
+                setConfirmPlugin(null);
+                const y = savedScrollY.current;
+                requestAnimationFrame(() => window.scrollTo({ top: y, behavior: 'instant' }));
+            }
+        }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               {confirmPlugin && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={getGemTier(confirmPluginIdx).image}
-                  alt={getGemTier(confirmPluginIdx).label}
-                  className="w-6 h-6 object-contain"
-                  style={{ filter: `drop-shadow(0 0 6px ${getGemTier(confirmPluginIdx).glowColor})` }}
-                />
-              )}
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={getGemTier(confirmPluginIdx).image} alt={getGemTier(confirmPluginIdx).label} className="w-6 h-6 object-contain" style={{ filter: `drop-shadow(0 0 6px ${getGemTier(confirmPluginIdx).glowColor})` }}/>)}
               Socket {confirmPlugin?.display_name} {t('plugins.materia.socketConfirmTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -1606,48 +1351,37 @@ export default function GamePluginsPage() {
                 <p>
                   Costs <strong>🪙 {confirmPlugin ? getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString() : 0}</strong> {t('plugins.materia.socketConfirmCost')}
                 </p>
-                {confirmPlugin && (
-                  <div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
+                {confirmPlugin && (<div className="rounded-xl border bg-muted/30 p-3 text-sm space-y-1.5">
                     {[
-                        { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
-                        { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
-                        { icon: "📦", label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
-                        { icon: "🏪", label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
-                        { icon: "📜", label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
-                        { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
-                        { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
-                        { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
-                        { icon: "📜", label: t('plugins.materia.labelScripts'), val: (confirmPlugin.scripts_grant ?? 0) * confirmStacks },
-                        { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: (confirmPlugin.entity_defs_grant ?? 0) * confirmStacks },
-                      ].map((r: any) => (
-                      <div key={r.label} className="flex justify-between">
+                { label: t('plugins.materia.labelCcu'), val: (confirmPlugin.ccu_grant ?? 0) * confirmStacks },
+                { label: t('plugins.materia.labelProfiles'), val: (confirmPlugin.profiles_grant ?? 0) * confirmStacks },
+                { icon: "📦", label: t('plugins.materia.labelItems'), val: (confirmPlugin.items_grant ?? 0) * confirmStacks },
+                { icon: "🏪", label: t('plugins.materia.labelShops'), val: (confirmPlugin.shops_grant ?? 0) * confirmStacks },
+                { icon: "📜", label: t('plugins.materia.labelQuests'), val: (confirmPlugin.quests_grant ?? 0) * confirmStacks },
+                { icon: "🔗", label: t('plugins.materia.labelNodeDefs'), val: (confirmPlugin.node_defs_grant ?? 0) * confirmStacks },
+                { icon: "📡", label: t('plugins.materia.labelEventTypes') || "Event Types", val: (confirmPlugin.event_types_grant ?? 0) * confirmStacks },
+                { icon: "📋", label: t('plugins.materia.labelBoards') || "Leaderboards", val: (confirmPlugin.boards_grant ?? 0) * confirmStacks },
+                { icon: "📜", label: t('plugins.materia.labelScripts'), val: (confirmPlugin.scripts_grant ?? 0) * confirmStacks },
+                { icon: "🧩", label: t('plugins.materia.labelEntityDefs'), val: (confirmPlugin.entity_defs_grant ?? 0) * confirmStacks },
+            ].map((r: any) => (<div key={r.label} className="flex justify-between">
                         <span className="text-muted-foreground">{r.label}</span>
                         <span className="font-semibold">+{formatNumber(r.val)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {confirmPlugin && walletBalance !== null && walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks) && (
-                  <Alert variant="destructive">
+                      </div>))}
+                  </div>)}
+                {confirmPlugin && walletBalance !== null && walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks) && (<Alert variant="destructive">
                     <AlertDescription>
                       You have 🪙 {walletBalance.toLocaleString()} — need 🪙 {getSubscriptionCost(confirmPlugin, confirmStacks).toLocaleString()}.{" "}
                       <Link href="/payment" className="underline">{t('plugins.materia.topUp')}</Link>.
                     </AlertDescription>
-                  </Alert>
-                )}
+                  </Alert>)}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleSubscribeConfirm}
-              disabled={
-                confirmPlugin !== null &&
-                walletBalance !== null &&
-                walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks)
-              }
-            >
+            <AlertDialogAction onClick={handleSubscribeConfirm} disabled={confirmPlugin !== null &&
+            walletBalance !== null &&
+            walletBalance < getSubscriptionCost(confirmPlugin, confirmStacks)}>
               {t('plugins.materia.socketNow')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1655,12 +1389,14 @@ export default function GamePluginsPage() {
       </AlertDialog>
 
       {/* ── Limit explanation sheet (slides from right) ── */}
-      <Sheet open={openLimitSheet !== null} onOpenChange={(open) => { if (!open) setOpenLimitSheet(null) }}>
+      <Sheet open={openLimitSheet !== null} onOpenChange={(open) => {
+            if (!open)
+                setOpenLimitSheet(null);
+        }}>
         <SheetContent side="right" className="w-[480px] sm:w-[560px] overflow-y-auto">
           {openLimitSheet && LIMIT_EXPLANATIONS[openLimitSheet] && (() => {
-            const exp = LIMIT_EXPLANATIONS[openLimitSheet]
-            return (
-              <>
+            const exp = LIMIT_EXPLANATIONS[openLimitSheet];
+            return (<>
                 <SheetHeader className="mb-6">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-3xl">{exp.icon}</span>
@@ -1686,37 +1422,35 @@ export default function GamePluginsPage() {
                     </p>
                     <ul className="space-y-2.5">
                       {exp.details.map((detail, i) => {
-                        const tk = `plugins.materia.help.${openLimitSheet}.details.${i}`
-                        const displayDetail = t(tk) === tk ? detail : t(tk)
-                        return (
-                          <li key={i} className="flex gap-2.5 text-sm">
+                    const tk = `plugins.materia.help.${openLimitSheet}.details.${i}`;
+                    const displayDetail = t(tk) === tk ? detail : t(tk);
+                    return (<li key={i} className="flex gap-2.5 text-sm">
                             <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                             <span className="text-muted-foreground leading-relaxed">{displayDetail}</span>
-                          </li>
-                        )
-                      })}
+                          </li>);
+                })}
                     </ul>
                   </div>
 
                   {/* Current usage */}
                   {game && (() => {
                     const row = [
-                      { key: "ccu", max: game.limits?.max_concurrent_users ?? null, used: game.usage?.concurrent_users },
-                      { key: "profiles", max: game.limits?.max_player_profiles ?? null, used: game.usage?.player_profiles },
-                      { key: "items", max: game.limits?.max_items ?? null, used: game.usage?.items },
-                      { key: "shops", max: game.limits?.max_shops ?? null, used: game.usage?.shops },
-                      { key: "quests", max: game.limits?.max_quests ?? null, used: game.usage?.quests ?? 0 },
-                      { key: "nodes", max: game.limits?.max_node_definitions ?? null, used: game.usage?.node_definitions ?? 0 },
-                      { key: "boards", max: game.limits?.max_leaderboards ?? null, used: game.usage?.leaderboards ?? 0 },
-                      { key: "event_types", max: game.limits?.max_event_types ?? null, used: game.usage?.event_types ?? 0 },
-                      { key: "scripts", max: game.limits?.max_scripts ?? null, used: game.usage?.scripts ?? 0 },
-                      { key: "entity_defs", max: game.limits?.max_entity_defs ?? null, used: game.usage?.entity_definitions ?? 0 },
-                    ].find(r => r.key === openLimitSheet)
-                    if (!row || row.max == null) return null
-                    const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0
-                    const barColor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary"
-                    return (
-                      <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                        { key: "ccu", max: game.limits?.max_concurrent_users ?? null, used: game.usage?.concurrent_users },
+                        { key: "profiles", max: game.limits?.max_player_profiles ?? null, used: game.usage?.player_profiles },
+                        { key: "items", max: game.limits?.max_items ?? null, used: game.usage?.items },
+                        { key: "shops", max: game.limits?.max_shops ?? null, used: game.usage?.shops },
+                        { key: "quests", max: game.limits?.max_quests ?? null, used: game.usage?.quests ?? 0 },
+                        { key: "nodes", max: game.limits?.max_node_definitions ?? null, used: game.usage?.node_definitions ?? 0 },
+                        { key: "boards", max: game.limits?.max_leaderboards ?? null, used: game.usage?.leaderboards ?? 0 },
+                        { key: "event_types", max: game.limits?.max_event_types ?? null, used: game.usage?.event_types ?? 0 },
+                        { key: "scripts", max: game.limits?.max_scripts ?? null, used: game.usage?.scripts ?? 0 },
+                        { key: "entity_defs", max: game.limits?.max_entity_defs ?? null, used: game.usage?.entity_definitions ?? 0 },
+                    ].find(r => r.key === openLimitSheet);
+                    if (!row || row.max == null)
+                        return null;
+                    const pct = row.used != null && row.max > 0 ? Math.min(100, (row.used / row.max) * 100) : 0;
+                    const barColor = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-yellow-500" : "bg-primary";
+                    return (<div className="rounded-xl border border-border/60 bg-muted/30 p-4">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
                           {t('plugins.materia.help.currentUsage') === 'plugins.materia.help.currentUsage' ? 'Current Usage' : t('plugins.materia.help.currentUsage')}
                         </p>
@@ -1725,14 +1459,13 @@ export default function GamePluginsPage() {
                           <span className="text-sm text-muted-foreground">/ {formatNumber(row.max)}</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }}/>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1.5">
                           {pct.toFixed(1)}% {t('plugins.materia.help.used') === 'plugins.materia.help.used' ? 'used' : t('plugins.materia.help.used')}
                         </p>
-                      </div>
-                    )
-                  })()}
+                      </div>);
+                })()}
 
                   {/* Grant table */}
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
@@ -1740,35 +1473,25 @@ export default function GamePluginsPage() {
                       {t('plugins.materia.help.materiaGrantTable') === 'plugins.materia.help.materiaGrantTable' ? 'Materia Grant Table' : t('plugins.materia.help.materiaGrantTable')}
                     </p>
                     <div className="space-y-1.5">
-                      {exp.grantTable.map((row, i) => (
-                        <div key={i} className="flex items-start justify-between gap-4 text-xs">
+                      {exp.grantTable.map((row, i) => (<div key={i} className="flex items-start justify-between gap-4 text-xs">
                           <span className="text-muted-foreground shrink-0">{row.tier}</span>
                           <span className="font-semibold text-right text-green-400">{row.perStack}</span>
-                        </div>
-                      ))}
+                        </div>))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenLimitSheet(null)}
-                      className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                    >
-                      <Zap className="h-3 w-3" /> {t('plugins.materia.help.browseMateria') === 'plugins.materia.help.browseMateria' ? 'Browse available Materia ↑' : t('plugins.materia.help.browseMateria')}
+                    <button type="button" onClick={() => setOpenLimitSheet(null)} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                      <Zap className="h-3 w-3"/> {t('plugins.materia.help.browseMateria') === 'plugins.materia.help.browseMateria' ? 'Browse available Materia ↑' : t('plugins.materia.help.browseMateria')}
                     </button>
                   </div>
 
                   {/* Tip */}
-                  {exp.tip && (
-                    <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+                  {exp.tip && (<div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-yellow-500/70 mb-1">💡 Tip</p>
                       <p className="text-xs text-muted-foreground leading-relaxed">{exp.tip}</p>
-                    </div>
-                  )}
+                    </div>)}
                 </div>
-              </>
-            )
-          })()}
+              </>);
+        })()}
         </SheetContent>
       </Sheet>
-    </div>
-  )
+    </div>);
 }

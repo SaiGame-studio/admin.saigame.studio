@@ -6,227 +6,179 @@ import { updateStudio } from "@/lib/studio-api";
 import { updateGame } from "@/lib/game-api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-
 interface StudioNameEditableProps {
-  studio: any;
-  studioId: string;
-  onNameUpdate: (newName: string) => void;
+    studio: any;
+    studioId: string;
+    onNameUpdate: (newName: string) => void;
 }
-
 export default function StudioNameEditable({ studio, studioId, onNameUpdate }: StudioNameEditableProps) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(studio.name);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setName(studio.name);
-  }, [studio.name]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await updateStudio(studioId, { name });
-      onNameUpdate(name);
-      setEditing(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to update studio name");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="group flex items-center gap-2">
-      {editing ? (
-        <>
-          <Input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-48 h-8 px-2 text-lg font-bold"
-            disabled={loading}
-          />
+    const [editing, setEditing] = useState(false);
+    const [name, setName] = useState(studio.name);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        setName(studio.name);
+    }, [studio.name]);
+    const handleSave = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await updateStudio(studioId, { name });
+            onNameUpdate(name);
+            setEditing(false);
+        }
+        catch (e: any) {
+            setError(e.message || "Failed to update studio name");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (<div className="group flex items-center gap-2">
+      {editing ? (<>
+          <Input value={name} onChange={e => setName(e.target.value)} className="w-48 h-8 px-2 text-lg font-bold" disabled={loading}/>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
+            <Save className="w-4 h-4"/>
           </Button>
           <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setName(studio.name); }} disabled={loading}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4"/>
           </Button>
-        </>
-      ) : (
-        <>
+        </>) : (<>
           <span className="text-3xl font-bold">{studio.name}</span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4"/>
           </Button>
-        </>
-      )}
+        </>)}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  );
+    </div>);
 }
-
 interface GameNameEditableProps {
-  game: any;
-  gameId: string;
-  onNameUpdate: (newName: string) => void;
+    game: any;
+    gameId: string;
+    onNameUpdate: (newName: string) => void;
 }
-
 export function GameNameEditable({ game, gameId, onNameUpdate }: GameNameEditableProps) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(game.name);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setName(game.name);
-  }, [game.name]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await updateGame(gameId, { name });
-      onNameUpdate(name);
-      setEditing(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to update game name");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="group flex items-center gap-2 flex-wrap">
-      {editing ? (
-        <>
-          <Input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="flex-1 min-w-0 h-8 px-2 text-lg font-bold sm:w-48 sm:flex-none"
-            disabled={loading}
-          />
+    const [editing, setEditing] = useState(false);
+    const [name, setName] = useState(game.name);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        setName(game.name);
+    }, [game.name]);
+    const handleSave = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await updateGame(gameId, { name });
+            onNameUpdate(name);
+            setEditing(false);
+        }
+        catch (e: any) {
+            setError(e.message || "Failed to update game name");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (<div className="group flex items-center gap-2 flex-wrap">
+      {editing ? (<>
+          <Input value={name} onChange={e => setName(e.target.value)} className="flex-1 min-w-0 h-8 px-2 text-lg font-bold sm:w-48 sm:flex-none" disabled={loading}/>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
+            <Save className="w-4 h-4"/>
           </Button>
           <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setName(game.name); }} disabled={loading}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4"/>
           </Button>
-        </>
-      ) : (
-        <>
+        </>) : (<>
           <span className="text-2xl font-bold break-words min-w-0 sm:text-3xl">{game.name}</span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4"/>
           </Button>
-        </>
-      )}
+        </>)}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  );
+    </div>);
 }
-
 interface GameDescriptionEditableProps {
-  game: any;
-  gameId: string;
-  onDescriptionUpdate: (newDescription: string) => void;
+    game: any;
+    gameId: string;
+    onDescriptionUpdate: (newDescription: string) => void;
 }
-
 export function GameDescriptionEditable({ game, gameId, onDescriptionUpdate }: GameDescriptionEditableProps) {
-  const [editing, setEditing] = useState(false);
-  const [description, setDescription] = useState(game.description || "");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDescription(game.description || "");
-  }, [game.description]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await updateGame(gameId, { description });
-      onDescriptionUpdate(description);
-      setEditing(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to update game description");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="group flex items-center gap-2 mt-1 flex-wrap">
-      {editing ? (
-        <>
-          <Input
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Add game description..."
-            className="flex-1 min-w-0 h-8 px-2 text-sm sm:w-96 sm:flex-none"
-            disabled={loading}
-          />
+    const [editing, setEditing] = useState(false);
+    const [description, setDescription] = useState(game.description || "");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        setDescription(game.description || "");
+    }, [game.description]);
+    const handleSave = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await updateGame(gameId, { description });
+            onDescriptionUpdate(description);
+            setEditing(false);
+        }
+        catch (e: any) {
+            setError(e.message || "Failed to update game description");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (<div className="group flex items-center gap-2 mt-1 flex-wrap">
+      {editing ? (<>
+          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Add game description..." className="flex-1 min-w-0 h-8 px-2 text-sm sm:w-96 sm:flex-none" disabled={loading}/>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
+            <Save className="w-4 h-4"/>
           </Button>
           <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(game.description || ""); }} disabled={loading}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4"/>
           </Button>
-        </>
-      ) : (
-        <>
+        </>) : (<>
           <span className="text-sm text-muted-foreground break-words min-w-0">
             {description || "Add game description..."}
           </span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4"/>
           </Button>
-        </>
-      )}
+        </>)}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  );
+    </div>);
 }
-
 interface GameStatusEditableProps {
-  game: any;
-  gameId: string;
-  onStatusUpdate: (newStatus: string) => void;
+    game: any;
+    gameId: string;
+    onStatusUpdate: (newStatus: string) => void;
 }
-
 export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusEditableProps) {
-  const [editing, setEditing] = useState(false);
-  const [status, setStatus] = useState(game.status);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setStatus(game.status);
-  }, [game.status]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await updateGame(gameId, { status });
-      onStatusUpdate(status);
-      setEditing(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to update game status");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="group flex items-center gap-2">
-      {editing ? (
-        <>
+    const [editing, setEditing] = useState(false);
+    const [status, setStatus] = useState(game.status);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        setStatus(game.status);
+    }, [game.status]);
+    const handleSave = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await updateGame(gameId, { status });
+            onStatusUpdate(status);
+            setEditing(false);
+        }
+        catch (e: any) {
+            setError(e.message || "Failed to update game status");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (<div className="group flex items-center gap-2">
+      {editing ? (<>
           <Select value={status} onValueChange={setStatus} disabled={loading}>
             <SelectTrigger className="w-36 h-8 text-lg font-bold">
-              <SelectValue placeholder="Select status" />
+              <SelectValue placeholder="Select status"/>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="development">Development</SelectItem>
@@ -237,84 +189,65 @@ export function GameStatusEditable({ game, gameId, onStatusUpdate }: GameStatusE
             </SelectContent>
           </Select>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
+            <Save className="w-4 h-4"/>
           </Button>
           <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setStatus(game.status); }} disabled={loading}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4"/>
           </Button>
-        </>
-      ) : (
-        <>
+        </>) : (<>
           <Badge className={`mt-1`}>{game.status}</Badge>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4"/>
           </Button>
-        </>
-      )}
+        </>)}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  );
+    </div>);
 }
-
 interface StudioDescriptionEditableProps {
-  studio: any;
-  studioId: string;
-  onDescriptionUpdate: (newDescription: string) => void;
+    studio: any;
+    studioId: string;
+    onDescriptionUpdate: (newDescription: string) => void;
 }
-
 export function StudioDescriptionEditable({ studio, studioId, onDescriptionUpdate }: StudioDescriptionEditableProps) {
-  const [editing, setEditing] = useState(false);
-  const [description, setDescription] = useState(studio.description || '');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDescription(studio.description || '');
-  }, [studio.description]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await updateStudio(studioId, { description });
-      onDescriptionUpdate(description);
-      setEditing(false);
-    } catch (e: any) {
-      setError(e.message || "Failed to update studio description");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="group flex items-center gap-2 mt-1">
-      {editing ? (
-        <>
-          <Input
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Add studio description..."
-            className="w-96 h-8 px-2 text-sm"
-            disabled={loading}
-          />
+    const [editing, setEditing] = useState(false);
+    const [description, setDescription] = useState(studio.description || '');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+        setDescription(studio.description || '');
+    }, [studio.description]);
+    const handleSave = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await updateStudio(studioId, { description });
+            onDescriptionUpdate(description);
+            setEditing(false);
+        }
+        catch (e: any) {
+            setError(e.message || "Failed to update studio description");
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (<div className="group flex items-center gap-2 mt-1">
+      {editing ? (<>
+          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Add studio description..." className="w-96 h-8 px-2 text-sm" disabled={loading}/>
           <Button size="icon" variant="ghost" onClick={handleSave} disabled={loading}>
-            <Save className="w-4 h-4" />
+            <Save className="w-4 h-4"/>
           </Button>
           <Button size="icon" variant="ghost" onClick={() => { setEditing(false); setDescription(studio.description || ''); }} disabled={loading}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4"/>
           </Button>
-        </>
-      ) : (
-        <>
+        </>) : (<>
           <span className="text-sm text-muted-foreground">
             {description || "Add studio description..."}
           </span>
           <Button size="icon" variant="ghost" onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4"/>
           </Button>
-        </>
-      )}
+        </>)}
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
-    </div>
-  );
+    </div>);
 }
