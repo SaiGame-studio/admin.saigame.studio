@@ -2514,6 +2514,7 @@ export const en = {
                 disabled1: "Clients cannot modify item properties",
                 disabled2: "All changes must go through the server API",
                 disabled3: "Better security for critical properties",
+                tipLabel: "Tip:",
                 tip: "Tip:",
                 tipContent: "Use this for non-critical properties like display names, colors, or personal notes.",
             },
@@ -2530,6 +2531,7 @@ export const en = {
                 disabled2: "Prevents accidental or malicious quantity modifications",
                 disabled3: "Better control over limited resource items",
                 disabled4: "More secure for valuable or currency-type items",
+                warningLabel: "Warning:",
                 warning: "Warning:",
                 warningContent: "Disable this for limited resources, premium items, or currency to prevent cheating.",
             }
