@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { ConversationContentLink } from '@/types/llm-conversation';
 interface ConversationLinkedContentProps {
     gameId: string;
+    contentFontSize: number;
     linkedContent: ConversationContentLink[];
     isLoadingLinkedContent: boolean;
     unlinkingId: string | null;
@@ -20,7 +21,8 @@ interface ConversationLinkedContentProps {
     onUnlink: (linkId: string, contentType: string, contentId: string) => void;
     t: (key: string) => string;
 }
-export function ConversationLinkedContent({ gameId, linkedContent, isLoadingLinkedContent, unlinkingId, loreEntryTitles, itemDefinitionNames, entityDefinitionNames, containerDefinitionNames, presetDefinitionNames, gachaPackNames, craftingRecipeNames, entityPoolNames, entityPoolKeys, questDefinitionNames, onUnlink, t, }: ConversationLinkedContentProps) {
+const CONTENT_FONT_INHERIT_CLASS = 'conv-panel-content-font-scale';
+export function ConversationLinkedContent({ gameId, contentFontSize, linkedContent, isLoadingLinkedContent, unlinkingId, loreEntryTitles, itemDefinitionNames, entityDefinitionNames, containerDefinitionNames, presetDefinitionNames, gachaPackNames, craftingRecipeNames, entityPoolNames, entityPoolKeys, questDefinitionNames, onUnlink, t, }: ConversationLinkedContentProps) {
     const router = useRouter();
     function openItemDetail(itemId: string) {
         const payload = { itemId, nonce: Date.now() };
@@ -118,7 +120,7 @@ export function ConversationLinkedContent({ gameId, linkedContent, isLoadingLink
         </button>
       </span>);
     }
-    return (<div id="conv-panel-linked-content" className="shrink-0 border-t px-2 pt-1.5 pb-1">
+    return (<div id="conv-panel-linked-content" className={`shrink-0 border-t px-2 pt-1.5 pb-1 ${CONTENT_FONT_INHERIT_CLASS}`} style={{ fontSize: `${contentFontSize}px` }}>
       <div id="conv-panel-linked-content-header" className="flex items-center gap-1 mb-1">
         <Link2 className="h-3 w-3 text-muted-foreground"/>
         <span id="conv-panel-linked-content-label" className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
