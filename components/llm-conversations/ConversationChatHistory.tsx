@@ -183,6 +183,7 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
     const autoScrollRef = useRef(false);
     const userScrollIntentRef = useRef(false);
     const userScrollIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const prevScrollModeRef = useRef(scrollMode);
     function resolveErrorMessage(message: string | null): string {
         if (!message) {
             return '';
@@ -211,7 +212,9 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
         }
         router.push(`/games/${gameId}/items/${itemId}`);
     }
-    // Restore scroll position when switching to a different conversation
+    // Restore scroll position when switching to a different conversation.
+    // Scroll mode changes are handled separately so toggling follow -> stick
+    // does not jump all the way back to the previously saved scroll position.
     useEffect(() => {
         if (!activeConvId)
             return;
@@ -229,6 +232,20 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
             const pos = parseInt(saved, 10);
             if (Number.isFinite(pos))
                 scrollRef.current.scrollTop = pos;
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [activeConvId]);
+    useEffect(() => {
+        const prevScrollMode = prevScrollModeRef.current;
+        prevScrollModeRef.current = scrollMode;
+        if (prevScrollMode !== 'follow' || scrollMode !== 'stick' || !activeConvId || !scrollRef.current)
+            return;
+        const raf = requestAnimationFrame(() => {
+            const el = scrollRef.current;
+            if (!el)
+                return;
+            const nudge = 16;
+            el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - nudge);
         });
         return () => cancelAnimationFrame(raf);
     }, [activeConvId, scrollMode]);
