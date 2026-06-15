@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
     const { t } = useTranslation();
     const router = useRouter();
     const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem_cost;
-    const disabled = !pkg.is_active || !canAfford;
+    const disabled = !pkg.is_active;
 
     return (
         <div
@@ -74,9 +75,11 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
             }}
             className={`relative flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected
                 ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                : !disabled
-                    ? "border-border hover:border-primary/50 hover:bg-muted/40"
-                    : "cursor-not-allowed border-border opacity-40"}`}
+                : disabled
+                    ? "cursor-not-allowed border-border opacity-40"
+                    : canAfford
+                        ? "border-border hover:border-primary/50 hover:bg-muted/40"
+                        : "border-amber-500/30 bg-amber-500/5 hover:border-amber-400/60 hover:bg-amber-500/10"}`}
         >
             {selected && (
                 <span id={`llm-purchase-card-check-${pkg.package_key}`} className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -108,9 +111,9 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
                     <Button
                         id={`llm-purchase-card-buy-more-btn-${pkg.package_key}`}
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="ml-1 h-6 w-6 shrink-0 text-primary hover:text-primary"
+                        className="ml-1 h-6 w-6 shrink-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-sm hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-300"
                         onClick={(e) => {
                             e.stopPropagation();
                             router.push("/payment?tab=buy-sgem");
@@ -217,6 +220,16 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
         const pkg = packages.find((item) => item.package_key === selectedKey);
         if (!pkg)
             return;
+
+        const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem_cost;
+        if (!pkg.is_active || !canAfford) {
+            toast({
+                title: t("llmTokenPurchase.toastInsufficientTitle"),
+                description: t("llmTokenPurchase.toastInsufficientDesc"),
+                variant: "destructive",
+            });
+            return;
+        }
 
         setPurchasing(true);
         try {
@@ -372,24 +385,26 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
 
             <div id={`llm-purchase-footer-${gameId}`} className={`flex flex-col gap-3 border-t bg-background px-6 py-4 transition-all duration-200 ${selectedKey ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}>
                 {(() => {
-                    const pkg = packages.find((item) => item.package_key === selectedKey);
-                    if (!pkg)
+                    const selectedPackage = packages.find((item) => item.package_key === selectedKey);
+                    if (!selectedPackage)
                         return null;
+                    const canAfford = sgemBalance === null || sgemBalance >= selectedPackage.sgem_cost;
+                    const canBuyNow = selectedPackage.is_active && canAfford;
 
                     return (
                         <>
                             <div id={`llm-purchase-footer-summary-${gameId}`} className="flex items-center justify-between text-sm">
                                 <div id={`llm-purchase-footer-pkg-${gameId}`} className="flex flex-col gap-0.5">
                                     <span id={`llm-purchase-footer-pkg-name-${gameId}`} className="font-semibold capitalize">
-                                        {pkg.package_key}
+                                        {selectedPackage.package_key}
                                     </span>
                                     <span id={`llm-purchase-footer-pkg-tokens-${gameId}`} className="text-muted-foreground">
-                                        +{fmt(pkg.tokens)} {t("llmTokenPurchase.tokensUnit")}
+                                        +{fmt(selectedPackage.tokens)} {t("llmTokenPurchase.tokensUnit")}
                                     </span>
                                 </div>
                                 <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
                                     <span id={`llm-purchase-footer-pkg-cost-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
-                                    <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{pkg.sgem_cost.toLocaleString("en-US")}</span>
+                                    <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
                                     <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">
                                         sGem
                                     </span>
@@ -402,20 +417,44 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                 <Button id={`llm-purchase-footer-cancel-${gameId}`} variant="outline" className="flex-1" disabled={purchasing} onClick={() => setSelectedKey(null)}>
                                     {t("common.cancel")}
                                 </Button>
-                                <Button id={`llm-purchase-footer-confirm-${gameId}`} className="flex-1" disabled={purchasing} onClick={handleConfirmPurchase}>
-                                    {purchasing ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                                            {t("llmTokenPurchase.processing")}
-                                        </>
+                                {canBuyNow ? (
+                                    <Button id={`llm-purchase-footer-confirm-${gameId}`} className="flex-1" disabled={purchasing} onClick={handleConfirmPurchase}>
+                                        {purchasing ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                                {t("llmTokenPurchase.processing")}
+                                            </>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span>{t("llmTokenPurchase.confirmPay")}</span>
+                                                <span id={`llm-purchase-footer-confirm-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
+                                                <span>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
+                                            </span>
+                                        )}
+                                    </Button>
+                                ) : (
+                                    purchasing ? (
+                                        <Button
+                                            id={`llm-purchase-footer-buy-more-${gameId}`}
+                                            className="flex-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200"
+                                            variant="outline"
+                                            disabled
+                                        >
+                                            {t("llmTokenPurchase.buyMoreSGem")}
+                                        </Button>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <span>{t("llmTokenPurchase.confirmPay")}</span>
-                                            <span id={`llm-purchase-footer-confirm-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
-                                            <span>{pkg.sgem_cost.toLocaleString("en-US")}</span>
-                                        </span>
-                                    )}
-                                </Button>
+                                        <Button
+                                            id={`llm-purchase-footer-buy-more-${gameId}`}
+                                            className="flex-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200"
+                                            variant="outline"
+                                            asChild
+                                        >
+                                            <Link id={`llm-purchase-footer-buy-more-link-${gameId}`} href="/payment?tab=buy-sgem">
+                                                {t("llmTokenPurchase.buyMoreSGem")}
+                                            </Link>
+                                        </Button>
+                                    )
+                                )}
                             </div>
                         </>
                     );
