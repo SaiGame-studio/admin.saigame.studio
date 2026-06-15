@@ -134,6 +134,11 @@ function fieldValueToText(value: unknown): string {
         return String(value);
     return formatUnknownValue(value);
 }
+function formatTableCellValue(value: unknown): string {
+    if (typeof value === "number" && Number.isFinite(value))
+        return value.toLocaleString();
+    return fieldValueToText(value);
+}
 function getRowName(row: Record<string, unknown>, fallbackIndex: number): string {
     const nameKeys = ["name", "label", "title", "display_name", "displayName", "key"];
     for (const key of nameKeys) {
@@ -413,7 +418,7 @@ function TokenStatsFieldTable({ fieldName, value, t, }: {
                       {fieldValueToText(row._row_id)}
                     </TableCell>
                     {columns.map((column) => (<TableCell key={column} id={`token-stats-field-row-${rowId}-${slugifyIdPart(column)}`} className="text-right">
-                        {fieldValueToText(row[column])}
+                        {formatTableCellValue(row[column])}
                       </TableCell>))}
                   </TableRow>);
             })}

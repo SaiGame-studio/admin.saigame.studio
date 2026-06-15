@@ -267,7 +267,7 @@ export function TokenStatsTab() {
       {/* Filter bar */}
       <Card id="token-stats-filter-card">
         <CardContent id="token-stats-filter-content" className="pt-6">
-          <div id="token-stats-filter-row" className="flex flex-col sm:flex-row gap-6 items-start sm:items-end">
+          <div id="token-stats-filter-row" className="flex flex-col sm:flex-row gap-6 items-start sm:items-start">
             {/* Filter mode */}
             <div id="token-stats-filter-mode-group" className="space-y-2">
               <Label id="token-stats-filter-mode-label" className="text-xs font-medium uppercase tracking-wide">
@@ -278,30 +278,34 @@ export function TokenStatsTab() {
             setResult(null);
             setError(null);
             setEntityDetail(null);
-        }} className="flex gap-4">
-                <div id="token-stats-filter-mode-studio" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-studio" value="studio_id"/>
-                  <Label id="token-stats-radio-studio-label" htmlFor="token-stats-radio-studio">
-                    {t("tokenStats.filterStudio")}
-                  </Label>
+        }} className="flex flex-col gap-2">
+                <div id="token-stats-filter-mode-row-1" className="flex flex-wrap items-center gap-4">
+                  <div id="token-stats-filter-mode-all" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-all" value="all"/>
+                    <Label id="token-stats-radio-all-label" htmlFor="token-stats-radio-all">
+                      {t("tokenStats.filterAll")}
+                    </Label>
+                  </div>
+                  <div id="token-stats-filter-mode-studio" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-studio" value="studio_id"/>
+                    <Label id="token-stats-radio-studio-label" htmlFor="token-stats-radio-studio">
+                      {t("tokenStats.filterStudio")}
+                    </Label>
+                  </div>
                 </div>
-                <div id="token-stats-filter-mode-game" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-game" value="game_id"/>
-                  <Label id="token-stats-radio-game-label" htmlFor="token-stats-radio-game">
-                    {t("tokenStats.filterGame")}
-                  </Label>
-                </div>
-                <div id="token-stats-filter-mode-user" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-user" value="user_id"/>
-                  <Label id="token-stats-radio-user-label" htmlFor="token-stats-radio-user">
-                    {t("tokenStats.filterUser")}
-                  </Label>
-                </div>
-                <div id="token-stats-filter-mode-all" className="flex items-center gap-1.5">
-                  <RadioGroupItem id="token-stats-radio-all" value="all"/>
-                  <Label id="token-stats-radio-all-label" htmlFor="token-stats-radio-all">
-                    {t("tokenStats.filterAll")}
-                  </Label>
+                <div id="token-stats-filter-mode-row-2" className="flex flex-wrap items-center gap-4">
+                  <div id="token-stats-filter-mode-game" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-game" value="game_id"/>
+                    <Label id="token-stats-radio-game-label" htmlFor="token-stats-radio-game">
+                      {t("tokenStats.filterGame")}
+                    </Label>
+                  </div>
+                  <div id="token-stats-filter-mode-user" className="flex items-center gap-1.5">
+                    <RadioGroupItem id="token-stats-radio-user" value="user_id"/>
+                    <Label id="token-stats-radio-user-label" htmlFor="token-stats-radio-user">
+                      {t("tokenStats.filterUser")}
+                    </Label>
+                  </div>
                 </div>
               </RadioGroup>
             </div>
@@ -358,7 +362,7 @@ export function TokenStatsTab() {
                 </span>
               </div>
             </div>)}
-            <div id="token-stats-search-actions" className="flex items-end">
+            <div id="token-stats-search-actions" className="flex self-end pt-0 sm:pt-0">
               <Button id="token-stats-search-btn" onClick={handleSearch} disabled={loading} className="flex items-center gap-1.5 shrink-0">
                 {loading ? (<Loader2 id="token-stats-search-spinner" className="h-4 w-4 animate-spin"/>) : (<Search id="token-stats-search-icon" className="h-4 w-4"/>)}
                 {t("tokenStats.searchBtn")}
