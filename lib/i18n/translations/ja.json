@@ -3468,7 +3468,7 @@
     "unityPackage": "Unity Package"
   },
   "llmConversation": {
-    "title": "AI会話",
+    "title": "AIチャット",
     "newConversation": "新しい会話",
     "minimize": "最小化",
     "tabActive": "アクティブ",

@@ -457,7 +457,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controll
             ) : triggerButton)}
 
             <Sheet open={open} onOpenChange={setOpen}>
-                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="top-14 flex h-[calc(100%-3.5rem)] w-full flex-col overflow-y-auto p-0 sm:max-w-[622px] lg:top-[60px] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
+                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="top-14 flex h-[calc(100%-3.5rem)] w-full flex-col overflow-y-auto p-0 sm:max-w-[672px] lg:top-[60px] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
                     {open ? <LLMTokenPurchaseContent gameId={gameId}/> : null}
                 </SheetContent>
             </Sheet>

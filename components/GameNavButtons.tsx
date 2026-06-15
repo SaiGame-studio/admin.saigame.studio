@@ -102,7 +102,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
       </Tooltip>
       <DropdownMenuContent id="game-nav-quick-menu-content" align="start">
         <DropdownMenuItem id="game-nav-quick-menu-conv" onSelect={() => openConversation()}>
-          AI Conversation
+          {t("llmConversation.title")}
         </DropdownMenuItem>
         <DropdownMenuItem id="game-nav-quick-menu-llm-purchase" onSelect={() => window.setTimeout(openTokenPurchase, 0)}>
           {t("llmTokenPurchase.triggerLabel")}
