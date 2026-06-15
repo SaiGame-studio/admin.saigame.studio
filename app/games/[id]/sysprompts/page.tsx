@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Trash2, Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,9 @@ function getApiErrorMessage(err: unknown, fallback: string) {
 export default function GameSystemPromptsPage() {
   const params = useParams() as { id: string };
   const gameId = params.id;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { locale } = useLanguage();
   const { t } = useTranslation(locale);
@@ -54,7 +57,7 @@ export default function GameSystemPromptsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
   const [maxSysPrompts, setMaxSysPrompts] = useState(SLOT_LIMIT);
-  const [activeTab, setActiveTab] = useState<"game-prompts" | "default-prompts">("game-prompts");
+  const activeTab = (searchParams.get("tab") === "default-prompts" ? "default-prompts" : "game-prompts") as "game-prompts" | "default-prompts";
 
   const [nameFilter, setNameFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -184,6 +187,13 @@ export default function GameSystemPromptsPage() {
 
     setForm((current) => ({ ...current, prompt_type: nextType }));
   }
+
+  const handleTabChange = useCallback((value: string) => {
+    const nextTab = value === "default-prompts" ? "default-prompts" : "game-prompts";
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", nextTab);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -382,7 +392,7 @@ export default function GameSystemPromptsPage() {
         </div>
       </div>
 
-      <Tabs id="game-sysprompts-tabs" value={activeTab} onValueChange={(value) => setActiveTab(value as "game-prompts" | "default-prompts")} className="space-y-4">
+      <Tabs id="game-sysprompts-tabs" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList id="game-sysprompts-tabs-list" className="w-auto inline-flex">
           <TabsTrigger id="game-sysprompts-tab-game-prompts" value="game-prompts" className="whitespace-nowrap">
             {t("systemPrompts.tabGamePrompts")}
