@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,15 +53,25 @@ function fmt(n: number): string {
 
 function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps) {
     const { t } = useTranslation();
+    const router = useRouter();
     const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem_cost;
     const disabled = !pkg.is_active || !canAfford;
 
     return (
-        <button
+        <div
             id={`llm-purchase-card-${pkg.package_key}`}
-            type="button"
-            disabled={disabled}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            aria-disabled={disabled}
             onClick={onSelect}
+            onKeyDown={(e) => {
+                if (disabled)
+                    return;
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect();
+                }
+            }}
             className={`relative flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected
                 ? "border-primary bg-primary/5 ring-2 ring-primary/30"
                 : !disabled
@@ -93,8 +104,24 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
                 <span id={`llm-purchase-card-cost-val-${pkg.package_key}`} className="font-medium text-foreground">
                     {pkg.sgem_cost.toLocaleString("en-US")}
                 </span>
+                {!canAfford && (
+                    <Button
+                        id={`llm-purchase-card-buy-more-btn-${pkg.package_key}`}
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="ml-1 h-6 w-6 shrink-0 text-primary hover:text-primary"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.push("/payment?tab=buy-sgem");
+                        }}
+                        aria-label={t("llmTokenPurchase.buyMoreSGem")}
+                    >
+                        <Plus id={`llm-purchase-card-buy-more-icon-${pkg.package_key}`} className="h-3.5 w-3.5"/>
+                    </Button>
+                )}
             </div>
-        </button>
+        </div>
     );
 }
 
@@ -361,7 +388,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                     </span>
                                 </div>
                                 <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
-                                    <span className="text-blue-400" aria-hidden="true">💎</span>
+                                    <span className="text-blue-400" aria-hidden="true">??</span>
                                     <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{pkg.sgem_cost.toLocaleString("en-US")}</span>
                                     <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">
                                         sGem
@@ -384,7 +411,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                     ) : (
                                         <span className="inline-flex items-center gap-1.5">
                                             <span>{t("llmTokenPurchase.confirmPay")}</span>
-                                            <span className="text-blue-400" aria-hidden="true">💎</span>
+                                            <span className="text-blue-400" aria-hidden="true">??</span>
                                             <span>{pkg.sgem_cost.toLocaleString("en-US")}</span>
                                         </span>
                                     )}
@@ -437,3 +464,7 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controll
         </>
     );
 }
+
+
+
+
