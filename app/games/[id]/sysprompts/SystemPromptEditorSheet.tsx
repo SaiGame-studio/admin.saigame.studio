@@ -62,15 +62,6 @@ export function SystemPromptEditorSheet({
             </Alert>
           )}
 
-          {needsUnlockWarning && (
-            <Alert id="game-sysprompts-editor-warning" className="border-amber-500/40 bg-amber-500/10">
-              <ShieldAlert id="game-sysprompts-editor-warning-icon" className="h-4 w-4" />
-              <AlertDescription id="game-sysprompts-editor-warning-text">
-                {t("systemPrompts.activeCostWarning")}
-              </AlertDescription>
-            </Alert>
-          )}
-
           <div id="game-sysprompts-editor-type-wrap" className="space-y-2">
             <Label id="game-sysprompts-editor-type-label" htmlFor="game-sysprompts-editor-type-trigger">
               {t("systemPrompts.promptType")}
@@ -189,18 +180,29 @@ export function SystemPromptEditorSheet({
             />
           </div>
 
-          <div id="game-sysprompts-editor-footer-actions" className="flex items-center gap-2 sm:justify-end">
-            <Button id="game-sysprompts-editor-cancel-btn" variant="outline" onClick={onClose} disabled={saving}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              id="game-sysprompts-editor-save-btn"
-              onClick={() => onSave()}
-              disabled={saving || !form.name.trim() || !form.prompt_type.trim() || !form.content.trim()}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {editingPrompt ? t("systemPrompts.updatePrompt") : t("systemPrompts.createPrompt")}
-            </Button>
+          <div id="game-sysprompts-editor-footer-actions" className="flex flex-col items-end gap-1 sm:items-end">
+            <div id="game-sysprompts-editor-footer-buttons" className="flex items-center gap-2">
+              <Button id="game-sysprompts-editor-cancel-btn" variant="outline" onClick={onClose} disabled={saving}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                id="game-sysprompts-editor-save-btn"
+                onClick={() => onSave()}
+                disabled={saving || !form.name.trim() || !form.prompt_type.trim() || !form.content.trim()}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {editingPrompt ? t("systemPrompts.updatePrompt") : t("systemPrompts.createPrompt")}
+              </Button>
+            </div>
+            {needsUnlockWarning && (
+              <p
+                id="game-sysprompts-editor-warning-text"
+                className="flex items-center gap-1 text-xs text-amber-600"
+              >
+                <ShieldAlert id="game-sysprompts-editor-warning-icon" className="h-3.5 w-3.5 shrink-0" />
+                <span id="game-sysprompts-editor-warning-copy">{t("systemPrompts.activeCostWarning")}</span>
+              </p>
+            )}
           </div>
         </SheetFooter>
       </SheetContent>

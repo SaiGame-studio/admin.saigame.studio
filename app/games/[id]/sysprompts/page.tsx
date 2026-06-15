@@ -65,6 +65,7 @@ export default function GameSystemPromptsPage() {
   const [form, setForm] = useState<SystemPromptFormState>(DEFAULT_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<SystemPrompt | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -166,6 +167,7 @@ export default function GameSystemPromptsPage() {
     setSaving(false);
     setFormError(null);
     setEditingPrompt(null);
+    setUnlockConfirmOpen(false);
   }
 
   function handlePromptTypeChange(nextType: string) {
@@ -207,7 +209,7 @@ export default function GameSystemPromptsPage() {
     }
   }, [gameId, t, toast]);
 
-  async function handleSave() {
+  async function handleSave(confirmed = false) {
     const name = trimOrEmpty(form.name);
     const prompt_type = trimOrEmpty(form.prompt_type);
     const content = trimOrEmpty(form.content);
@@ -225,6 +227,11 @@ export default function GameSystemPromptsPage() {
 
     if (!name || !prompt_type || !content) {
       setFormError(t("systemPrompts.requiredFields"));
+      return;
+    }
+
+    if (!editingPrompt && promptCount >= maxSysPrompts && !confirmed) {
+      setUnlockConfirmOpen(true);
       return;
     }
 
@@ -257,6 +264,7 @@ export default function GameSystemPromptsPage() {
     }
     finally {
       setSaving(false);
+      setUnlockConfirmOpen(false);
     }
   }
 
@@ -431,6 +439,34 @@ export default function GameSystemPromptsPage() {
         onClose={closeEditor}
         onSave={() => void handleSave()}
       />
+
+      <AlertDialog open={unlockConfirmOpen} onOpenChange={(open) => setUnlockConfirmOpen(open)}>
+        <AlertDialogContent id="game-sysprompts-unlock-confirm-dialog">
+          <AlertDialogHeader id="game-sysprompts-unlock-confirm-header">
+            <AlertDialogTitle id="game-sysprompts-unlock-confirm-title">
+              {t("systemPrompts.unlockConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription id="game-sysprompts-unlock-confirm-desc">
+              {t("systemPrompts.unlockConfirmDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter id="game-sysprompts-unlock-confirm-footer">
+            <AlertDialogCancel
+              id="game-sysprompts-unlock-confirm-cancel"
+              onClick={() => setUnlockConfirmOpen(false)}
+            >
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              id="game-sysprompts-unlock-confirm-accept"
+              onClick={() => void handleSave(true)}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {t("systemPrompts.unlockConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent id="game-sysprompts-delete-dialog">
