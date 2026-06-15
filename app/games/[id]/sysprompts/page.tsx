@@ -214,6 +214,7 @@ export default function GameSystemPromptsPage() {
     const prompt_type = trimOrEmpty(form.prompt_type);
     const content = trimOrEmpty(form.content);
     const description = trimOrEmpty(form.description);
+    const shouldRefreshWallet = !editingPrompt && promptCount >= maxSysPrompts;
     const body: CreateSystemPromptBody = {
       name,
       prompt_type,
@@ -245,6 +246,9 @@ export default function GameSystemPromptsPage() {
       else {
         await createGameSystemPrompt(gameId, body);
         toast({ title: t("common.added"), description: t("systemPrompts.createdSuccess") });
+      }
+      if (shouldRefreshWallet) {
+        window.dispatchEvent(new Event("wallet:refresh"));
       }
       setBillingNotice(null);
       closeEditor();
