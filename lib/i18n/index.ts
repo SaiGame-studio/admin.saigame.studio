@@ -1,5 +1,5 @@
-import { en } from './translations/en';
-import { vi } from './translations/vi';
+import en from './translations/en.json';
+import vi from './translations/vi.json';
 export type Language = 'en' | 'vi';
 export type TranslationKey = keyof typeof en;
 const translations = {

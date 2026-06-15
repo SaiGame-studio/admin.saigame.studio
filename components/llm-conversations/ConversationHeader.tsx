@@ -1,7 +1,8 @@
 'use client';
-import { Archive, ChevronLeft, Info, MoreVertical, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Archive, ChevronLeft, Info, MoreVertical, Minus, Pencil, Plus, Trash2, X, Pin, MoveDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, } from '@/components/ui/dropdown-menu';
 import type { Conversation } from '@/types/llm-conversation';
 import type { ChatTurn } from '@/hooks/use-chat-pipeline';
@@ -23,9 +24,11 @@ interface ConversationHeaderProps {
     onArchive: (conv: Conversation) => void;
     onDelete: (conv: Conversation) => void;
     onOpenDetail: () => void;
+    scrollMode: 'stick' | 'follow';
+    onScrollModeChange: (mode: 'stick' | 'follow') => void;
     t: (key: string) => string;
 }
-export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, titleFontSize, onIncreaseTitleFontSize, onDecreaseTitleFontSize, onNewConversation, onBack, onClose, onArchive, onDelete, onOpenDetail, t, }: ConversationHeaderProps) {
+export function ConversationHeader({ activeConv, activeConvId, chatHistory, editingTitle, setEditingTitle, editTitleValue, setEditTitleValue, onSaveTitle, titleFontSize, onIncreaseTitleFontSize, onDecreaseTitleFontSize, onNewConversation, onBack, onClose, onArchive, onDelete, onOpenDetail, scrollMode, onScrollModeChange, t, }: ConversationHeaderProps) {
     return (<>
       <div id="conv-panel-conv-header" className="shrink-0 border-b px-3 py-2 space-y-1">
         <div id="conv-panel-title-row" className="flex items-start justify-between gap-1">
@@ -93,9 +96,23 @@ export function ConversationHeader({ activeConv, activeConvId, chatHistory, edit
 
       {/* Sticky meta bar — conversation ID + detected language */}
       {activeConvId && (<div id="conv-panel-meta-row" className="shrink-0 flex items-center justify-between gap-2 border-b bg-background px-3 py-1">
-          <p id="conv-panel-conv-id" className="text-[10px] text-muted-foreground/50 font-mono truncate">
-            {activeConvId}
-          </p>
+          <div id="conv-panel-meta-left" className="flex min-w-0 items-center gap-2">
+            <p id="conv-panel-conv-id" className="max-w-[160px] truncate text-[10px] text-muted-foreground/50 font-mono">
+              {activeConvId}
+            </p>
+            <div id="conv-panel-scroll-mode-switch-wrap" className="flex items-center gap-1">
+              <div id="conv-panel-scroll-mode-switch-holder" className="relative flex items-center">
+                <Switch id="conv-panel-scroll-mode-switch" checked={scrollMode === 'follow'} onCheckedChange={(checked) => onScrollModeChange(checked ? 'follow' : 'stick')} aria-label={scrollMode === 'follow' ? t('llmConversation.scrollModeFollow') : t('llmConversation.scrollModeStick')} title={scrollMode === 'follow' ? t('llmConversation.scrollModeFollow') : t('llmConversation.scrollModeStick')} className="h-3 w-6 shrink-0 scale-75 data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted/70 [&>span]:h-2.5 [&>span]:w-2.5 [&>span]:data-[state=checked]:translate-x-3 [&>span]:data-[state=unchecked]:translate-x-0">
+                  <span id="conv-panel-scroll-mode-switch-icon" className="pointer-events-none absolute inset-0 flex items-center justify-center text-[8px] text-muted-foreground/90">
+                    {scrollMode === 'follow' ? <MoveDown className="h-2 w-2" /> : <Pin className="h-2 w-2" />}
+                  </span>
+                </Switch>
+              </div>
+              <span id="conv-panel-scroll-mode-label" className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground/50">
+                {scrollMode === 'follow' ? t('llmConversation.scrollModeFollow') : t('llmConversation.scrollModeStick')}
+              </span>
+            </div>
+          </div>
           <div id="conv-panel-meta-right" className="flex items-center gap-2 shrink-0">
             {(() => {
                 const lang = [...chatHistory].reverse().find((turn) => turn.detectedLanguage)?.detectedLanguage ?? 'en';

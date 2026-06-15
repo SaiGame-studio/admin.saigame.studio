@@ -4,11 +4,12 @@ import Link from "next/link";
 import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { LS_PANEL_OPEN } from "@/components/llm-conversations/conversation-panel-utils";
 import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog";
 const LS_KEY = "game-nav-expanded";
-type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts" | "lore";
+type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts" | "lore" | "sysprompts";
 interface GameNavButtonsProps {
     gameId: string;
     active?: GameNavSection;
@@ -24,6 +25,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const [isConvOpen, setIsConvOpen] = useState(false);
+    const [purchaseOpen, setPurchaseOpen] = useState(false);
     // Load from localStorage after mount (avoids SSR mismatch)
     useEffect(() => {
         try {
@@ -69,7 +71,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
     ];
     const toggleBtn = (<Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="outline" size="icon" className={`h-8 w-8 shrink-0 transition-all border-dashed ${expanded ? "border-primary text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground"}`} onClick={toggle}>
+        <Button id="game-nav-toggle-btn" variant="outline" size="icon" className={`h-8 w-8 shrink-0 transition-all border-dashed ${expanded ? "border-primary text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground"}`} onClick={toggle}>
           {expanded
             ? <ChevronsLeftRight className="h-4 w-4"/>
             : <AlignJustify className="h-4 w-4"/>}
@@ -79,27 +81,45 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         {expanded ? t("game.compactNav") : t("game.expandNav")}
       </TooltipContent>
     </Tooltip>);
-    const convBtnCompact = (<Tooltip>
-      <TooltipTrigger asChild>
-        <Button id="game-nav-conv-btn" variant={isConvOpen ? "default" : "outline"} size="icon" className={`h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`} onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}>
-          <Bot className="h-4 w-4"/>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        AI Agent
-      </TooltipContent>
-    </Tooltip>);
-    const convBtnExpanded = (<Button id="game-nav-conv-btn-expanded" variant={isConvOpen ? "default" : "outline"} size="sm" className={`flex items-center gap-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 ${!isConvOpen ? "border-primary text-primary hover:bg-primary/10 hover:text-primary" : ""}`} onClick={() => window.dispatchEvent(new CustomEvent('ss:conv-toggle'))}>
-      <Bot className="h-4 w-4"/>
-      AI Agent
-    </Button>);
+    const openTokenPurchase = () => {
+        setPurchaseOpen(true);
+    };
+    const openConversation = () => {
+        window.dispatchEvent(new CustomEvent('ss:conv-toggle'));
+    };
+    const quickMenu = (<DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button id="game-nav-quick-menu-btn" variant="outline" size="icon" className="h-8 w-8">
+              <Bot className="h-4 w-4"/>
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          AI Menu
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent id="game-nav-quick-menu-content" align="start">
+        <DropdownMenuItem id="game-nav-quick-menu-conv" onSelect={() => openConversation()}>
+          {t("llmConversation.title")}
+        </DropdownMenuItem>
+        <DropdownMenuItem id="game-nav-quick-menu-llm-purchase" onSelect={() => window.setTimeout(openTokenPurchase, 0)}>
+          {t("llmTokenPurchase.triggerLabel")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator id="game-nav-quick-menu-separator-1" />
+        <DropdownMenuItem id="game-nav-quick-menu-sysprompts" onSelect={() => window.location.assign(`/games/${gameId}/sysprompts`)}>
+          {t("game.navSysPrompts")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>);
     if (expanded) {
         const half = Math.ceil(items.length / 2);
         const row1 = items.slice(0, half);
         const row2 = items.slice(half);
         const renderBtn = ({ section, href, icon, label }: NavItem) => {
             const isActive = active === section;
-            return (<Button key={section} asChild variant={isActive ? "default" : "outline"} size="sm" className="flex items-center gap-1.5">
+            return (<Button id={`game-nav-${section}-btn`} key={section} asChild variant={isActive ? "default" : "outline"} size="sm" className="flex items-center gap-1.5">
           <Link href={href}>{icon}{label}</Link>
         </Button>);
         };
@@ -107,14 +127,15 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         <div id={id ?? "game-nav-buttons"} className="flex flex-col gap-1.5">
           <div className="flex gap-1.5 flex-wrap items-center">
             {row1.map(renderBtn)}
-            <LLMTokenPurchaseDialog gameId={gameId}/>
           </div>
           <div className="flex gap-1.5 items-start">
             <div className="flex gap-1.5 flex-wrap items-center">
               {row2.map(renderBtn)}
-              {convBtnExpanded}
             </div>
-            {toggleBtn}
+            <div className="flex gap-1.5 items-start">
+              {quickMenu}
+              {toggleBtn}
+            </div>
           </div>
         </div>
       </TooltipProvider>);
@@ -125,7 +146,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         {items.map(({ section, href, icon, label }) => {
             const isActive = active === section;
             if (isActive) {
-                return (<Button key={section} asChild variant="default" size="sm" className="flex items-center gap-1.5">
+                return (<Button id={`game-nav-${section}-btn`} key={section} asChild variant="default" size="sm" className="flex items-center gap-1.5">
                 <Link href={href}>
                   {icon}
                   {label}
@@ -134,17 +155,19 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
             }
             return (<Tooltip key={section}>
               <TooltipTrigger asChild>
-                <Button asChild variant="outline" size="icon" className="h-8 w-8">
+                <Button id={`game-nav-${section}-btn`} asChild variant="outline" size="icon" className="h-8 w-8">
                   <Link href={href}>{icon}</Link>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">{label}</TooltipContent>
+              <TooltipContent side="top">{label}</TooltipContent>
             </Tooltip>);
         })}
-        {convBtnCompact}
-        <LLMTokenPurchaseDialog gameId={gameId} compact/>
         </div>
-        {toggleBtn}
+        <div className="flex gap-1.5 items-start">
+          {quickMenu}
+          {toggleBtn}
+        </div>
       </div>
+      <LLMTokenPurchaseDialog gameId={gameId} open={purchaseOpen} onOpenChange={setPurchaseOpen}/>
     </TooltipProvider>);
 }

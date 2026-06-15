@@ -27,6 +27,7 @@ export const lsQuestNames = (convId: string) => `ss_conv_quest_names_${convId}`;
 export const lsQuestCodes = (convId: string) => `ss_conv_quest_codes_${convId}`;
 export const lsConvTokenUsage = (convId: string) => `ss_conv_token_usage_${convId}`;
 export const lsScrollPos = (convId: string) => `ss_conv_scroll_${convId}`;
+export const LS_SCROLL_MODE = 'ss_conv_scroll_mode';
 export const lsTagApplied = (convId: string) => `ss_conv_tag_applied_${convId}`;
 export const lsItemTagCreated = (convId: string) => `ss_conv_item_tag_created_${convId}`;
 export const lsPendingCraftingRecipeEdit = (gameId: string) => `ss_pending_crafting_recipe_edit_${gameId}`;

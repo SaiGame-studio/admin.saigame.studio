@@ -1,8 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, Zap } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "@/hooks/use-toast";
 import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { api } from "@/lib/api-client";
+import { getGame } from "@/lib/game-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface TokenPackage {
@@ -52,20 +55,32 @@ function fmt(n: number): string {
 
 function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps) {
     const { t } = useTranslation();
+    const router = useRouter();
     const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem_cost;
-    const disabled = !pkg.is_active || !canAfford;
+    const disabled = !pkg.is_active;
 
     return (
-        <button
+        <div
             id={`llm-purchase-card-${pkg.package_key}`}
-            type="button"
-            disabled={disabled}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+            aria-disabled={disabled}
             onClick={onSelect}
+            onKeyDown={(e) => {
+                if (disabled)
+                    return;
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect();
+                }
+            }}
             className={`relative flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected
                 ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                : !disabled
-                    ? "border-border hover:border-primary/50 hover:bg-muted/40"
-                    : "cursor-not-allowed border-border opacity-40"}`}
+                : disabled
+                    ? "cursor-not-allowed border-border opacity-40"
+                    : canAfford
+                        ? "border-border hover:border-primary/50 hover:bg-muted/40"
+                        : "border-amber-500/30 bg-amber-500/5 hover:border-amber-400/60 hover:bg-amber-500/10"}`}
         >
             {selected && (
                 <span id={`llm-purchase-card-check-${pkg.package_key}`} className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -93,8 +108,24 @@ function PackageCard({ pkg, sgemBalance, selected, onSelect }: PackageCardProps)
                 <span id={`llm-purchase-card-cost-val-${pkg.package_key}`} className="font-medium text-foreground">
                     {pkg.sgem_cost.toLocaleString("en-US")}
                 </span>
+                {!canAfford && (
+                    <Button
+                        id={`llm-purchase-card-buy-more-btn-${pkg.package_key}`}
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="ml-1 h-6 w-6 shrink-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 shadow-sm hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-300"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.push("/payment?tab=buy-sgem");
+                        }}
+                        aria-label={t("llmTokenPurchase.buyMoreSGem")}
+                    >
+                        <Plus id={`llm-purchase-card-buy-more-icon-${pkg.package_key}`} className="h-3.5 w-3.5"/>
+                    </Button>
+                )}
             </div>
-        </button>
+        </div>
     );
 }
 
@@ -102,6 +133,7 @@ let premiumFloatId = 0;
 
 export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentProps) {
     const { t } = useTranslation();
+    const [gameName, setGameName] = useState<string | null>(null);
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
     const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
     const [premiumRemaining, setPremiumRemaining] = useState<number | null>(null);
@@ -183,6 +215,24 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
         setSelectedKey(null);
     }, [gameId]);
 
+    useEffect(() => {
+        let mounted = true;
+
+        getGame(gameId)
+            .then((game) => {
+                if (mounted)
+                    setGameName(game?.name ?? gameId);
+            })
+            .catch(() => {
+                if (mounted)
+                    setGameName(gameId);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [gameId]);
+
     async function handleConfirmPurchase() {
         if (!selectedKey)
             return;
@@ -190,6 +240,16 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
         const pkg = packages.find((item) => item.package_key === selectedKey);
         if (!pkg)
             return;
+
+        const canAfford = sgemBalance === null || sgemBalance >= pkg.sgem_cost;
+        if (!pkg.is_active || !canAfford) {
+            toast({
+                title: t("llmTokenPurchase.toastInsufficientTitle"),
+                description: t("llmTokenPurchase.toastInsufficientDesc"),
+                variant: "destructive",
+            });
+            return;
+        }
 
         setPurchasing(true);
         try {
@@ -272,6 +332,9 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                             <Zap className="h-4 w-4"/>
                             {t("llmTokenPurchase.title")}
                         </div>
+                        <p id={`llm-purchase-game-label-${gameId}`} className="text-xs text-muted-foreground">
+                            {t("llmTokenPurchase.forGame")} <span id={`llm-purchase-game-name-${gameId}`} className="font-semibold text-foreground">{gameName ?? gameId}</span>
+                        </p>
                         <p id={`llm-purchase-desc-${gameId}`} className="text-sm text-muted-foreground">
                             {t("llmTokenPurchase.description")}
                         </p>
@@ -282,6 +345,9 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                             <Zap className="h-4 w-4"/>
                             {t("llmTokenPurchase.title")}
                         </SheetTitle>
+                        <p id={`llm-purchase-game-label-${gameId}`} className="text-xs text-muted-foreground">
+                            {t("llmTokenPurchase.forGame")} <span id={`llm-purchase-game-name-${gameId}`} className="font-semibold text-foreground">{gameName ?? gameId}</span>
+                        </p>
                         <SheetDescription id={`llm-purchase-desc-${gameId}`}>
                             {t("llmTokenPurchase.description")}
                         </SheetDescription>
@@ -345,24 +411,26 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
 
             <div id={`llm-purchase-footer-${gameId}`} className={`flex flex-col gap-3 border-t bg-background px-6 py-4 transition-all duration-200 ${selectedKey ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}>
                 {(() => {
-                    const pkg = packages.find((item) => item.package_key === selectedKey);
-                    if (!pkg)
+                    const selectedPackage = packages.find((item) => item.package_key === selectedKey);
+                    if (!selectedPackage)
                         return null;
+                    const canAfford = sgemBalance === null || sgemBalance >= selectedPackage.sgem_cost;
+                    const canBuyNow = selectedPackage.is_active && canAfford;
 
                     return (
                         <>
                             <div id={`llm-purchase-footer-summary-${gameId}`} className="flex items-center justify-between text-sm">
                                 <div id={`llm-purchase-footer-pkg-${gameId}`} className="flex flex-col gap-0.5">
                                     <span id={`llm-purchase-footer-pkg-name-${gameId}`} className="font-semibold capitalize">
-                                        {pkg.package_key}
+                                        {selectedPackage.package_key}
                                     </span>
                                     <span id={`llm-purchase-footer-pkg-tokens-${gameId}`} className="text-muted-foreground">
-                                        +{fmt(pkg.tokens)} {t("llmTokenPurchase.tokensUnit")}
+                                        +{fmt(selectedPackage.tokens)} {t("llmTokenPurchase.tokensUnit")}
                                     </span>
                                 </div>
                                 <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
-                                    <span className="text-blue-400" aria-hidden="true">💎</span>
-                                    <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{pkg.sgem_cost.toLocaleString("en-US")}</span>
+                                    <span id={`llm-purchase-footer-pkg-cost-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
+                                    <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
                                     <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">
                                         sGem
                                     </span>
@@ -375,20 +443,44 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                 <Button id={`llm-purchase-footer-cancel-${gameId}`} variant="outline" className="flex-1" disabled={purchasing} onClick={() => setSelectedKey(null)}>
                                     {t("common.cancel")}
                                 </Button>
-                                <Button id={`llm-purchase-footer-confirm-${gameId}`} className="flex-1" disabled={purchasing} onClick={handleConfirmPurchase}>
-                                    {purchasing ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                                            {t("llmTokenPurchase.processing")}
-                                        </>
+                                {canBuyNow ? (
+                                    <Button id={`llm-purchase-footer-confirm-${gameId}`} className="flex-1" disabled={purchasing} onClick={handleConfirmPurchase}>
+                                        {purchasing ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                                                {t("llmTokenPurchase.processing")}
+                                            </>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span>{t("llmTokenPurchase.confirmPay")}</span>
+                                                <span id={`llm-purchase-footer-confirm-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
+                                                <span>{selectedPackage.sgem_cost.toLocaleString("en-US")}</span>
+                                            </span>
+                                        )}
+                                    </Button>
+                                ) : (
+                                    purchasing ? (
+                                        <Button
+                                            id={`llm-purchase-footer-buy-more-${gameId}`}
+                                            className="flex-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200"
+                                            variant="outline"
+                                            disabled
+                                        >
+                                            {t("llmTokenPurchase.buyMoreSGem")}
+                                        </Button>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <span>{t("llmTokenPurchase.confirmPay")}</span>
-                                            <span className="text-blue-400" aria-hidden="true">💎</span>
-                                            <span>{pkg.sgem_cost.toLocaleString("en-US")}</span>
-                                        </span>
-                                    )}
-                                </Button>
+                                        <Button
+                                            id={`llm-purchase-footer-buy-more-${gameId}`}
+                                            className="flex-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200"
+                                            variant="outline"
+                                            asChild
+                                        >
+                                            <Link id={`llm-purchase-footer-buy-more-link-${gameId}`} href="/payment?tab=buy-sgem">
+                                                {t("llmTokenPurchase.buyMoreSGem")}
+                                            </Link>
+                                        </Button>
+                                    )
+                                )}
                             </div>
                         </>
                     );
@@ -430,10 +522,14 @@ export function LLMTokenPurchaseDialog({ gameId, compact = false, open: controll
             ) : triggerButton)}
 
             <Sheet open={open} onOpenChange={setOpen}>
-                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="top-14 flex h-[calc(100%-3.5rem)] w-full flex-col overflow-y-auto p-0 sm:max-w-[622px] lg:top-[60px] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
+                <SheetContent id={`llm-purchase-sheet-${gameId}`} side="right" className="top-14 flex h-[calc(100%-3.5rem)] w-full flex-col overflow-y-auto p-0 sm:max-w-[672px] lg:top-[60px] lg:h-[calc(100%-60px)]" overlayClassName="top-14 lg:top-[60px]">
                     {open ? <LLMTokenPurchaseContent gameId={gameId}/> : null}
                 </SheetContent>
             </Sheet>
         </>
     );
 }
+
+
+
+
