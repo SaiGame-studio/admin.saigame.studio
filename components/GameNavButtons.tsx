@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot } from "lucide-react";
+import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot, BotMessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { LS_PANEL_OPEN } from "@/components/llm-conversations/conversation-panel-utils";
 import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog";
 const LS_KEY = "game-nav-expanded";
-type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts" | "lore";
+type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts" | "lore" | "sysprompts";
 interface GameNavButtonsProps {
     gameId: string;
     active?: GameNavSection;
@@ -93,6 +93,24 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
       <Bot className="h-4 w-4"/>
       AI Agent
     </Button>);
+    const sysPromptsBtnCompact = (<Tooltip>
+      <TooltipTrigger asChild>
+        <Button id="game-nav-sys-prompts-btn" asChild variant={active === "sysprompts" ? "default" : "outline"} size="icon" className={`h-8 w-8 ${active === "sysprompts" ? "" : "border-primary text-primary hover:bg-primary/10 hover:text-primary"}`}>
+          <Link href={`/games/${gameId}/sysprompts`}>
+            <BotMessageSquare className="h-4 w-4"/>
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        {t("game.navSysPrompts")}
+      </TooltipContent>
+    </Tooltip>);
+    const sysPromptsBtnExpanded = (<Button id="game-nav-sys-prompts-btn-expanded" asChild variant={active === "sysprompts" ? "default" : "outline"} size="sm" className="flex items-center gap-1.5">
+      <Link href={`/games/${gameId}/sysprompts`}>
+        <BotMessageSquare className="h-4 w-4"/>
+        {t("game.navSysPrompts")}
+      </Link>
+    </Button>);
     if (expanded) {
         const half = Math.ceil(items.length / 2);
         const row1 = items.slice(0, half);
@@ -107,12 +125,13 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
         <div id={id ?? "game-nav-buttons"} className="flex flex-col gap-1.5">
           <div className="flex gap-1.5 flex-wrap items-center">
             {row1.map(renderBtn)}
-            <LLMTokenPurchaseDialog gameId={gameId}/>
           </div>
           <div className="flex gap-1.5 items-start">
             <div className="flex gap-1.5 flex-wrap items-center">
               {row2.map(renderBtn)}
               {convBtnExpanded}
+              {sysPromptsBtnExpanded}
+              <LLMTokenPurchaseDialog gameId={gameId}/>
             </div>
             {toggleBtn}
           </div>
@@ -138,10 +157,11 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
                   <Link href={href}>{icon}</Link>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">{label}</TooltipContent>
+              <TooltipContent side="top">{label}</TooltipContent>
             </Tooltip>);
         })}
         {convBtnCompact}
+        {sysPromptsBtnCompact}
         <LLMTokenPurchaseDialog gameId={gameId} compact/>
         </div>
         {toggleBtn}
