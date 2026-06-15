@@ -368,7 +368,6 @@ export default function GameSystemPromptsPage() {
 
         <TabsContent id="game-sysprompts-tab-default-prompts-content" value="default-prompts" className="mt-0">
           <DefaultSystemPromptsContent
-            locale={locale}
             t={t}
             prompts={defaultPrompts}
             loading={defaultLoading}

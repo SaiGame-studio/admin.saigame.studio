@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "back": "戻る",
     "studio": "スタジオ",
@@ -473,6 +473,9 @@
     "noDescription": "説明なし",
     "contentPreview": "内容プレビュー",
     "tokens": "トークン",
+    "inputOutputTokens": "入力 / 出力トークン",
+    "order": "番号",
+    "actions": "操作",
     "updatedAt": "更新日",
     "createdAt": "作成日",
     "deleteTitle": "システムプロンプトを削除",
@@ -3820,3 +3823,4 @@
     "toastFailedDesc": "エラーが発生しました。もう一度お試しください。"
   }
 }
+

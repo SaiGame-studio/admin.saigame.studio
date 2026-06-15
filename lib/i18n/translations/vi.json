@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "back": "Quay lại",
     "studio": "Studio",
@@ -476,6 +476,9 @@
     "noDescription": "Không có mô tả",
     "contentPreview": "Xem trước nội dung",
     "tokens": "Tokens",
+    "inputOutputTokens": "Token đầu vào / ra",
+    "order": "STT",
+    "actions": "Thao tác",
     "updatedAt": "Cập nhật",
     "createdAt": "Tạo",
     "deleteTitle": "Xóa System Prompt",
@@ -3883,3 +3886,4 @@
     "toastFailedDesc": "?? x?y ra l?i. Vui l?ng th? l?i."
   }
 }
+

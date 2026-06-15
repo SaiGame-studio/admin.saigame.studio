@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
-import { RefreshCw, BotMessageSquare } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Eye, RefreshCw, BotMessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import type { SystemPrompt } from "@/lib/system-prompt-api";
-import { getPromptTypeLabel, getProviderLabel, formatDateTime } from "./system-prompt-shared";
+import { getPromptTypeLabel } from "./system-prompt-shared";
 
 interface DefaultSystemPromptsContentProps {
-  locale: string;
   t: (key: string) => string;
   prompts: SystemPrompt[];
   loading: boolean;
@@ -20,7 +20,6 @@ interface DefaultSystemPromptsContentProps {
 }
 
 export function DefaultSystemPromptsContent({
-  locale,
   t,
   prompts,
   loading,
@@ -28,8 +27,10 @@ export function DefaultSystemPromptsContent({
   refreshing,
   onRefresh,
 }: DefaultSystemPromptsContentProps) {
+  const [selectedPrompt, setSelectedPrompt] = useState<SystemPrompt | null>(null);
+
   const sortedPrompts = useMemo(() => {
-    return [...prompts].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    return [...prompts].sort((a, b) => a.name.localeCompare(b.name));
   }, [prompts]);
 
   return (
@@ -45,9 +46,8 @@ export function DefaultSystemPromptsContent({
               : t("systemPrompts.defaultNoPrompts")}
           </p>
         </div>
-        <Button id="game-sysprompts-default-refresh-btn" variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+        <Button id="game-sysprompts-default-refresh-btn" variant="outline" size="icon" onClick={onRefresh} disabled={refreshing} title={t("systemPrompts.refresh")} className="h-8 w-8">
           <RefreshCw id="game-sysprompts-default-refresh-icon" className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          {t("systemPrompts.refresh")}
         </Button>
       </div>
 
@@ -83,61 +83,49 @@ export function DefaultSystemPromptsContent({
             <Table id="game-sysprompts-default-table">
               <TableHeader id="game-sysprompts-default-table-head">
                 <TableRow id="game-sysprompts-default-table-head-row">
+                  <TableHead id="game-sysprompts-default-table-head-order" className="w-16">{t("systemPrompts.order")}</TableHead>
                   <TableHead id="game-sysprompts-default-table-head-name">{t("systemPrompts.name")}</TableHead>
                   <TableHead id="game-sysprompts-default-table-head-type">{t("systemPrompts.promptType")}</TableHead>
-                  <TableHead id="game-sysprompts-default-table-head-status" className="text-center">{t("systemPrompts.status")}</TableHead>
-                  <TableHead id="game-sysprompts-default-table-head-provider">{t("systemPrompts.provider")}</TableHead>
-                  <TableHead id="game-sysprompts-default-table-head-tokens" className="text-right">{t("systemPrompts.tokens")}</TableHead>
-                  <TableHead id="game-sysprompts-default-table-head-updated">{t("systemPrompts.updatedAt")}</TableHead>
+                  <TableHead id="game-sysprompts-default-table-head-tokens" className="text-right">{t("systemPrompts.inputOutputTokens")}</TableHead>
+                  <TableHead id="game-sysprompts-default-table-head-actions" className="text-right">{t("systemPrompts.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody id="game-sysprompts-default-table-body">
-                {sortedPrompts.map((prompt) => {
-                  const providerLabel = getProviderLabel(prompt.provider);
+                {sortedPrompts.map((prompt, index) => {
                   return (
                     <TableRow id={`game-sysprompts-default-row-${prompt.id}`} key={prompt.id} className="hover:bg-muted/40">
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-name-cell`} className="align-top">
+                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-order-cell`} className="py-2 align-middle text-muted-foreground">
+                        <span id={`game-sysprompts-default-row-${prompt.id}-order`} className="font-mono text-sm">
+                          {index + 1}
+                        </span>
+                      </TableCell>
+                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-name-cell`} className="py-2 align-middle">
                         <div id={`game-sysprompts-default-row-${prompt.id}-name-wrap`} className="space-y-1">
-                          <div id={`game-sysprompts-default-row-${prompt.id}-name-line`} className="flex flex-wrap items-center gap-2">
-                            <span id={`game-sysprompts-default-row-${prompt.id}-name`} className="font-medium">
-                              {prompt.name}
-                            </span>
-                          </div>
-                          <p id={`game-sysprompts-default-row-${prompt.id}-description`} className="max-w-[34rem] text-xs text-muted-foreground line-clamp-2">
-                            {prompt.description || t("systemPrompts.noDescription")}
-                          </p>
-                          <p id={`game-sysprompts-default-row-${prompt.id}-id`} className="font-mono text-[11px] text-muted-foreground">
-                            {prompt.id}
-                          </p>
+                          <span id={`game-sysprompts-default-row-${prompt.id}-name`} className="font-medium">
+                            {prompt.name}
+                          </span>
                         </div>
                       </TableCell>
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-type-cell`} className="align-top">
+                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-type-cell`} className="py-2 align-middle">
                         <Badge id={`game-sysprompts-default-row-${prompt.id}-type-badge`} variant="outline" className="font-normal">
                           {getPromptTypeLabel(t, prompt.prompt_type)}
                         </Badge>
                       </TableCell>
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-status-cell`} className="align-top text-center">
-                        <Badge id={`game-sysprompts-default-row-${prompt.id}-status-badge`} variant={prompt.is_active ? "default" : "secondary"} className="font-normal">
-                          {prompt.is_active ? t("systemPrompts.statusActive") : t("systemPrompts.statusInactive")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-provider-cell`} className="align-top">
-                        <div id={`game-sysprompts-default-row-${prompt.id}-provider-wrap`} className="space-y-1">
-                          <p id={`game-sysprompts-default-row-${prompt.id}-provider`} className="text-sm">
-                            {providerLabel || t("common.none")}
-                          </p>
-                          {prompt.model && (
-                            <p id={`game-sysprompts-default-row-${prompt.id}-model`} className="text-xs text-muted-foreground">
-                              {prompt.model}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-tokens-cell`} className="align-top text-right text-sm font-mono">
+                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-tokens-cell`} className="py-2 align-middle text-right text-sm font-mono">
                         {prompt.max_input_tokens.toLocaleString()} / {prompt.max_output_tokens.toLocaleString()}
                       </TableCell>
-                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-updated-cell`} className="align-top text-sm text-muted-foreground">
-                        {formatDateTime(prompt.updated_at, locale)}
+                      <TableCell id={`game-sysprompts-default-row-${prompt.id}-actions-cell`} className="py-2 align-middle text-right">
+                        <div id={`game-sysprompts-default-row-${prompt.id}-actions-wrap`} className="flex items-center justify-end gap-1">
+                          <Button
+                            id={`game-sysprompts-default-row-${prompt.id}-view-btn`}
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedPrompt(prompt)}
+                            title={t("common.viewDetails")}
+                          >
+                            <Eye id={`game-sysprompts-default-row-${prompt.id}-view-icon`} className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -147,6 +135,36 @@ export function DefaultSystemPromptsContent({
           )}
         </CardContent>
       </Card>
+
+      <Sheet open={!!selectedPrompt} onOpenChange={(open) => { if (!open) setSelectedPrompt(null); }}>
+        <SheetContent id="game-sysprompts-default-sheet" side="right" className="w-full sm:max-w-2xl overflow-y-auto flex flex-col p-6">
+          <SheetHeader id="game-sysprompts-default-sheet-header" className="text-left">
+            <div id="game-sysprompts-default-sheet-title-wrap" className="space-y-1">
+              <h2 id="game-sysprompts-default-sheet-title" className="text-lg font-semibold">
+                {selectedPrompt?.name || t("systemPrompts.contentPreview")}
+              </h2>
+              <p id="game-sysprompts-default-sheet-desc" className="text-sm text-muted-foreground">
+                {t("systemPrompts.contentPreview")}
+              </p>
+            </div>
+          </SheetHeader>
+          <div id="game-sysprompts-default-sheet-body" className="mt-6 flex-1 rounded-lg border bg-muted/30 p-4">
+            <pre id="game-sysprompts-default-sheet-content" className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+              {selectedPrompt?.content || ""}
+            </pre>
+          </div>
+          {selectedPrompt && (
+            <div id="game-sysprompts-default-sheet-meta" className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+              <p id="game-sysprompts-default-sheet-meta-type">
+                {t("systemPrompts.promptType")}: {getPromptTypeLabel(t, selectedPrompt.prompt_type)}
+              </p>
+              <p id="game-sysprompts-default-sheet-meta-tokens">
+                {t("systemPrompts.inputOutputTokens")}: {selectedPrompt.max_input_tokens.toLocaleString()} / {selectedPrompt.max_output_tokens.toLocaleString()}
+              </p>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
