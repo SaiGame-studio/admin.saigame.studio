@@ -3833,6 +3833,7 @@
   },
   "llmTokenPurchase": {
     "title": "Buy LLM Tokens",
+    "forGame": "for:",
     "triggerLabel": "LLM Tokens",
     "description": "Purchase premium tokens with sGem. Tokens are added to the premium pool and used before free tokens.",
     "sgemBalance": "Your sGem balance",

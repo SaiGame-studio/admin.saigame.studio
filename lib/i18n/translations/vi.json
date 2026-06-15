@@ -3795,6 +3795,7 @@
   },
   "llmTokenPurchase": {
     "title": "Mua LLM Token",
+    "forGame": "Cho:",
     "triggerLabel": "LLM Token",
     "description": "Mua premium token bằng sGem. Token sẽ được thêm vào pool premium và dùng trước free token.",
     "sgemBalance": "Số dư sGem của bạn",

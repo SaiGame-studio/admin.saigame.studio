@@ -3791,6 +3791,7 @@
   },
   "llmTokenPurchase": {
     "title": "LLMトークンを購入",
+    "forGame": "対象:",
     "triggerLabel": "LLMトークン",
     "description": "sGemでプレミアムトークンを購入します。トークンはプレミアムプールに追加され、フリートークンより先に使用されます。",
     "sgemBalance": "sGem残高",

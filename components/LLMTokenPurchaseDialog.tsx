@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "@/hooks/use-toast";
 import { useEscapeLayer } from "@/hooks/use-escape-manager";
 import { api } from "@/lib/api-client";
+import { getGame } from "@/lib/game-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
 
 interface TokenPackage {
@@ -132,6 +133,7 @@ let premiumFloatId = 0;
 
 export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentProps) {
     const { t } = useTranslation();
+    const [gameName, setGameName] = useState<string | null>(null);
     const [sgemBalance, setSgemBalance] = useState<number | null>(null);
     const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
     const [premiumRemaining, setPremiumRemaining] = useState<number | null>(null);
@@ -211,6 +213,24 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
         loadTokenBalance();
         loadPackages();
         setSelectedKey(null);
+    }, [gameId]);
+
+    useEffect(() => {
+        let mounted = true;
+
+        getGame(gameId)
+            .then((game) => {
+                if (mounted)
+                    setGameName(game?.name ?? gameId);
+            })
+            .catch(() => {
+                if (mounted)
+                    setGameName(gameId);
+            });
+
+        return () => {
+            mounted = false;
+        };
     }, [gameId]);
 
     async function handleConfirmPurchase() {
@@ -312,6 +332,9 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                             <Zap className="h-4 w-4"/>
                             {t("llmTokenPurchase.title")}
                         </div>
+                        <p id={`llm-purchase-game-label-${gameId}`} className="text-xs text-muted-foreground">
+                            {t("llmTokenPurchase.forGame")} <span id={`llm-purchase-game-name-${gameId}`} className="font-semibold text-foreground">{gameName ?? gameId}</span>
+                        </p>
                         <p id={`llm-purchase-desc-${gameId}`} className="text-sm text-muted-foreground">
                             {t("llmTokenPurchase.description")}
                         </p>
@@ -322,6 +345,9 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                             <Zap className="h-4 w-4"/>
                             {t("llmTokenPurchase.title")}
                         </SheetTitle>
+                        <p id={`llm-purchase-game-label-${gameId}`} className="text-xs text-muted-foreground">
+                            {t("llmTokenPurchase.forGame")} <span id={`llm-purchase-game-name-${gameId}`} className="font-semibold text-foreground">{gameName ?? gameId}</span>
+                        </p>
                         <SheetDescription id={`llm-purchase-desc-${gameId}`}>
                             {t("llmTokenPurchase.description")}
                         </SheetDescription>
