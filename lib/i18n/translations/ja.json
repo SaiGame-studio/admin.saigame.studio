@@ -486,6 +486,7 @@
     "editPrompt": "プロンプトを編集",
     "updatePrompt": "プロンプトを更新",
     "deletePrompt": "プロンプトを削除",
+    "clonePrompt": "プロンプトを複製",
     "activeCostWarning": "このプロンプトを有効で保存すると 10 sCoin かかる場合があります。",
     "statusActive": "有効",
     "statusInactive": "無効",

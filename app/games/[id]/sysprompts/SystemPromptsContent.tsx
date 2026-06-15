@@ -9,28 +9,23 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  ToggleLeft,
-  ToggleRight,
   Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import type { SystemPrompt } from "@/lib/system-prompt-api";
 import {
   FALLBACK_REQUEST_TYPES,
   getPromptTypeLabel,
-  getProviderLabel,
-  formatDateTime,
   type PromptTypeOption,
   type StatusFilter,
 } from "./system-prompt-shared";
 
 interface SystemPromptsContentProps {
-  locale: string;
   t: (key: string) => string;
   prompts: SystemPrompt[];
   requestTypes: string[];
@@ -53,7 +48,6 @@ interface SystemPromptsContentProps {
 }
 
 export function SystemPromptsContent({
-  locale,
   t,
   prompts,
   requestTypes,
@@ -231,73 +225,37 @@ export function SystemPromptsContent({
                   <TableHead id="game-sysprompts-table-head-name">{t("systemPrompts.name")}</TableHead>
                   <TableHead id="game-sysprompts-table-head-type">{t("systemPrompts.promptType")}</TableHead>
                   <TableHead id="game-sysprompts-table-head-status" className="text-center">{t("systemPrompts.status")}</TableHead>
-                  <TableHead id="game-sysprompts-table-head-provider">{t("systemPrompts.provider")}</TableHead>
-                  <TableHead id="game-sysprompts-table-head-tokens" className="text-right">{t("systemPrompts.tokens")}</TableHead>
-                  <TableHead id="game-sysprompts-table-head-updated">{t("systemPrompts.updatedAt")}</TableHead>
                   <TableHead id="game-sysprompts-table-head-actions" className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody id="game-sysprompts-table-body">
                 {filteredPrompts.map((prompt) => {
-                  const providerLabel = getProviderLabel(prompt.provider);
                   return (
                     <TableRow id={`game-sysprompts-row-${prompt.id}`} key={prompt.id} className="hover:bg-muted/40">
                       <TableCell id={`game-sysprompts-row-${prompt.id}-name-cell`} className="align-top">
-                        <div id={`game-sysprompts-row-${prompt.id}-name-wrap`} className="space-y-1">
-                          <div id={`game-sysprompts-row-${prompt.id}-name-line`} className="flex flex-wrap items-center gap-2">
-                            <span id={`game-sysprompts-row-${prompt.id}-name`} className="font-medium">
-                              {prompt.name}
-                            </span>
-                          </div>
-                          <p id={`game-sysprompts-row-${prompt.id}-description`} className="max-w-[34rem] text-xs text-muted-foreground line-clamp-2">
-                            {prompt.description || t("systemPrompts.noDescription")}
-                          </p>
-                          <p id={`game-sysprompts-row-${prompt.id}-id`} className="font-mono text-[11px] text-muted-foreground">
-                            {prompt.id}
-                          </p>
-                        </div>
+                        <span id={`game-sysprompts-row-${prompt.id}-name`} className="font-medium">
+                          {prompt.name}
+                        </span>
                       </TableCell>
                       <TableCell id={`game-sysprompts-row-${prompt.id}-type-cell`} className="align-top">
-                        <Badge id={`game-sysprompts-row-${prompt.id}-type-badge`} variant="outline" className="font-normal">
+                        <span id={`game-sysprompts-row-${prompt.id}-type-badge`} className="inline-flex rounded-md border px-2 py-1 text-xs font-normal">
                           {getPromptTypeLabel(t, prompt.prompt_type)}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell id={`game-sysprompts-row-${prompt.id}-status-cell`} className="align-top text-center">
-                        <Badge id={`game-sysprompts-row-${prompt.id}-status-badge`} variant={prompt.is_active ? "default" : "secondary"} className="font-normal">
-                          {prompt.is_active ? t("systemPrompts.statusActive") : t("systemPrompts.statusInactive")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell id={`game-sysprompts-row-${prompt.id}-provider-cell`} className="align-top">
-                        <div id={`game-sysprompts-row-${prompt.id}-provider-wrap`} className="space-y-1">
-                          <p id={`game-sysprompts-row-${prompt.id}-provider`} className="text-sm">
-                            {providerLabel || t("common.none")}
-                          </p>
-                          {prompt.model && (
-                            <p id={`game-sysprompts-row-${prompt.id}-model`} className="text-xs text-muted-foreground">
-                              {prompt.model}
-                            </p>
-                          )}
+                        <div id={`game-sysprompts-row-${prompt.id}-status-wrap`} className="flex justify-center">
+                          <Switch
+                            id={`game-sysprompts-row-${prompt.id}-status-switch`}
+                            checked={prompt.is_active}
+                            onCheckedChange={() => onToggle(prompt)}
+                            disabled={refreshing}
+                          />
                         </div>
-                      </TableCell>
-                      <TableCell id={`game-sysprompts-row-${prompt.id}-tokens-cell`} className="align-top text-right text-sm font-mono">
-                        {prompt.max_input_tokens.toLocaleString()} / {prompt.max_output_tokens.toLocaleString()}
-                      </TableCell>
-                      <TableCell id={`game-sysprompts-row-${prompt.id}-updated-cell`} className="align-top text-sm text-muted-foreground">
-                        {formatDateTime(prompt.updated_at, locale)}
                       </TableCell>
                       <TableCell id={`game-sysprompts-row-${prompt.id}-actions-cell`} className="align-top text-right">
                         <div id={`game-sysprompts-row-${prompt.id}-actions-wrap`} className="flex items-center justify-end gap-1">
                           <Button id={`game-sysprompts-row-${prompt.id}-edit-btn`} variant="ghost" size="icon" onClick={() => onEdit(prompt)}>
                             <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            id={`game-sysprompts-row-${prompt.id}-toggle-btn`}
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onToggle(prompt)}
-                            disabled={refreshing}
-                          >
-                            {prompt.is_active ? <ToggleLeft className="h-4 w-4" /> : <ToggleRight className="h-4 w-4" />}
                           </Button>
                           <Button id={`game-sysprompts-row-${prompt.id}-delete-btn`} variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(prompt)}>
                             <Trash2 className="h-4 w-4" />

@@ -20,10 +20,20 @@ import { ApiError } from "@/lib/api-client";
 import { DefaultSystemPromptsContent } from "./DefaultSystemPromptsContent";
 import { SystemPromptsContent } from "./SystemPromptsContent";
 import { SystemPromptEditorSheet } from "./SystemPromptEditorSheet";
-import { DEFAULT_FORM, FALLBACK_REQUEST_TYPES, SLOT_LIMIT, asNumber, buildFormFromPrompt, getPromptTypeLabel, trimOrEmpty, type PromptTypeOption, type StatusFilter, type SystemPromptFormState } from "./system-prompt-shared";
+import { DEFAULT_FORM, FALLBACK_REQUEST_TYPES, SLOT_LIMIT, asNumber, buildFormFromPrompt, findDefaultPromptByType, getPromptTypeLabel, trimOrEmpty, type PromptTypeOption, type StatusFilter, type SystemPromptFormState } from "./system-prompt-shared";
 
 function isApiError(err: unknown): err is ApiError {
   return err instanceof ApiError;
+}
+
+function getApiErrorMessage(err: unknown, fallback: string) {
+  if (isApiError(err)) {
+    return err.data?.message || err.data?.error || err.message || fallback;
+  }
+  if (err instanceof Error) {
+    return err.message || fallback;
+  }
+  return fallback;
 }
 
 export default function GameSystemPromptsPage() {
@@ -134,9 +144,9 @@ export default function GameSystemPromptsPage() {
   const effectiveActiveCount = activePromptCount - (editingPrompt?.is_active ? 1 : 0) + (form.is_active ? 1 : 0);
   const needsUnlockWarning = form.is_active && effectiveActiveCount > SLOT_LIMIT;
 
-  function openCreate() {
+  function openCreate(prompt?: SystemPrompt) {
     setEditingPrompt(null);
-    setForm({ ...DEFAULT_FORM });
+    setForm(buildFormFromPrompt(prompt));
     setFormError(null);
     setEditorOpen(true);
   }
@@ -155,17 +165,49 @@ export default function GameSystemPromptsPage() {
     setEditingPrompt(null);
   }
 
+  function handlePromptTypeChange(nextType: string) {
+    if (editingPrompt) {
+      setForm((current) => ({ ...current, prompt_type: nextType }));
+      return;
+    }
+
+    const defaultPrompt = findDefaultPromptByType(defaultPrompts, nextType);
+    if (defaultPrompt) {
+      setForm(buildFormFromPrompt(defaultPrompt));
+      return;
+    }
+
+    setForm((current) => ({ ...current, prompt_type: nextType }));
+  }
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     void loadPage();
   }, [loadPage]);
+
+  const refreshGamePrompts = useCallback(async () => {
+    try {
+      const promptsRes = await listGameSystemPrompts(gameId);
+      setPrompts(Array.isArray(promptsRes?.data) ? promptsRes.data : []);
+    }
+    catch (err) {
+      console.error("Failed to refresh game system prompts:", err);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: getApiErrorMessage(err, t("systemPrompts.loadError")),
+      });
+    }
+    finally {
+      setRefreshing(false);
+    }
+  }, [gameId, t, toast]);
 
   async function handleSave() {
     const name = trimOrEmpty(form.name);
     const prompt_type = trimOrEmpty(form.prompt_type);
     const content = trimOrEmpty(form.content);
     const description = trimOrEmpty(form.description);
-    const model = trimOrEmpty(form.model);
     const body: CreateSystemPromptBody = {
       name,
       prompt_type,
@@ -175,8 +217,6 @@ export default function GameSystemPromptsPage() {
       max_input_tokens: asNumber(form.max_input_tokens, Number(DEFAULT_FORM.max_input_tokens)),
       max_output_tokens: asNumber(form.max_output_tokens, Number(DEFAULT_FORM.max_output_tokens)),
       temperature: asNumber(form.temperature, Number(DEFAULT_FORM.temperature)),
-      provider: form.provider || null,
-      model: model || null,
     };
 
     if (!name || !prompt_type || !content) {
@@ -200,23 +240,16 @@ export default function GameSystemPromptsPage() {
       await loadPage();
     }
     catch (err) {
-      const message = isApiError(err) ? (err.data?.error || err.message) : err instanceof Error ? err.message : t("systemPrompts.saveFailed");
+      const message = getApiErrorMessage(err, t("systemPrompts.saveFailed"));
       if (isApiError(err) && err.status === 402) {
         setBillingNotice(t("systemPrompts.paymentRequired"));
-        setFormError(t("systemPrompts.paymentRequired"));
       }
-      else if (isApiError(err) && err.status === 409) {
-        setFormError(message || t("systemPrompts.duplicateName"));
-      }
-      else if (isApiError(err) && err.status === 403) {
-        setFormError(t("systemPrompts.accessDenied"));
-      }
-      else if (isApiError(err) && err.status === 404) {
-        setFormError(t("systemPrompts.promptNotFound"));
-      }
-      else {
-        setFormError(message || t("systemPrompts.saveFailed"));
-      }
+
+      toast({
+        variant: "destructive",
+        title: isApiError(err) && err.status === 402 ? t("systemPrompts.paymentRequired") : t("common.error"),
+        description: message || t("systemPrompts.saveFailed"),
+      });
     }
     finally {
       setSaving(false);
@@ -232,10 +265,10 @@ export default function GameSystemPromptsPage() {
         description: prompt.is_active ? t("systemPrompts.deactivatedSuccess") : t("systemPrompts.activatedSuccess"),
       });
       setBillingNotice(null);
-      await loadPage();
+      await refreshGamePrompts();
     }
     catch (err) {
-      const message = isApiError(err) ? (err.data?.error || err.message) : err instanceof Error ? err.message : t("systemPrompts.saveFailed");
+      const message = getApiErrorMessage(err, t("systemPrompts.saveFailed"));
       if (isApiError(err) && err.status === 402) {
         setBillingNotice(t("systemPrompts.paymentRequired"));
       }
@@ -261,7 +294,7 @@ export default function GameSystemPromptsPage() {
       await loadPage();
     }
     catch (err) {
-      const message = isApiError(err) ? (err.data?.error || err.message) : err instanceof Error ? err.message : t("systemPrompts.deleteFailed");
+      const message = getApiErrorMessage(err, t("systemPrompts.deleteFailed"));
       toast({ variant: "destructive", title: t("common.error"), description: message || t("systemPrompts.deleteFailed") });
     }
     finally {
@@ -343,7 +376,6 @@ export default function GameSystemPromptsPage() {
 
         <TabsContent id="game-sysprompts-tab-game-prompts-content" value="game-prompts" className="mt-0">
           <SystemPromptsContent
-            locale={locale}
             t={t}
             prompts={prompts}
             requestTypes={requestTypes}
@@ -374,6 +406,7 @@ export default function GameSystemPromptsPage() {
             error={defaultError}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            onClone={openCreate}
           />
         </TabsContent>
       </Tabs>
@@ -383,6 +416,7 @@ export default function GameSystemPromptsPage() {
         editingPrompt={editingPrompt}
         form={form}
         setForm={setForm}
+        onPromptTypeChange={handlePromptTypeChange}
         saving={saving}
         formError={formError}
         needsUnlockWarning={needsUnlockWarning}

@@ -489,6 +489,7 @@
     "editPrompt": "Sửa prompt",
     "updatePrompt": "Cập nhật prompt",
     "deletePrompt": "Xóa prompt",
+    "clonePrompt": "Sao chép prompt",
     "activeCostWarning": "Lưu prompt active có thể tốn 10 sCoin để mở khóa.",
     "statusActive": "Active",
     "statusInactive": "Inactive",

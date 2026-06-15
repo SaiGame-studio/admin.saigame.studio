@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { SystemPrompt } from "@/lib/system-prompt-api";
-import type { SystemPromptProvider } from "@/lib/system-prompt-api";
 import type { PromptTypeOption, SystemPromptFormState } from "./system-prompt-shared";
 
 interface SystemPromptEditorSheetProps {
@@ -19,6 +18,7 @@ interface SystemPromptEditorSheetProps {
   editingPrompt: SystemPrompt | null;
   form: SystemPromptFormState;
   setForm: Dispatch<SetStateAction<SystemPromptFormState>>;
+  onPromptTypeChange: (promptType: string) => void;
   saving: boolean;
   formError: string | null;
   needsUnlockWarning: boolean;
@@ -33,6 +33,7 @@ export function SystemPromptEditorSheet({
   editingPrompt,
   form,
   setForm,
+  onPromptTypeChange,
   saving,
   formError,
   needsUnlockWarning,
@@ -70,6 +71,24 @@ export function SystemPromptEditorSheet({
             </Alert>
           )}
 
+          <div id="game-sysprompts-editor-type-wrap" className="space-y-2">
+            <Label id="game-sysprompts-editor-type-label" htmlFor="game-sysprompts-editor-type-trigger">
+              {t("systemPrompts.promptType")}
+            </Label>
+            <Select value={form.prompt_type} onValueChange={onPromptTypeChange}>
+              <SelectTrigger id="game-sysprompts-editor-type-trigger" disabled={saving || !!editingPrompt}>
+                <SelectValue placeholder={t("systemPrompts.typePlaceholder")} />
+              </SelectTrigger>
+              <SelectContent id="game-sysprompts-editor-type-content">
+                {promptTypeOptions.map((option) => (
+                  <SelectItem id={`game-sysprompts-editor-type-${option.value}`} key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div id="game-sysprompts-editor-name-wrap" className="space-y-2">
             <Label id="game-sysprompts-editor-name-label" htmlFor="game-sysprompts-editor-name-input">
               {t("systemPrompts.name")}
@@ -81,24 +100,6 @@ export function SystemPromptEditorSheet({
               placeholder={t("systemPrompts.namePlaceholder")}
               disabled={saving}
             />
-          </div>
-
-          <div id="game-sysprompts-editor-type-wrap" className="space-y-2">
-            <Label id="game-sysprompts-editor-type-label" htmlFor="game-sysprompts-editor-type-trigger">
-              {t("systemPrompts.promptType")}
-            </Label>
-            <Select value={form.prompt_type} onValueChange={(value) => setForm((current) => ({ ...current, prompt_type: value }))}>
-              <SelectTrigger id="game-sysprompts-editor-type-trigger" disabled={saving}>
-                <SelectValue placeholder={t("systemPrompts.typePlaceholder")} />
-              </SelectTrigger>
-              <SelectContent id="game-sysprompts-editor-type-content">
-                {promptTypeOptions.map((option) => (
-                  <SelectItem id={`game-sysprompts-editor-type-${option.value}`} key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div id="game-sysprompts-editor-desc-wrap" className="space-y-2">
@@ -125,25 +126,8 @@ export function SystemPromptEditorSheet({
               onChange={(e) => setForm((current) => ({ ...current, content: e.target.value }))}
               placeholder={t("systemPrompts.contentPlaceholder")}
               disabled={saving}
-              rows={10}
+              rows={20}
               className="font-mono text-sm"
-            />
-          </div>
-
-          <div id="game-sysprompts-editor-active-wrap" className="flex items-center justify-between rounded-lg border p-3">
-            <div id="game-sysprompts-editor-active-copy" className="space-y-1">
-              <Label id="game-sysprompts-editor-active-label" htmlFor="game-sysprompts-editor-active-switch">
-                {t("systemPrompts.active")}
-              </Label>
-              <p id="game-sysprompts-editor-active-help" className="text-xs text-muted-foreground">
-                {t("systemPrompts.activeHelp")}
-              </p>
-            </div>
-            <Switch
-              id="game-sysprompts-editor-active-switch"
-              checked={form.is_active}
-              onCheckedChange={(checked) => setForm((current) => ({ ...current, is_active: checked }))}
-              disabled={saving}
             />
           </div>
 
@@ -190,53 +174,34 @@ export function SystemPromptEditorSheet({
               />
             </div>
           </div>
-
-          <div id="game-sysprompts-editor-provider-grid" className="grid gap-4 md:grid-cols-2">
-            <div id="game-sysprompts-editor-provider-wrap" className="space-y-2">
-              <Label id="game-sysprompts-editor-provider-label" htmlFor="game-sysprompts-editor-provider-trigger">
-                {t("systemPrompts.provider")}
-              </Label>
-              <Select value={form.provider || "none"} onValueChange={(value) => setForm((current) => ({ ...current, provider: value === "none" ? "" : value as SystemPromptProvider }))}>
-                <SelectTrigger id="game-sysprompts-editor-provider-trigger" disabled={saving}>
-                  <SelectValue placeholder={t("systemPrompts.providerPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent id="game-sysprompts-editor-provider-content">
-                  <SelectItem id="game-sysprompts-editor-provider-none" value="none">
-                    {t("common.none")}
-                  </SelectItem>
-                  <SelectItem id="game-sysprompts-editor-provider-gemini" value="gemini">Gemini</SelectItem>
-                  <SelectItem id="game-sysprompts-editor-provider-openai" value="openai">OpenAI</SelectItem>
-                  <SelectItem id="game-sysprompts-editor-provider-anthropic" value="anthropic">Anthropic</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div id="game-sysprompts-editor-model-wrap" className="space-y-2">
-              <Label id="game-sysprompts-editor-model-label" htmlFor="game-sysprompts-editor-model-input">
-                {t("systemPrompts.model")}
-              </Label>
-              <Input
-                id="game-sysprompts-editor-model-input"
-                value={form.model}
-                onChange={(e) => setForm((current) => ({ ...current, model: e.target.value }))}
-                placeholder={t("systemPrompts.modelPlaceholder")}
-                disabled={saving}
-              />
-            </div>
-          </div>
         </div>
 
-        <SheetFooter id="game-sysprompts-editor-footer" className="mt-6 gap-2 sm:gap-2">
-          <Button id="game-sysprompts-editor-cancel-btn" variant="outline" onClick={onClose} disabled={saving}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            id="game-sysprompts-editor-save-btn"
-            onClick={() => onSave()}
-            disabled={saving || !form.name.trim() || !form.prompt_type.trim() || !form.content.trim()}
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {editingPrompt ? t("systemPrompts.updatePrompt") : t("systemPrompts.createPrompt")}
-          </Button>
+        <SheetFooter id="game-sysprompts-editor-footer" className="mt-6 flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+          <div id="game-sysprompts-editor-footer-active-wrap" className="flex items-center gap-3 rounded-lg border px-3 py-2">
+            <Label id="game-sysprompts-editor-footer-active-label" htmlFor="game-sysprompts-editor-active-switch">
+              {t("systemPrompts.active")}
+            </Label>
+            <Switch
+              id="game-sysprompts-editor-active-switch"
+              checked={form.is_active}
+              onCheckedChange={(checked) => setForm((current) => ({ ...current, is_active: checked }))}
+              disabled={saving}
+            />
+          </div>
+
+          <div id="game-sysprompts-editor-footer-actions" className="flex items-center gap-2 sm:justify-end">
+            <Button id="game-sysprompts-editor-cancel-btn" variant="outline" onClick={onClose} disabled={saving}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              id="game-sysprompts-editor-save-btn"
+              onClick={() => onSave()}
+              disabled={saving || !form.name.trim() || !form.prompt_type.trim() || !form.content.trim()}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {editingPrompt ? t("systemPrompts.updatePrompt") : t("systemPrompts.createPrompt")}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -106,3 +106,7 @@ export function buildFormFromPrompt(prompt?: SystemPrompt | null): SystemPromptF
     model: prompt.model ?? "",
   };
 }
+
+export function findDefaultPromptByType(prompts: SystemPrompt[], promptType: string) {
+  return prompts.find((prompt) => prompt.prompt_type === promptType) ?? null;
+}

@@ -489,6 +489,7 @@
     "editPrompt": "Edit Prompt",
     "updatePrompt": "Update Prompt",
     "deletePrompt": "Delete Prompt",
+    "clonePrompt": "Clone Prompt",
     "activeCostWarning": "Saving this prompt as active may cost 10 sCoin.",
     "statusActive": "Active",
     "statusInactive": "Inactive",
