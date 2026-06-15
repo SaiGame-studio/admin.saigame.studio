@@ -10,13 +10,15 @@ export interface LLMTokenStatsBucket {
     total_tokens: number;
 }
 
-export interface LLMTokenStatsResult {
+export interface LLMTokenStatsResultBase {
     period: LLMTokenStatsPeriod;
     buckets: LLMTokenStatsBucket[];
     total_input_tokens: number;
     total_output_tokens: number;
     total_tokens: number;
 }
+
+export type LLMTokenStatsResult = LLMTokenStatsResultBase & Record<string, unknown>;
 
 export interface LLMTokenBalance {
     game_id: string;
