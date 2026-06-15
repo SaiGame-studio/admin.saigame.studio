@@ -950,6 +950,7 @@
     "selectGameDescription": "Chọn game sẽ nhận premium LLM token.",
     "selectGamePlaceholder": "Chọn một game",
     "buyTokenForThisGame": "Premium LLM token sẽ được cộng vào game này.",
+    "viewGameDetail": "Xem chi tiết game",
     "noGamesAvailable": "Chưa có game nào để nạp LLM token.",
     "back": "Quay lại",
     "save": "TIẾT KIỆM"

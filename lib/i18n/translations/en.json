@@ -948,6 +948,7 @@
     "selectGameDescription": "Choose which game should receive the premium LLM tokens.",
     "selectGamePlaceholder": "Choose a game",
     "buyTokenForThisGame": "Premium LLM tokens will be added to this game.",
+    "viewGameDetail": "View game detail",
     "noGamesAvailable": "No game available to receive LLM tokens.",
     "back": "Back",
     "save": "SAVE"

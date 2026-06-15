@@ -948,6 +948,7 @@
     "selectGameDescription": "プレミアムLLMトークンを追加するゲームを選択してください。",
     "selectGamePlaceholder": "ゲームを選択",
     "buyTokenForThisGame": "このゲームにプレミアムLLMトークンが追加されます。",
+    "viewGameDetail": "ゲーム詳細を見る",
     "noGamesAvailable": "LLMトークンを追加できるゲームがありません。",
     "back": "戻る",
     "save": "お得"
