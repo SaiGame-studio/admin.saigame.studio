@@ -666,7 +666,7 @@ export async function triggerReportBackfill(body: BackfillRequest): Promise<void
 // ---------------------------------------------------------------------------
 // SuperAdmin — Payment Transactions
 // ---------------------------------------------------------------------------
-export type AdminTransactionStatus = "pending" | "completed" | "failed" | "credit_failed" | "processing" | "awaiting_payment" | "expired";
+export type AdminTransactionStatus = "pending" | "completed" | "failed" | "credit_failed" | "processing" | "awaiting_payment" | "expired" | "rejected";
 export interface AdminTransaction {
     id: string;
     idempotency_key: string;
@@ -693,6 +693,12 @@ export interface AdminTransactionsResult {
 }
 export async function manuallyCreditTransaction(id: string, reason: string): Promise<void> {
     return api.post(`/api/v1/superadmin/payment/transactions/${encodeURIComponent(id)}/manually-credit`, { reason });
+}
+export interface ManuallyRejectTransactionResult {
+    status: "rejected";
+}
+export async function manuallyRejectTransaction(id: string, reason: string): Promise<ManuallyRejectTransactionResult> {
+    return api.post(`/api/v1/superadmin/payment/transactions/${encodeURIComponent(id)}/manually-reject`, { reason });
 }
 export async function listAdminTransactions(params?: {
     limit?: number;

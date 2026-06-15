@@ -292,7 +292,7 @@ export default function RoadmapPage() {
             {t('roadmap.page.discordDesc')}
           </p>
         </div>
-        <a href="https://discord.com/invite/tr7MxpMAH4" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex-shrink-0">
+        <a href="https://discord.gg/UU3YarmVde" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex-shrink-0">
           <MessageCircle className="h-4 w-4"/>
           {t('roadmap.page.joinDiscord')}
         </a>

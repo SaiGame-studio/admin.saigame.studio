@@ -8,7 +8,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { CopyButton } from "@/components/CopyButton";
-import { GiftCode, listGiftCodes, deleteGiftCode, adminCoinTopUp, type CoinTransaction, type PaymentMethodConfig, listPaymentMethods, updatePaymentMethod, type SPackage, type SGemPackage, type LLMTokenPackage, listSPackages, getSPackage, getSGemPackage, listLLMTokenPackages, getLLMTokenPackage, createLLMTokenPackage, updateLLMTokenPackage, createSPackage, updateSPackage, deleteSPackage, createSGemPackage, updateSGemPackage, deleteSGemPackage, listSGemPackagesAdmin, listAdminTransactions, manuallyCreditTransaction, type AdminTransaction, type AdminTransactionStatus, } from "@/lib/admin-api";
+import { GiftCode, listGiftCodes, deleteGiftCode, adminCoinTopUp, type CoinTransaction, type PaymentMethodConfig, listPaymentMethods, updatePaymentMethod, type SPackage, type SGemPackage, type LLMTokenPackage, listSPackages, getSPackage, getSGemPackage, listLLMTokenPackages, getLLMTokenPackage, createLLMTokenPackage, updateLLMTokenPackage, createSPackage, updateSPackage, deleteSPackage, createSGemPackage, updateSGemPackage, deleteSGemPackage, listSGemPackagesAdmin, listAdminTransactions, manuallyCreditTransaction, manuallyRejectTransaction, type AdminTransaction, type AdminTransactionStatus, } from "@/lib/admin-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,7 @@ const TX_STATUS_COLORS: Record<AdminTransactionStatus, string> = {
     pending: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
     completed: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     failed: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+    rejected: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
     credit_failed: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
     processing: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     awaiting_payment: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
@@ -154,6 +155,57 @@ function ManuallyCreditButton({ txId, onSuccess }: {
             <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={!reason.trim() || submitting} onClick={handleConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+</AlertDialog>
+    </>);
+}
+function ManuallyRejectButton({ txId, onSuccess }: {
+    txId: string;
+    onSuccess: () => void;
+}) {
+    const { t } = useTranslation();
+    const { toast } = useToast();
+    const [open, setOpen] = useState(false);
+    const [reason, setReason] = useState(t("adminTransactions.rejectInitialReason"));
+    const [submitting, setSubmitting] = useState(false);
+    async function handleConfirm() {
+        if (!reason.trim())
+            return;
+        setSubmitting(true);
+        try {
+            await manuallyRejectTransaction(txId, reason.trim());
+            toast({ title: t("adminTransactions.rejectSuccess") });
+            setOpen(false);
+            setReason(t("adminTransactions.rejectInitialReason"));
+            onSuccess();
+        }
+        catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : t("adminTransactions.rejectFailed");
+            toast({ variant: "destructive", title: msg });
+        }
+        finally {
+            setSubmitting(false);
+        }
+    }
+    return (<>
+      <Button id={`tx-manually-reject-button-${txId}`} size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+        {t("adminTransactions.reject")}
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent id={`tx-manually-reject-dialog-content-${txId}`} onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader id={`tx-manually-reject-dialog-header-${txId}`}>
+            <AlertDialogTitle id={`tx-manually-reject-dialog-title-${txId}`}>{t("adminTransactions.rejectTitle")}</AlertDialogTitle>
+            <AlertDialogDescription id={`tx-manually-reject-dialog-description-${txId}`}>
+              {t("adminTransactions.rejectDesc").replace("{id}", txId)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea id={`tx-manually-reject-dialog-reason-${txId}`} className="mt-2 min-h-[80px]" placeholder={t("adminTransactions.rejectPlaceholder")} value={reason} onChange={(e) => setReason(e.target.value)}/>
+          <AlertDialogFooter id={`tx-manually-reject-dialog-footer-${txId}`} className="mt-2">
+            <AlertDialogCancel id={`tx-manually-reject-dialog-cancel-${txId}`} disabled={submitting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction id={`tx-manually-reject-dialog-confirm-${txId}`} disabled={!reason.trim() || submitting} onClick={handleConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : t("common.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2025,6 +2077,7 @@ function TransactionsTab() {
         { value: "processing", label: t("adminTransactions.filterProcessing") },
         { value: "completed", label: t("adminTransactions.filterCompleted") },
         { value: "failed", label: t("adminTransactions.filterFailed") },
+        { value: "rejected", label: t("adminTransactions.filterRejected") },
         { value: "credit_failed", label: t("adminTransactions.filterCreditFailed") },
         { value: "expired", label: t("adminTransactions.filterExpired") },
     ];
@@ -2185,7 +2238,8 @@ function TransactionsTab() {
                                   <p className="text-xs break-all">{String(tx.provider_data.status_reason)}</p>
                                 </div>)}
                             </div>
-                            {tx.status !== "completed" && (<div className="mt-3 flex justify-end">
+                            {tx.status !== "completed" && tx.status !== "rejected" && (<div className="mt-3 flex justify-end gap-2">
+                                <ManuallyRejectButton txId={tx.id} onSuccess={() => load(statusFilter, searchId)}/>
                                 <ManuallyCreditButton txId={tx.id} onSuccess={() => load(statusFilter, searchId)}/>
                               </div>)}
                           </TableCell>
