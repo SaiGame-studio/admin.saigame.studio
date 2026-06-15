@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Bot, BookOpen, Check, Dices, Gamepad2, Hammer, Layers, LayoutTemplate, Loader2, Package, RotateCcw, Archive, Sparkles, Tag, Trash2, X, Plus, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -57,6 +57,7 @@ interface ConversationChatHistoryProps {
     appliedTagsPerResponse?: Record<string, Record<string, true>>;
     createdItemTagsPerResponse?: Record<string, Record<string, string>>;
     scrollMode: 'stick' | 'follow';
+    onScrollModeChange: (mode: 'stick' | 'follow') => void;
     t: (key: string) => string;
 }
 // ---------------------------------------------------------------------------
@@ -174,11 +175,14 @@ const MARKDOWN_COMPONENTS = {
     </a>),
 };
 const CONTENT_FONT_INHERIT_CLASS = 'conv-panel-content-font-scale';
-export function ConversationChatHistory({ chatHistory, isStreaming, gameId, activeConvId, savedLoreIds, loreEntryTitles, savedItemDefinitionIds, savedEntityDefinitionIds, savedPresetDefinitionIds, savedContainerDefinitionIds, savedGachaPackIds, savedEquipmentSlotIds, savedCraftingRecipeIds, savedEntityPoolIds, savedQuestDefinitionIds, craftingRecipeNames, entityPoolNames, questDefinitionNames, contentFontSize, premiumTokensRemaining, onRetry, onRetryResponse, onOpenLoreReview, onSaveItemDefinition, onSaveEntityDefinition, onSavePresetDefinition, onSaveContainerDefinition, onSaveGachaPack, onSaveEquipmentSlot, onSaveCraftingRecipe, onSaveEntityPool, onSaveQuestDefinition, onBuyTokens, onApplyTagSuggestion, onRemoveGameTag, onCreateItemTagFromSuggestion, onDeleteItemTagFromSuggestion, appliedTagsPerResponse, createdItemTagsPerResponse, scrollMode, t, }: ConversationChatHistoryProps) {
+export function ConversationChatHistory({ chatHistory, isStreaming, gameId, activeConvId, savedLoreIds, loreEntryTitles, savedItemDefinitionIds, savedEntityDefinitionIds, savedPresetDefinitionIds, savedContainerDefinitionIds, savedGachaPackIds, savedEquipmentSlotIds, savedCraftingRecipeIds, savedEntityPoolIds, savedQuestDefinitionIds, craftingRecipeNames, entityPoolNames, questDefinitionNames, contentFontSize, premiumTokensRemaining, onRetry, onRetryResponse, onOpenLoreReview, onSaveItemDefinition, onSaveEntityDefinition, onSavePresetDefinition, onSaveContainerDefinition, onSaveGachaPack, onSaveEquipmentSlot, onSaveCraftingRecipe, onSaveEntityPool, onSaveQuestDefinition, onBuyTokens, onApplyTagSuggestion, onRemoveGameTag, onCreateItemTagFromSuggestion, onDeleteItemTagFromSuggestion, appliedTagsPerResponse, createdItemTagsPerResponse, scrollMode, onScrollModeChange, t, }: ConversationChatHistoryProps) {
     const router = useRouter();
     const { resolvedTheme } = useTheme();
     const scrollRef = useRef<HTMLDivElement>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoScrollRef = useRef(false);
+    const userScrollIntentRef = useRef(false);
+    const userScrollIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     function resolveErrorMessage(message: string | null): string {
         if (!message) {
             return '';
@@ -232,17 +236,42 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
         if (scrollMode !== 'follow' || !activeConvId || !scrollRef.current)
             return;
         const raf = requestAnimationFrame(() => {
-            if (scrollRef.current)
+            if (scrollRef.current) {
+                autoScrollRef.current = true;
                 scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                requestAnimationFrame(() => {
+                    autoScrollRef.current = false;
+                });
+            }
         });
         return () => cancelAnimationFrame(raf);
     }, [chatHistory, activeConvId, isStreaming, scrollMode]);
+    function markUserScrollIntent() {
+        userScrollIntentRef.current = true;
+        if (userScrollIntentTimerRef.current)
+            clearTimeout(userScrollIntentTimerRef.current);
+        userScrollIntentTimerRef.current = setTimeout(() => {
+            userScrollIntentRef.current = false;
+        }, 250);
+    }
     function handleScroll() {
-        if (isStreaming || scrollMode === 'follow')
-            return;
         if (!activeConvId || !scrollRef.current)
             return;
-        const pos = scrollRef.current.scrollTop;
+        const el = scrollRef.current;
+        if (autoScrollRef.current)
+            return;
+        if (!userScrollIntentRef.current)
+            return;
+        const isAtBottom = el.scrollHeight - el.clientHeight - el.scrollTop <= 1;
+        if (isAtBottom && scrollMode !== 'follow') {
+            onScrollModeChange('follow');
+        }
+        else if (!isAtBottom && scrollMode === 'follow') {
+            onScrollModeChange('stick');
+        }
+        if (isAtBottom)
+            return;
+        const pos = el.scrollTop;
         if (saveTimerRef.current)
             clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
@@ -285,7 +314,11 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
         {!response.done && (<Loader2 id={`conv-panel-ai-response-cursor-entity-${turn.id}-${idx}`} className="h-3 w-3 animate-spin text-muted-foreground"/>)}
       </div>);
     }
-    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2 ${CONTENT_FONT_INHERIT_CLASS}`} style={{ fontSize: `${contentFontSize}px` }}>
+    useEffect(() => () => {
+        if (userScrollIntentTimerRef.current)
+            clearTimeout(userScrollIntentTimerRef.current);
+    }, []);
+    return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} onWheel={markUserScrollIntent} onTouchStart={markUserScrollIntent} onPointerDown={markUserScrollIntent} onKeyDown={markUserScrollIntent} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2 ${CONTENT_FONT_INHERIT_CLASS}`} style={{ fontSize: `${contentFontSize}px` }}>
       {chatHistory.map((turn) => (turn.checkout ? (<div id={`conv-panel-turn-checkout-${turn.id}`} key={turn.id} className="mb-4">
           <ConversationCheckoutTurn checkout={turn.checkout} sourceTurnId={turn.checkoutForTurnId ?? turn.id} t={t}/>
         </div>) : (<div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
