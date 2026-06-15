@@ -11,6 +11,13 @@ export interface IntentResponse {
     error: string | null;
     planningAction?: Record<string, unknown>;
 }
+export interface ConversationCheckout {
+    usedTokens: number;
+    freeTokensUsed?: number;
+    premiumTokensUsed?: number;
+    freeTokensRemaining?: number;
+    premiumTokensRemaining?: number;
+}
 export interface ChatTurn {
     id: string;
     userMessage: string;
@@ -20,6 +27,8 @@ export interface ChatTurn {
     responses?: IntentResponse[];
     done: boolean;
     error: string | null;
+    checkout?: ConversationCheckout;
+    checkoutForTurnId?: string;
 }
 interface PipelineIntent extends DetectedIntent {
     planningAction?: Record<string, unknown>;
@@ -420,8 +429,31 @@ export function useChatPipeline() {
     const clearHistory = useCallback(() => {
         setChatHistory([]);
     }, []);
+    const appendCheckout = useCallback((sourceTurnId: string, checkout: ConversationCheckout) => {
+        const checkoutTurnId = `${sourceTurnId}__checkout`;
+        setChatHistory((prev) => {
+            if (!prev.some((turn) => turn.id === sourceTurnId))
+                return prev;
+            if (prev.some((turn) => turn.checkoutForTurnId === sourceTurnId || turn.id === checkoutTurnId))
+                return prev;
+            const next = [...prev];
+            const insertAt = next.findIndex((turn) => turn.id === sourceTurnId);
+            const checkoutTurn = {
+                id: checkoutTurnId,
+                userMessage: '',
+                aiText: '',
+                detectedType: null,
+                done: true,
+                error: null,
+                checkout,
+                checkoutForTurnId: sourceTurnId,
+            };
+            next.splice(insertAt + 1, 0, checkoutTurn);
+            return next;
+        });
+    }, []);
     const removeTurn = useCallback((id: string) => {
-        setChatHistory((prev) => prev.filter((t) => t.id !== id));
+        setChatHistory((prev) => prev.filter((t) => t.id !== id && t.checkoutForTurnId !== id));
     }, []);
     const loadHistory = useCallback((turns: ChatTurn[]) => {
         setChatHistory(turns);
@@ -540,5 +572,5 @@ export function useChatPipeline() {
         }
         finish();
     }, []);
-    return { isRunning, chatHistory, send, retryResponse, clearHistory, loadHistory, removeTurn };
+    return { isRunning, chatHistory, send, retryResponse, clearHistory, loadHistory, removeTurn, appendCheckout };
 }

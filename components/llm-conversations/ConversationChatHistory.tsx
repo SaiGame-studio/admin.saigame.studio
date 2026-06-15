@@ -10,6 +10,7 @@ import rehypeRaw from 'rehype-raw';
 import type { ChatTurn } from '@/hooks/use-chat-pipeline';
 import { splitItemResponseSegments, splitEntityDefinitionResponseSegments, splitPresetResponseSegments, splitContainerResponseSegments, splitGachaPackResponseSegments, splitEquipmentSlotResponseSegments, splitCraftingRecipeResponseSegments, splitEntityPoolResponseSegments, splitQuestDefinitionResponseSegments, lsScrollPos } from './conversation-panel-utils';
 import { safeGetItem, safeSetItem } from '@/lib/storage-utils';
+import { ConversationCheckoutTurn } from './ConversationCheckoutTurn';
 interface ConversationChatHistoryProps {
     chatHistory: ChatTurn[];
     isStreaming: boolean;
@@ -271,7 +272,9 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
       </div>);
     }
     return (<div id="conv-panel-content-scroll" ref={scrollRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-2 ${CONTENT_FONT_INHERIT_CLASS}`} style={{ fontSize: `${contentFontSize}px` }}>
-      {chatHistory.map((turn) => (<div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
+      {chatHistory.map((turn) => (turn.checkout ? (<div id={`conv-panel-turn-checkout-${turn.id}`} key={turn.id} className="mb-4">
+          <ConversationCheckoutTurn checkout={turn.checkout} sourceTurnId={turn.checkoutForTurnId ?? turn.id} t={t}/>
+        </div>) : (<div id={`conv-panel-turn-${turn.id}`} key={turn.id} className="mb-4">
           {/* User message */}
           <div id={`conv-panel-user-msg-${turn.id}`} className="flex justify-end mb-2">
             <span id={`conv-panel-user-msg-text-${turn.id}`} className="rounded-lg bg-primary text-primary-foreground px-3 py-2 max-w-[80%] break-words" style={{ fontSize: 'inherit' }}>
@@ -959,6 +962,6 @@ export function ConversationChatHistory({ chatHistory, isStreaming, gameId, acti
                 </div>) : !turn.done ? (<Loader2 id={`conv-panel-ai-spinner-${turn.id}`} className="h-3 w-3 animate-spin text-muted-foreground"/>) : null}
             </div>
           </div>
-        </div>))}
+        </div>)))}
     </div>);
 }

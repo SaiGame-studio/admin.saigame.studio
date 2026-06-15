@@ -68,6 +68,7 @@ export function LLMConversationPanel() {
     const [isMinimized, setIsMinimized] = useState(() => safeGetItem(LS_PANEL_MINIMIZED) === 'true');
     // Token balance
     const [tokenBalance, setTokenBalance] = useState<GameLLMTokenBalance | null>(null);
+    const latestTokenBalanceRef = useRef<GameLLMTokenBalance | null>(null);
     // Sidebar state — two separate lists
     const [activeConvs, setActiveConvs] = useState<Conversation[]>([]);
     const [isLoadingActive, setIsLoadingActive] = useState(false);
@@ -98,7 +99,7 @@ export function LLMConversationPanel() {
     // into a different conversation's localStorage key when switching.
     const chatHistoryConvIdRef = useRef<string | null>(null);
     // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
-    const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn } = useChatPipeline();
+    const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn, appendCheckout } = useChatPipeline();
     // Request type selector
     const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
     const [selectedRequestType, setSelectedRequestType] = useState<string>('auto');
@@ -269,10 +270,51 @@ export function LLMConversationPanel() {
         turnId: string;
         responseIdx: number;
         equipmentSlotIdx: number;
-    } | null>(null);
+        } | null>(null);
     const [isApplyingEquipmentSlotConflict, setIsApplyingEquipmentSlotConflict] = useState(false);
     // Resize state via hook
     const { panelWidth, handleResizeMouseDown, sidebarWidth, handleSidebarResizeMouseDown, activeSectionHeight, handleSplitResizeMouseDown, sidebarBodyRef } = useConvPanelResize();
+    useEffect(() => {
+        latestTokenBalanceRef.current = tokenBalance;
+    }, [tokenBalance]);
+    function buildCheckoutSummary(before: GameLLMTokenBalance | null, after: GameLLMTokenBalance) {
+        if (!before)
+            return null;
+        const freeTokensUsed = Math.max(0, before.free_tokens_remaining - after.free_tokens_remaining);
+        const premiumTokensUsed = Math.max(0, before.premium_tokens_remaining - after.premium_tokens_remaining);
+        return {
+            usedTokens: freeTokensUsed + premiumTokensUsed,
+            freeTokensUsed: freeTokensUsed > 0 ? freeTokensUsed : undefined,
+            premiumTokensUsed: premiumTokensUsed > 0 ? premiumTokensUsed : undefined,
+            freeTokensRemaining: after.free_tokens_remaining,
+            premiumTokensRemaining: after.premium_tokens_remaining,
+        };
+    }
+    function findLatestCheckoutSourceTurnId(): string | null {
+        for (let i = chatHistory.length - 1; i >= 0; i--) {
+            const turn = chatHistory[i];
+            if (turn.done && !turn.error && (turn.responses?.length ?? 0) > 0)
+                return turn.id;
+        }
+        return null;
+    }
+    async function refreshTokenBalance(targetGameId: string, recordCheckout: boolean) {
+        const checkoutTurnId = recordCheckout ? findLatestCheckoutSourceTurnId() : null;
+        const balanceBeforeFetch = latestTokenBalanceRef.current;
+        try {
+            const balance = await getGameLLMTokenBalance(targetGameId);
+            latestTokenBalanceRef.current = balance;
+            setTokenBalance(balance);
+            if (recordCheckout && checkoutTurnId) {
+                const checkout = buildCheckoutSummary(balanceBeforeFetch, balance);
+                if (checkout)
+                    appendCheckout(checkoutTurnId, checkout);
+            }
+        }
+        catch {
+            // silently ignore
+        }
+    }
     useEffect(() => { safeSetItem(LS_ARCHIVED_COLLAPSED, String(isArchivedCollapsed)); }, [isArchivedCollapsed]);
     useEffect(() => { safeSetItem(LS_TITLE_FONT_SIZE, String(titleFontSize)); }, [titleFontSize]);
     // ---------------------------------------------------------------------------
@@ -1194,7 +1236,7 @@ export function LLMConversationPanel() {
     function loadBothLists(gId: string) {
         loadActiveConvs(gId);
         loadArchivedConvs(gId);
-        getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => { });
+        void refreshTokenBalance(gId, false);
     }
     useEffect(() => {
         const handler = (e: Event) => {
@@ -1206,7 +1248,7 @@ export function LLMConversationPanel() {
             }>).detail;
             if (detail?.gameId !== gId)
                 return;
-            getGameLLMTokenBalance(gId).then(setTokenBalance).catch(() => { });
+            void refreshTokenBalance(gId, false);
         };
         window.addEventListener('llm-tokens:refresh', handler);
         return () => window.removeEventListener('llm-tokens:refresh', handler);
@@ -1215,10 +1257,10 @@ export function LLMConversationPanel() {
     const prevIsStreamingRef = useRef(false);
     useEffect(() => {
         if (prevIsStreamingRef.current && !isStreaming && gameId) {
-            getGameLLMTokenBalance(gameId).then(setTokenBalance).catch(() => { });
+            void refreshTokenBalance(gameId, true);
         }
         prevIsStreamingRef.current = isStreaming;
-    }, [isStreaming, gameId]);
+    }, [isStreaming, gameId, chatHistory]);
     async function loadConversation(gId: string, convId: string) {
         setIsLoadingConv(true);
         try {
