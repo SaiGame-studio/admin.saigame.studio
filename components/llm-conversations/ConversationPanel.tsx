@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } 
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/lib/i18n/use-translation';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/storage-utils';
-import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, listRequestTypes, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
+import { listConversations, getConversation, updateConversation, archiveConversation, unarchiveConversation, deleteConversation, createRecordsFromConversation, linkConversationContent, listConversationContent, unlinkConversationContent, getGameLLMTokenBalance, type GameLLMTokenBalance, } from '@/lib/llm-conversation-api';
 import { useChatPipeline, ChatTurn } from '@/hooks/use-chat-pipeline';
-import type { Conversation, RequestType, ConversationContentLink } from '@/types/llm-conversation';
+import type { Conversation, ConversationContentLink } from '@/types/llm-conversation';
 import { useConvPanelResize } from '@/hooks/use-conv-panel-resize';
 import { LS_PANEL_OPEN, LS_PANEL_MINIMIZED, LS_ARCHIVED_COLLAPSED, LS_TITLE_FONT_SIZE, LS_SCROLL_MODE, lsActiveConv, lsConvHistory, lsLoreLinks, lsItemLinks, lsPresetLinks, lsContainerLinks, lsGachaPackLinks, lsEquipmentSlotLinks, lsCraftingRecipeLinks, lsLoreTitles, lsItemNames, lsEntityLinks, lsEntityNames, lsContainerNames, lsGachaPackNames, lsEquipmentSlotNames, lsCraftingRecipeNames, lsEntityPoolLinks, lsEntityPoolNames, lsEntityPoolKeys, lsQuestLinks, lsQuestNames, lsQuestCodes, lsConvTokenUsage, lsPendingCraftingRecipeCreate, lsPendingCraftingRecipeEdit, lsPendingGachaCreate, lsPendingGachaEdit, lsPendingEquipmentSlotCreate, lsPendingEquipmentSlotEdit, lsPendingEntityDefinitionCreate, lsPendingEntityPoolCreate, lsPendingEntityPoolEdit, lsPendingQuestCreate, lsPendingQuestEdit, lsTagApplied, lsItemTagCreated, parseLoreResponse, parseGeneratedItemsResponse, parseGeneratedEntityDefinitionsResponse, parseGeneratedPresetsResponse, parseGeneratedContainersResponse, parseGeneratedGachaPacksResponse, parseGeneratedEquipmentSlotsResponse, parseGeneratedCraftingRecipesResponse, parseGeneratedEntityPoolsResponse, extractGameId, } from './conversation-panel-utils';
 import { ConversationSidebar } from './ConversationSidebar';
@@ -23,6 +23,8 @@ import { ConversationInputArea } from './ConversationInputArea';
 import { ConversationDialogs } from './ConversationDialogs';
 import { QuestCodeConflictDialog } from './conversation-panel-parts/QuestCodeConflictDialog';
 import type { LoreDraftForm } from './ConversationDialogs';
+import { buildCheckoutSummary, findLatestCheckoutSourceTurnId } from './conversation-token-balance-utils';
+import { useConversationRequestTypes } from './use-conversation-request-types';
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api';
 import type { LoreEntry } from '@/types/lore';
 import { CreateItemDefinitionDialog, type CreateItemInitialValues, type CreateItemInitialGenPoolEntry } from '@/components/CreateItemDefinitionDialog';
@@ -102,11 +104,10 @@ export function LLMConversationPanel() {
     // Chat pipeline — sequential: createConversation (REST) → streamDetectIntent (SSE)
     const { isRunning: isStreaming, chatHistory, send: runPipeline, retryResponse, clearHistory, loadHistory, removeTurn, appendCheckout } = useChatPipeline();
     // Request type selector
-    const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
-    const [selectedRequestType, setSelectedRequestType] = useState<string>('auto');
-    // When selectedRequestType was resolved by auto-detection, stores the detected key so
-    // the trigger can display "Auto - [label]" instead of just the label.
-    const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null);
+    const { requestTypes, selectedRequestType, setSelectedRequestType, autoDetectedType, setAutoDetectedType } = useConversationRequestTypes({
+        t,
+        onError: (message) => toast({ title: message, variant: 'destructive' }),
+    });
     // Archive/delete dialogs
     const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
     // Create records
@@ -278,29 +279,8 @@ export function LLMConversationPanel() {
     useEffect(() => {
         latestTokenBalanceRef.current = tokenBalance;
     }, [tokenBalance]);
-    function buildCheckoutSummary(before: GameLLMTokenBalance | null, after: GameLLMTokenBalance) {
-        if (!before)
-            return null;
-        const freeTokensUsed = Math.max(0, before.free_tokens_remaining - after.free_tokens_remaining);
-        const premiumTokensUsed = Math.max(0, before.premium_tokens_remaining - after.premium_tokens_remaining);
-        return {
-            usedTokens: freeTokensUsed + premiumTokensUsed,
-            freeTokensUsed: freeTokensUsed > 0 ? freeTokensUsed : undefined,
-            premiumTokensUsed: premiumTokensUsed > 0 ? premiumTokensUsed : undefined,
-            freeTokensRemaining: after.free_tokens_remaining,
-            premiumTokensRemaining: after.premium_tokens_remaining,
-        };
-    }
-    function findLatestCheckoutSourceTurnId(): string | null {
-        for (let i = chatHistory.length - 1; i >= 0; i--) {
-            const turn = chatHistory[i];
-            if (turn.done && !turn.error && (turn.responses?.length ?? 0) > 0)
-                return turn.id;
-        }
-        return null;
-    }
     async function refreshTokenBalance(targetGameId: string, recordCheckout: boolean) {
-        const checkoutTurnId = recordCheckout ? findLatestCheckoutSourceTurnId() : null;
+        const checkoutTurnId = recordCheckout ? findLatestCheckoutSourceTurnId(chatHistory) : null;
         const balanceBeforeFetch = latestTokenBalanceRef.current;
         try {
             const balance = await getGameLLMTokenBalance(targetGameId);
@@ -319,24 +299,6 @@ export function LLMConversationPanel() {
     useEffect(() => { safeSetItem(LS_ARCHIVED_COLLAPSED, String(isArchivedCollapsed)); }, [isArchivedCollapsed]);
     useEffect(() => { safeSetItem(LS_TITLE_FONT_SIZE, String(titleFontSize)); }, [titleFontSize]);
     useEffect(() => { safeSetItem(LS_SCROLL_MODE, scrollMode); }, [scrollMode]);
-    // ---------------------------------------------------------------------------
-    // Fetch request types once on mount
-    // ---------------------------------------------------------------------------
-    useEffect(() => {
-        listRequestTypes()
-            .then((keys) => {
-            const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') };
-            const mapped: RequestType[] = keys.map((k) => ({
-                key: k,
-                label: t(`llmConversation.requestTypes.${k}`) || k,
-            }));
-            setRequestTypes([auto, ...mapped]);
-        })
-            .catch(() => {
-            toast({ title: t('llmConversation.errorLoadRequestTypes'), variant: 'destructive' });
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
     // ---------------------------------------------------------------------------
     // After auto-detection completes, update the display label only.
     // selectedRequestType stays 'auto' so every send re-runs detect-intent.
