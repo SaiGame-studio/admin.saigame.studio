@@ -3497,6 +3497,8 @@
     "titlePlaceholder": "会話のタイトル...",
     "goalPlaceholder": "セッションの目標 - 作りたいものを説明してください...",
     "goalLabel": "目標:",
+    "scrollModeStick": "固定",
+    "scrollModeFollow": "追従",
     "summary": "AIサマリー",
     "noSummaryYet": "メッセージを送信して開始してください。",
     "processing": "応答を処理中...",

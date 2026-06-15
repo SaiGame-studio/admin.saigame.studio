@@ -3501,6 +3501,8 @@
     "goalLabel": "Mục tiêu:",
     "increaseTitleFont": "Tăng cỡ chữ tiêu đề",
     "decreaseTitleFont": "Giảm cỡ chữ tiêu đề",
+    "scrollModeStick": "Bám",
+    "scrollModeFollow": "Theo",
     "summary": "Tóm Tắt AI",
     "noSummaryYet": "Gửi tin nhắn để bắt đầu.",
     "processing": "Đang xử lý phản hồi...",

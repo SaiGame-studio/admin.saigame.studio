@@ -3539,6 +3539,8 @@
     "goalLabel": "Goal:",
     "increaseTitleFont": "Increase title size",
     "decreaseTitleFont": "Decrease title size",
+    "scrollModeStick": "Stick",
+    "scrollModeFollow": "Follow",
     "summary": "AI Summary",
     "noSummaryYet": "Send a message to get started.",
     "processing": "Processing response...",
