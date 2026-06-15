@@ -342,17 +342,18 @@ export function TokenStatsTab() {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<LLMTokenStatsResult | null>(null);
     const [entityDetail, setEntityDetail] = useState<EntityDetailState | null>(null);
+    const showIdInput = filterMode !== "all";
     const handleSearch = useCallback(async () => {
         const trimmedId = idValue.trim();
         if (!period) {
             setError(t("tokenStats.errorMissingPeriod"));
             return;
         }
-        if (!trimmedId) {
+        if (showIdInput && !trimmedId) {
             setError(t("tokenStats.errorMissingFilter"));
             return;
         }
-        if (!UUID_REGEX.test(trimmedId)) {
+        if (showIdInput && !UUID_REGEX.test(trimmedId)) {
             setError(t("tokenStats.errorInvalidUUID"));
             return;
         }
@@ -361,9 +362,13 @@ export function TokenStatsTab() {
         setEntityDetail(null);
         setLoading(true);
         try {
+            const statsId = showIdInput ? trimmedId : undefined;
             const [statsResult, entityResult] = await Promise.allSettled([
-                getLLMTokenStats(period, filterMode, trimmedId),
+                getLLMTokenStats(period, filterMode, statsId),
                 (async (): Promise<EntityDetailState | null> => {
+                    if (filterMode === "all") {
+                        return null;
+                    }
                     if (filterMode === "user_id") {
                         const res = await getAllUsersAdmin({ id: trimmedId, page_size: 1 });
                         if (res.users.length > 0)
@@ -394,7 +399,7 @@ export function TokenStatsTab() {
         finally {
             setLoading(false);
         }
-    }, [period, filterMode, idValue, t]);
+    }, [period, filterMode, idValue, showIdInput, t]);
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter")
             handleSearch();
@@ -443,6 +448,12 @@ export function TokenStatsTab() {
                     {t("tokenStats.filterUser")}
                   </Label>
                 </div>
+                <div id="token-stats-filter-mode-all" className="flex items-center gap-1.5">
+                  <RadioGroupItem id="token-stats-radio-all" value="all"/>
+                  <Label id="token-stats-radio-all-label" htmlFor="token-stats-radio-all">
+                    {t("tokenStats.filterAll")}
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 
@@ -477,7 +488,7 @@ export function TokenStatsTab() {
             </div>
 
             {/* UUID input + search */}
-            <div id="token-stats-id-group" className="flex-1 space-y-2">
+            {showIdInput ? (<div id="token-stats-id-group" className="flex-1 space-y-2">
               <Label id="token-stats-id-label" className="text-xs font-medium uppercase tracking-wide">
                 ID
               </Label>
@@ -487,11 +498,22 @@ export function TokenStatsTab() {
             setError(null);
             setEntityDetail(null);
         }} onKeyDown={handleKeyDown} className="font-mono text-sm"/>
-                <Button id="token-stats-search-btn" onClick={handleSearch} disabled={loading} className="flex items-center gap-1.5 shrink-0">
-                  {loading ? (<Loader2 id="token-stats-search-spinner" className="h-4 w-4 animate-spin"/>) : (<Search id="token-stats-search-icon" className="h-4 w-4"/>)}
-                  {t("tokenStats.searchBtn")}
-                </Button>
               </div>
+            </div>) : (<div id="token-stats-scope-group" className="flex-1 space-y-2">
+              <Label id="token-stats-scope-label" className="text-xs font-medium uppercase tracking-wide">
+                {t("tokenStats.scope")}
+              </Label>
+              <div id="token-stats-scope-all-wrap" className="flex h-10 items-center rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3">
+                <span id="token-stats-scope-all-text" className="text-sm text-muted-foreground">
+                  {t("tokenStats.scopeAll")}
+                </span>
+              </div>
+            </div>)}
+            <div id="token-stats-search-actions" className="flex items-end">
+              <Button id="token-stats-search-btn" onClick={handleSearch} disabled={loading} className="flex items-center gap-1.5 shrink-0">
+                {loading ? (<Loader2 id="token-stats-search-spinner" className="h-4 w-4 animate-spin"/>) : (<Search id="token-stats-search-icon" className="h-4 w-4"/>)}
+                {t("tokenStats.searchBtn")}
+              </Button>
             </div>
           </div>
         </CardContent>

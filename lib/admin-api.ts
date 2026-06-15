@@ -1024,7 +1024,7 @@ export async function updateDefaultSystemPrompt(id: string, body: UpdateSystemPr
 // LLM Token Stats
 // ---------------------------------------------------------------------------
 export type LLMTokenStatsPeriod = "hourly" | "daily" | "weekly" | "monthly";
-export type LLMTokenStatsFilterMode = "studio_id" | "game_id" | "user_id";
+export type LLMTokenStatsFilterMode = "studio_id" | "game_id" | "user_id" | "all";
 export interface LLMTokenStatsBucket {
     label: string;
     input_tokens: number;
@@ -1043,8 +1043,14 @@ export async function getLLMTokenStatsPeriods(): Promise<{
 }> {
     return api.get("/api/v1/llm/token-stats/periods");
 }
-export async function getLLMTokenStats(period: LLMTokenStatsPeriod, mode: LLMTokenStatsFilterMode, id: string): Promise<LLMTokenStatsResult> {
-    const params = new URLSearchParams({ period, [mode]: id });
+export async function getLLMTokenStats(period: LLMTokenStatsPeriod, mode: LLMTokenStatsFilterMode, id?: string): Promise<LLMTokenStatsResult> {
+    const params = new URLSearchParams({ period });
+    if (mode === "all") {
+        params.set("scope", "all");
+    }
+    else if (id) {
+        params.set(mode, id);
+    }
     return api.get(`/api/v1/admin/llm/token-stats?${params}`);
 }
 // ---------------------------------------------------------------------------
