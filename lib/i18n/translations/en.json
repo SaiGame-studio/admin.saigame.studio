@@ -411,8 +411,11 @@
   "systemPrompts": {
     "title": "System Prompts",
     "subtitle": "Manage game-specific prompts that override the runtime prompt by type.",
+    "tabGamePrompts": "Game prompts",
+    "tabDefaultPrompts": "Default prompts",
     "backToGame": "Back to game",
     "loadError": "Failed to load system prompts.",
+    "defaultLoadError": "Failed to load default prompts.",
     "saveFailed": "Failed to save the prompt.",
     "requiredFields": "Name, prompt type, and content are required.",
     "createdSuccess": "Prompt created successfully.",
@@ -487,6 +490,10 @@
     "statusActive": "Active",
     "statusInactive": "Inactive",
     "status": "Status",
+    "defaultListHeading": "Default prompt definitions",
+    "defaultListDescription": "Showing {count} default prompt definitions.",
+    "defaultNoPrompts": "No default prompts found.",
+    "defaultNoPromptsDesc": "The platform default prompt catalog is empty right now.",
     "listHeading": "Prompt definitions",
     "listDescription": "Showing {count} prompt definitions."
   },

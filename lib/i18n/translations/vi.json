@@ -411,8 +411,11 @@
   "systemPrompts": {
     "title": "Prompt hệ thống",
     "subtitle": "Quản lý prompt riêng cho game, ghi đè prompt runtime theo từng loại.",
+    "tabGamePrompts": "Prompt game",
+    "tabDefaultPrompts": "Prompt mặc định",
     "backToGame": "Quay lại game",
     "loadError": "Không thể tải system prompt.",
+    "defaultLoadError": "Không thể tải prompt mặc định.",
     "saveFailed": "Không thể lưu prompt.",
     "requiredFields": "Tên, loại prompt và nội dung là bắt buộc.",
     "createdSuccess": "Đã tạo prompt thành công.",
@@ -487,6 +490,10 @@
     "statusActive": "Active",
     "statusInactive": "Inactive",
     "status": "Trạng thái",
+    "defaultListHeading": "Danh sách prompt mặc định",
+    "defaultListDescription": "Đang hiển thị {count} prompt mặc định.",
+    "defaultNoPrompts": "Chưa có prompt mặc định nào.",
+    "defaultNoPromptsDesc": "Danh mục prompt mặc định của platform hiện đang trống.",
     "listHeading": "Danh sách prompt",
     "listDescription": "Đang hiển thị {count} prompt."
   },

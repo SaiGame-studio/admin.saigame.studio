@@ -23,6 +23,10 @@ export async function listGameSystemPrompts(gameId: string): Promise<SystemPromp
   return api.get(`/api/v1/games/${encodeURIComponent(gameId)}/system-prompts`, { suppressToast: true });
 }
 
+export async function listDefaultSystemPrompts(): Promise<SystemPromptsResult> {
+  return api.get("/api/v1/system-prompts/defaults", { suppressToast: true });
+}
+
 export async function getGameSystemPrompt(gameId: string, promptId: string): Promise<SystemPrompt> {
   return api.get(`/api/v1/games/${encodeURIComponent(gameId)}/system-prompts/${encodeURIComponent(promptId)}`, { suppressToast: true });
 }

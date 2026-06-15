@@ -411,8 +411,11 @@
   "systemPrompts": {
     "title": "システムプロンプト",
     "subtitle": "ゲーム固有のプロンプトを管理し、種類ごとに実行時プロンプトを上書きします。",
+    "tabGamePrompts": "ゲームプロンプト",
+    "tabDefaultPrompts": "デフォルトプロンプト",
     "backToGame": "ゲームに戻る",
     "loadError": "システムプロンプトを読み込めませんでした。",
+    "defaultLoadError": "デフォルトプロンプトを読み込めませんでした。",
     "saveFailed": "プロンプトを保存できませんでした。",
     "requiredFields": "名前、プロンプト種別、内容は必須です。",
     "createdSuccess": "プロンプトを作成しました。",
@@ -487,6 +490,10 @@
     "freeSlotsLeftShort": "無料スロット残り",
     "totalCount": "合計 {count} 件のプロンプト",
     "status": "ステータス",
+    "defaultListHeading": "デフォルトプロンプト一覧",
+    "defaultListDescription": "{count} 件のデフォルトプロンプトを表示しています。",
+    "defaultNoPrompts": "デフォルトプロンプトはまだありません。",
+    "defaultNoPromptsDesc": "現在、プラットフォームのデフォルトプロンプト一覧は空です。",
     "listHeading": "プロンプト定義",
     "listDescription": "{count} 件のプロンプト定義を表示しています。"
   },

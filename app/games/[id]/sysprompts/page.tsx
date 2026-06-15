@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Trash2, Hammer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { GameNavButtons } from "@/components/GameNavButtons";
@@ -13,9 +14,10 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { getGame } from "@/lib/game-api";
 import { listRequestTypes } from "@/lib/llm-conversation-api";
-import { createGameSystemPrompt, deleteGameSystemPrompt, listGameSystemPrompts, updateGameSystemPrompt, type CreateSystemPromptBody, type SystemPrompt, type UpdateSystemPromptBody } from "@/lib/system-prompt-api";
+import { createGameSystemPrompt, deleteGameSystemPrompt, listDefaultSystemPrompts, listGameSystemPrompts, updateGameSystemPrompt, type CreateSystemPromptBody, type SystemPrompt, type UpdateSystemPromptBody } from "@/lib/system-prompt-api";
 import type { Game } from "@/types/game";
 import { ApiError } from "@/lib/api-client";
+import { DefaultSystemPromptsContent } from "./DefaultSystemPromptsContent";
 import { SystemPromptsContent } from "./SystemPromptsContent";
 import { SystemPromptEditorSheet } from "./SystemPromptEditorSheet";
 import { DEFAULT_FORM, FALLBACK_REQUEST_TYPES, SLOT_LIMIT, asNumber, buildFormFromPrompt, getPromptTypeLabel, trimOrEmpty, type PromptTypeOption, type StatusFilter, type SystemPromptFormState } from "./system-prompt-shared";
@@ -33,11 +35,15 @@ export default function GameSystemPromptsPage() {
 
   const [game, setGame] = useState<Game | null>(null);
   const [prompts, setPrompts] = useState<SystemPrompt[]>([]);
+  const [defaultPrompts, setDefaultPrompts] = useState<SystemPrompt[]>([]);
   const [requestTypes, setRequestTypes] = useState<string[]>(FALLBACK_REQUEST_TYPES);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [defaultLoading, setDefaultLoading] = useState(true);
+  const [gameError, setGameError] = useState<string | null>(null);
+  const [defaultError, setDefaultError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"game-prompts" | "default-prompts">("game-prompts");
 
   const [nameFilter, setNameFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -53,24 +59,59 @@ export default function GameSystemPromptsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadPage = useCallback(async () => {
+    setLoading(true);
+    setDefaultLoading(true);
+    setGameError(null);
+    setDefaultError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const [gameRes, promptsRes, typesRes] = await Promise.all([
+      const [gameRes, promptsRes, defaultPromptsRes, typesRes] = await Promise.allSettled([
         getGame(gameId),
         listGameSystemPrompts(gameId),
+        listDefaultSystemPrompts(),
         listRequestTypes().catch(() => FALLBACK_REQUEST_TYPES),
       ]);
-      setGame(gameRes);
-      setPrompts(Array.isArray(promptsRes?.data) ? promptsRes.data : []);
-      setRequestTypes((typesRes && typesRes.length > 0 ? typesRes : FALLBACK_REQUEST_TYPES).filter((value, index, array) => array.indexOf(value) === index));
+
+      if (gameRes.status === "fulfilled") {
+        setGame(gameRes.value);
+      }
+      else {
+        console.error("Failed to load game:", gameRes.reason);
+        setGameError(gameRes.reason instanceof Error ? gameRes.reason.message : t("systemPrompts.loadError"));
+      }
+
+      if (promptsRes.status === "fulfilled") {
+        setPrompts(Array.isArray(promptsRes.value?.data) ? promptsRes.value.data : []);
+      }
+      else {
+        console.error("Failed to load game system prompts:", promptsRes.reason);
+        setPrompts([]);
+        setGameError(promptsRes.reason instanceof Error ? promptsRes.reason.message : t("systemPrompts.loadError"));
+      }
+
+      if (defaultPromptsRes.status === "fulfilled") {
+        setDefaultPrompts(Array.isArray(defaultPromptsRes.value?.data) ? defaultPromptsRes.value.data : []);
+      }
+      else {
+        console.error("Failed to load default system prompts:", defaultPromptsRes.reason);
+        setDefaultPrompts([]);
+        setDefaultError(defaultPromptsRes.reason instanceof Error ? defaultPromptsRes.reason.message : t("systemPrompts.defaultLoadError"));
+      }
+
+      if (typesRes.status === "fulfilled") {
+        const requestTypeValues = Array.isArray(typesRes.value) ? typesRes.value : FALLBACK_REQUEST_TYPES;
+        setRequestTypes(requestTypeValues.filter((value, index, array) => array.indexOf(value) === index));
+      }
+      else {
+        setRequestTypes(FALLBACK_REQUEST_TYPES);
+      }
     }
     catch (err) {
-      console.error("Failed to load game system prompts:", err);
-      setError(err instanceof Error ? err.message : t("systemPrompts.loadError"));
+      console.error("Unexpected failure while loading system prompts:", err);
+      setGameError(err instanceof Error ? err.message : t("systemPrompts.loadError"));
     }
     finally {
       setLoading(false);
+      setDefaultLoading(false);
       setRefreshing(false);
     }
   }, [gameId, t]);
@@ -290,28 +331,53 @@ export default function GameSystemPromptsPage() {
         </div>
       </div>
 
-      <SystemPromptsContent
-        locale={locale}
-        t={t}
-        prompts={prompts}
-        requestTypes={requestTypes}
-        loading={loading}
-        error={error}
-        refreshing={refreshing}
-        billingNotice={billingNotice}
-        nameFilter={nameFilter}
-        setNameFilter={setNameFilter}
-        typeFilter={typeFilter}
-        setTypeFilter={setTypeFilter}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        onRefresh={onRefresh}
-        onCreate={openCreate}
-        onEdit={openEdit}
-        onToggle={handleToggleActive}
-        onDelete={setDeleteTarget}
-        onDismissBilling={() => setBillingNotice(null)}
-      />
+      <Tabs id="game-sysprompts-tabs" value={activeTab} onValueChange={(value) => setActiveTab(value as "game-prompts" | "default-prompts")} className="space-y-4">
+        <TabsList id="game-sysprompts-tabs-list" className="w-auto inline-flex">
+          <TabsTrigger id="game-sysprompts-tab-game-prompts" value="game-prompts" className="whitespace-nowrap">
+            {t("systemPrompts.tabGamePrompts")}
+          </TabsTrigger>
+          <TabsTrigger id="game-sysprompts-tab-default-prompts" value="default-prompts" className="whitespace-nowrap">
+            {t("systemPrompts.tabDefaultPrompts")}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent id="game-sysprompts-tab-game-prompts-content" value="game-prompts" className="mt-0">
+          <SystemPromptsContent
+            locale={locale}
+            t={t}
+            prompts={prompts}
+            requestTypes={requestTypes}
+            loading={loading}
+            error={gameError}
+            refreshing={refreshing}
+            billingNotice={billingNotice}
+            nameFilter={nameFilter}
+            setNameFilter={setNameFilter}
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            onRefresh={onRefresh}
+            onCreate={openCreate}
+            onEdit={openEdit}
+            onToggle={handleToggleActive}
+            onDelete={setDeleteTarget}
+            onDismissBilling={() => setBillingNotice(null)}
+          />
+        </TabsContent>
+
+        <TabsContent id="game-sysprompts-tab-default-prompts-content" value="default-prompts" className="mt-0">
+          <DefaultSystemPromptsContent
+            locale={locale}
+            t={t}
+            prompts={defaultPrompts}
+            loading={defaultLoading}
+            error={defaultError}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        </TabsContent>
+      </Tabs>
 
       <SystemPromptEditorSheet
         open={editorOpen}
