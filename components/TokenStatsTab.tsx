@@ -192,6 +192,13 @@ export function TokenStatsTab() {
     const [result, setResult] = useState<LLMTokenStatsResult | null>(null);
     const [entityDetail, setEntityDetail] = useState<EntityDetailState | null>(null);
     const showIdInput = filterMode !== "all";
+    const handleQuickSearch = useCallback((mode: LLMTokenStatsFilterMode, id: string) => {
+        setFilterMode(mode);
+        setIdValue(id);
+        setResult(null);
+        setError(null);
+        setEntityDetail(null);
+    }, []);
     const handleSearch = useCallback(async () => {
         const trimmedId = idValue.trim();
         if (!period) {
@@ -393,7 +400,7 @@ export function TokenStatsTab() {
       {/* Results */}
       {!loading && result && (<div id="token-stats-results-root" className="space-y-6">
           {entityDetail && (<EntityDetailCard detail={entityDetail} t={t}/>)}
-          <TokenStatsResultTabs result={result} t={t}/>
+          <TokenStatsResultTabs result={result} t={t} onQuickSearch={handleQuickSearch}/>
         </div>)}
     </div>);
 }

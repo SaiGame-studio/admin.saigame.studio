@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import type { LLMTokenStatsResult } from "@/lib/admin-api";
+import type { LLMTokenStatsFilterMode, LLMTokenStatsResult } from "@/lib/admin-api";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { CopyButton } from "@/components/CopyButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig, } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search } from "lucide-react";
 
 const tokenStatsChartConfig: ChartConfig = {
     input: { label: "Input", color: "hsl(var(--chart-1))" },
@@ -160,6 +162,23 @@ function getRowId(row: Record<string, unknown>, fallbackIndex: number): string {
             return String(value);
     }
     return String(fallbackIndex + 1);
+}
+function inferFilterMode(fieldName: string, row: Record<string, unknown>): LLMTokenStatsFilterMode | null {
+    const lowerFieldName = fieldName.toLowerCase();
+    if (lowerFieldName.includes("game"))
+        return "game_id";
+    if (lowerFieldName.includes("studio"))
+        return "studio_id";
+    if (lowerFieldName.includes("user"))
+        return "user_id";
+    const rowKeys = Object.keys(row).map((key) => key.toLowerCase());
+    if (rowKeys.some((key) => key.includes("game")))
+        return "game_id";
+    if (rowKeys.some((key) => key.includes("studio") || key.includes("owner_user")))
+        return "studio_id";
+    if (rowKeys.some((key) => key.includes("user") || key.includes("email") || key.includes("username")))
+        return "user_id";
+    return null;
 }
 function buildFieldTableRows(value: unknown): { rows: Array<Record<string, unknown>>; columns: string[] } | null {
     if (Array.isArray(value)) {
@@ -380,9 +399,10 @@ function TokenStatsFieldChart({ fieldName, value, t, }: {
       </CardContent>
     </Card>);
 }
-function TokenStatsFieldTable({ fieldName, value, t, }: {
+function TokenStatsFieldTable({ fieldName, value, onQuickSearch, t, }: {
     fieldName: string;
     value: unknown;
+    onQuickSearch?: (mode: LLMTokenStatsFilterMode, id: string) => void;
     t: ReturnType<typeof useTranslation>["t"];
 }) {
     const tableData = useMemo(() => buildFieldTableRows(value), [value]);
@@ -410,12 +430,21 @@ function TokenStatsFieldTable({ fieldName, value, t, }: {
           <TableBody id={`token-stats-field-table-body-${fieldId}`}>
             {tableData.rows.map((row, index) => {
                 const rowId = `${fieldId}-${index}`;
+                const rowFilterMode = onQuickSearch ? inferFilterMode(fieldName, row) : null;
                 return (<TableRow id={`token-stats-field-row-${rowId}`} key={rowId}>
                     <TableCell id={`token-stats-field-row-${rowId}-name`} className="font-medium">
-                      {fieldValueToText(row._row_name)}
+                      <div id={`token-stats-field-row-${rowId}-name-wrap`} className="flex items-center gap-1.5">
+                        <span id={`token-stats-field-row-${rowId}-name-text`}>{fieldValueToText(row._row_name)}</span>
+                      </div>
                     </TableCell>
                     <TableCell id={`token-stats-field-row-${rowId}-id`} className="font-mono text-xs">
-                      {fieldValueToText(row._row_id)}
+                      <div id={`token-stats-field-row-${rowId}-id-wrap`} className="flex items-center gap-1.5">
+                        <span id={`token-stats-field-row-${rowId}-id-text`}>{fieldValueToText(row._row_id)}</span>
+                        <CopyButton id={`token-stats-field-row-${rowId}-id-copy`} iconId={`token-stats-field-row-${rowId}-id-copy-icon`} text={fieldValueToText(row._row_id)} size="h-3.5 w-3.5"/>
+                        {rowFilterMode ? (<button id={`token-stats-field-row-${rowId}-id-search`} type="button" className="ml-1 inline-flex items-center text-muted-foreground hover:text-foreground transition-colors" title={t("common.search")} aria-label={t("common.search")} onClick={() => onQuickSearch?.(rowFilterMode, fieldValueToText(row._row_id))}>
+                            <Search id={`token-stats-field-row-${rowId}-id-search-icon`} className="h-3.5 w-3.5"/>
+                          </button>) : null}
+                      </div>
                     </TableCell>
                     {columns.map((column) => (<TableCell key={column} id={`token-stats-field-row-${rowId}-${slugifyIdPart(column)}`} className="text-right">
                         {formatTableCellValue(row[column])}
@@ -427,9 +456,10 @@ function TokenStatsFieldTable({ fieldName, value, t, }: {
       </CardContent>
     </Card>);
 }
-function TokenStatsFieldCard({ fieldName, value, t, }: {
+function TokenStatsFieldCard({ fieldName, value, onQuickSearch, t, }: {
     fieldName: string;
     value: unknown;
+    onQuickSearch?: (mode: LLMTokenStatsFilterMode, id: string) => void;
     t: ReturnType<typeof useTranslation>["t"];
 }) {
     const fieldId = slugifyIdPart(fieldName);
@@ -449,15 +479,16 @@ function TokenStatsFieldCard({ fieldName, value, t, }: {
       </CardHeader>
       <CardContent id={`token-stats-field-content-${fieldId}`}>
         {isPlainObject(value) || Array.isArray(value) ? (<div id={`token-stats-field-table-wrap-${fieldId}`} className="space-y-4">
-            {Array.isArray(value) || isPlainObject(value) ? (<TokenStatsFieldTable fieldName={fieldName} value={value} t={t}/>) : null}
+            {Array.isArray(value) || isPlainObject(value) ? (<TokenStatsFieldTable fieldName={fieldName} value={value} onQuickSearch={onQuickSearch} t={t}/>) : null}
           </div>) : (<div id={`token-stats-field-primitive-${fieldId}`} className="rounded-md border bg-muted/30 px-4 py-3 text-sm font-mono break-words">
             {renderValuePreview(value)}
           </div>)}
       </CardContent>
     </Card>);
 }
-export function TokenStatsResultTabs({ result, t, }: {
+export function TokenStatsResultTabs({ result, t, onQuickSearch, }: {
     result: LLMTokenStatsResult;
+    onQuickSearch?: (mode: LLMTokenStatsFilterMode, id: string) => void;
     t: ReturnType<typeof useTranslation>["t"];
 }) {
     const [activeTab, setActiveTab] = useState("buckets");
@@ -502,7 +533,7 @@ export function TokenStatsResultTabs({ result, t, }: {
       </TabsContent>
       {fieldTabs.map((tab) => (<TabsContent key={tab.value} id={`token-stats-result-tab-content-${tab.value}`} value={tab.value} className="mt-0 space-y-6">
           <TokenStatsFieldChart fieldName={tab.fieldName} value={tab.fieldValue} t={t}/>
-          <TokenStatsFieldCard fieldName={tab.fieldName} value={tab.fieldValue} t={t}/>
+          <TokenStatsFieldCard fieldName={tab.fieldName} value={tab.fieldValue} onQuickSearch={onQuickSearch} t={t}/>
         </TabsContent>))}
     </Tabs>);
 }
