@@ -388,7 +388,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                     </span>
                                 </div>
                                 <div id={`llm-purchase-footer-pkg-cost-${gameId}`} className="flex items-center gap-1 text-base font-bold">
-                                    <span className="text-blue-400" aria-hidden="true">??</span>
+                                    <span id={`llm-purchase-footer-pkg-cost-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
                                     <span id={`llm-purchase-footer-pkg-cost-val-${gameId}`}>{pkg.sgem_cost.toLocaleString("en-US")}</span>
                                     <span id={`llm-purchase-footer-pkg-cost-unit-${gameId}`} className="text-xs font-normal text-muted-foreground">
                                         sGem
@@ -411,7 +411,7 @@ export function LLMTokenPurchaseContent({ gameId, embedded = false }: ContentPro
                                     ) : (
                                         <span className="inline-flex items-center gap-1.5">
                                             <span>{t("llmTokenPurchase.confirmPay")}</span>
-                                            <span className="text-blue-400" aria-hidden="true">??</span>
+                                            <span id={`llm-purchase-footer-confirm-icon-${gameId}`} className="text-blue-400" aria-hidden="true">💎</span>
                                             <span>{pkg.sgem_cost.toLocaleString("en-US")}</span>
                                         </span>
                                     )}
