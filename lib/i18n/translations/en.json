@@ -490,7 +490,7 @@
     "updatePrompt": "Update Prompt",
     "deletePrompt": "Delete Prompt",
     "clonePrompt": "Clone Prompt",
-    "activeCostWarning": "Saving this prompt as active may cost 10 sCoin.",
+    "activeCostWarning": "Saving this prompt may cost 10 sCoin to unlock another slot.",
     "statusActive": "Active",
     "statusInactive": "Inactive",
     "status": "Status",
@@ -499,7 +499,8 @@
     "defaultNoPrompts": "No default prompts found.",
     "defaultNoPromptsDesc": "The platform default prompt catalog is empty right now.",
     "listHeading": "Prompt definitions",
-    "listDescription": "Showing {count} prompt definitions."
+    "listDescription": "Showing {count} prompt definitions.",
+    "totalCountWithLimit": "{count} / {max} prompts total"
   },
   "profilePage": {
     "title": "User Profile",

@@ -16,6 +16,9 @@ export type {
 };
 
 export interface SystemPromptsResult {
+  metadata?: {
+    max_sys_prompts?: number;
+  };
   data: SystemPrompt[];
 }
 

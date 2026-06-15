@@ -53,6 +53,7 @@ export default function GameSystemPromptsPage() {
   const [defaultError, setDefaultError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
+  const [maxSysPrompts, setMaxSysPrompts] = useState(SLOT_LIMIT);
   const [activeTab, setActiveTab] = useState<"game-prompts" | "default-prompts">("game-prompts");
 
   const [nameFilter, setNameFilter] = useState("");
@@ -91,10 +92,12 @@ export default function GameSystemPromptsPage() {
 
       if (promptsRes.status === "fulfilled") {
         setPrompts(Array.isArray(promptsRes.value?.data) ? promptsRes.value.data : []);
+        setMaxSysPrompts(Math.max(Number(promptsRes.value?.metadata?.max_sys_prompts ?? SLOT_LIMIT), 1));
       }
       else {
         console.error("Failed to load game system prompts:", promptsRes.reason);
         setPrompts([]);
+        setMaxSysPrompts(SLOT_LIMIT);
         setGameError(promptsRes.reason instanceof Error ? promptsRes.reason.message : t("systemPrompts.loadError"));
       }
 
@@ -138,11 +141,11 @@ export default function GameSystemPromptsPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [requestTypes, t]);
 
-  const activePromptCount = useMemo(() => prompts.filter((prompt) => prompt.is_active).length, [prompts]);
-  const lockedSlots = Math.max(activePromptCount - SLOT_LIMIT, 0);
-  const freeSlots = Math.max(SLOT_LIMIT - activePromptCount, 0);
-  const effectiveActiveCount = activePromptCount - (editingPrompt?.is_active ? 1 : 0) + (form.is_active ? 1 : 0);
-  const needsUnlockWarning = form.is_active && effectiveActiveCount > SLOT_LIMIT;
+  const promptCount = prompts.length;
+  const lockedSlots = Math.max(promptCount - maxSysPrompts, 0);
+  const freeSlots = Math.max(maxSysPrompts - promptCount, 0);
+  const slotUsageRatio = maxSysPrompts > 0 ? promptCount / maxSysPrompts : 0;
+  const needsUnlockWarning = !editingPrompt && promptCount >= maxSysPrompts;
 
   function openCreate(prompt?: SystemPrompt) {
     setEditingPrompt(null);
@@ -189,6 +192,7 @@ export default function GameSystemPromptsPage() {
     try {
       const promptsRes = await listGameSystemPrompts(gameId);
       setPrompts(Array.isArray(promptsRes?.data) ? promptsRes.data : []);
+      setMaxSysPrompts(Math.max(Number(promptsRes?.metadata?.max_sys_prompts ?? SLOT_LIMIT), 1));
     }
     catch (err) {
       console.error("Failed to refresh game system prompts:", err);
@@ -338,14 +342,16 @@ export default function GameSystemPromptsPage() {
               {t("systemPrompts.title")}
             </h1>
             <p id="game-sysprompts-subtitle" className="text-muted-foreground flex items-center gap-2 flex-wrap text-sm">
-              <span id="game-sysprompts-subtitle-count" className={activePromptCount >= SLOT_LIMIT ? "text-destructive font-medium" : ""}>
-                {activePromptCount.toLocaleString()} / {SLOT_LIMIT.toLocaleString()} {t("systemPrompts.activeCountLabel")}
+              <span id="game-sysprompts-subtitle-count" className={promptCount >= maxSysPrompts ? "text-destructive font-medium" : ""}>
+                {t("systemPrompts.totalCountWithLimit")
+                  .replace("{count}", promptCount.toLocaleString())
+                  .replace("{max}", maxSysPrompts.toLocaleString())}
               </span>
               <span id="game-sysprompts-subtitle-bar" className="inline-block h-1.5 w-20 shrink-0 rounded-full bg-muted overflow-hidden align-middle sm:w-24">
                 <span
                   id="game-sysprompts-subtitle-bar-fill"
-                  className={`block h-full rounded-full transition-all ${activePromptCount >= SLOT_LIMIT ? "bg-destructive" : activePromptCount / SLOT_LIMIT >= 0.8 ? "bg-amber-500" : "bg-primary"}`}
-                  style={{ width: `${Math.min((activePromptCount / SLOT_LIMIT) * 100, 100)}%` }}
+                  className={`block h-full rounded-full transition-all ${promptCount >= maxSysPrompts ? "bg-destructive" : slotUsageRatio >= 0.8 ? "bg-amber-500" : "bg-primary"}`}
+                  style={{ width: `${Math.min(slotUsageRatio * 100, 100)}%` }}
                 />
               </span>
               <span id="game-sysprompts-subtitle-free" className="inline-flex items-center gap-1">

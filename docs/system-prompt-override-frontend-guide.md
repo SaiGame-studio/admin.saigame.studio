@@ -29,10 +29,10 @@ The UI should render the available types from a static list or from the existing
 
 ### Prompt slots
 
-- Each game has 7 free active system prompt slots.
-- Starting from the 8th active prompt, unlocking a new active slot costs 10 sCoin.
-- Inactive prompts do not consume an active slot.
-- Re-activating an inactive prompt can also trigger the 10 sCoin unlock flow.
+- Each game exposes `metadata.max_sys_prompts` in the list response.
+- Use the `data` array length as the system prompt count.
+- When the count reaches `max_sys_prompts`, unlocking another prompt slot costs 10 sCoin.
+- The backend still decides whether a save needs to go through the unlock flow.
 
 The backend enforces this rule. The front end only needs to detect the `402 Payment Required` response and guide the user to top up sCoin if needed.
 
@@ -145,6 +145,9 @@ These endpoints return:
 
 ```json
 {
+  "metadata": {
+    "max_sys_prompts": 7
+  },
   "data": [
     {
       "id": "019768ab-0000-7000-8000-000000000001",
@@ -216,7 +219,7 @@ Behavior:
 - default `is_active = true`
 - trim whitespace before submit
 - keep `content` required
-- if the game already has 7 active prompts, warn that creating an 8th active prompt may cost 10 sCoin
+- if the game already has `max_sys_prompts` prompts, warn that creating another prompt may cost 10 sCoin
 
 Important:
 - do not ask the user to pick a template prompt
@@ -228,7 +231,7 @@ The edit modal can reuse the same form fields.
 
 Important cases:
 - editing content, provider, or model does not necessarily trigger a slot charge
-- turning an inactive prompt back on may trigger the 10 sCoin unlock flow
+- saving a prompt that would exceed the limit may trigger the 10 sCoin unlock flow
 - if the user changes the prompt so it becomes invalid, the backend returns `400`
 
 ### 4. Delete action
@@ -238,7 +241,7 @@ Deleting a prompt is a soft delete.
 Recommended UI:
 - confirm dialog with prompt name
 - after success, remove the row from the current list
-- if the deleted prompt was active, refresh the prompt list so the UI can recompute active slot usage
+- after delete, refresh the prompt list so the UI can recompute prompt usage
 
 ---
 
@@ -248,15 +251,16 @@ The backend does not expose a dedicated slot-usage endpoint for this feature.
 
 Recommended client-side approach:
 1. Call `GET /api/v1/games/{game_id}/system-prompts`
-2. Count prompts where `is_active = true` and `deleted_at` is not present in the current list response
-3. Render:
-   - `0 / 7` to `7 / 7` as free slots
-   - `8+ active prompts` as locked slots that require 10 sCoin each
+2. Read `metadata.max_sys_prompts`
+3. Count the prompts in `data`
+4. Render:
+   - `0 / max` to `max / max` as free slots
+   - `max+` prompts as locked slots that require 10 sCoin each
 
 If your app wants to show a precise locked-slot count, compute:
 
 ```text
-locked_slots = max(active_prompt_count - 7, 0)
+locked_slots = max(prompt_count - max_sys_prompts, 0)
 ```
 
 This is a display heuristic only. The backend remains the source of truth.
@@ -315,7 +319,7 @@ UI response:
 ### `402 Payment Required`
 
 Typical cause:
-- user tried to create or activate a prompt that requires an unlock beyond the 7 free active slots, and the wallet does not have enough sCoin
+- user tried to create a prompt that requires an unlock beyond the configured prompt limit, and the wallet does not have enough sCoin
 
 UI response:
 - show a paywall / top-up prompt
@@ -351,9 +355,9 @@ Suggested derived state:
 
 ## Example UX Copy
 
-- "This game has 7 free active prompt slots."
-- "The next active prompt costs 10 sCoin to unlock."
-- "This prompt was saved as an inactive draft and did not consume a slot."
+- "This game has reached its prompt limit."
+- "The next prompt costs 10 sCoin to unlock."
+- "This prompt was saved as a draft and did not consume a slot."
 - "You do not have enough sCoin to unlock another prompt slot."
 
 ---
@@ -363,7 +367,7 @@ Suggested derived state:
 - [ ] Build a list page for game prompts.
 - [ ] Build a create/edit modal using the same form.
 - [ ] Load prompt list on page open and after any mutation.
-- [ ] Count active prompts in the client to show free vs locked slots.
+- [ ] Read `max_sys_prompts` from the API response and count all prompts in `data`.
 - [ ] Handle `402 Payment Required` with a top-up flow.
 - [ ] Handle `409 Conflict` for duplicate prompt names.
 - [ ] Handle `403 Forbidden` for cross-game access.
