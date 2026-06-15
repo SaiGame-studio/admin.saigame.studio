@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Bot, ExternalLink, Hammer, Loader2, PackagePlus, X } from 'lucide-react';
+import { Bot, Hammer, Loader2, PackagePlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -22,6 +21,7 @@ import { ConversationChatHistory } from './ConversationChatHistory';
 import { ConversationLinkedContent } from './ConversationLinkedContent';
 import { ConversationInputArea } from './ConversationInputArea';
 import { ConversationDialogs } from './ConversationDialogs';
+import { QuestCodeConflictDialog } from './conversation-panel-parts/QuestCodeConflictDialog';
 import type { LoreDraftForm } from './ConversationDialogs';
 import { createLoreEntry, getLoreEntry, updateLoreEntry } from '@/lib/lore-api';
 import type { LoreEntry } from '@/types/lore';
@@ -2870,17 +2870,6 @@ export function LLMConversationPanel() {
         setQuestCodeConflictPending(null);
         openQuestDefinitionCreate({ ...questDefinition, code_name: nextCode }, turnId, responseIdx, questDefinitionIdx);
     }
-    useEffect(() => {
-        if (questCodeConflictOpen && questCodeConflictExisting?.code_name) {
-            setNewQuestCodeInput(`${questCodeConflictExisting.code_name}_2`);
-        }
-        else if (!questCodeConflictOpen) {
-            setNewQuestCodeInput('');
-        }
-    }, [questCodeConflictOpen, questCodeConflictExisting?.code_name]);
-    const questCodeConflictDescription = questCodeConflictExisting
-        ? t('llmConversation.questCodeConflictDesc').replace('{code}', questCodeConflictExisting.code_name ?? '')
-        : '';
     async function handleOpenItemDefinitionReview(item: Record<string, unknown>, turnId: string, responseIdx: number, itemIdx: number) {
         const name = typeof item.name === 'string' ? item.name : '';
         const rarity = typeof item.rarity === 'string' ? item.rarity : 'common';
@@ -3173,51 +3162,24 @@ export function LLMConversationPanel() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={questCodeConflictOpen} onOpenChange={(open) => {
-            if (!open) {
-                setQuestCodeConflictOpen(false);
-                setQuestCodeConflictExisting(null);
-                setQuestCodeConflictPending(null);
-            }
-        }}>
-        <DialogContent id="quest-code-conflict-dialog-root">
-          <DialogHeader id="quest-code-conflict-dialog-header">
-            <DialogTitle id="quest-code-conflict-dialog-title">{t('llmConversation.questCodeConflictTitle')}</DialogTitle>
-            <DialogDescription id="quest-code-conflict-dialog-desc">
-              {questCodeConflictDescription}
-            </DialogDescription>
-          </DialogHeader>
-
-          {questCodeConflictExisting && (<Link id="quest-code-conflict-existing-link" href={`/games/${gameId}/quests?editQuestId=${questCodeConflictExisting.id}&noconvpanel=1`} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
-              <Hammer id="quest-code-conflict-existing-link-icon" className="h-4 w-4 shrink-0 text-muted-foreground"/>
-              <span id="quest-code-conflict-existing-link-name" className="flex-1 truncate">{questCodeConflictExisting.name}</span>
-              <code id="quest-code-conflict-existing-link-code" className="text-xs bg-muted-foreground/20 px-1 rounded">{questCodeConflictExisting.code_name ?? ''}</code>
-              <ExternalLink id="quest-code-conflict-existing-link-ext-icon" className="h-3.5 w-3.5 shrink-0 text-muted-foreground"/>
-            </Link>)}
-
-          <Button id="quest-code-conflict-update-btn" type="button" onClick={handleQuestCodeConflictUpdate} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black" disabled={!questCodeConflictExisting || !questCodeConflictPending}>
-            <Hammer id="quest-code-conflict-update-icon" className="h-4 w-4"/>
-            {t('llmConversation.questCodeConflictUpdate')}
-          </Button>
-
-          <div id="quest-code-conflict-divider" className="relative flex items-center gap-2">
-            <div id="quest-code-conflict-divider-left" className="flex-1 border-t border-border"/>
-            <span id="quest-code-conflict-divider-label" className="text-xs text-muted-foreground">{t('common.or')}</span>
-            <div id="quest-code-conflict-divider-right" className="flex-1 border-t border-border"/>
-          </div>
-
-          <div id="quest-code-conflict-save-new-section" className="space-y-2">
-            <Label id="quest-code-conflict-new-code-label" htmlFor="quest-code-conflict-new-code-input" className="text-xs text-muted-foreground">
-              {t('llmConversation.questCodeConflictNewCodeLabel')}
-            </Label>
-            <Input id="quest-code-conflict-new-code-input" value={newQuestCodeInput} onChange={(e) => setNewQuestCodeInput(e.target.value)} className="font-mono"/>
-            <Button id="quest-code-conflict-save-new-btn" type="button" onClick={() => handleQuestCodeConflictSaveNew(newQuestCodeInput)} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black" disabled={!questCodeConflictPending}>
-              <PackagePlus id="quest-code-conflict-save-new-icon" className="h-4 w-4"/>
-              {t('llmConversation.questCodeConflictSaveNew')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QuestCodeConflictDialog
+        open={questCodeConflictOpen}
+        gameId={gameId}
+        existing={questCodeConflictExisting}
+        pending={questCodeConflictPending}
+        newCodeInput={newQuestCodeInput}
+        onNewCodeInputChange={setNewQuestCodeInput}
+        onUpdate={handleQuestCodeConflictUpdate}
+        onSaveNew={handleQuestCodeConflictSaveNew}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuestCodeConflictOpen(false);
+            setQuestCodeConflictExisting(null);
+            setQuestCodeConflictPending(null);
+          }
+        }}
+        t={t}
+      />
 
       <ConversationDialogs detailOpen={detailOpen} setDetailOpen={setDetailOpen} chatHistory={chatHistory} activeConv={activeConv} convGeneratedItems={convGeneratedItems} deleteTarget={deleteTarget} setDeleteTarget={setDeleteTarget} onDelete={handleDelete} createRecordsConfirmOpen={createRecordsConfirmOpen} setCreateRecordsConfirmOpen={setCreateRecordsConfirmOpen} isCreatingRecords={isCreatingRecords} onCreateRecords={handleCreateRecords} gameId={gameId} loreDraftReviewOpen={loreDraftReviewOpen} setLoreDraftReviewOpen={setLoreDraftReviewOpen} loreDraftForm={loreDraftForm} setLoreDraftForm={setLoreDraftForm} isCreatingLoreRecords={isCreatingLoreRecords} onCreateLoreRecords={handleCreateLoreRecords} itemDefReviewOpen={itemDefReviewOpen} setItemDefReviewOpen={setItemDefReviewOpen} itemInitialValues={itemInitialValues} onItemDefCreated={handleItemDefCreated} entityDefinitionConflictOpen={entityDefinitionConflictOpen} setEntityDefinitionConflictOpen={setEntityDefinitionConflictOpen} entityDefinitionConflictExisting={entityDefinitionConflictExisting} entityDefinitionConflictReviewOpen={entityDefinitionConflictReviewOpen} setEntityDefinitionConflictReviewOpen={setEntityDefinitionConflictReviewOpen} entityDefinitionConflictReviewData={entityDefinitionConflictReviewData} isApplyingEntityDefinitionConflict={isApplyingEntityDefinitionConflict} onEntityDefinitionConflictUpdate={handleEntityDefinitionConflictUpdate} onEntityDefinitionConflictReview={openEntityDefinitionConflictReview} onEntityDefinitionConflictSaveNew={handleEntityDefinitionConflictSaveNew} entityPoolConflictOpen={entityPoolConflictOpen} setEntityPoolConflictOpen={setEntityPoolConflictOpen} entityPoolConflictExisting={entityPoolConflictExisting} entityPoolConflictReviewOpen={entityPoolConflictReviewOpen} setEntityPoolConflictReviewOpen={setEntityPoolConflictReviewOpen} entityPoolConflictReviewData={entityPoolConflictReviewData} isApplyingEntityPoolConflict={isApplyingEntityPoolConflict} onEntityPoolConflictUpdate={handleEntityPoolConflictUpdate} onEntityPoolConflictReview={() => handleEntityPoolConflictUpdate()} onEntityPoolConflictSaveNew={handleEntityPoolConflictSaveNew} itemCodeConflictOpen={itemCodeConflictOpen} setItemCodeConflictOpen={setItemCodeConflictOpen} itemCodeConflictExisting={itemCodeConflictExisting} onItemCodeConflictUpdate={handleItemCodeConflictUpdate} onItemCodeConflictSaveNew={handleItemCodeConflictSaveNew} presetCodeConflictOpen={presetCodeConflictOpen} setPresetCodeConflictOpen={setPresetCodeConflictOpen} presetCodeConflictExisting={presetCodeConflictExisting} isApplyingPresetConflict={isApplyingPresetConflict} onPresetCodeConflictUpdate={handlePresetCodeConflictUpdate} onPresetCodeConflictSaveNew={handlePresetCodeConflictSaveNew} containerNameConflictOpen={containerNameConflictOpen} setContainerNameConflictOpen={setContainerNameConflictOpen} containerNameConflictExisting={containerNameConflictExisting} onContainerNameConflictUpdate={handleContainerNameConflictUpdate} onContainerNameConflictCreateNew={handleContainerNameConflictCreateNew} gachaPackCodeConflictOpen={gachaPackCodeConflictOpen} setGachaPackCodeConflictOpen={setGachaPackCodeConflictOpen} gachaPackCodeConflictExisting={gachaPackCodeConflictExisting} isApplyingGachaPackConflict={isApplyingGachaPackConflict} onGachaPackCodeConflictUpdate={handleGachaPackCodeConflictUpdate} onGachaPackCodeConflictCreateNew={handleGachaPackCodeConflictCreateNew} equipmentSlotKeyConflictOpen={equipmentSlotKeyConflictOpen} setEquipmentSlotKeyConflictOpen={setEquipmentSlotKeyConflictOpen} equipmentSlotKeyConflictExisting={equipmentSlotKeyConflictExisting} isApplyingEquipmentSlotConflict={isApplyingEquipmentSlotConflict} onEquipmentSlotKeyConflictUpdate={handleEquipmentSlotKeyConflictUpdate} onEquipmentSlotKeyConflictCreateNew={handleEquipmentSlotKeyConflictCreateNew} t={t}/>
       {itemCodeConflictExisting && itemCodeConflictInitialValues && (<CreateItemDefinitionDialog open={itemCodeConflictEditOpen} gameId={gameId} mode="edit" itemId={itemCodeConflictExisting.id} initialValues={itemCodeConflictInitialValues} onCreated={() => { }} onUpdated={handleItemCodeConflictEditApplied} onClose={() => setItemCodeConflictEditOpen(false)} initialCategory={itemCodeConflictInitialValues.category}/>)}
