@@ -3541,6 +3541,7 @@
     "requestTypeLabel": "Request type",
     "requestTypes": {
       "auto": "Auto",
+      "intent_detection": "Detect Intent",
       "item_generation": "Generate Items",
       "item_modify": "Modify Items",
       "lore_creating": "Create Lore",

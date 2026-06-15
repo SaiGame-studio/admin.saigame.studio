@@ -3499,6 +3499,7 @@
     "requestTypeLabel": "リクエストタイプ",
     "requestTypes": {
       "auto": "自動",
+      "intent_detection": "意図検出",
       "item_generation": "アイテム生成",
       "item_modify": "アイテム編集",
       "lore_creating": "ロア作成",

@@ -3503,6 +3503,7 @@
     "requestTypeLabel": "Loại yêu cầu",
     "requestTypes": {
       "auto": "Tự động",
+      "intent_detection": "Phát hiện ý định",
       "item_generation": "Tạo Vật Phẩm",
       "item_modify": "Chỉnh Sửa Vật Phẩm",
       "lore_creating": "Tạo Lore Mới",
