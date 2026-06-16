@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot } from "lucide-react";
+import { ShoppingCart, Users, Package, Mail, ScrollText, Hammer, BarChart2, Gamepad2, Trophy, ChevronsLeftRight, AlignJustify, Skull, Code2, BookOpen, Bot, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -9,7 +9,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { LS_PANEL_OPEN } from "@/components/llm-conversations/conversation-panel-utils";
 import { LLMTokenPurchaseDialog } from "@/components/LLMTokenPurchaseDialog";
 const LS_KEY = "game-nav-expanded";
-type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "scripts" | "lore" | "sysprompts";
+type GameNavSection = "shops" | "players" | "users" | "items" | "entities" | "mailbox" | "quests" | "leaderboard" | "plugins" | "analytic" | "detail" | "clone" | "scripts" | "lore" | "sysprompts";
 interface GameNavButtonsProps {
     gameId: string;
     active?: GameNavSection;
@@ -57,6 +57,7 @@ export function GameNavButtons({ gameId, active, id }: GameNavButtonsProps) {
     };
     const items: NavItem[] = [
         { section: "detail", href: `/games/${gameId}`, icon: <Gamepad2 className="h-4 w-4"/>, label: t("game.navGame") },
+        { section: "clone", href: `/games/${gameId}/clone`, icon: <Copy className="h-4 w-4"/>, label: t("game.navClone") },
         { section: "players", href: `/games/${gameId}/players`, icon: <Users className="h-4 w-4"/>, label: t("game.users") },
         { section: "items", href: `/games/${gameId}/items`, icon: <Package className="h-4 w-4"/>, label: t("game.items") },
         { section: "entities", href: `/games/${gameId}/entities`, icon: <Skull className="h-4 w-4"/>, label: t("game.navEntities") },

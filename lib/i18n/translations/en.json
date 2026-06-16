@@ -41,6 +41,7 @@
     "info": "Info",
     "close": "Close",
     "open": "Open",
+    "underConstruction": "Under construction",
     "yes": "Yes",
     "no": "No",
     "or": "or",
@@ -340,6 +341,7 @@
     "noTeamsAssigned": "No teams assigned to this game.",
     "plugins": "Materia",
     "navGame": "Game",
+    "navClone": "Clone Game",
     "navEntities": "Entities",
     "navLeaderboard": "Leaderboard",
     "navAnalytic": "Analytic",
@@ -373,6 +375,12 @@
     "tracingDescPre": "Automatically enabled when a ",
     "tracingDescPost": " plugin or above is activated, or granted by an Admin. Cannot be changed manually.",
     "upgradeThisGame": "Upgrade This Game"
+  },
+  "cloneGame": {
+    "title": "Clone Game",
+    "loadGameError": "Failed to load the game to clone.",
+    "tabCloneSetting": "Current Game",
+    "tabFromAnotherGame": "Source Game"
   },
   "userProfiles": {
     "title": "User Profiles",

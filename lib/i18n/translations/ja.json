@@ -41,6 +41,7 @@
     "info": "情報",
     "close": "閉じる",
     "open": "開く",
+    "underConstruction": "開発中",
     "yes": "はい",
     "no": "いいえ",
     "or": "または",
@@ -340,6 +341,7 @@
     "noTeamsAssigned": "このゲームには割り当てられたチームがありません。",
     "plugins": "マテリア",
     "navGame": "ゲーム",
+    "navClone": "ゲームを複製",
     "navEntities": "エンティティ",
     "navLeaderboard": "リーダーボード",
     "navAnalytic": "アナリティクス",
@@ -373,6 +375,12 @@
     "tracingDescPre": "",
     "tracingDescPost": "以上のプラグインが有効化されると自動的に有効になります。または管理者により付与されます。手動では変更できません。",
     "upgradeThisGame": "このゲームをアップグレード"
+  },
+  "cloneGame": {
+    "title": "ゲームを複製",
+    "loadGameError": "複製対象のゲームを読み込めませんでした。",
+    "tabCloneSetting": "現在のゲーム",
+    "tabFromAnotherGame": "複製元"
   },
   "userProfiles": {
     "title": "ユーザープロフィール",

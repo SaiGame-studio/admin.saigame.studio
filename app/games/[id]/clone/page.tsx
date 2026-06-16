@@ -1,0 +1,171 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "@/lib/i18n/use-translation";
+import { GameNavButtons } from "@/components/GameNavButtons";
+import { getGame } from "@/lib/game-api";
+import type { Game } from "@/types/game";
+
+type CloneTab = "clone-setting" | "from-another-game";
+
+export default function GameClonePage() {
+  const params = useParams() as { id: string };
+  const gameId = params.id;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useTranslation();
+
+  const [game, setGame] = useState<Game | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [gameError, setGameError] = useState<string | null>(null);
+
+  const activeTab = (searchParams.get("tab") === "from-another-game" ? "from-another-game" : "clone-setting") as CloneTab;
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      setGameError(null);
+
+      try {
+        const gameData = await getGame(gameId);
+        setGame(gameData);
+      } catch {
+        setGame(null);
+        setGameError(t("cloneGame.loadGameError"));
+      }
+
+      setLoading(false);
+    }
+
+    void load();
+  }, [gameId, t]);
+
+  const updateTab = (nextTab: string) => {
+    router.replace(`/games/${gameId}/clone?tab=${nextTab}`, { scroll: false });
+  };
+
+  if (loading) {
+    return (
+      <div id="clone-game-page-loading" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        <Card id="clone-game-loading-card">
+          <CardContent id="clone-game-loading-content" className="flex items-center gap-3 py-8">
+            <Loader2 id="clone-game-loading-icon" className="h-5 w-5 animate-spin text-muted-foreground" />
+            <p id="clone-game-loading-text" className="text-sm text-muted-foreground">
+              {t("common.loading")}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (gameError || !game) {
+    return (
+      <div id="clone-game-page-error" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+        <Card id="clone-game-error-card" className="border-destructive">
+          <CardHeader id="clone-game-error-header">
+            <CardTitle id="clone-game-error-title">{t("common.error")}</CardTitle>
+            <CardDescription id="clone-game-error-description">{gameError ?? t("cloneGame.loadGameError")}</CardDescription>
+          </CardHeader>
+          <CardContent id="clone-game-error-content" className="flex flex-wrap gap-2">
+            <Button id="clone-game-error-back-btn" variant="outline" asChild>
+              <Link href={`/games/${gameId}`}>{t("common.back")}</Link>
+            </Button>
+            <Button id="clone-game-error-retry-btn" onClick={() => router.refresh()}>
+              {t("common.retry")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div id="clone-game-page" className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
+      <div id="clone-game-breadcrumb-wrap" className="mb-2">
+        <Breadcrumb id="clone-game-breadcrumb">
+          <BreadcrumbList id="clone-game-breadcrumb-list" className="flex-nowrap overflow-x-auto whitespace-nowrap">
+            <BreadcrumbItem id="clone-game-breadcrumb-studios-item">
+              <BreadcrumbLink id="clone-game-breadcrumb-studios-link" href="/games">
+                {t("common.games")}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator id="clone-game-breadcrumb-separator-1">/</BreadcrumbSeparator>
+            <BreadcrumbItem id="clone-game-breadcrumb-game-item">
+              <BreadcrumbLink id="clone-game-breadcrumb-game-link" href={`/games/${gameId}`}>
+                {game.name}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator id="clone-game-breadcrumb-separator-2">/</BreadcrumbSeparator>
+            <BreadcrumbItem id="clone-game-breadcrumb-clone-item">
+              <span id="clone-game-breadcrumb-clone-text">{t("cloneGame.title")}</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <div id="clone-game-header" className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div id="clone-game-header-main" className="flex items-center gap-3 min-w-0">
+          <Button id="clone-game-back-btn" variant="outline" size="icon" asChild className="shrink-0">
+            <Link href={`/games/${gameId}`}>
+              <ArrowLeft id="clone-game-back-icon" className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div id="clone-game-header-copy" className="min-w-0">
+            <div id="clone-game-header-title-row" className="flex items-center gap-2 flex-wrap">
+              <h1 id="clone-game-title" className="text-2xl font-semibold tracking-tight">
+                {t("cloneGame.title")}
+              </h1>
+              <Badge id="clone-game-status-badge" variant={game.is_active ? "default" : "destructive"} className={game.is_active ? "bg-green-600 hover:bg-green-600" : ""}>
+                {game.is_active ? t("common.active") : t("common.inactive")}
+              </Badge>
+            </div>
+            <p id="clone-game-subtitle" className="text-sm text-muted-foreground">{t("common.underConstruction")}</p>
+          </div>
+        </div>
+        <div id="clone-game-nav-wrap" className="flex flex-col gap-2 items-start md:items-end">
+          <GameNavButtons gameId={gameId} active="clone" id="clone-game-nav" />
+        </div>
+      </div>
+
+      <Tabs id="clone-game-tabs" value={activeTab} onValueChange={updateTab} className="space-y-4">
+        <TabsList id="clone-game-tabs-list">
+          <TabsTrigger id="clone-game-tab-trigger-clone-setting" value="clone-setting">
+            {t("cloneGame.tabCloneSetting")}
+          </TabsTrigger>
+          <TabsTrigger id="clone-game-tab-trigger-from-another-game" value="from-another-game">
+            {t("cloneGame.tabFromAnotherGame")}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent id="clone-game-tab-content-clone-setting" value="clone-setting" className="mt-0 space-y-4">
+          <Card id="clone-game-current-card">
+            <CardContent id="clone-game-current-card-content" className="py-10">
+              <div id="clone-game-current-placeholder" className="rounded-lg border border-dashed bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
+                {t("common.underConstruction")}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent id="clone-game-tab-content-from-another-game" value="from-another-game" className="mt-0 space-y-4">
+          <Card id="clone-game-source-card">
+            <CardContent id="clone-game-source-card-content" className="py-10">
+              <div id="clone-game-source-placeholder" className="rounded-lg border border-dashed bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
+                {t("common.underConstruction")}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

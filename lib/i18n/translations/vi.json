@@ -41,6 +41,7 @@
     "info": "Thông tin",
     "close": "Đóng",
     "open": "Mở",
+    "underConstruction": "Đang xây dựng",
     "yes": "Có",
     "no": "Không",
     "or": "hoặc",
@@ -340,6 +341,7 @@
     "noTeamsAssigned": "Chưa có nhóm nào được gán cho game này.",
     "plugins": "Materia",
     "navGame": "Game",
+    "navClone": "Nhân bản game",
     "navEntities": "Thực thể",
     "navLeaderboard": "Bảng xếp hạng",
     "navAnalytic": "Phân tích",
@@ -373,6 +375,12 @@
     "tracingDescPre": "Tự động bật khi plugin ",
     "tracingDescPost": " trở lên được kích hoạt, hoặc được cấp bởi Admin. Không thể thay đổi thủ công.",
     "upgradeThisGame": "Nâng cấp game này"
+  },
+  "cloneGame": {
+    "title": "Nhân bản game",
+    "loadGameError": "Không thể tải game cần nhân bản.",
+    "tabCloneSetting": "Game hiện tại",
+    "tabFromAnotherGame": "Game nguồn"
   },
   "userProfiles": {
     "title": "Hồ sơ người chơi",
