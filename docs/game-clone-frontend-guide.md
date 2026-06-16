@@ -35,12 +35,22 @@ Recommended UI screens:
 - conflict / quota blocker view
 - completed state
 
+Game visibility and clone pricing are driven by the source game payload:
+- `share_level` tells the UI whether the game is `private`, `protected`, or `public`
+- `clone_cost` is the clone price displayed for `public` games
+
+Current backend behavior:
+- `protected` games are cloneable only inside the same studio
+- `public` games are cloneable cross-studio and should display their clone price in the picker
+- the current `PATCH /api/v1/games/{id}` handler does not accept `share_level` or `clone_cost`, so the front end should treat those fields as read-only until a dedicated update API exists
+
 ---
 
 ## 2. API Surface
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| `GET` | `/api/v1/games/cloneable` | List cloneable source games |
 | `POST` | `/api/v1/games/{game_id}/clone-sessions` | Create a clone session |
 | `POST` | `/api/v1/game-clone-sessions/{session_id}/run` | Process the next batch |
 | `GET` | `/api/v1/game-clone-sessions/{session_id}` | Restore current session state |
@@ -50,7 +60,77 @@ The create route is game-scoped. The other routes use the session ID directly.
 
 ---
 
-## 3. Create Clone Session
+## 3. List Cloneable Games
+
+### Request
+
+`GET /api/v1/games/cloneable?target_game_id={uuid}&name={optional}&game_id={optional}&limit={optional}&offset={optional}`
+
+Query parameters:
+- `target_game_id` is required and is used to derive the target studio
+- `name` is an optional partial search on game name
+- `game_id` is an optional exact source-game filter
+- `limit` and `offset` are optional pagination parameters
+- `limit` defaults to `100` and is capped at `100`
+
+The list includes:
+- public games from any studio
+- protected games from the same studio as the target game
+
+### Response
+
+Example:
+
+```json
+{
+  "games": [
+    {
+      "id": "018f6f2d-9a21-7c2f-8c1d-3f2a9e11b001",
+      "studio_id": "018f6f20-1111-7c2f-8c1d-3f2a9e11b000",
+      "name": "Game Template Alpha",
+      "description": "Base template for the project",
+      "tags": ["template", "rpg"],
+      "status": "development",
+      "is_active": true,
+      "share_level": "public",
+      "clone_cost": 7,
+      "is_cloned_game": false,
+      "limits": {
+        "max_items": 1000,
+        "max_shops": 20,
+        "max_quests": 200
+      },
+      "usage": {
+        "items": 120,
+        "shops": 3,
+        "quests": 12
+      },
+      "settings": {
+        "daily_quest_max_advance_days": 7
+      },
+      "created_at": "2026-06-16T10:00:00Z",
+      "updated_at": "2026-06-16T10:00:00Z"
+    }
+  ],
+  "total": 247
+}
+```
+
+### Frontend behavior
+
+- Call this endpoint to populate the source-game picker.
+- Send `target_game_id` from the destination game the user wants to clone into.
+- Use `name` for partial search when the user types text.
+- Use `game_id` for exact lookup when the user pastes a UUID.
+- Show only the returned `games` array in the picker.
+- Use `total` to decide whether to show "search to load more" messaging.
+- Render a `Protected` badge for `share_level = protected`.
+- Render a `Public` badge and the `clone_cost` value for `share_level = public`.
+- Do not expose edit controls for `share_level` or `clone_cost` in this flow unless a dedicated backend update API is added later.
+
+---
+
+## 4. Create Clone Session
 
 ### Request
 
@@ -124,7 +204,7 @@ Example:
 
 ---
 
-## 4. Run Clone Session
+## 5. Run Clone Session
 
 ### Request
 
@@ -181,7 +261,7 @@ Example:
 
 ---
 
-## 5. Restore Session
+## 6. Restore Session
 
 ### Request
 
@@ -204,7 +284,7 @@ Use this endpoint when:
 
 ---
 
-## 6. Delete Session
+## 7. Delete Session
 
 ### Request
 
@@ -222,7 +302,7 @@ Use this endpoint when:
 
 ---
 
-## 7. Progress Data
+## 8. Progress Data
 
 The backend returns per-phase progress in a `progress` object.
 
@@ -249,7 +329,7 @@ Recommended progress bar rule:
 
 ---
 
-## 8. Errors And Blockers
+## 9. Errors And Blockers
 
 ### `400 Bad Request`
 
@@ -316,7 +396,7 @@ UI response:
 
 ---
 
-## 9. Suggested Frontend State
+## 10. Suggested Frontend State
 
 ```ts
 type CloneSessionState = {
@@ -343,7 +423,7 @@ Suggested derived flags:
 
 ---
 
-## 10. Recommended UI Flow
+## 11. Recommended UI Flow
 
 1. User opens the clone setup screen.
 2. User selects a source game and a target game.
@@ -356,7 +436,7 @@ Suggested derived flags:
 
 ---
 
-## 11. Implementation Checklist
+## 12. Implementation Checklist
 
 - [ ] Build a clone setup form with `name` and `target_game_id`
 - [ ] Show preflight warnings before the first run
@@ -367,4 +447,3 @@ Suggested derived flags:
 - [ ] Show `409` conflict details clearly
 - [ ] Handle `204 No Content` for delete
 - [ ] Restore session state with `GET` on reload
-
