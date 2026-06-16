@@ -381,9 +381,6 @@ export default function GameClonePage() {
                             className="w-28"
                           />
                           <span id="clone-game-current-clone-cost-unit" className="text-sm text-muted-foreground">
-                            <span id="clone-game-current-clone-cost-unit-icon" aria-hidden="true">
-                              💎
-                            </span>{" "}
                             {t("cloneGame.clonePriceUnit")}
                           </span>
                           <Button id="clone-game-current-clone-cost-save-btn" size="sm" onClick={handleCloneCostSave} disabled={savingCloneCost}>
@@ -406,9 +403,6 @@ export default function GameClonePage() {
                         <p id="clone-game-current-clone-cost-value" className="text-sm font-medium">
                           {cloneCostValue.toLocaleString("en-US")}{" "}
                           <span id="clone-game-current-clone-cost-value-unit" className="inline-flex items-center gap-1">
-                            <span id="clone-game-current-clone-cost-value-unit-icon" aria-hidden="true">
-                              💎
-                            </span>
                             <span id="clone-game-current-clone-cost-value-unit-text">{t("cloneGame.clonePriceUnit")}</span>
                           </span>
                         </p>

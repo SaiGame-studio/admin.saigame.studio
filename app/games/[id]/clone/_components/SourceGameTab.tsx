@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { CopyButton } from "@/components/CopyButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,7 @@ function getVisibilityLabel(game: Game, t: TranslationFn) {
     const shareLevel = game.share_level ?? "private";
 
     if (shareLevel === "public") {
-        return `${t("cloneGame.public")} - ${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
+        return t("cloneGame.public");
     }
 
     if (shareLevel === "protected") {
@@ -48,6 +49,16 @@ function getVisibilityBadgeVariant(shareLevel?: Game["share_level"]) {
     }
 
     return "outline" as const;
+}
+
+function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
+    const shareLevel = game.share_level ?? "private";
+
+    if (shareLevel !== "public") {
+        return null;
+    }
+
+    return `${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
 }
 
 function getRangeLabel(offset: number, count: number, total: number) {
@@ -224,13 +235,33 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                         <CardTitle id="clone-game-source-selected-title" className="text-sm uppercase tracking-wide text-muted-foreground">
                             {t("cloneGame.sourceGameSelected")}
                         </CardTitle>
-                        <div id="clone-game-source-selected-copy" className="flex flex-wrap items-center gap-2">
-                            <span id="clone-game-source-selected-name" className="text-base font-semibold">
-                                {selectedGame.name}
-                            </span>
-                            <Badge id="clone-game-source-selected-badge" variant="secondary">
-                                {getVisibilityLabel(selectedGame, t)}
-                            </Badge>
+                        <div id="clone-game-source-selected-copy" className="flex flex-col gap-2">
+                            <div id="clone-game-source-selected-title-row" className="flex flex-wrap items-center gap-2">
+                                <span id="clone-game-source-selected-name" className="text-base font-semibold">
+                                    {selectedGame.name}
+                                </span>
+                                <Badge id="clone-game-source-selected-badge" variant={getVisibilityBadgeVariant(selectedGame.share_level)}>
+                                    {getVisibilityLabel(selectedGame, t)}
+                                </Badge>
+                            </div>
+                            {getVisibilityPriceLabel(selectedGame, t) ? (
+                                <p id="clone-game-source-selected-price" className="text-xs text-muted-foreground">
+                                    {getVisibilityPriceLabel(selectedGame, t)}
+                                </p>
+                            ) : null}
+                            <div id="clone-game-source-selected-id-row" className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
+                                <span id="clone-game-source-selected-id-label">{t("cloneGame.sourceGameIdLabel")}</span>
+                                <span id="clone-game-source-selected-id-value" className="break-all">
+                                    {selectedGame.id}
+                                </span>
+                                <CopyButton
+                                    id={`clone-game-source-selected-copy-id-btn-${selectedGame.id}`}
+                                    iconId={`clone-game-source-selected-copy-id-icon-${selectedGame.id}`}
+                                    text={selectedGame.id}
+                                    size="h-3 w-3"
+                                    className="ml-0"
+                                />
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent id="clone-game-source-selected-content" className="text-sm text-muted-foreground">
@@ -293,6 +324,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                         {games.map((game) => {
                             const isSelected = selectedGameId === game.id;
                             const visibilityLabel = getVisibilityLabel(game, t);
+                            const visibilityPriceLabel = getVisibilityPriceLabel(game, t);
 
                             return (
                                 <Card
@@ -315,9 +347,29 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                     {game.studio?.name ?? game.studio_id}
                                                 </CardDescription>
                                             </div>
-                                            <Badge id={`clone-game-source-card-visibility-${game.id}`} variant={getVisibilityBadgeVariant(game.share_level)}>
-                                                {visibilityLabel}
-                                            </Badge>
+                                            <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex flex-col items-end gap-1 text-right">
+                                                <Badge id={`clone-game-source-card-visibility-${game.id}`} variant={getVisibilityBadgeVariant(game.share_level)}>
+                                                    {visibilityLabel}
+                                                </Badge>
+                                                {visibilityPriceLabel ? (
+                                                    <p id={`clone-game-source-card-visibility-price-${game.id}`} className="text-xs text-muted-foreground">
+                                                        {visibilityPriceLabel}
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
+                                            <span id={`clone-game-source-card-id-label-${game.id}`}>{t("cloneGame.sourceGameIdLabel")}</span>
+                                            <span id={`clone-game-source-card-id-value-${game.id}`} className="break-all">
+                                                {game.id}
+                                            </span>
+                                            <CopyButton
+                                                id={`clone-game-source-card-copy-id-btn-${game.id}`}
+                                                iconId={`clone-game-source-card-copy-id-icon-${game.id}`}
+                                                text={game.id}
+                                                size="h-3 w-3"
+                                                className="ml-0"
+                                            />
                                         </div>
                                     </CardHeader>
                                     <CardContent id={`clone-game-source-card-content-${game.id}`} className="space-y-3">
