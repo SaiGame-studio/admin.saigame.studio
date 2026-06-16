@@ -590,7 +590,7 @@ export function LLMConversationPanel() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
     // ---------------------------------------------------------------------------
-    // Load active conversation when activeConvId changes
+    // Load active conversation only when the panel is visible.
     // ---------------------------------------------------------------------------
     useEffect(() => {
         activeConvIdRef.current = activeConvId;
@@ -630,6 +630,9 @@ export function LLMConversationPanel() {
         }
         safeSetItem(lsActiveConv(gameId), activeConvId);
         window.dispatchEvent(new Event('ss:conv-state-changed'));
+        if (!isOpen) {
+            return;
+        }
         // Skip re-fetching when the conversation was just created by handleSend
         if (justCreatedConvIdRef.current === activeConvId) {
             justCreatedConvIdRef.current = null;
@@ -794,7 +797,7 @@ export function LLMConversationPanel() {
         loadConversation(gameId, activeConvId);
         loadLinkedContent(gameId, activeConvId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeConvId, gameId]);
+    }, [activeConvId, gameId, isOpen]);
     // Listen for externally created conversations (e.g. from lore link button)
     useEffect(() => {
         function handleExternalConvCreated(e: Event) {
