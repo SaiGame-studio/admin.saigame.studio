@@ -20,6 +20,7 @@ These rules apply to any coding agent working in this repository.
 - Write code, comments, identifiers, and documentation in English only.
 - When adding or changing UI text, update translations in the same change.
 - Do not ship new single-language UI text.
+- Always read and write multilingual text files as UTF-8, and preserve UTF-8 encoding when editing translations to avoid mojibake or corrupted characters.
 - Keep tooltip content positioned above the trigger.
 - Use `side="top"` for tooltip content.
 
@@ -27,4 +28,3 @@ These rules apply to any coding agent working in this repository.
 - Prefer small, focused changes that fit the existing architecture.
 - If a rule conflicts with framework constraints or an existing implementation detail, call it out before proceeding.
 - Preserve user changes outside the scope of the task.
-

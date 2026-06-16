@@ -1,6 +1,18 @@
-import type { ApiResponse, Game } from "@/types/game";
+import type { Game } from "@/types/game";
 import type { Team } from "@/types/team";
 import { api } from "@/lib/api-client";
+
+export interface CloneableGamesResponse {
+    games: Game[];
+    total: number;
+}
+
+export interface ListCloneableGamesParams {
+    targetGameId: string;
+    name?: string;
+    gameId?: string;
+    offset?: number;
+}
 // Get all games for a specific studio
 export async function getStudioGames(studioId: string, limit: number = 50, offset: number = 0): Promise<Game[]> {
     const data = await api.get(`/api/v1/studios/${studioId}/games/me?limit=${limit}&offset=${offset}`);
@@ -58,6 +70,28 @@ export async function updateGame(gameId: string, gameData: {
 export async function getAllGames(): Promise<Game[]> {
     const data = await api.get("/api/v1/me/games");
     return data?.games && Array.isArray(data.games) ? data.games : [];
+}
+
+export async function listCloneableGames(params: ListCloneableGamesParams): Promise<CloneableGamesResponse> {
+    const searchParams = new URLSearchParams({
+        target_game_id: params.targetGameId,
+        offset: String(params.offset ?? 0),
+    });
+
+    if (params.name) {
+        searchParams.set("name", params.name);
+    }
+
+    if (params.gameId) {
+        searchParams.set("game_id", params.gameId);
+    }
+
+    const data = await api.get(`/api/v1/games/cloneable?${searchParams.toString()}`);
+    const total = Number(data?.total ?? 0);
+    return {
+        games: Array.isArray(data?.games) ? data.games : [],
+        total: Number.isFinite(total) ? total : 0,
+    };
 }
 // Lấy tất cả item profiles của 1 game
 export async function fetchGameItemProfiles(gameId: string, params?: Record<string, string>): Promise<any[]> {

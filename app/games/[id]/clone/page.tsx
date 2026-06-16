@@ -15,6 +15,7 @@ import { GameNavButtons } from "@/components/GameNavButtons";
 import { getGame, updateGame } from "@/lib/game-api";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
+import { SourceGameTab } from "./_components/SourceGameTab";
 
 type CloneTab = "clone-setting" | "from-another-game";
 
@@ -437,13 +438,7 @@ export default function GameClonePage() {
         </TabsContent>
 
         <TabsContent id="clone-game-tab-content-from-another-game" value="from-another-game" className="mt-0 space-y-4">
-          <Card id="clone-game-source-card">
-            <CardContent id="clone-game-source-card-content" className="py-10">
-              <div id="clone-game-source-placeholder" className="rounded-lg border border-dashed bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
-                {t("common.underConstruction")}
-              </div>
-            </CardContent>
-          </Card>
+          <SourceGameTab targetGameId={gameId} targetGameName={game.name} />
         </TabsContent>
       </Tabs>
     </div>
