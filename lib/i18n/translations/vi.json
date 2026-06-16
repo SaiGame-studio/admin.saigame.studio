@@ -13,6 +13,7 @@
     "remove": "Xóa",
     "add": "Thêm",
     "adding": "Đang thêm...",
+    "select": "Chọn",
     "search": "Tìm kiếm",
     "noItemsFound": "Không tìm thấy mục nào",
     "noData": "Không có dữ liệu",
@@ -380,7 +381,22 @@
     "title": "Nhân bản game",
     "loadGameError": "Không thể tải game cần nhân bản.",
     "tabCloneSetting": "Game hiện tại",
-    "tabFromAnotherGame": "Game nguồn"
+    "tabFromAnotherGame": "Game nguồn",
+    "visibility": "Chế độ hiển thị",
+    "private": "Riêng tư",
+    "protected": "Bảo vệ",
+    "public": "Công khai",
+    "visibilityPrivateDesc": "Game riêng tư sẽ không xuất hiện trong danh sách clone.",
+    "visibilityProtectedDesc": "Chỉ clone được từ cùng studio.",
+    "visibilityPublicDesc": "Clone được từ bất kỳ studio nào.",
+    "clonePrice": "Phí clone",
+    "clonePriceUnit": "sGem",
+    "clonePricePublicDesc": "Mặc định là 7 sGem và sẽ bị trừ mỗi lần clone game này.",
+    "visibilitySaved": "Đã cập nhật trạng thái hiển thị.",
+    "visibilitySaveFailed": "Không thể cập nhật trạng thái hiển thị.",
+    "clonePriceSaved": "Đã cập nhật phí clone.",
+    "clonePriceSaveFailed": "Không thể cập nhật phí clone.",
+    "clonePriceMinError": "Game công khai cần phí clone tối thiểu là 7 sGem."
   },
   "userProfiles": {
     "title": "Hồ sơ người chơi",
@@ -3908,4 +3924,3 @@
     "toastFailedDesc": "?? x?y ra l?i. Vui l?ng th? l?i."
   }
 }
-

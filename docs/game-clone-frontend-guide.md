@@ -42,7 +42,9 @@ Game visibility and clone pricing are driven by the source game payload:
 Current backend behavior:
 - `protected` games are cloneable only inside the same studio
 - `public` games are cloneable cross-studio and should display their clone price in the picker
-- the current `PATCH /api/v1/games/{id}` handler does not accept `share_level` or `clone_cost`, so the front end should treat those fields as read-only until a dedicated update API exists
+- the current `PATCH /api/v1/games/{id}` handler accepts `share_level` and `clone_cost`
+- the clone settings page can update game visibility inline
+- the UI should still ensure that `public` games use a `clone_cost` of at least `7`
 
 ---
 
@@ -126,7 +128,8 @@ Example:
 - Use `total` to decide whether to show "search to load more" messaging.
 - Render a `Protected` badge for `share_level = protected`.
 - Render a `Public` badge and the `clone_cost` value for `share_level = public`.
-- Do not expose edit controls for `share_level` or `clone_cost` in this flow unless a dedicated backend update API is added later.
+- Render the current visibility as plain text with a pencil trigger for inline editing.
+- Enforce the `public` clone cost rule when saving the visibility change.
 
 ---
 

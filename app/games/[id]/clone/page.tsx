@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Pencil, X } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { GameNavButtons } from "@/components/GameNavButtons";
-import { getGame } from "@/lib/game-api";
+import { getGame, updateGame } from "@/lib/game-api";
 import type { Game } from "@/types/game";
+import { useToast } from "@/hooks/use-toast";
 
 type CloneTab = "clone-setting" | "from-another-game";
 
@@ -22,12 +24,29 @@ export default function GameClonePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
+  const { toast } = useToast();
 
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [gameError, setGameError] = useState<string | null>(null);
+  const [shareLevelDraft, setShareLevelDraft] = useState<Game["share_level"]>("private");
+  const [cloneCostDraft, setCloneCostDraft] = useState("7");
+  const [editingCloneCost, setEditingCloneCost] = useState(false);
+  const [savingShareStatus, setSavingShareStatus] = useState(false);
+  const [savingCloneCost, setSavingCloneCost] = useState(false);
 
   const activeTab = (searchParams.get("tab") === "from-another-game" ? "from-another-game" : "clone-setting") as CloneTab;
+  const parsedCloneCost = Number(cloneCostDraft);
+  const cloneCostValue = Number.isFinite(parsedCloneCost) ? Math.trunc(parsedCloneCost) : (game?.clone_cost ?? 7);
+
+  useEffect(() => {
+    if (!game) {
+      return;
+    }
+    setShareLevelDraft(game.share_level ?? "private");
+    setCloneCostDraft(String(game.clone_cost ?? 7));
+    setEditingCloneCost(false);
+  }, [game]);
 
   useEffect(() => {
     async function load() {
@@ -50,6 +69,95 @@ export default function GameClonePage() {
 
   const updateTab = (nextTab: string) => {
     router.replace(`/games/${gameId}/clone?tab=${nextTab}`, { scroll: false });
+  };
+
+  const handleShareLevelChange = async (nextShareLevel: Game["share_level"]) => {
+    if (!game) {
+      return;
+    }
+
+    const previousShareLevel = shareLevelDraft;
+    if (nextShareLevel === previousShareLevel) {
+      return;
+    }
+
+    setShareLevelDraft(nextShareLevel);
+    setSavingShareStatus(true);
+    try {
+      const payload: { share_level: Game["share_level"]; clone_cost?: number } = {
+        share_level: nextShareLevel,
+      };
+
+      if (nextShareLevel === "public") {
+        payload.clone_cost = Math.max(game.clone_cost ?? 7, 7);
+      }
+
+      const updated = await updateGame(game.id, {
+        ...payload,
+      });
+      setGame(updated);
+      setShareLevelDraft(updated.share_level ?? "private");
+      setCloneCostDraft(String(updated.clone_cost ?? 7));
+      toast({
+        title: t("common.saved"),
+        description: t("cloneGame.visibilitySaved"),
+      });
+    } catch {
+      setShareLevelDraft(previousShareLevel);
+      toast({
+        title: t("common.error"),
+        description: t("cloneGame.visibilitySaveFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setSavingShareStatus(false);
+    }
+  };
+
+  const handleCloneCostSave = async () => {
+    if (!game) {
+      return;
+    }
+
+    if (shareLevelDraft !== "public") {
+      return;
+    }
+
+    const parsedCloneCost = Number(cloneCostDraft);
+    const normalizedCloneCost = Number.isFinite(parsedCloneCost) ? Math.trunc(parsedCloneCost) : NaN;
+    const previousCloneCost = String(game.clone_cost ?? 7);
+
+    if (!Number.isFinite(normalizedCloneCost) || normalizedCloneCost < 7) {
+      toast({
+        title: t("common.error"),
+        description: t("cloneGame.clonePriceMinError"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingCloneCost(true);
+    try {
+      const updated = await updateGame(game.id, {
+        clone_cost: normalizedCloneCost,
+      });
+      setGame(updated);
+      setCloneCostDraft(String(updated.clone_cost ?? normalizedCloneCost));
+      setEditingCloneCost(false);
+      toast({
+        title: t("common.saved"),
+        description: t("cloneGame.clonePriceSaved"),
+      });
+    } catch {
+      setCloneCostDraft(previousCloneCost);
+      toast({
+        title: t("common.error"),
+        description: t("cloneGame.clonePriceSaveFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCloneCost(false);
+    }
   };
 
   if (loading) {
@@ -128,7 +236,6 @@ export default function GameClonePage() {
                 {game.is_active ? t("common.active") : t("common.inactive")}
               </Badge>
             </div>
-            <p id="clone-game-subtitle" className="text-sm text-muted-foreground">{t("common.underConstruction")}</p>
           </div>
         </div>
         <div id="clone-game-nav-wrap" className="flex flex-col gap-2 items-start md:items-end">
@@ -148,9 +255,179 @@ export default function GameClonePage() {
 
         <TabsContent id="clone-game-tab-content-clone-setting" value="clone-setting" className="mt-0 space-y-4">
           <Card id="clone-game-current-card">
-            <CardContent id="clone-game-current-card-content" className="py-10">
-              <div id="clone-game-current-placeholder" className="rounded-lg border border-dashed bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
-                {t("common.underConstruction")}
+            <CardContent id="clone-game-current-card-content" className="p-4">
+              <div id="clone-game-current-settings" className="space-y-4">
+                <div id="clone-game-current-visibility-row" className="space-y-3">
+                  <div id="clone-game-current-visibility-copy" className="min-w-0 space-y-3">
+                    <p id="clone-game-current-visibility-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {t("cloneGame.visibility")}
+                    </p>
+                    <div id="clone-game-current-visibility-explanations" className="space-y-2">
+                      <div
+                        id="clone-game-current-visibility-private"
+                        className={`rounded-md border px-3 py-2 transition-colors ${shareLevelDraft === "private" ? "border-primary bg-primary/5 shadow-sm" : "bg-background"}`}
+                      >
+                        <div id="clone-game-current-visibility-private-header" className="flex items-center justify-between gap-2">
+                          <p id="clone-game-current-visibility-private-title" className="text-sm font-medium">
+                            {t("cloneGame.private")}
+                          </p>
+                          {shareLevelDraft === "private" ? (
+                            <span id="clone-game-current-visibility-private-active" className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                              {t("common.active")}
+                            </span>
+                          ) : (
+                            <Button
+                              id="clone-game-current-visibility-private-select-btn"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleShareLevelChange("private")}
+                            >
+                              {t("common.select")}
+                            </Button>
+                          )}
+                        </div>
+                        <div id="clone-game-current-visibility-private-body" className="mt-1 flex items-end justify-between gap-3">
+                          <p id="clone-game-current-visibility-private-description" className="text-xs text-muted-foreground">
+                            {t("cloneGame.visibilityPrivateDesc")}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        id="clone-game-current-visibility-protected"
+                        className={`rounded-md border px-3 py-2 transition-colors ${shareLevelDraft === "protected" ? "border-primary bg-primary/5 shadow-sm" : "bg-background"}`}
+                      >
+                        <div id="clone-game-current-visibility-protected-header" className="flex items-center justify-between gap-2">
+                          <p id="clone-game-current-visibility-protected-title" className="text-sm font-medium">
+                            {t("cloneGame.protected")}
+                          </p>
+                          {shareLevelDraft === "protected" ? (
+                            <span id="clone-game-current-visibility-protected-active" className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                              {t("common.active")}
+                            </span>
+                          ) : (
+                            <Button
+                              id="clone-game-current-visibility-protected-select-btn"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleShareLevelChange("protected")}
+                            >
+                              {t("common.select")}
+                            </Button>
+                          )}
+                        </div>
+                        <div id="clone-game-current-visibility-protected-body" className="mt-1 flex items-end justify-between gap-3">
+                          <p id="clone-game-current-visibility-protected-description" className="text-xs text-muted-foreground">
+                            {t("cloneGame.visibilityProtectedDesc")}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        id="clone-game-current-visibility-public"
+                        className={`rounded-md border px-3 py-2 transition-colors ${shareLevelDraft === "public" ? "border-primary bg-primary/5 shadow-sm" : "bg-background"}`}
+                      >
+                        <div id="clone-game-current-visibility-public-header" className="flex items-center justify-between gap-2">
+                          <p id="clone-game-current-visibility-public-title" className="text-sm font-medium">
+                            {t("cloneGame.public")}
+                          </p>
+                          {shareLevelDraft === "public" ? (
+                            <span id="clone-game-current-visibility-public-active" className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                              {t("common.active")}
+                            </span>
+                          ) : (
+                            <Button
+                              id="clone-game-current-visibility-public-select-btn"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleShareLevelChange("public")}
+                            >
+                              {t("common.select")}
+                            </Button>
+                          )}
+                        </div>
+                        <div id="clone-game-current-visibility-public-body" className="mt-1 flex items-end justify-between gap-3">
+                          <div id="clone-game-current-visibility-public-copy" className="space-y-1">
+                            <p id="clone-game-current-visibility-public-description" className="text-xs text-muted-foreground">
+                              {t("cloneGame.visibilityPublicDesc")}
+                            </p>
+                            <p id="clone-game-current-visibility-public-price" className="text-xs text-muted-foreground">
+                              {t("cloneGame.clonePricePublicDesc")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {shareLevelDraft === "public" ? (
+                  <div id="clone-game-current-clone-cost-row" className="flex items-start justify-between gap-4 border-t pt-4">
+                    <div id="clone-game-current-clone-cost-copy" className="min-w-0 space-y-1">
+                      <p id="clone-game-current-clone-cost-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("cloneGame.clonePrice")}
+                      </p>
+                      {editingCloneCost ? (
+                        <div id="clone-game-current-clone-cost-edit" className="flex flex-wrap items-center gap-2">
+                          <Input
+                            id="clone-game-current-clone-cost-input"
+                            type="number"
+                            min={7}
+                            step={1}
+                            value={cloneCostDraft}
+                            onChange={(e) => setCloneCostDraft(e.target.value)}
+                            className="w-28"
+                          />
+                          <span id="clone-game-current-clone-cost-unit" className="text-sm text-muted-foreground">
+                            <span id="clone-game-current-clone-cost-unit-icon" aria-hidden="true">
+                              💎
+                            </span>{" "}
+                            {t("cloneGame.clonePriceUnit")}
+                          </span>
+                          <Button id="clone-game-current-clone-cost-save-btn" size="sm" onClick={handleCloneCostSave} disabled={savingCloneCost}>
+                            {savingCloneCost ? <Loader2 id="clone-game-current-clone-cost-save-loading-icon" className="h-4 w-4 animate-spin" /> : <Check id="clone-game-current-clone-cost-save-icon" className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            id="clone-game-current-clone-cost-cancel-btn"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setCloneCostDraft(String(game.clone_cost ?? 7));
+                              setEditingCloneCost(false);
+                            }}
+                            disabled={savingCloneCost}
+                          >
+                            <X id="clone-game-current-clone-cost-cancel-icon" className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p id="clone-game-current-clone-cost-value" className="text-sm font-medium">
+                          {cloneCostValue.toLocaleString("en-US")}{" "}
+                          <span id="clone-game-current-clone-cost-value-unit" className="inline-flex items-center gap-1">
+                            <span id="clone-game-current-clone-cost-value-unit-icon" aria-hidden="true">
+                              💎
+                            </span>
+                            <span id="clone-game-current-clone-cost-value-unit-text">{t("cloneGame.clonePriceUnit")}</span>
+                          </span>
+                        </p>
+                      )}
+                      <p id="clone-game-current-clone-cost-description" className="text-xs text-muted-foreground">
+                        {t("cloneGame.clonePricePublicDesc")}
+                      </p>
+                    </div>
+                    <Button
+                      id="clone-game-current-clone-cost-edit-btn"
+                      variant="ghost"
+                      size="icon"
+                      disabled={savingCloneCost || editingCloneCost}
+                      aria-label={t("common.edit")}
+                      onClick={() => {
+                        setCloneCostDraft(String(game.clone_cost ?? 7));
+                        setEditingCloneCost(true);
+                      }}
+                    >
+                      <Pencil id="clone-game-current-clone-cost-edit-icon" className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>

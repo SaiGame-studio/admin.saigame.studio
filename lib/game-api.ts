@@ -39,6 +39,8 @@ export async function updateGame(gameId: string, gameData: {
     description?: string;
     is_active?: boolean;
     status?: string;
+    share_level?: "private" | "protected" | "public";
+    clone_cost?: number;
     tags?: string[];
     config?: {
         max_players?: number;

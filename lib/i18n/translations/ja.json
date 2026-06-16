@@ -74,7 +74,8 @@
     "validation": "入力エラー",
     "title": "タイトル",
     "summary": "要約",
-    "content": "コンテンツ"
+    "content": "コンテンツ",
+    "select": "選択"
   },
   "shop": {
     "title": "ゲームショップ",
@@ -380,7 +381,22 @@
     "title": "ゲームを複製",
     "loadGameError": "複製対象のゲームを読み込めませんでした。",
     "tabCloneSetting": "現在のゲーム",
-    "tabFromAnotherGame": "複製元"
+    "tabFromAnotherGame": "複製元",
+    "visibility": "公開範囲",
+    "private": "非公開",
+    "protected": "保護",
+    "public": "公開",
+    "visibilityPrivateDesc": "非公開ゲームは複製一覧に表示されません。",
+    "visibilityProtectedDesc": "同じスタジオ内のゲームからのみ複製できます。",
+    "visibilityPublicDesc": "どのスタジオからでも複製できます。",
+    "clonePrice": "複製価格",
+    "clonePriceUnit": "sGem",
+    "clonePricePublicDesc": "デフォルトは 7 sGem で、複製のたびに請求されます。",
+    "visibilitySaved": "公開範囲を更新しました。",
+    "visibilitySaveFailed": "公開範囲を更新できませんでした。",
+    "clonePriceSaved": "複製価格を更新しました。",
+    "clonePriceSaveFailed": "複製価格を更新できませんでした。",
+    "clonePriceMinError": "公開ゲームの複製価格は 7 sGem 以上にしてください。"
   },
   "userProfiles": {
     "title": "ユーザープロフィール",
@@ -3845,4 +3861,3 @@
     "toastFailedDesc": "エラーが発生しました。もう一度お試しください。"
   }
 }
-
