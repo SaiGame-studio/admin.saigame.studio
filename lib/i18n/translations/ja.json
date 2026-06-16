@@ -391,12 +391,13 @@
     "visibilityPublicDesc": "どのスタジオからでも複製できます。",
     "clonePrice": "複製価格",
     "clonePriceUnit": "sGem",
-    "clonePricePublicDesc": "デフォルトは 7 sGem で、複製のたびに請求されます。",
+    "clonePricePublicDesc": "最小 7 sGem。",
     "visibilitySaved": "公開範囲を更新しました。",
     "visibilitySaveFailed": "公開範囲を更新できませんでした。",
     "clonePriceSaved": "複製価格を更新しました。",
     "clonePriceSaveFailed": "複製価格を更新できませんでした。",
-    "clonePriceMinError": "公開ゲームの複製価格は 7 sGem 以上にしてください。"
+    "clonePriceMinError": "公開ゲームの複製価格は 7 sGem 以上にしてください。",
+    "clonePricePayoutDesc": "このゲームを複製するユーザーが支払い、元のゲームの所有者が受け取ります。"
   },
   "userProfiles": {
     "title": "ユーザープロフィール",

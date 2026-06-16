@@ -352,6 +352,9 @@ export default function GameClonePage() {
                             <p id="clone-game-current-visibility-public-price" className="text-xs text-muted-foreground">
                               {t("cloneGame.clonePricePublicDesc")}
                             </p>
+                            <p id="clone-game-current-visibility-public-payout" className="text-xs text-muted-foreground">
+                              {t("cloneGame.clonePricePayoutDesc")}
+                            </p>
                           </div>
                         </div>
                       </div>
