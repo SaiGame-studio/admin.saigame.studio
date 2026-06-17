@@ -5,14 +5,20 @@ import type { RequestType } from '@/types/llm-conversation';
 interface UseConversationRequestTypesParams {
     t: (key: string) => string;
     onError: (message: string) => void;
+    enabled?: boolean;
 }
 
-export function useConversationRequestTypes({ t, onError }: UseConversationRequestTypesParams) {
+export function useConversationRequestTypes({ t, onError, enabled = true }: UseConversationRequestTypesParams) {
     const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
     const [selectedRequestType, setSelectedRequestType] = useState<string>('auto');
     const [autoDetectedType, setAutoDetectedType] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!enabled) {
+            setRequestTypes([]);
+            return;
+        }
+
         listRequestTypes()
             .then((keys) => {
             const auto: RequestType = { key: 'auto', label: t('llmConversation.requestTypes.auto') };
@@ -26,7 +32,7 @@ export function useConversationRequestTypes({ t, onError }: UseConversationReque
             onError(t('llmConversation.errorLoadRequestTypes'));
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [enabled]);
 
     return {
         requestTypes,
