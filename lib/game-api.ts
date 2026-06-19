@@ -15,6 +15,40 @@ export interface CloneSessionResponse {
     message?: string;
 }
 
+export interface CloneSessionProgress {
+    total?: number;
+    processed?: number;
+    completed?: boolean;
+}
+
+export interface CloneSessionWarning {
+    field?: string;
+    message?: string;
+}
+
+export interface CloneSessionEstimatedCost {
+    currency?: string;
+    amount?: number;
+}
+
+export interface CloneSessionLastRunResponse {
+    warnings?: CloneSessionWarning[];
+    estimated_clone_cost?: CloneSessionEstimatedCost;
+}
+
+export interface CloneSessionSnapshot {
+    session_id?: string;
+    source_game_id?: string;
+    target_game_id?: string;
+    status?: string;
+    current_phase?: string;
+    current_batch_index?: number;
+    batch_size?: number;
+    last_run_response?: CloneSessionLastRunResponse;
+    progress?: Record<string, CloneSessionProgress>;
+    message?: string;
+}
+
 export interface ListCloneableGamesParams {
     targetGameId: string;
     name?: string;
@@ -164,4 +198,12 @@ export async function getGameCcu(gameId: string): Promise<GameCcu> {
 export async function getAllGameTags(): Promise<string[]> {
     const data = await api.get(`/api/v1/game-tags`);
     return Array.isArray(data) ? data : (data?.tags ?? []);
+}
+
+export async function getCurrentCloneSession(gameId: string): Promise<CloneSessionSnapshot> {
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current`, { suppressToast: true });
+}
+
+export async function deleteCurrentCloneSession(gameId: string): Promise<void> {
+    await api.post(`/api/v1/games/${gameId}/clone-sessions/current/delete`, undefined, { suppressToast: true });
 }
