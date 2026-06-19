@@ -11,6 +11,7 @@ export interface CloneSessionResponse {
     session_id?: string;
     source_game_id?: string;
     target_game_id?: string;
+    same_studio?: boolean;
     status?: string;
     message?: string;
 }
@@ -40,6 +41,7 @@ export interface CloneSessionSnapshot {
     session_id?: string;
     source_game_id?: string;
     target_game_id?: string;
+    same_studio?: boolean;
     status?: string;
     current_phase?: string;
     current_batch_index?: number;
@@ -135,11 +137,11 @@ export async function listCloneableGames(params: ListCloneableGamesParams): Prom
     };
 }
 
-export async function createCloneSession(sourceGameId: string, targetGameId: string, name: string): Promise<CloneSessionResponse> {
-    return await api.post(`/api/v1/games/${sourceGameId}/clone-sessions`, {
+export async function createCloneSession(targetGameId: string, sourceGameId: string, name: string): Promise<CloneSessionResponse> {
+    return await api.post(`/api/v1/games/${targetGameId}/clone-sessions`, {
         name,
-        target_game_id: targetGameId,
-    });
+        source_game_id: sourceGameId,
+    }, { suppressToast: true });
 }
 // Lấy tất cả item profiles của 1 game
 export async function fetchGameItemProfiles(gameId: string, params?: Record<string, string>): Promise<any[]> {

@@ -141,14 +141,14 @@ Example:
 ```json
 {
   "name": "Game A - Production",
-  "target_game_id": "018f6f4e-9c1a-7b2a-8d2f-1d4e6fdc2a12"
+  "source_game_id": "018f6f2d-9a21-7c2f-8c1d-3f2a9e11b001"
 }
 ```
 
 Important:
 - `name` is required
-- `target_game_id` is required
-- the backend derives `target_studio_id` from the target game
+- `source_game_id` is required
+- the target game is identified by the path parameter
 
 ### Response
 

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { ApiError } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
@@ -102,6 +103,30 @@ function getCloneSessionBadgeVariant(status?: string) {
     return "outline" as const;
 }
 
+function getBooleanBadgeVariant(value?: boolean) {
+    if (value === undefined) {
+        return "outline" as const;
+    }
+
+    return value ? "default" as const : "secondary" as const;
+}
+
+function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
+    const rawMessage = error instanceof ApiError
+        ? (error.data?.message || error.data?.error || error.message)
+        : error instanceof Error
+            ? error.message
+            : "";
+
+    const normalizedMessage = rawMessage.trim().toLowerCase();
+
+    if (normalizedMessage === "insufficient balance") {
+        return t("cloneGame.sourceGameCloneProgressInsufficientBalance");
+    }
+
+    return rawMessage || t("common.error");
+}
+
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -118,6 +143,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
     const [startingClone, setStartingClone] = useState(false);
     const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
+    const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
@@ -202,6 +228,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
     useEffect(() => {
         setCloneSessionId(null);
+        setCloneSessionError(null);
     }, [selectedGameId]);
 
     const handleClearSearch = () => {
@@ -224,18 +251,22 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
 
         setStartingClone(true);
+        setCloneSessionError(null);
         try {
-            const response = await createCloneSession(selectedGame.id, targetGameId, `${selectedGame.name} -> ${targetGameName}`);
+            const response = await createCloneSession(targetGameId, selectedGame.id, `${selectedGame.name} -> ${targetGameName}`);
             setCloneSessionId(response.session_id ?? null);
             void loadCurrentSession();
             toast({
                 title: t("common.saved"),
                 description: t("cloneGame.sourceGameCloneProgressStarted"),
             });
-        } catch {
+        } catch (error) {
+            const description = getCloneSessionErrorMessage(error, t);
+
+            setCloneSessionError(description);
             toast({
                 title: t("common.error"),
-                description: t("cloneGame.sourceGameCloneProgressFailed"),
+                description,
                 variant: "destructive",
             });
         } finally {
@@ -365,6 +396,21 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                 <p id="clone-game-source-current-session-target-id-value" className="break-all font-mono text-xs">
                                     {currentSession.target_game_id || t("common.unknown")}
                                 </p>
+                            </div>
+                            <div id="clone-game-source-current-session-same-studio" className="space-y-1">
+                                <p id="clone-game-source-current-session-same-studio-label" className="text-xs uppercase tracking-wide text-muted-foreground">
+                                    {t("cloneGame.sourceGameCurrentSessionSameStudioLabel")}
+                                </p>
+                                <Badge
+                                    id="clone-game-source-current-session-same-studio-badge"
+                                    variant={getBooleanBadgeVariant(currentSession.same_studio)}
+                                >
+                                    {currentSession.same_studio === undefined
+                                        ? t("common.unknown")
+                                        : currentSession.same_studio
+                                          ? t("common.yes")
+                                          : t("common.no")}
+                                </Badge>
                             </div>
                             <div id="clone-game-source-current-session-batch" className="space-y-1 md:col-span-2">
                                 <p id="clone-game-source-current-session-batch-label" className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -560,6 +606,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     <CardContent id="clone-game-source-selected-content" className="text-sm text-muted-foreground">
                         {selectedGame.description || t("cloneGame.sourceGameNoDescription")}
                     </CardContent>
+                    {cloneSessionError ? (
+                        <div id="clone-game-source-selected-error" className="px-6 pb-2 text-sm text-destructive">
+                            {cloneSessionError}
+                        </div>
+                    ) : null}
                     <CardFooter id="clone-game-source-selected-footer" className="flex flex-wrap items-center justify-end gap-2">
                         {cloneSessionId ? (
                             <span id="clone-game-source-selected-session" className="text-xs text-muted-foreground">
