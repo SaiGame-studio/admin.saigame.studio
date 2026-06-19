@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/lib/i18n/use-translation";
-import { listCloneableGames } from "@/lib/game-api";
+import { createCloneSession, listCloneableGames } from "@/lib/game-api";
 import type { Game } from "@/types/game";
+import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 12;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -63,6 +64,7 @@ function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
 
 export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabProps) {
     const { t } = useTranslation();
+    const { toast } = useToast();
     const [searchInput, setSearchInput] = useState("");
     const [games, setGames] = useState<Game[]>([]);
     const [total, setTotal] = useState(0);
@@ -70,6 +72,8 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+    const [startingClone, setStartingClone] = useState(false);
+    const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const requestSeqRef = useRef(0);
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
@@ -125,6 +129,10 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         return () => window.clearTimeout(timer);
     }, [loadGames, offset, searchInput]);
 
+    useEffect(() => {
+        setCloneSessionId(null);
+    }, [selectedGameId]);
+
     const handleClearSearch = () => {
         setSearchInput("");
         setOffset(0);
@@ -136,6 +144,30 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
     const handleLoadMore = () => {
         setOffset((current) => current + PAGE_SIZE);
+    };
+
+    const handleStartCloneProgress = async () => {
+        if (!selectedGame) {
+            return;
+        }
+
+        setStartingClone(true);
+        try {
+            const response = await createCloneSession(selectedGame.id, targetGameId, `${selectedGame.name} -> ${targetGameName}`);
+            setCloneSessionId(response.session_id ?? null);
+            toast({
+                title: t("common.saved"),
+                description: t("cloneGame.sourceGameCloneProgressStarted"),
+            });
+        } catch {
+            toast({
+                title: t("common.error"),
+                description: t("cloneGame.sourceGameCloneProgressFailed"),
+                variant: "destructive",
+            });
+        } finally {
+            setStartingClone(false);
+        }
     };
 
     const hasMore = offset + games.length < total;
@@ -195,10 +227,19 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
             {selectedGame ? (
                 <Card id="clone-game-source-selected-card" className="border-primary/40 bg-primary/5">
-                    <CardHeader id="clone-game-source-selected-header" className="space-y-2">
+                    <CardHeader id="clone-game-source-selected-header" className="relative space-y-2 pr-36">
                         <CardTitle id="clone-game-source-selected-title" className="text-sm uppercase tracking-wide text-muted-foreground">
                             {t("cloneGame.sourceGameSelected")}
                         </CardTitle>
+                        <Button
+                            id="clone-game-source-start-clone-progress-btn"
+                            type="button"
+                            onClick={() => void handleStartCloneProgress()}
+                            disabled={startingClone}
+                            className="absolute right-4 top-4"
+                        >
+                            {startingClone ? t("common.loading") : t("cloneGame.sourceGameStartCloneProgress")}
+                        </Button>
                         <div id="clone-game-source-selected-copy" className="flex flex-col gap-2">
                             <div id="clone-game-source-selected-title-row" className="flex flex-wrap items-center gap-2">
                                 <span id="clone-game-source-selected-name" className="text-base font-semibold">
@@ -214,7 +255,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                 </p>
                             ) : null}
                             <div id="clone-game-source-selected-id-row" className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
-                                <span id="clone-game-source-selected-id-label">{t("cloneGame.sourceGameIdLabel")}</span>
+                                <span id="clone-game-source-selected-id-label">{t("cloneGame.sourceGameIdLabel")}</span>:
                                 <span id="clone-game-source-selected-id-value" className="break-all">
                                     {selectedGame.id}
                                 </span>
@@ -231,6 +272,13 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     <CardContent id="clone-game-source-selected-content" className="text-sm text-muted-foreground">
                         {selectedGame.description || t("cloneGame.sourceGameNoDescription")}
                     </CardContent>
+                    <CardFooter id="clone-game-source-selected-footer" className="flex flex-wrap items-center justify-end gap-2">
+                        {cloneSessionId ? (
+                            <span id="clone-game-source-selected-session" className="text-xs text-muted-foreground">
+                                {cloneSessionId}
+                            </span>
+                        ) : null}
+                    </CardFooter>
                 </Card>
             ) : null}
 
