@@ -11,13 +11,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { ApiError } from "@/lib/api-client";
 import { createCloneSession, deleteCurrentCloneSession, getCurrentCloneSession, listCloneableGames, type CloneSessionSnapshot } from "@/lib/game-api";
 import type { Game } from "@/types/game";
 import { useToast } from "@/hooks/use-toast";
+import { CurrentCloneSessionCard } from "./CurrentCloneSessionCard";
 
 const PAGE_SIZE = 12;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,29 +27,6 @@ type SourceGameTabProps = {
 };
 
 type TranslationFn = (key: string) => string;
-
-function formatTechnicalLabel(value?: string) {
-    if (!value) {
-        return "";
-    }
-
-    return value
-        .split(/[_-]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-}
-
-function toKebabIdSegment(value?: string) {
-    if (!value) {
-        return "unknown";
-    }
-
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "unknown";
-}
 
 function getVisibilityLabel(game: Game, t: TranslationFn) {
     const shareLevel = game.share_level ?? "private";
@@ -88,30 +64,6 @@ function getVisibilityPriceLabel(game: Game, t: TranslationFn) {
     return `${game.clone_cost ?? 7} ${t("cloneGame.clonePriceUnit")}`;
 }
 
-function getCloneSessionBadgeVariant(status?: string) {
-    if (status === "running" || status === "created") {
-        return "default" as const;
-    }
-
-    if (status === "blocked" || status === "failed") {
-        return "destructive" as const;
-    }
-
-    if (status === "completed") {
-        return "secondary" as const;
-    }
-
-    return "outline" as const;
-}
-
-function getBooleanBadgeVariant(value?: boolean) {
-    if (value === undefined) {
-        return "outline" as const;
-    }
-
-    return value ? "default" as const : "secondary" as const;
-}
-
 function getCloneSessionErrorMessage(error: unknown, t: TranslationFn) {
     const rawMessage = error instanceof ApiError
         ? (error.data?.message || error.data?.error || error.message)
@@ -145,12 +97,12 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const [startingClone, setStartingClone] = useState(false);
     const [cloneSessionId, setCloneSessionId] = useState<string | null>(null);
     const [cloneSessionError, setCloneSessionError] = useState<string | null>(null);
-    const [activeProgressTab, setActiveProgressTab] = useState<string | null>(null);
     const [startConfirmOpen, setStartConfirmOpen] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const requestSeqRef = useRef(0);
 
     const selectedGame = games.find((game) => game.id === selectedGameId) ?? null;
+    const hasCurrentCloneSession = Boolean(currentSession);
 
     const loadGames = useCallback(
         async (nextOffset: number, rawSearch: string) => {
@@ -160,6 +112,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
             setLoading(true);
             setError(null);
+
             try {
                 const response = await listCloneableGames({
                     targetGameId,
@@ -254,6 +207,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
         setStartingClone(true);
         setCloneSessionError(null);
+
         try {
             const response = await createCloneSession(targetGameId, selectedGame.id, `${selectedGame.name} -> ${targetGameName}`);
             setCloneSessionId(response.session_id ?? null);
@@ -274,11 +228,6 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         } finally {
             setStartingClone(false);
         }
-    };
-
-    const confirmStartCloneProgress = async () => {
-        setStartConfirmOpen(false);
-        await handleStartCloneProgress();
     };
 
     const handleDeleteCurrentSession = async () => {
@@ -306,6 +255,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
         }
     };
 
+    const confirmStartCloneProgress = async () => {
+        setStartConfirmOpen(false);
+        await handleStartCloneProgress();
+    };
+
     const confirmDeleteCurrentSession = async () => {
         setDeleteConfirmOpen(false);
         await handleDeleteCurrentSession();
@@ -314,233 +268,18 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
     const hasMore = offset + games.length < total;
     const loadedStart = total > 0 ? offset + 1 : 0;
     const loadedEnd = offset + games.length;
-    const currentSessionWarnings = currentSession?.last_run_response?.warnings ?? [];
-    const currentSessionEstimatedCost = currentSession?.last_run_response?.estimated_clone_cost;
-    const currentSessionProgressEntries = Object.entries(currentSession?.progress ?? {});
-    const hasCurrentCloneSession = Boolean(currentSession);
-
-    useEffect(() => {
-        if (currentSessionProgressEntries.length === 0) {
-            setActiveProgressTab(null);
-            return;
-        }
-
-        setActiveProgressTab((current) => (current && currentSessionProgressEntries.some(([phaseKey]) => phaseKey === current) ? current : currentSessionProgressEntries[0]?.[0] ?? null));
-    }, [currentSessionProgressEntries]);
 
     return (
         <div id="clone-game-source-tab" className="space-y-4">
-            {currentSessionLoading ? (
-                <Card id="clone-game-source-current-session-loading-card" className="border-primary/30">
-                    <CardHeader id="clone-game-source-current-session-loading-header" className="space-y-2">
-                        <Skeleton id="clone-game-source-current-session-loading-title" className="h-5 w-56" />
-                        <Skeleton id="clone-game-source-current-session-loading-description" className="h-4 w-3/4" />
-                    </CardHeader>
-                    <CardContent id="clone-game-source-current-session-loading-content" className="space-y-3">
-                        <Skeleton id="clone-game-source-current-session-loading-line-1" className="h-4 w-full" />
-                        <Skeleton id="clone-game-source-current-session-loading-line-2" className="h-4 w-2/3" />
-                    </CardContent>
-                </Card>
-            ) : currentSessionError ? (
-                <Card id="clone-game-source-current-session-error-card" className="border-destructive">
-                    <CardHeader id="clone-game-source-current-session-error-header">
-                        <CardTitle id="clone-game-source-current-session-error-title">{t("common.error")}</CardTitle>
-                        <CardDescription id="clone-game-source-current-session-error-description">{currentSessionError}</CardDescription>
-                    </CardHeader>
-                    <CardFooter id="clone-game-source-current-session-error-footer" className="flex flex-wrap gap-2">
-                        <Button id="clone-game-source-current-session-error-retry-btn" type="button" variant="outline" onClick={() => void loadCurrentSession()}>
-                            {t("common.retry")}
-                        </Button>
-                    </CardFooter>
-                </Card>
-            ) : currentSession ? (
-                <Card id="clone-game-source-current-session-card" className="border-primary/40 bg-primary/5">
-                    <CardHeader id="clone-game-source-current-session-header" className="space-y-3">
-                        <div id="clone-game-source-current-session-title-row" className="flex flex-wrap items-start justify-between gap-3">
-                            <div id="clone-game-source-current-session-title-copy" className="space-y-1">
-                                <CardTitle id="clone-game-source-current-session-title" className="text-sm uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionTitle")}
-                                </CardTitle>
-                                <CardDescription id="clone-game-source-current-session-description">
-                                    {currentSession.message || t("cloneGame.sourceGameCurrentSessionActiveDesc")}
-                                </CardDescription>
-                            </div>
-                            <div id="clone-game-source-current-session-top-right" className="flex flex-col items-end gap-2 self-start">
-                                <div id="clone-game-source-current-session-session-id-wrap" className="flex items-center gap-1">
-                                    <p
-                                        id="clone-game-source-current-session-session-id-text"
-                                        className="max-w-[220px] truncate font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
-                                    >
-                                        {currentSession.session_id || t("common.unknown")}
-                                    </p>
-                                    {currentSession.session_id ? (
-                                        <CopyButton
-                                            id="clone-game-source-current-session-session-id-copy-btn"
-                                            iconId="clone-game-source-current-session-session-id-copy-icon"
-                                            text={currentSession.session_id}
-                                            size="h-3 w-3"
-                                            className="ml-0"
-                                        />
-                                    ) : null}
-                                </div>
-                                <Badge
-                                    id="clone-game-source-current-session-status-badge"
-                                    variant={getCloneSessionBadgeVariant(currentSession.status)}
-                                >
-                                    {formatTechnicalLabel(currentSession.status) || t("common.unknown")}
-                                </Badge>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent id="clone-game-source-current-session-content" className="space-y-4 text-sm">
-                        <div id="clone-game-source-current-session-meta" className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.8fr)]">
-                            <div id="clone-game-source-current-session-meta-left" className="space-y-3">
-                                <div id="clone-game-source-current-session-phase" className="space-y-1">
-                                    <p id="clone-game-source-current-session-phase-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        {t("cloneGame.sourceGameCurrentSessionPhaseLabel")}
-                                    </p>
-                                    <p id="clone-game-source-current-session-phase-value" className="break-all font-medium">
-                                        {formatTechnicalLabel(currentSession.current_phase) || t("common.unknown")}
-                                    </p>
-                                </div>
-                                <div id="clone-game-source-current-session-source-name" className="space-y-1">
-                                    <p id="clone-game-source-current-session-source-name-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        {t("cloneGame.sourceGameCurrentSessionSourceNameLabel")}
-                                    </p>
-                                    <p id="clone-game-source-current-session-source-name-value" className="break-all font-medium">
-                                        {currentSession.source_game_name || t("common.unknown")}
-                                    </p>
-                                </div>
-                                <div id="clone-game-source-current-session-batch" className="space-y-1">
-                                    <p id="clone-game-source-current-session-batch-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        {t("cloneGame.sourceGameCurrentSessionBatchLabel")}
-                                    </p>
-                                    <p id="clone-game-source-current-session-batch-value" className="font-medium">
-                                        {currentSession.current_batch_index ?? 0} / {currentSession.batch_size ?? 0}
-                                    </p>
-                                </div>
-                            </div>
-                            <div id="clone-game-source-current-session-meta-right" className="space-y-3">
-                                <div id="clone-game-source-current-session-same-studio" className="space-y-1">
-                                    <p id="clone-game-source-current-session-same-studio-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        {t("cloneGame.sourceGameCurrentSessionSameStudioLabel")}
-                                    </p>
-                                    <Badge
-                                        id="clone-game-source-current-session-same-studio-badge"
-                                        variant={getBooleanBadgeVariant(currentSession.same_studio)}
-                                    >
-                                        {currentSession.same_studio === undefined
-                                            ? t("common.unknown")
-                                            : currentSession.same_studio
-                                              ? t("common.yes")
-                                              : t("common.no")}
-                                    </Badge>
-                                </div>
-                                {currentSessionEstimatedCost ? (
-                                    <div id="clone-game-source-current-session-cost" className="space-y-1">
-                                        <p id="clone-game-source-current-session-cost-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                            {t("cloneGame.sourceGameCurrentSessionCostLabel")}
-                                        </p>
-                                        <p id="clone-game-source-current-session-cost-value" className="font-medium">
-                                            {currentSessionEstimatedCost.amount ?? 0} {currentSessionEstimatedCost.currency === "sGem" ? "💎 " : ""}{currentSessionEstimatedCost.currency || t("common.unknown")}
-                                        </p>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-
-                        {currentSessionWarnings.length > 0 ? (
-                            <div id="clone-game-source-current-session-warnings" className="space-y-2 border-t pt-4">
-                                <p id="clone-game-source-current-session-warnings-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionWarningsLabel")}
-                                </p>
-                                <div id="clone-game-source-current-session-warnings-list" className="space-y-2">
-                                    {currentSessionWarnings.map((warning, index) => (
-                                        <div
-                                            id={`clone-game-source-current-session-warning-${toKebabIdSegment(warning.field)}-${index}`}
-                                            key={`${warning.field ?? "warning"}-${index}`}
-                                            className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
-                                        >
-                                            <p id={`clone-game-source-current-session-warning-field-${toKebabIdSegment(warning.field)}-${index}`} className="font-medium text-foreground">
-                                                {formatTechnicalLabel(warning.field) || t("common.unknown")}
-                                            </p>
-                                            <p id={`clone-game-source-current-session-warning-message-${toKebabIdSegment(warning.field)}-${index}`}>{warning.message || t("common.unknown")}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-
-                        {currentSessionProgressEntries.length > 0 ? (
-                            <div id="clone-game-source-current-session-progress" className="space-y-2 border-t pt-4">
-                                <p id="clone-game-source-current-session-progress-label" className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {t("cloneGame.sourceGameCurrentSessionProgressLabel")}
-                                </p>
-                                <Tabs id="clone-game-source-current-session-progress-tabs" value={activeProgressTab ?? currentSessionProgressEntries[0]?.[0] ?? ""} onValueChange={setActiveProgressTab} className="w-full">
-                                    <div id="clone-game-source-current-session-progress-tabs-scroll" className="overflow-x-auto">
-                                        <TabsList id="clone-game-source-current-session-progress-tabs-list" className="mb-3 inline-flex min-w-max">
-                                            {currentSessionProgressEntries.map(([phaseKey], index) => (
-                                                <TabsTrigger
-                                                    id={`clone-game-source-current-session-progress-tab-trigger-${toKebabIdSegment(phaseKey)}`}
-                                                    key={phaseKey}
-                                                    value={phaseKey}
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <span id={`clone-game-source-current-session-progress-tab-index-${toKebabIdSegment(phaseKey)}`} className="text-xs font-semibold tabular-nums">
-                                                        {index + 1}
-                                                    </span>
-                                                    <span id={`clone-game-source-current-session-progress-tab-label-${toKebabIdSegment(phaseKey)}`} className="whitespace-nowrap">
-                                                        {formatTechnicalLabel(phaseKey)}
-                                                    </span>
-                                                </TabsTrigger>
-                                            ))}
-                                        </TabsList>
-                                    </div>
-                                    {currentSessionProgressEntries.map(([phaseKey, progress], index) => (
-                                        <TabsContent
-                                            id={`clone-game-source-current-session-progress-tab-content-${toKebabIdSegment(phaseKey)}`}
-                                            key={phaseKey}
-                                            value={phaseKey}
-                                            className="mt-0"
-                                        >
-                                            <div
-                                                id={`clone-game-source-current-session-progress-item-${toKebabIdSegment(phaseKey)}`}
-                                                className="rounded-md border bg-background px-3 py-2"
-                                            >
-                                                <div id={`clone-game-source-current-session-progress-item-header-${toKebabIdSegment(phaseKey)}`} className="flex items-center justify-between gap-2">
-                                                    <p id={`clone-game-source-current-session-progress-item-phase-${toKebabIdSegment(phaseKey)}`} className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                        {index + 1}. {formatTechnicalLabel(phaseKey)}
-                                                    </p>
-                                                    <Badge id={`clone-game-source-current-session-progress-item-badge-${toKebabIdSegment(phaseKey)}`} variant={progress.completed ? "default" : "outline"}>
-                                                        {progress.completed ? t("common.completed") : t("common.pending")}
-                                                    </Badge>
-                                                </div>
-                                                <p id={`clone-game-source-current-session-progress-item-value-${toKebabIdSegment(phaseKey)}`} className="mt-1 text-sm">
-                                                    {progress.processed ?? 0} / {progress.total ?? 0}
-                                                </p>
-                                            </div>
-                                        </TabsContent>
-                                    ))}
-                                </Tabs>
-                            </div>
-                        ) : null}
-                    </CardContent>
-                    <CardFooter id="clone-game-source-current-session-footer" className="flex flex-wrap items-center justify-end gap-2">
-                        <Button
-                            id="clone-game-source-current-session-delete-btn"
-                            type="button"
-                            variant="destructive"
-                            onClick={() => setDeleteConfirmOpen(true)}
-                            disabled={deletingCurrentSession || currentSessionLoading}
-                        >
-                            {deletingCurrentSession ? t("common.loading") : t("common.delete")}
-                        </Button>
-                        <Button id="clone-game-source-current-session-refresh-btn" type="button" variant="outline" onClick={() => void loadCurrentSession()}>
-                            {t("common.refresh")}
-                        </Button>
-                    </CardFooter>
-                </Card>
-            ) : null}
+            <CurrentCloneSessionCard
+                targetGameId={targetGameId}
+                currentSession={currentSession}
+                currentSessionLoading={currentSessionLoading}
+                currentSessionError={currentSessionError}
+                deletingCurrentSession={deletingCurrentSession}
+                onRetry={handleRefresh}
+                onDelete={() => setDeleteConfirmOpen(true)}
+            />
 
             <AlertDialog open={startConfirmOpen} onOpenChange={setStartConfirmOpen}>
                 <AlertDialogContent id="clone-game-source-start-confirm-dialog">
@@ -664,71 +403,71 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
 
             {!hasCurrentCloneSession ? (
                 <div id="clone-game-source-search-wrap" className="space-y-2">
-                <Label id="clone-game-source-search-label" htmlFor="clone-game-source-search-input">
-                    {t("cloneGame.sourceGameSearchLabel")}
-                </Label>
-                <div id="clone-game-source-search-row" className="flex flex-wrap items-start gap-2">
-                    <div id="clone-game-source-search-field" className="relative min-w-0 flex-1">
-                        <Search id="clone-game-source-search-icon" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            id="clone-game-source-search-input"
-                            value={searchInput}
-                            onChange={(event) => {
-                                setSearchInput(event.target.value);
-                                if (offset !== 0) {
-                                    setOffset(0);
-                                }
-                            }}
-                            placeholder={t("cloneGame.sourceGameSearchPlaceholder")}
-                            className="pl-9 pr-24"
-                            autoComplete="off"
-                        />
-                        {searchInput ? (
-                            <Button
-                                id="clone-game-source-clear-search-btn"
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-1 top-1/2 h-8 -translate-y-1/2 px-2"
-                                onClick={handleClearSearch}
-                            >
-                                <X id="clone-game-source-clear-search-icon" className="h-4 w-4" />
-                            </Button>
-                        ) : null}
+                    <Label id="clone-game-source-search-label" htmlFor="clone-game-source-search-input">
+                        {t("cloneGame.sourceGameSearchLabel")}
+                    </Label>
+                    <div id="clone-game-source-search-row" className="flex flex-wrap items-start gap-2">
+                        <div id="clone-game-source-search-field" className="relative min-w-0 flex-1">
+                            <Search id="clone-game-source-search-icon" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                id="clone-game-source-search-input"
+                                value={searchInput}
+                                onChange={(event) => {
+                                    setSearchInput(event.target.value);
+                                    if (offset !== 0) {
+                                        setOffset(0);
+                                    }
+                                }}
+                                placeholder={t("cloneGame.sourceGameSearchPlaceholder")}
+                                className="pl-9 pr-24"
+                                autoComplete="off"
+                            />
+                            {searchInput ? (
+                                <Button
+                                    id="clone-game-source-clear-search-btn"
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2 px-2"
+                                    onClick={handleClearSearch}
+                                >
+                                    <X id="clone-game-source-clear-search-icon" className="h-4 w-4" />
+                                </Button>
+                            ) : null}
+                        </div>
+                        <Button
+                            id="clone-game-source-refresh-btn"
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            aria-label={t("common.refresh")}
+                            title={t("common.refresh")}
+                            className="shrink-0"
+                        >
+                            {loading ? <Loader2 id="clone-game-source-refresh-loading-icon" className="h-4 w-4 animate-spin" /> : <RefreshCw id="clone-game-source-refresh-icon" className="h-4 w-4" />}
+                        </Button>
                     </div>
-                    <Button
-                        id="clone-game-source-refresh-btn"
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleRefresh}
-                        disabled={loading}
-                        aria-label={t("common.refresh")}
-                        title={t("common.refresh")}
-                        className="shrink-0"
-                    >
-                        {loading ? <Loader2 id="clone-game-source-refresh-loading-icon" className="h-4 w-4 animate-spin" /> : <RefreshCw id="clone-game-source-refresh-icon" className="h-4 w-4" />}
-                    </Button>
-                </div>
                 </div>
             ) : null}
 
             {!hasCurrentCloneSession && loading && games.length === 0 ? (
-                <div id="clone-game-source-skeleton-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                        <Card id={`clone-game-source-skeleton-card-${index}`} key={`clone-game-source-skeleton-${index}`}>
-                            <CardHeader id={`clone-game-source-skeleton-header-${index}`} className="space-y-3">
-                                <Skeleton id={`clone-game-source-skeleton-title-${index}`} className="h-5 w-3/4" />
-                                <Skeleton id={`clone-game-source-skeleton-badge-${index}`} className="h-4 w-24" />
-                            </CardHeader>
-                            <CardContent id={`clone-game-source-skeleton-content-${index}`} className="space-y-2">
-                                <Skeleton id={`clone-game-source-skeleton-line-1-${index}`} className="h-4 w-full" />
-                                <Skeleton id={`clone-game-source-skeleton-line-2-${index}`} className="h-4 w-2/3" />
-                                <Skeleton id={`clone-game-source-skeleton-line-3-${index}`} className="h-4 w-1/2" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                    <div id="clone-game-source-skeleton-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                            <Card id={`clone-game-source-skeleton-card-${index}`} key={`clone-game-source-skeleton-${index}`}>
+                                <CardHeader id={`clone-game-source-skeleton-header-${index}`} className="space-y-3">
+                                    <div id={`clone-game-source-skeleton-title-${index}`} className="h-5 w-3/4 rounded bg-muted" />
+                                    <div id={`clone-game-source-skeleton-badge-${index}`} className="h-4 w-24 rounded bg-muted" />
+                                </CardHeader>
+                                <CardContent id={`clone-game-source-skeleton-content-${index}`} className="space-y-2">
+                                    <div id={`clone-game-source-skeleton-line-1-${index}`} className="h-4 w-full rounded bg-muted" />
+                                    <div id={`clone-game-source-skeleton-line-2-${index}`} className="h-4 w-2/3 rounded bg-muted" />
+                                    <div id={`clone-game-source-skeleton-line-3-${index}`} className="h-4 w-1/2 rounded bg-muted" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
             ) : !hasCurrentCloneSession && error ? (
                 <Card id="clone-game-source-error-card" className="border-destructive">
                     <CardHeader id="clone-game-source-error-header">
@@ -850,7 +589,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     </div>
 
                     {hasMore ? (
-                <Card id="clone-game-source-more-card">
+                        <Card id="clone-game-source-more-card">
                             <CardContent id="clone-game-source-more-content" className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div id="clone-game-source-more-copy" className="space-y-1">
                                     <p id="clone-game-source-more-title" className="text-sm font-medium">

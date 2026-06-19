@@ -446,6 +446,7 @@
     "sourceGameCurrentSessionPhaseLabel": "Current phase",
     "sourceGameCurrentSessionBatchLabel": "Batch progress",
     "sourceGameCurrentSessionCostLabel": "Clone cost",
+    "sourceGameCurrentSessionItemCategoryLabel": "Category",
     "sourceGameCurrentSessionWarningsLabel": "Warnings",
     "sourceGameCurrentSessionProgressLabel": "Progress"
   },

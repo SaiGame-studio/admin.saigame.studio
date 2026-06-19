@@ -446,6 +446,7 @@
     "sourceGameCurrentSessionPhaseLabel": "現在のフェーズ",
     "sourceGameCurrentSessionBatchLabel": "バッチ進捗",
     "sourceGameCurrentSessionCostLabel": "複製コスト",
+    "sourceGameCurrentSessionItemCategoryLabel": "カテゴリ",
     "sourceGameCurrentSessionWarningsLabel": "警告",
     "sourceGameCurrentSessionProgressLabel": "進捗"
   },

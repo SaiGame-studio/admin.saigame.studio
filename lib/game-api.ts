@@ -53,6 +53,24 @@ export interface CloneSessionSnapshot {
     message?: string;
 }
 
+export interface CloneSessionCurrentItemDefinition {
+    id: string;
+    game_id: string;
+    item_code: string;
+    name: string;
+    category?: string;
+    rarity?: string;
+}
+
+export interface CloneSessionCurrentItemsResponse {
+    session_id?: string;
+    source_game_id?: string;
+    source_game_name?: string;
+    target_game_id?: string;
+    total?: number;
+    items?: CloneSessionCurrentItemDefinition[];
+}
+
 export interface ListCloneableGamesParams {
     targetGameId: string;
     name?: string;
@@ -205,6 +223,10 @@ export async function getAllGameTags(): Promise<string[]> {
 
 export async function getCurrentCloneSession(gameId: string): Promise<CloneSessionSnapshot> {
     return await api.get(`/api/v1/games/${gameId}/clone-sessions/current`, { suppressToast: true });
+}
+
+export async function getCurrentCloneSessionItems(gameId: string): Promise<CloneSessionCurrentItemsResponse> {
+    return await api.get(`/api/v1/games/${gameId}/clone-sessions/current/items`, { suppressToast: true });
 }
 
 export async function deleteCurrentCloneSession(gameId: string): Promise<void> {

@@ -286,6 +286,45 @@ Use this endpoint when:
 
 ---
 
+### Current Session Item Definitions
+
+### Request
+
+`GET /api/v1/games/{target_game_id}/clone-sessions/current/items`
+
+### Response
+
+Example:
+
+```json
+{
+  "session_id": "018f6f4d-4b0f-7c9a-8d2f-1d4e6fdc2a11",
+  "source_game_id": "018f6f2d-9a21-7c2f-8c1d-3f2a9e11b001",
+  "source_game_name": "Template A",
+  "target_game_id": "018f6f4e-9c1a-7b2a-8d2f-1d4e6fdc2a12",
+  "total": 2,
+  "items": [
+    {
+      "id": "018f6f4a-1111-7c9a-8d2f-1d4e6fdc2a10",
+      "game_id": "018f6f2d-9a21-7c2f-8c1d-3f2a9e11b001",
+      "item_code": "SWORD_001",
+      "name": "Bronze Sword",
+      "category": "equipment",
+      "rarity": "common"
+    }
+  ]
+}
+```
+
+### Frontend behavior
+
+- Call this endpoint when the user opens the `Item Definitions` tab inside the current session progress view.
+- Use the `items` array to render the list for the selected phase.
+- Use `total` to show the number of available item definitions.
+- Keep the request lazy so the UI only loads item rows when the user actually inspects that tab.
+
+---
+
 ## 7. Delete Session
 
 ### Request

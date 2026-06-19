@@ -446,6 +446,7 @@
     "sourceGameCurrentSessionPhaseLabel": "Giai đoạn hiện tại",
     "sourceGameCurrentSessionBatchLabel": "Tiến độ batch",
     "sourceGameCurrentSessionCostLabel": "Chi phí clone",
+    "sourceGameCurrentSessionItemCategoryLabel": "Danh mục",
     "sourceGameCurrentSessionWarningsLabel": "Cảnh báo",
     "sourceGameCurrentSessionProgressLabel": "Tiến độ"
   },
