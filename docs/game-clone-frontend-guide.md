@@ -52,7 +52,7 @@ Current backend behavior:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/v1/games/cloneable` | List cloneable source games |
+| `GET` | `/api/v1/games/{game_id}/cloneable` | List cloneable source games |
 | `POST` | `/api/v1/games/{game_id}/clone-sessions` | Create a clone session |
 | `POST` | `/api/v1/game-clone-sessions/{session_id}/run` | Process the next batch |
 | `GET` | `/api/v1/game-clone-sessions/{session_id}` | Restore current session state |
@@ -66,10 +66,9 @@ The create route is game-scoped. The other routes use the session ID directly.
 
 ### Request
 
-`GET /api/v1/games/cloneable?target_game_id={uuid}&name={optional}&game_id={optional}&limit={optional}&offset={optional}`
+`GET /api/v1/games/{game_id}/cloneable?name={optional}&game_id={optional}&limit={optional}&offset={optional}`
 
 Query parameters:
-- `target_game_id` is required and is used to derive the target studio
 - `name` is an optional partial search on game name
 - `game_id` is an optional exact source-game filter
 - `limit` and `offset` are optional pagination parameters
@@ -121,7 +120,7 @@ Example:
 ### Frontend behavior
 
 - Call this endpoint to populate the source-game picker.
-- Send `target_game_id` from the destination game the user wants to clone into.
+- Put the destination game ID in the path: `/api/v1/games/{game_id}/cloneable`.
 - Use `name` for partial search when the user types text.
 - Use `game_id` for exact lookup when the user pastes a UUID.
 - Show only the returned `games` array in the picker.

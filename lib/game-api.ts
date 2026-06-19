@@ -116,7 +116,6 @@ export async function getAllGames(): Promise<Game[]> {
 
 export async function listCloneableGames(params: ListCloneableGamesParams): Promise<CloneableGamesResponse> {
     const searchParams = new URLSearchParams({
-        target_game_id: params.targetGameId,
         offset: String(params.offset ?? 0),
     });
 
@@ -128,7 +127,7 @@ export async function listCloneableGames(params: ListCloneableGamesParams): Prom
         searchParams.set("game_id", params.gameId);
     }
 
-    const data = await api.get(`/api/v1/games/cloneable?${searchParams.toString()}`);
+    const data = await api.get(`/api/v1/games/${params.targetGameId}/cloneable?${searchParams.toString()}`);
     const total = Number(data?.total ?? 0);
     return {
         games: Array.isArray(data?.games) ? data.games : [],
