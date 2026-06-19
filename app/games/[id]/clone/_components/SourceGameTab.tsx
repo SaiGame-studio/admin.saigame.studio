@@ -335,6 +335,7 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                     <div id="clone-game-source-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {games.map((game) => {
                             const isSelected = selectedGameId === game.id;
+                            const isCurrentGame = game.id === targetGameId;
                             const visibilityLabel = getVisibilityLabel(game, t);
                             const visibilityPriceLabel = getVisibilityPriceLabel(game, t);
 
@@ -355,6 +356,11 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                                         <ExternalLink id={`clone-game-source-card-link-icon-${game.id}`} className="h-4 w-4 shrink-0" />
                                                     </Link>
                                                 </CardTitle>
+                                                {isCurrentGame ? (
+                                                    <Badge id={`clone-game-source-card-current-badge-${game.id}`} variant="outline">
+                                                        {t("cloneGame.sourceGameYourGame")}
+                                                    </Badge>
+                                                ) : null}
                                             </div>
                                         </div>
                                         <div id={`clone-game-source-card-id-row-${game.id}`} className="flex flex-wrap items-center gap-1 text-xs font-mono text-muted-foreground">
@@ -386,8 +392,15 @@ export function SourceGameTab({ targetGameId, targetGameName }: SourceGameTabPro
                                         ) : null}
                                     </CardContent>
                                     <CardFooter id={`clone-game-source-card-footer-${game.id}`} className="mt-auto flex flex-wrap items-center justify-between gap-2">
-                                        <Button id={`clone-game-source-card-select-btn-${game.id}`} type="button" variant={isSelected ? "default" : "outline"} onClick={() => setSelectedGameId(game.id)} className="self-center">
-                                            {isSelected ? t("cloneGame.sourceGameSelected") : t("cloneGame.sourceGameSelect")}
+                                        <Button
+                                            id={`clone-game-source-card-select-btn-${game.id}`}
+                                            type="button"
+                                            variant={isSelected ? "default" : "outline"}
+                                            onClick={() => setSelectedGameId(game.id)}
+                                            className="self-center"
+                                            disabled={isCurrentGame}
+                                        >
+                                            {isCurrentGame ? t("cloneGame.sourceGameYourGame") : isSelected ? t("cloneGame.sourceGameSelected") : t("cloneGame.sourceGameSelect")}
                                         </Button>
                                         <div id={`clone-game-source-card-visibility-wrap-${game.id}`} className="flex items-center gap-2 text-right">
                                             {visibilityPriceLabel ? (
